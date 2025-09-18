@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package api.order.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/ecommerce/api/order/v1;v1";
+
+// ===================================
+// Message Definitions
+// ===================================
+
+message OrderInfo {
+  uint64 order_id = 1;
+  uint64 user_id = 2;
+  uint64 total_amount = 3;
+  uint64 payment_amount = 4;
+  int32 status = 5;
+  // ... more fields
+}
+
+message OrderItem {
+  uint64 sku_id = 1;
+  string product_title = 2;
+  string product_image = 3;
+  uint64 price = 4;
+  uint32 quantity = 5;
+}
+
+// ===================================
+// Service Definition
+// ===================================
+
+service Order {
+  // 创建订单
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/orders"
+      body: "*"
+    };
+  }
+  // 获取订单详情
+  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse) {
+    option (google.api.http) = {
+      get: "/v1/orders/{order_id}"
+    };
+  }
+
+  // 获取支付链接
+  rpc GetPaymentURL(GetPaymentURLRequest) returns (GetPaymentURLResponse) {}
+
+  // 接收支付异步通知 (此接口由支付宝服务器调用，不在网关中通过HTTP注解暴露)
+  rpc ProcessPaymentNotification(ProcessPaymentNotificationRequest) returns (ProcessPaymentNotificationResponse) {}
+}
+
+// --- Request/Response Messages ---
+
+message CreateOrderRequestItem {
+  uint64 sku_id = 1;
+  uint32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  uint64 user_id = 1;
+  repeated CreateOrderRequestItem items = 2;
+  uint64 address_id = 3; // 用户选择的收货地址ID
+  string remark = 4; // 用户备注
+}
+
+message CreateOrderResponse {
+  uint64 order_id = 1;
+}
+
+message GetOrderDetailRequest {
+  uint64 user_id = 1;
+  uint64 order_id = 2;
+}
+
+message GetOrderDetailResponse {
+  OrderInfo order = 1;
+  repeated OrderItem items = 2;
+}
+
+message GetPaymentURLRequest {
+  uint64 user_id = 1;
+  uint64 order_id = 2;
+}
+
+message GetPaymentURLResponse {
+  string payment_url = 1;
+}
+
+message ProcessPaymentNotificationRequest {
+  map<string, string> notification_data = 1; // 接收支付宝POST的Form数据
+}
+
+message ProcessPaymentNotificationResponse {
+  // 成功时为空
+}

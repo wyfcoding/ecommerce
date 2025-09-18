@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package api.cart.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/ecommerce/api/cart/v1;v1";
+
+// ===================================
+// Message Definitions
+// ===================================
+
+// 购物车商品信息
+message CartItem {
+  uint64 sku_id = 1;
+  uint32 quantity = 2;
+  bool checked = 3; // 是否被勾选，用于下单
+  google.protobuf.Timestamp added_at = 4;
+
+  // 以下为冗余的商品信息，用于在购物车页面直接展示，避免额外查询商品服务
+  string spu_title = 5;
+  string sku_title = 6;
+  string sku_image = 7;
+  uint64 price = 8; // 当前价格，单位分
+}
+
+// ===================================
+// Service Definition
+// ===================================
+
+service Cart {
+  // 添加商品到购物车
+  rpc AddItem(AddItemRequest) returns (AddItemResponse) {
+    option (google.api.http) = {
+      post: "/v1/cart/items"
+      body: "*"
+    };
+  }
+
+  // 获取用户的购物车
+  rpc GetCart(GetCartRequest) returns (GetCartResponse) {
+    option (google.api.http) = {
+      get: "/v1/cart"
+    };
+  }
+
+  // 更新购物车中的商品（数量、选中状态）
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse) {
+    option (google.api.http) = {
+      put: "/v1/cart/items/{sku_id}"
+      body: "*"
+    };
+  }
+
+  // 从购物车移除商品
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse) {
+    option (google.api.http) = {
+      delete: "/v1/cart/items"
+    };
+  }
+
+  // 获取购物车商品总数（用于导航栏icon）
+  rpc GetCartItemCount(GetCartItemCountRequest) returns (GetCartItemCountResponse) {
+     option (google.api.http) = {
+      get: "/v1/cart/count"
+    };
+  }
+}
+
+// --- Request/Response Messages ---
+
+message AddItemRequest {
+  uint64 user_id = 1; // 由网关解析 JWT 后填入
+  uint64 sku_id = 2;
+  uint32 quantity = 3;
+}
+message AddItemResponse {}
+
+message GetCartRequest {
+  uint64 user_id = 1; // 由网关解析 JWT 后填入
+}
+message GetCartResponse {
+  repeated CartItem items = 1;
+}
+
+message UpdateItemRequest {
+  uint64 user_id = 1; // 由网关解析 JWT 后填入
+  uint64 sku_id = 2;
+  optional uint32 quantity = 3; // 使用 optional 表示可选择更新
+  optional bool checked = 4;
+}
+message UpdateItemResponse {}
+
+message RemoveItemRequest {
+  uint64 user_id = 1; // 由网关解析 JWT 后填入
+  repeated uint64 sku_ids = 2; // 支持批量删除
+}
+message RemoveItemResponse {}
+
+message GetCartItemCountRequest {
+  uint64 user_id = 1;
+}
+message GetCartItemCountResponse {
+  uint32 count = 1;
+}

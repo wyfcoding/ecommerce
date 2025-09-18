@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package api.marketing.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/ecommerce/api/marketing/v1;v1";
+
+// ===================================
+// Service Definition
+// ===================================
+service Marketing {
+  // --- Admin Facing ---
+  // 创建优惠券模板
+  rpc CreateCouponTemplate(CreateCouponTemplateRequest) returns (CreateCouponTemplateResponse) {}
+
+  // --- User Facing ---
+  // 用户领取优惠券
+  rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse) {
+    option (google.api.http) = {
+      post: "/v1/coupons/claim"
+      body: "*"
+    };
+  }
+  // 查看我的优惠券
+  rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse) {
+    option (google.api.http) = {
+      get: "/v1/my/coupons"
+    };
+  }
+
+  // --- Internal Service Facing ---
+  // 为订单服务计算优惠金额
+  rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse) {}
+}
+
+// ===================================
+// Message Definitions
+// ===================================
+
+// --- Admin ---
+message CreateCouponTemplateRequest {
+  // ... 包含模板表的所有字段 ...
+}
+message CreateCouponTemplateResponse {
+  uint64 template_id = 1;
+}
+
+// --- User ---
+message ClaimCouponRequest {
+  uint64 user_id = 1;
+  uint64 template_id = 2;
+}
+message ClaimCouponResponse {}
+
+message UserCouponInfo {
+  uint64 user_coupon_id = 1;
+  uint64 template_id = 2;
+  string title = 3;
+  int32 status = 4;
+  string valid_from = 5;
+  string valid_to = 6;
+  // ... 其他需要在前端展示的规则信息
+}
+message ListMyCouponsRequest {
+  uint64 user_id = 1;
+  int32 status = 2; // 1-未使用, 2-已使用, 3-已过期
+}
+message ListMyCouponsResponse {
+  repeated UserCouponInfo coupons = 1;
+}
+
+// --- Internal ---
+message OrderItemInfo {
+  uint64 sku_id = 1;
+  uint64 spu_id = 2;
+  uint64 category_id = 3;
+  uint64 price = 4;
+  uint32 quantity = 5;
+}
+message CalculateDiscountRequest {
+  uint64 user_id = 1;
+  string coupon_code = 2;
+  repeated OrderItemInfo items = 3;
+}
+message CalculateDiscountResponse {
+  uint64 discount_amount = 1; // 优惠的金额(分)
+  uint64 final_amount = 2; // 优惠后的金额(分)
+}
