@@ -10,11 +10,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	// ...
-	orderServiceMetricsPort = "9093" // 为 order-service 分配一个指标端口
-)
-
 type OrderService struct {
 	v1.UnimplementedOrderServer
 	uc *biz.OrderUsecase
