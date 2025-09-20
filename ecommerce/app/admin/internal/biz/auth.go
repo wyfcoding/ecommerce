@@ -7,7 +7,7 @@ import (
 
 	"ecommerce/ecommerce/pkg/jwt" // 复用我们之前的JWT包
 
-	"golang.orgorg/x/crypto/bcrypt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // AdminUser 是管理员用户的领域模型

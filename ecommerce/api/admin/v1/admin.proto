@@ -18,9 +18,6 @@ service Admin {
     };
   }
 
-  // --- RBAC 管理 ---
-  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {}
-  // ... 其他 RBAC 管理接口 ...
 
   // --- 业务代理 (BFF) ---
   // 以订单为例

@@ -3,7 +3,7 @@ package biz
 import (
 	"context"
 
-	"golang.org.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // RbacRepo 定义了 RBAC 管理所需的数据仓库接口
