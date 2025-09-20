@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 
@@ -15,16 +16,37 @@ import (
 	"ecommerce/ecommerce/app/order/internal/data"
 	"ecommerce/ecommerce/app/order/internal/service"
 	"ecommerce/ecommerce/pkg/snowflake"
-)
+
+	"git.example.com/your_org/genesis/pkg/metrics"
+	"git.example.com/your_org/genesis/pkg/tracing"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 const (
-	orderServicePort   = ":9003"
-	productServiceAddr = "localhost:9001"
-	cartServiceAddr    = "localhost:9002"
+	orderServicePort        = ":9003"
+	productServiceAddr      = "localhost:9001"
+	cartServiceAddr         = "localhost:9002"
+	orderServiceMetricsPort = "9093" // 为 order-service 分配一个指标端口
+	jaegerEndpoint          = "http://localhost:14268/api/traces"
 )
 
 func main() {
 	// --- 1. 初始化依赖 ---
+
+	// --- 1. 初始化和暴露 Metrics ---
+	metrics.InitMetrics()
+	go metrics.ExposeHttp(orderServiceMetricsPort)
+
+	// --- 新增：初始化和关闭 Tracer ---
+	tp, err := tracing.InitTracer("order-service", jaegerEndpoint)
+	if err != nil {
+		log.Fatalf("failed to init tracer: %v", err)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+	}()
 
 	// 初始化 Snowflake (machineID 应唯一)
 	if err := snowflake.Init("2025-01-01", 3); err != nil {
@@ -40,15 +62,27 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	// 初始化到 Product Service 的 gRPC 客户端连接
-	productSvcConn, err := grpc.Dial(productServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 在 gRPC Client 端应用拦截器链
+	productSvcConn, err := grpc.Dial(productServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor( // 使用拦截器链
+			grpc_prometheus.UnaryClientInterceptor,
+			otelgrpc.UnaryClientInterceptor(), // 添加 Tracing 客户端拦截器
+		),
+	)
 	if err != nil {
 		log.Fatalf("failed to connect to product service: %v", err)
 	}
 	defer productSvcConn.Close()
 
 	// 初始化到 Cart Service 的 gRPC 客户端连接
-	cartSvcConn, err := grpc.Dial(cartServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cartSvcConn, err := grpc.Dial(cartServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(
+			grpc_prometheus.UnaryClientInterceptor,
+			otelgrpc.UnaryClientInterceptor(), // 添加 Tracing 客户端拦截器
+		),
+	)
 	if err != nil {
 		log.Fatalf("failed to connect to cart service: %v", err)
 	}
@@ -67,7 +101,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	// 在 gRPC Server 端应用拦截器链
+	s := grpc.NewServer(
+		grpc.WithChainUnaryInterceptor( // 使用拦截器链
+			grpc_prometheus.UnaryServerInterceptor,
+			otelgrpc.UnaryServerInterceptor(), // 添加 Tracing 服务端拦截器
+		),
+	)
+
+	// 为 gRPC Server 注册 prometheus 指标
+	grpc_prometheus.Register(s)
 	orderV1.RegisterOrderServer(s, orderService)
 
 	log.Printf("gRPC server (order-service) listening at %s", orderServicePort)

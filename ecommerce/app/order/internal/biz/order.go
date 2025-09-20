@@ -7,6 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"ecommerce/ecommerce/pkg/logging"
+	"ecommerce/ecommerce/pkg/metrics"
+
+	"go.uber.org/zap"
 )
 
 // --- Domain Models ---
@@ -79,6 +84,13 @@ func NewOrderUsecase(repo OrderRepo, p Greeter, c Greeter) *OrderUsecase {
 
 // CreateOrder 是创建订单的核心业务逻辑
 func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems []*CreateOrderRequestItem) (*Order, error) {
+	// 使用带有 context 的 logger
+	logger := logging.For(ctx)
+
+	logger.Info("Starting to create order",
+		zap.Uint64("user_id", userID),
+		zap.Int("item_count", len(reqItems)),
+	)
 	// 1. 准备数据：提取所有 skuID
 	skuIDs := make([]uint64, 0, len(reqItems))
 	reqItemMap := make(map[uint64]*CreateOrderRequestItem, len(reqItems))
@@ -90,6 +102,10 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 	// 2. [跨服务调用] 调用商品服务，批量获取最新的商品信息
 	skuInfos, err := uc.product.GetSkuInfos(ctx, skuIDs)
 	if err != nil {
+		logger.Error("Failed to get sku info from product-service",
+			zap.Error(err),
+			zap.Any("requested_sku_ids", skuIDs),
+		)
 		return nil, fmt.Errorf("failed to get sku info: %w", err)
 	}
 	if len(skuInfos) != len(reqItems) {
@@ -141,14 +157,30 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 	if err != nil {
 		// 如果数据库写入失败，需要调用 UnlockStock 进行库存补偿
 		// uc.product.UnlockStock(ctx, orderItems)
+
+		// 更新自定义指标：创建失败
+		metrics.OrdersCreatedCounter.WithLabelValues("failure").Inc()
+
 		return nil, fmt.Errorf("failed to save order: %w", err)
 	}
 
 	// 7. [跨服务调用] 清理购物车中已下单的商品
 	if err := uc.cart.ClearCartItems(ctx, userID, skuIDs); err != nil {
-		// 此处失败通常不应影响订单创建成功，但需要记录日志进行后续处理
-		// log.Errorf("failed to clear cart items for user %d: %v", userID, err)
+		// 清理购物车失败不是关键错误，只需记录警告
+		logger.Warn("Failed to clear cart items, requires manual intervention",
+			zap.Uint64("user_id", userID),
+			zap.Any("sku_ids_to_clear", skuIDs),
+			zap.Error(err),
+		)
 	}
+
+	// 更新自定义指标：创建成功
+	metrics.OrdersCreatedCounter.WithLabelValues("success").Inc()
+
+	logger.Info("Order created successfully",
+		zap.Uint64("order_id", createdOrder.OrderID),
+		zap.Uint64("user_id", userID),
+	)
 
 	return createdOrder, nil
 }

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package api.search.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/ecommerce/api/search/v1;v1";
+
+// ===================================
+// Message Definitions
+// ===================================
+
+message ProductHit {
+  uint64 spu_id = 1;
+  string title = 2;
+  string sub_title = 3;
+  string main_image = 4;
+  uint64 price = 5;
+  // ... 其他需要在搜索結果頁展示的字段
+}
+
+// ===================================
+// Service Definition
+// ===================================
+
+service Search {
+  // 搜索商品
+  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse) {
+    option (google.api.http) = {
+      get: "/v1/search/products"
+    };
+  }
+}
+
+// --- Request/Response Messages ---
+
+message SearchProductsRequest {
+  string keyword = 1;
+  optional uint64 category_id = 2;
+  optional uint64 brand_id = 3;
+  string sort_by = 4; // e.g. "relevance", "price_asc", "price_desc"
+  uint32 page = 5;
+  uint32 page_size = 6;
+}
+
+message SearchProductsResponse {
+  repeated ProductHit hits = 1;
+  uint64 total = 2;
+  // Facets/Aggregations can be added here in the future
+}
