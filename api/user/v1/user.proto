@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package api.user.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/user/v1;v1";
+
+// 用户服务定义
+service User {
+  // 通过用户名密码注册
+  rpc RegisterByPassword(RegisterByPasswordRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/v1/user/register"
+      body: "*"
+    };
+  }
+  // 通过用户名密码登录
+  rpc LoginByPassword(LoginByPasswordRequest) returns (LoginByPasswordResponse) {
+    option (google.api.http) = {
+      post: "/v1/user/login"
+      body: "*"
+    };
+  }
+  // 根据用户ID获取用户信息
+  rpc GetUserByID(GetUserByIDRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      get: "/v1/user/{user_id}"
+    };
+  }
+  // 更新用户信息
+  rpc UpdateUserInfo(UpdateUserInfoRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      put: "/v1/user/{user_id}"
+      body: "*"
+    };
+  }
+
+  // --- 地址管理 ---
+  // 添加收货地址
+  rpc AddAddress(AddAddressRequest) returns (Address) {
+    option (google.api.http) = {
+      post: "/v1/user/{user_id}/addresses"
+      body: "*"
+    };
+  }
+  // 更新收货地址
+  rpc UpdateAddress(UpdateAddressRequest) returns (Address) {
+    option (google.api.http) = {
+      put: "/v1/user/{user_id}/addresses/{id}"
+      body: "*"
+    };
+  }
+  // 删除收货地址
+  rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/user/{user_id}/addresses/{id}"
+    };
+  }
+  // 获取收货地址列表
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse) {
+    option (google.api.http) = {
+      get: "/v1/user/{user_id}/addresses"
+    };
+  }
+}
+
+// 用户信息结构体
+message UserInfo {
+  uint64 user_id = 1;
+  string username = 2;
+  string nickname = 3;
+  string avatar = 4;
+  int32 gender = 5;
+  google.protobuf.Timestamp birthday = 6;
+}
+
+// 注册请求
+message RegisterByPasswordRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// 注册响应
+message RegisterResponse {
+  uint64 user_id = 1;
+}
+
+// 登录请求
+message LoginByPasswordRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// 登录响应
+message LoginByPasswordResponse {
+  string token = 1;
+  int64 expires_at = 2; // Token 过期时间戳
+}
+
+// 获取用户信息请求
+message GetUserByIDRequest {
+  uint64 user_id = 1;
+}
+
+// 用户信息响应
+message UserResponse {
+  UserInfo user = 1;
+}
+
+// 更新用户信息请求
+// 在实际生产中，更推荐使用 google.protobuf.FieldMask 来精确控制要更新的字段
+message UpdateUserInfoRequest {
+  // 用户的ID，将从URL路径中注入
+  uint64 user_id = 1;
+
+  // 以下字段为可选更新项
+  optional string nickname = 2;
+  optional string avatar = 3;
+  optional int32 gender = 4;
+  optional google.protobuf.Timestamp birthday = 5;
+}
+
+// --- 地址管理消息 ---
+
+// 收货地址信息
+message Address {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  string name = 3;
+  string phone = 4;
+  string province = 5;
+  string city = 6;
+  string district = 7;
+  string detailed_address = 8;
+  bool is_default = 9;
+}
+
+// 添加地址请求
+message AddAddressRequest {
+  uint64 user_id = 1; // 从URL中注入
+  string name = 2;
+  string phone = 3;
+  string province = 4;
+  string city = 5;
+  string district = 6;
+  string detailed_address = 7;
+  optional bool is_default = 8;
+}
+
+// 更新地址请求
+message UpdateAddressRequest {
+  uint64 user_id = 1; // 从URL中注入
+  uint64 id = 2;      // 从URL中注入
+  optional string name = 3;
+  optional string phone = 4;
+  optional string province = 5;
+  optional string city = 6;
+  optional string district = 7;
+  optional string detailed_address = 8;
+  optional bool is_default = 9;
+}
+
+// 删除地址请求
+message DeleteAddressRequest {
+  uint64 user_id = 1; // 从URL中注入
+  uint64 id = 2;      // 从URL中注入
+}
+
+// 获取地址列表请求
+message ListAddressesRequest {
+  uint64 user_id = 1; // 从URL中注入
+}
+
+// 获取地址列表响应
+message ListAddressesResponse {
+  repeated Address addresses = 1;
+}

@@ -1,0 +1,19 @@
+[server.grpc]
+addr = "0.0.0.0"
+port = 9002
+timeout = "1s"
+
+[data.redis]
+addr = "localhost:6379"
+password = ""
+db = 0
+read_timeout = "0.2s"
+write_timeout = "0.2s"
+
+[data.product_service]
+addr = "localhost:9001" # Address of the product gRPC service
+
+[log]
+level = "debug"
+format = "console"
+output = "stdout"

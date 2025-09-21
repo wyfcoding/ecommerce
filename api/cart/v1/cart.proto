@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package api.cart.v1;
+
+import "google/api/annotations.proto";
+import "api/product/v1/product.proto"; // 导入商品服务的定义
+
+option go_package = "ecommerce/api/cart/v1;v1";
+
+// ===================================
+// 服务定义 (Service Definition)
+// ===================================
+
+// CartService 定义了与购物车相关的接口
+service CartService {
+  // 添加商品到购物车
+  // 如果商品已存在，则增加其数量
+  rpc AddItem(AddItemRequest) returns (AddItemResponse) {
+    option (google.api.http) = {
+      post: "/v1/cart/items"
+      body: "*"
+    };
+  }
+
+  // 从购物车移除指定商品
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse) {
+    option (google.api.http) = {
+      delete: "/v1/cart/items/{sku_id}"
+    };
+  }
+
+  // 更新购物车中某个商品的数量
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse) {
+    option (google.api.http) = {
+      put: "/v1/cart/items/{sku_id}"
+      body: "*"
+    };
+  }
+
+  // 获取当前用户的购物车详情
+  rpc GetCart(GetCartRequest) returns (GetCartResponse) {
+    option (google.api.http) = {
+      get: "/v1/cart"
+    };
+  }
+  rpc ClearCheckedItems(ClearCheckedItemsRequest) returns (ClearCheckedItemsResponse) {}
+}
+
+// ===================================
+// 消息定义 (Message Definitions)
+// ===================================
+
+// CartItem 购物车中的商品项
+message CartItem {
+  uint64 sku_id = 1; // 商品SKU ID
+  uint32 quantity = 2; // 数量
+  // 商品的详细信息, 从商品服务获取后填充
+  api.product.v1.SkuInfo sku_info = 3;
+}
+
+// AddItemRequest 添加商品请求
+// 注意：user_id 将从网关解析JWT后通过gRPC metadata传递，不在请求体中
+message AddItemRequest {
+  uint64 sku_id = 1; // 要添加的商品SKU ID
+  uint32 quantity = 2; // 数量
+  optional bool checked = 3; // 是否勾选，默认为true
+}
+
+// AddItemResponse 添加商品响应
+message AddItemResponse {}
+
+// RemoveItemRequest 移除商品请求
+message RemoveItemRequest {
+  uint64 sku_id = 1; // 要移除的商品SKU ID
+}
+
+// RemoveItemResponse 移除商品响应
+message RemoveItemResponse {}
+
+// UpdateItemRequest 更新商品数量请求
+message UpdateItemRequest {
+  uint64 sku_id = 1; // 要更新的商品SKU ID
+  uint32 quantity = 2; // 更新后的最终数量, 如果为0则删除该商品
+}
+
+// UpdateItemResponse 更新商品数量响应
+message UpdateItemResponse {}
+
+// GetCartRequest 获取购物车请求
+message GetCartRequest {}
+
+// GetCartResponse 获取购物车响应
+message GetCartResponse {
+  repeated CartItem items = 1; // 购物车中的所有商品项
+}
+
+message ClearCheckedItemsRequest {
+  uint64 user_id = 1;
+}
+
+message ClearCheckedItemsResponse {}

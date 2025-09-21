@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package api.admin.v1;
+
+import "google/api/annotations.proto";
+// Import other services' proto files to reuse message types
+import "api/product/v1/product.proto";
+import "api/order/v1/order.proto";
+
+option go_package = "ecommerce/api/admin/v1;v1";
+
+service Admin {
+  // --- 认证 ---
+  rpc AdminLogin(AdminLoginRequest) returns (AdminLoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/login",
+      body: "*"
+    };
+  }
+
+
+  // --- 业务代理 (BFF) ---
+  // 以订单为例
+  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse) {}
+  // 以商品为例 (假设需要创建一个后台用的商品创建接口)
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse) {}
+
+  // --- 订单管理 ---
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {}
+  // GetOrderDetail 接口已存在，无需重复添加
+  rpc ShipOrder(ShipOrderRequest) returns (ShipOrderResponse) {}
+
+  // --- RBAC 管理 ---
+  rpc CreateRole(CreateRoleRequest) returns (Role) {}
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {}
+  rpc UpdateRolePermissions(UpdateRolePermissionsRequest) returns (UpdateRolePermissionsResponse) {}
+
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse) {}
+
+  rpc CreateAdminUser(CreateAdminUserRequest) returns (AdminUser) {}
+  rpc ListAdminUsers(ListAdminUsersRequest) returns (ListAdminUsersResponse) {}
+  rpc UpdateUserRoles(UpdateUserRolesRequest) returns (UpdateUserRolesResponse) {}
+}
+
+// --- Messages ---
+
+message AdminLoginRequest {
+  string username = 1;
+  string password = 2;
+}
+message AdminLoginResponse {
+  string token = 1;
+}
+
+// GetOrderDetail
+message GetOrderDetailRequest {
+  uint64 order_id = 1;
+}
+message GetOrderDetailResponse {
+  // 复用 order.v1 的消息体
+  api.order.v1.OrderInfo order = 1;
+  repeated api.order.v1.OrderItem items = 2;
+}
+
+// CreateProduct
+message CreateProductRequest {
+  api.product.v1.SpuInfo spu = 1;
+  repeated api.product.v1.SkuInfo skus = 2;
+}
+message CreateProductResponse {
+  uint64 spu_id = 1;
+}
+
+message ListOrdersRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+  // 可以增加按 user_id, order_id, status 等过滤条件
+  optional uint64 user_id = 3;
+  optional int32 status = 4;
+}
+message ListOrdersResponse {
+  repeated api.order.v1.OrderInfo orders = 1;
+  uint64 total = 2;
+}
+
+message ShipOrderRequest {
+  uint64 order_id = 1;
+  string tracking_company = 2; // 物流公司
+  string tracking_number = 3;  // 物流单号
+}
+message ShipOrderResponse {
+  // 成功时为空
+}
+
+message Role {
+  uint32 id = 1;
+  string name = 2;
+  string slug = 3;
+}
+message Permission {
+  uint32 id = 1;
+  string name = 2;
+  string slug = 3;
+}
+message AdminUser {
+  uint32 id = 1;
+  string username = 2;
+  string name = 3;
+  int32 status = 4;
+}
+
+message CreateRoleRequest { string name = 1; string slug = 2; }
+message ListRolesRequest {}
+message ListRolesResponse { repeated Role roles = 1; }
+message UpdateRolePermissionsRequest {
+  uint32 role_id = 1;
+  repeated uint32 permission_ids = 2;
+}
+message UpdateRolePermissionsResponse {}
+
+message ListPermissionsRequest {}
+message ListPermissionsResponse { repeated Permission permissions = 1; }
+
+message CreateAdminUserRequest { string username = 1; string password = 2; string name = 3; }
+message ListAdminUsersRequest {}
+message ListAdminUsersResponse { repeated AdminUser users = 1; }
+message UpdateUserRolesRequest {
+  uint32 user_id = 1;
+  repeated uint32 role_ids = 2;
+}
+message UpdateUserRolesResponse {}

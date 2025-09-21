@@ -1,0 +1,35 @@
+# 网关服务配置
+[server.http]
+addr = "0.0.0.0"
+port = 8000 # 使用 8000 作为网关端口，避免和用户服务的 8080 冲突
+timeout = "5s"
+
+# JWT 认证配置
+[jwt]
+secret = "your-secret-key" # 必须与用户服务中的 secret 保持一致
+
+# 后端微服务发现配置
+# 未来这里可以替换为 etcd 或 consul 等服务发现机制
+[services.user]
+addr = "localhost:9090" # 用户服务的 gRPC 地址
+
+[services.product]
+addr = "localhost:9091" # 商品服务的 gRPC 地址
+
+[services.cart]
+addr = "localhost:9092" # 购物车服务的 gRPC 地址
+
+[services.order]
+addr = "localhost:9093" # 订单服务的 gRPC 地址
+
+[services.admin]
+addr = "localhost:9094" # 管理服务的 gRPC 地址
+
+[services.marketing]
+addr = "localhost:9095" # 营销服务的 gRPC 地址
+
+# 日志配置
+[log]
+level = "info"
+format = "json"
+output = "stdout"

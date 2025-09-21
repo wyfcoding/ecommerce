@@ -1,0 +1,336 @@
+syntax = "proto3";
+
+package api.product.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/product/v1;v1";
+
+// 商品服务 (包含商品和分类管理)
+service ProductService {
+  // --- 分类管理 ---
+  rpc CreateCategory(CreateCategoryRequest) returns (CategoryInfo) {
+    option (google.api.http) = {
+      post: "/v1/categories"
+      body: "*"
+    };
+  }
+  rpc UpdateCategory(UpdateCategoryRequest) returns (CategoryInfo) {
+    option (google.api.http) = {
+      put: "/v1/categories/{id}"
+      body: "*"
+    };
+  }
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/categories/{id}"
+    };
+  }
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse) {
+    option (google.api.http) = {
+      get: "/v1/categories"
+    };
+  }
+
+  // --- 品牌管理 ---
+  rpc CreateBrand(CreateBrandRequest) returns (BrandInfo) {
+    option (google.api.http) = {
+      post: "/v1/brands"
+      body: "*"
+    };
+  }
+  rpc UpdateBrand(UpdateBrandRequest) returns (BrandInfo) {
+    option (google.api.http) = {
+      put: "/v1/brands/{id}"
+      body: "*"
+    };
+  }
+  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/brands/{id}"
+    };
+  }
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse) {
+    option (google.api.http) = {
+      get: "/v1/brands"
+    };
+  }
+
+  // --- 评论管理 ---
+  rpc CreateReview(CreateReviewRequest) returns (ReviewInfo) {
+    option (google.api.http) = {
+      post: "/v1/reviews"
+      body: "*"
+    };
+  }
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse) {
+    option (google.api.http) = {
+      get: "/v1/products/{spu_id}/reviews"
+    };
+  }
+  rpc DeleteReview(DeleteReviewRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/reviews/{id}"
+    };
+  }
+
+  // --- 商品管理 ---
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse) {
+    option (google.api.http) = {
+      post: "/v1/products"
+      body: "*"
+    };
+  }
+  rpc UpdateProduct(UpdateProductRequest) returns (GetSpuDetailResponse) {
+     option (google.api.http) = {
+      put: "/v1/products/{spu.spu_id}"
+      body: "*"
+    };
+  }
+  rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/products/{spu_id}"
+    };
+  }
+  rpc GetSpuDetail(GetSpuDetailRequest) returns (GetSpuDetailResponse) {
+    option (google.api.http) = {
+      get: "/v1/products/spu/{spu_id}"
+    };
+  }
+  // 获取产品列表
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {
+      get: "/v1/products"
+    };
+  }
+
+  // --- 内部接口 ---
+  rpc GetSkuInfos(GetSkuInfosRequest) returns (GetSkuInfosResponse) {}
+  rpc LockStock(LockStockRequest) returns (LockStockResponse) {}
+  rpc UnlockStock(LockStockRequest) returns (LockStockResponse) {}
+}
+
+// --- 消息定义 ---
+
+// --- 品牌 RPC ---
+
+message CreateBrandRequest {
+  string name = 1;
+  optional string logo = 2;
+  optional string description = 3;
+  optional string website = 4;
+  optional uint32 sort_order = 5;
+  optional bool is_visible = 6;
+}
+
+message UpdateBrandRequest {
+  uint64 id = 1;
+  optional string name = 2;
+  optional string logo = 3;
+  optional string description = 4;
+  optional string website = 5;
+  optional uint32 sort_order = 6;
+  optional bool is_visible = 7;
+}
+
+message DeleteBrandRequest {
+  uint64 id = 1;
+}
+
+message ListBrandsRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+  optional string name = 3; // 品牌名称模糊查询
+  optional bool is_visible = 4;
+}
+
+message ListBrandsResponse {
+  repeated BrandInfo brands = 1;
+  uint64 total_count = 2;
+}
+
+// 评论信息
+message ReviewInfo {
+  uint64 id = 1;
+  uint64 spu_id = 2;
+  uint64 user_id = 3;
+  uint32 rating = 4; // 评分 (1-5星)
+  string comment = 5;
+  repeated string images = 6; // 评论图片URL
+  string created_at = 7;
+}
+
+message CreateReviewRequest {
+  uint64 spu_id = 1;
+  uint64 user_id = 2;
+  uint32 rating = 3;
+  string comment = 4;
+  repeated string images = 5;
+}
+
+message ListReviewsRequest {
+  uint64 spu_id = 1; // 商品SPU ID
+  uint32 page_size = 2;
+  uint32 page_num = 3;
+  optional uint32 min_rating = 4; // 最小评分
+}
+
+message ListReviewsResponse {
+  repeated ReviewInfo reviews = 1;
+  uint64 total_count = 2;
+}
+
+message DeleteReviewRequest {
+  uint64 id = 1;
+  uint64 user_id = 2; // 验证用户权限
+}
+
+// 商品分类信息
+message CategoryInfo {
+  uint64 id = 1;
+  uint64 parent_id = 2;
+  string name = 3;
+  uint32 level = 4;
+  string icon = 5;
+  uint32 sort_order = 6;
+  bool is_visible = 7;
+}
+
+// 品牌信息
+message BrandInfo {
+  uint64 id = 1;
+  string name = 2;
+  string logo = 3;
+  string description = 4;
+  string website = 5;
+  uint32 sort_order = 6;
+  bool is_visible = 7;
+}
+
+// 商品SPU信息
+message SpuInfo {
+  uint64 spu_id = 1;
+  uint64 category_id = 2;
+  uint64 brand_id = 3;
+  string title = 4;
+  string sub_title = 5;
+  string main_image = 6;
+  repeated string gallery_images = 7;
+  string detail_html = 8;
+  int32 status = 9;
+}
+
+// 商品SKU信息
+message SkuInfo {
+  uint64 sku_id = 1;
+  uint64 spu_id = 2;
+  string title = 3;
+  uint64 price = 4;
+  uint64 original_price = 5;
+  uint32 stock = 6;
+  string image = 7;
+  map<string, string> specs = 8;
+  int32 status = 9;
+}
+
+// --- 分类 RPC ---
+
+message CreateCategoryRequest {
+  uint64 parent_id = 1;
+  string name = 2;
+  optional string icon = 3;
+  optional uint32 sort_order = 4;
+  optional bool is_visible = 5;
+}
+
+message UpdateCategoryRequest {
+  uint64 id = 1;
+  optional uint64 parent_id = 2;
+  optional string name = 3;
+  optional string icon = 4;
+  optional uint32 sort_order = 5;
+  optional bool is_visible = 6;
+}
+
+message DeleteCategoryRequest {
+  uint64 id = 1;
+}
+
+message ListCategoriesRequest {
+  uint64 parent_id = 1;
+}
+
+message ListCategoriesResponse {
+  repeated CategoryInfo categories = 1;
+}
+
+// --- 商品 RPC ---
+
+message CreateProductRequest {
+  SpuInfo spu = 1;
+  repeated SkuInfo skus = 2;
+}
+
+message CreateProductResponse {
+  uint64 spu_id = 1;
+  repeated uint64 sku_ids = 2;
+}
+
+message UpdateProductRequest {
+  SpuInfo spu = 1; // spu.spu_id is required
+  repeated SkuInfo skus = 2;
+}
+
+message DeleteProductRequest {
+  uint64 spu_id = 1;
+}
+
+message GetSpuDetailRequest {
+  uint64 spu_id = 1;
+}
+
+message GetSpuDetailResponse {
+  SpuInfo spu = 1;
+  repeated SkuInfo skus = 2;
+}
+
+// 获取产品列表请求
+message ListProductsRequest {
+  uint32 page_size = 1;   // 每页大小
+  uint32 page_num = 2;    // 页码
+  optional uint64 category_id = 3; // 分类ID，用于过滤
+  optional int32 status = 4;       // 产品状态，用于过滤
+  optional uint64 brand_id = 5;    // 品牌ID，用于过滤
+  optional uint64 min_price = 6;   // 最小价格，单位分
+  optional uint64 max_price = 7;   // 最大价格，单位分
+  optional string query = 8;       // 搜索关键词
+  optional string sort_by = 9;     // 排序字段 (e.g., "price_asc", "price_desc", "sales_desc", "created_at_desc")
+}
+
+// 获取产品列表响应
+message ListProductsResponse {
+  repeated SpuInfo products = 1; // 产品列表
+  uint64 total_count = 2;        // 总产品数量
+}
+
+// --- 内部 RPC ---
+
+message GetSkuInfosRequest {
+  repeated uint64 sku_ids = 1;
+}
+
+message GetSkuInfosResponse {
+  repeated SkuInfo skus = 1;
+}
+
+message LockStockItem {
+  uint64 sku_id = 1;
+  uint32 quantity = 2;
+}
+
+message LockStockRequest {
+  repeated LockStockItem items = 1;
+}
+
+message LockStockResponse {}

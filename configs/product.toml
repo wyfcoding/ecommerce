@@ -1,0 +1,31 @@
+# 服务基础配置
+[server.http]
+addr = "0.0.0.0"
+port = 8081 # 商品服务 HTTP 端口
+timeout = "1s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9091 # 商品服务 gRPC 端口
+timeout = "1s"
+
+# 数据库配置
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_product?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 1 # 使用 1 号数据库，避免和用户服务冲突
+
+# 雪花算法配置
+[snowflake]
+start_time = "2025-01-01"
+machine_id = 2 # 使用 2 号机器ID，避免和用户服务冲突
+
+# 日志配置
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

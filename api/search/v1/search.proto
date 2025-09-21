@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package search.v1;
+
+option go_package = "ecommerce/api/search/v1;v1";
+
+service SearchService {
+  // 定义搜索服务的接口
+  rpc SearchProducts (SearchProductsRequest) returns (SearchProductsResponse);
+}
+
+message SearchProductsRequest {
+  string query = 1;
+  int32 page_size = 2;
+  int32 page_token = 3;
+}
+
+message SearchProductsResponse {
+  repeated Product products = 1;
+  int32 total_size = 2;
+  int32 next_page_token = 3;
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string image_url = 5;
+}

@@ -1,0 +1,19 @@
+[server.grpc]
+addr = "0.0.0.0"
+port = 9003
+timeout = "1s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.product_service]
+addr = "localhost:9001"
+
+[data.cart_service]
+addr = "localhost:9002"
+
+[log]
+level = "debug"
+format = "console"
+output = "stdout"

@@ -1,0 +1,20 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8087
+timeout = "5s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9097
+timeout = "5s"
+
+[data.database]
+dsn = "root:password@tcp(127.0.0.1:3306)/ecommerce_recommendation?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.product_service]
+addr = "localhost:9091"
+
+[log]
+level = "debug"
+format = "console"
+output = "stdout"

@@ -1,0 +1,28 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8084
+timeout = "5s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9094
+timeout = "5s"
+
+[data.database]
+dsn = "root:password@tcp(127.0.0.1:3306)/ecommerce_admin?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.product_service]
+addr = "localhost:9091"
+
+[data.order_service]
+addr = "localhost:9093"
+
+[jwt]
+secret = "admin-secret-key" # 请在生产环境中修改为更复杂的密钥
+issuer = "ecommerce-admin-service"
+expire_duration = "24h"
+
+[log]
+level = "debug"
+format = "console"
+output = "stdout"
