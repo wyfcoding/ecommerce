@@ -1,35 +1,80 @@
 # 网关服务配置
-[server.http]
-addr = "0.0.0.0"
-port = 8000 # 使用 8000 作为网关端口，避免和用户服务的 8080 冲突
-timeout = "5s"
+[server]
+  [server.http]
+    addr = "0.0.0.0"
+    port = 8000 # 使用 8000 作为网关端口，避免和用户服务的 8080 冲突
+    timeout = "5s"
 
 # JWT 认证配置
 [jwt]
-secret = "your-secret-key" # 必须与用户服务中的 secret 保持一致
+  secret = "your-secret-key" # 必须与用户服务中的 secret 保持一致
 
 # 后端微服务发现配置
 # 未来这里可以替换为 etcd 或 consul 等服务发现机制
-[services.user]
-addr = "localhost:9090" # 用户服务的 gRPC 地址
-
-[services.product]
-addr = "localhost:9091" # 商品服务的 gRPC 地址
-
-[services.cart]
-addr = "localhost:9092" # 购物车服务的 gRPC 地址
-
-[services.order]
-addr = "localhost:9093" # 订单服务的 gRPC 地址
-
-[services.admin]
-addr = "localhost:9094" # 管理服务的 gRPC 地址
-
-[services.marketing]
-addr = "localhost:9095" # 营销服务的 gRPC 地址
+[services]
+  [services.user]
+    addr = "127.0.0.1:8000" # 用户服务的 gRPC 地址
+  [services.product]
+    addr = "127.0.0.1:8000" # 商品服务的 gRPC 地址
+  [services.cart]
+    addr = "127.0.0.1:8000" # 购物车服务的 gRPC 地址
+  [services.order]
+    addr = "127.0.0.1:8000" # 订单服务的 gRPC 地址
+  [services.admin]
+    addr = "127.0.0.1:8000" # 管理服务的 gRPC 地址
+  [services.marketing]
+    addr = "127.0.0.1:8000" # 营销服务的 gRPC 地址
+  [services.asset]
+    addr = "127.0.0.1:8001"
+  [services.analytics]
+    addr = "127.0.0.1:8002"
+  [services.data_ingestion]
+    addr = "127.0.0.1:8003"
+  [services.data_processing]
+    addr = "127.0.0.1:8004"
+  [services.auth]
+    addr = "127.0.0.1:8005"
+  [services.pricing]
+    addr = "127.0.0.1:8006"
+  [services.logistics]
+    addr = "127.0.0.1:8007"
+  [services.inventory]
+    addr = "127.0.0.1:8008"
+  [services.payment]
+    addr = "127.0.0.1:8009"
+  [services.customer_service]
+    addr = "127.0.0.1:8010"
+  [services.risk_security]
+    addr = "127.0.0.1:8011"
+  [services.settlement]
+    addr = "127.0.0.1:8012"
+  [services.notification]
+    addr = "127.0.0.1:8013"
+  [services.config]
+    addr = "127.0.0.1:8014"
+  [services.recommendation]
+    addr = "127.0.0.1:8015"
+  [services.sales_forecasting]
+    addr = "127.0.0.1:8016"
+  [services.content_moderation]
+    addr = "127.0.0.1:8017"
+  [services.smart_product_selection]
+    addr = "127.0.0.1:8018"
+  [services.user_profile]
+    addr = "127.0.0.1:8019"
+  [services.ai_model]
+    addr = "127.0.0.1:8020"
+  [services.data_warehouse_query]
+    addr = "127.0.0.1:8021"
+  [services.data_lake_ingestion]
+    addr = "127.0.0.1:8022"
+  [services.cdc]
+    addr = "127.0.0.1:8023"
+  [services.realtime_analytics]
+    addr = "127.0.0.1:8024"
 
 # 日志配置
 [log]
-level = "info"
-format = "json"
-output = "stdout"
+  level = "info"
+  format = "json"
+  output = "stdout"

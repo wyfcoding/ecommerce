@@ -24,28 +24,36 @@ func (r *userRepo) toBizUser(user *model.User) *biz.User {
 		return nil
 	}
 	return &biz.User{
-		UserID:   user.UserID,
-		Username: user.Username,
-		Password: user.Password,
-		Nickname: user.Nickname,
-		Avatar:   user.Avatar,
-		Gender:   user.Gender,
+		ID:        user.ID,
+		Username:  user.Username,
+		Password:  user.Password,
+		Nickname:  user.Nickname,
+		Avatar:    user.Avatar,
+		Gender:    user.Gender,
+		Birthday:  user.Birthday,
+		Phone:     user.Phone,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 }
 
 // CreateUser 实现了 biz.UserRepo 接口的 CreateUser 方法。
 func (r *userRepo) CreateUser(ctx context.Context, u *biz.User) (*biz.User, error) {
 	user := &model.User{
-		UserID:   u.UserID,
 		Username: u.Username,
 		Password: u.Password,
 		Nickname: u.Nickname,
 		Avatar:   u.Avatar,
 		Gender:   u.Gender,
+		Birthday: u.Birthday,
+		Phone:    u.Phone,
+		Email:    u.Email,
 	}
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		return nil, err
 	}
+	u.ID = user.ID // Assign the generated ID back to biz.User
 	return r.toBizUser(user), nil
 }
 
@@ -61,7 +69,7 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz
 // GetUserByUserID 实现了 biz.UserRepo 接口的 GetUserByUserID 方法。
 func (r *userRepo) GetUserByUserID(ctx context.Context, userID uint64) (*biz.User, error) {
 	var user model.User
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&user).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return r.toBizUser(&user), nil
@@ -70,20 +78,28 @@ func (r *userRepo) GetUserByUserID(ctx context.Context, userID uint64) (*biz.Use
 // UpdateUser 实现了 biz.UserRepo 接口的 UpdateUser 方法。
 func (r *userRepo) UpdateUser(ctx context.Context, u *biz.User) (*biz.User, error) {
 	var user model.User
-	if err := r.db.WithContext(ctx).Where("user_id = ?", u.UserID).First(&user).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", u.ID).First(&user).Error; err != nil {
 		return nil, err
 	}
 
-	// 使用指针类型后，我们可以精确地判断哪些字段需要更新。
 	updates := make(map[string]interface{})
-	if u.Nickname != nil {
+	if u.Nickname != "" {
 		updates["nickname"] = u.Nickname
 	}
-	if u.Avatar != nil {
+	if u.Avatar != "" {
 		updates["avatar"] = u.Avatar
 	}
-	if u.Gender != nil {
+	if u.Gender != 0 {
 		updates["gender"] = u.Gender
+	}
+	if !u.Birthday.IsZero() {
+		updates["birthday"] = u.Birthday
+	}
+	if u.Phone != "" {
+		updates["phone"] = u.Phone
+	}
+	if u.Email != "" {
+		updates["email"] = u.Email
 	}
 
 	if len(updates) == 0 {

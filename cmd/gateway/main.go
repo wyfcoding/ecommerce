@@ -23,6 +23,21 @@ import (
 	userV1 "ecommerce/api/user/v1"
 	adminV1 "ecommerce/api/admin/v1"
 	marketingV1 "ecommerce/api/marketing/v1"
+	assetV1 "ecommerce/api/asset/v1"
+	analyticsV1 "ecommerce/api/analytics/v1"
+	dataIngestionV1 "ecommerce/api/data_ingestion/v1"
+	dataProcessingV1 "ecommerce/api/data_processing/v1"
+	authV1 "ecommerce/api/auth/v1"
+	pricingV1 "ecommerce/api/pricing/v1"
+	logisticsV1 "ecommerce/api/logistics/v1"
+	inventoryV1 "ecommerce/api/inventory/v1"
+	paymentV1 "ecommerce/api/payment/v1"
+	customerServiceV1 "ecommerce/api/customer_service/v1"
+	riskSecurityV1 "ecommerce/api/risk_security/v1"
+	settlementV1 "ecommerce/api/settlement/v1"
+	notificationV1 "ecommerce/api/notification/v1"
+	configV1 "ecommerce/api/config/v1"
+	recommendationV1 "ecommerce/api/recommendation/v1"
 	"ecommerce/internal/gateway/internal/middleware"
 )
 
@@ -90,6 +105,8 @@ func main() {
 	// 登录和注册接口不需要认证，所以我们在应用认证中间件的路由组之外单独注册
 	r.POST("/v1/user/register", gin.WrapH(gwmux))
 	r.POST("/v1/user/login", gin.WrapH(gwmux))
+	r.POST("/v1/auth/login", gin.WrapH(gwmux)) // Auth service login
+	r.POST("/v1/auth/validate_token", gin.WrapH(gwmux)) // Auth service token validation
 	// 商品列表和详情页通常也不需要认证
 	r.GET("/v1/products", gin.WrapH(gwmux))
 	r.GET("/v1/products/:id", gin.WrapH(gwmux))
@@ -205,5 +222,125 @@ func registerServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 			zap.S().Fatalf("failed to register marketing service: %v", err)
 		}
 		zap.S().Infof("Registered marketing service at %s", marketingService.Addr)
+	}
+
+	// 注册资产服务
+	if assetService, ok := config.Services["asset"]; ok {
+		if err := assetV1.RegisterAssetServiceHandlerFromEndpoint(ctx, gwmux, assetService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register asset service: %v", err)
+		}
+		zap.S().Infof("Registered asset service at %s", assetService.Addr)
+	}
+
+	// 注册分析服务
+	if analyticsService, ok := config.Services["analytics"]; ok {
+		if err := analyticsV1.RegisterAnalyticsServiceHandlerFromEndpoint(ctx, gwmux, analyticsService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register analytics service: %v", err)
+		}
+		zap.S().Infof("Registered analytics service at %s", analyticsService.Addr)
+	}
+
+	// 注册数据摄取服务
+	if dataIngestionService, ok := config.Services["data_ingestion"]; ok {
+		if err := dataIngestionV1.RegisterDataIngestionServiceHandlerFromEndpoint(ctx, gwmux, dataIngestionService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register data ingestion service: %v", err)
+		}
+		zap.S().Infof("Registered data ingestion service at %s", dataIngestionService.Addr)
+	}
+
+	// 注册数据处理服务
+	if dataProcessingService, ok := config.Services["data_processing"]; ok {
+		if err := dataProcessingV1.RegisterDataProcessingServiceHandlerFromEndpoint(ctx, gwmux, dataProcessingService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register data processing service: %v", err)
+		}
+		zap.S().Infof("Registered data processing service at %s", dataProcessingService.Addr)
+	}
+
+	// 注册认证服务
+	if authService, ok := config.Services["auth"]; ok {
+		if err := authV1.RegisterAuthServiceHandlerFromEndpoint(ctx, gwmux, authService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register auth service: %v", err)
+		}
+		zap.S().Infof("Registered auth service at %s", authService.Addr)
+	}
+
+	// 注册定价服务
+	if pricingService, ok := config.Services["pricing"]; ok {
+		if err := pricingV1.RegisterPricingServiceHandlerFromEndpoint(ctx, gwmux, pricingService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register pricing service: %v", err)
+		}
+		zap.S().Infof("Registered pricing service at %s", pricingService.Addr)
+	}
+
+	// 注册物流服务
+	if logisticsService, ok := config.Services["logistics"]; ok {
+		if err := logisticsV1.RegisterLogisticsServiceHandlerFromEndpoint(ctx, gwmux, logisticsService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register logistics service: %v", err)
+		}
+		zap.S().Infof("Registered logistics service at %s", logisticsService.Addr)
+	}
+
+	// 注册库存服务
+	if inventoryService, ok := config.Services["inventory"]; ok {
+		if err := inventoryV1.RegisterInventoryServiceHandlerFromEndpoint(ctx, gwmux, inventoryService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register inventory service: %v", err)
+		}
+		zap.S().Infof("Registered inventory service at %s", inventoryService.Addr)
+	}
+
+	// 注册支付服务
+	if paymentService, ok := config.Services["payment"]; ok {
+		if err := paymentV1.RegisterPaymentServiceHandlerFromEndpoint(ctx, gwmux, paymentService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register payment service: %v", err)
+		}
+		zap.S().Infof("Registered payment service at %s", paymentService.Addr)
+	}
+
+	// 注册客户服务
+	if customerService, ok := config.Services["customer_service"]; ok {
+		if err := customerServiceV1.RegisterCustomerServiceHandlerFromEndpoint(ctx, gwmux, customerService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register customer service: %v", err)
+		}
+		zap.S().Infof("Registered customer service at %s", customerService.Addr)
+	}
+
+	// 注册风控与安全服务
+	if riskSecurityService, ok := config.Services["risk_security"]; ok {
+		if err := riskSecurityV1.RegisterRiskSecurityServiceHandlerFromEndpoint(ctx, gwmux, riskSecurityService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register risk security service: %v", err)
+		}
+		zap.S().Infof("Registered risk security service at %s", riskSecurityService.Addr)
+	}
+
+	// 注册结算服务
+	if settlementService, ok := config.Services["settlement"]; ok {
+		if err := settlementV1.RegisterSettlementServiceHandlerFromEndpoint(ctx, gwmux, settlementService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register settlement service: %v", err)
+		}
+		zap.S().Infof("Registered settlement service at %s", settlementService.Addr)
+	}
+
+	// 注册通知服务
+	if notificationService, ok := config.Services["notification"]; ok {
+		if err := notificationV1.RegisterNotificationServiceHandlerFromEndpoint(ctx, gwmux, notificationService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register notification service: %v", err)
+		}
+		zap.S().Infof("Registered notification service at %s", notificationService.Addr)
+	}
+
+	// 注册配置服务
+	if configService, ok := config.Services["config"]; ok {
+		if err := configV1.RegisterConfigServiceHandlerFromEndpoint(ctx, gwmux, configService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register config service: %v", err)
+		}
+		zap.S().Infof("Registered config service at %s", configService.Addr)
+	}
+
+	// 注册推荐服务 (already had productV1, but this is the correct one)
+	if recommendationService, ok := config.Services["recommendation"]; ok {
+		if err := recommendationV1.RegisterRecommendationServiceHandlerFromEndpoint(ctx, gwmux, recommendationService.Addr, opts); err != nil {
+			zap.S().Fatalf("failed to register recommendation service: %v", err)
+		}
+		zap.S().Infof("Registered recommendation service at %s", recommendationService.Addr)
 	}
 }

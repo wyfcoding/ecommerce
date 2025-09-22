@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package api.bi.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/bi/v1;v1";
+
+// BiService 定义了 BI 报表服务接口
+service BiService {
+  // 获取销售概览报表
+  rpc GetSalesOverview(GetSalesOverviewRequest) returns (SalesOverviewResponse) {
+    option (google.api.http) = {
+      get: "/v1/bi/sales_overview"
+    };
+  }
+
+  // 获取商品销售排行榜
+  rpc GetTopSellingProducts(GetTopSellingProductsRequest) returns (TopSellingProductsResponse) {
+    option (google.api.http) = {
+      get: "/v1/bi/top_selling_products"
+    };
+  }
+}
+
+// SalesOverview 销售概览数据
+message SalesOverview {
+  uint64 total_sales_amount = 1; // 总销售额
+  uint32 total_orders = 2; // 总订单数
+  uint32 total_users = 3; // 总用户数
+  double conversion_rate = 4; // 转化率
+}
+
+// ProductSalesData 商品销售数据
+message ProductSalesData {
+  uint64 product_id = 1;
+  string product_name = 2;
+  uint32 sales_quantity = 3; // 销售数量
+  uint64 sales_amount = 4; // 销售额
+}
+
+// GetSalesOverviewRequest 获取销售概览报表请求
+message GetSalesOverviewRequest {
+  // 时间范围等过滤条件
+  optional string start_date = 1; // YYYY-MM-DD
+  optional string end_date = 2; // YYYY-MM-DD
+}
+
+// SalesOverviewResponse 销售概览报表响应
+message SalesOverviewResponse {
+  SalesOverview overview = 1;
+}
+
+// GetTopSellingProductsRequest 获取商品销售排行榜请求
+message GetTopSellingProductsRequest {
+  uint32 limit = 1; // 限制数量
+  optional string start_date = 2; // YYYY-MM-DD
+  optional string end_date = 3; // YYYY-MM-DD
+}
+
+// TopSellingProductsResponse 商品销售排行榜响应
+message TopSellingProductsResponse {
+  repeated ProductSalesData products = 1;
+}

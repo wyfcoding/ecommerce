@@ -8,23 +8,23 @@ import (
 
 // --- Domain Models ---
 
-// OrderItemInfo 是订单商品信息的简化模型，用于优惠券计算。
+// OrderItemInfo is a simplified model of order item information for coupon calculation.
 type OrderItemInfo struct {
 	SkuID      uint64
 	SpuID      uint64
 	CategoryID uint64
-	Price      uint64 // 商品单价 (分)
+	Price      uint64 // Unit price of the product (in cents)
 	Quantity   uint32
 }
 
-// RuleSet 定义了优惠券的具体规则
+// RuleSet defines the specific rules of a coupon
 type RuleSet struct {
-	Threshold    uint64     // 满减门槛 (分)
-	Discount     uint64     // 满减金额 (分) 或 折扣值 (如88代表88折)
-	MaxDeduction uint64     // 折扣券的最大优惠金额 (分)
+	Threshold    uint64     // Threshold for discount (in cents)
+	Discount     uint64     // Discount amount (in cents) or discount value (e.g., 88 for 12% off)
+	MaxDeduction uint64     // Maximum deduction for a discount coupon (in cents)
 }
 
-// CouponTemplate 是优惠券模板的领域模型
+// CouponTemplate is the domain model for a coupon template
 type CouponTemplate struct {
 	ID                  uint64
 	Title               string
@@ -42,7 +42,7 @@ type CouponTemplate struct {
 	Status              int8
 }
 
-// UserCoupon 是用户优惠券的领域模型
+// UserCoupon is the domain model for a user coupon
 type UserCoupon struct {
 	ID         uint64
 	TemplateID uint64
@@ -54,18 +54,18 @@ type UserCoupon struct {
 	ValidTo    time.Time
 }
 
-// Promotion 是促销活动的领域模型
+// Promotion is the domain model for a promotion
 type Promotion struct {
 	ID             uint64
 	Name           string
-	Type           int8 // 1: 限时折扣, 2: 满减活动, 3: 买赠
+	Type           int8 // 1: Limited-time discount, 2: Tiered discount, 3: Gift with purchase
 	Description    string
 	StartTime      *time.Time
 	EndTime        *time.Time
-	Status         *int8 // 1: 进行中, 2: 已结束, 3: 未开始, 4: 已禁用
-	ProductIDs     []uint64 // 关联的商品ID
-	DiscountValue  uint64 // 折扣值或满减金额
-	MinOrderAmount uint64 // 最小订单金额 (针对满减)
+	Status         *int8 // 1: In progress, 2: Ended, 3: Not started, 4: Disabled
+	ProductIDs     []uint64 // Associated product ID
+	DiscountValue  uint64 // Discount value or tiered discount amount
+	MinOrderAmount uint64 // Minimum order amount (for tiered discount)
 }
 
 // --- Repo Interface ---
@@ -100,26 +100,26 @@ func NewCouponUsecase(repo CouponRepo, logger *zap.SugaredLogger) *CouponUsecase
 func (uc *CouponUsecase) CreateCouponTemplate(ctx context.Context, template *CouponTemplate) (*CouponTemplate, error) {
 	// 1. 业务规则校验
 	if template.Title == "" {
-		return nil, errors.New("标题不能为空")
+		return nil, errors.New("title cannot be empty")
 	}
 
 	// 校验有效期
 	if template.ValidityType == 1 { // 固定时间
 		if template.ValidFrom == nil || template.ValidTo == nil || template.ValidTo.Before(*template.ValidFrom) {
-			return nil, errors.New("无效的固定有效期")
+			return nil, errors.New("invalid fixed validity period")
 		}
 	} else if template.ValidityType == 2 { // 领取后有效
 		if template.ValidDaysAfterClaim == 0 {
-			return nil, errors.New("领取后有效天数不能为空")
+			return nil, errors.New("valid days after claim cannot be empty")
 		}
 	} else {
-		return nil, errors.New("无效的有效期类型")
+		return nil, errors.New("invalid validity period type")
 	}
 
 	// 校验满减规则
 	if template.Type == 1 { // 满减券
 		if template.Rules.Threshold <= template.Rules.Discount {
-			return nil, errors.New("满减券的优惠金额必须小于门槛")
+			return nil, errors.New("discount amount of a tiered discount coupon must be less than the threshold")
 		}
 	}
 
@@ -143,19 +143,19 @@ func (uc *CouponUsecase) CalculateDiscount(ctx context.Context, userID uint64, c
 	// 1. 获取优惠券实例并进行基础校验
 	userCoupon, err := uc.repo.GetUserCouponByCode(ctx, userID, couponCode)
 	if err != nil {
-		return 0, errors.New("无效的优惠券码")
+		return 0, errors.New("invalid coupon code")
 	}
 	if userCoupon.Status != 1 { // 1-未使用
-		return 0, errors.New("优惠券已被使用或已过期")
+		return 0, errors.New("coupon has been used or has expired")
 	}
 	if time.Now().Before(userCoupon.ValidFrom) || time.Now().After(userCoupon.ValidTo) {
-		return 0, errors.New("优惠券不在有效期内")
+		return 0, errors.New("coupon is not within the validity period")
 	}
 
 	// 2. 获取优惠券模板以了解规则
 	template, err := uc.repo.GetTemplateByID(ctx, userCoupon.TemplateID)
 	if err != nil {
-		return 0, errors.New("未找到优惠券模板")
+		return 0, errors.New("coupon template not found")
 	}
 
 	// 3. 根据使用范围 (scope) 筛选出适用的商品，并计算总价
@@ -184,7 +184,7 @@ func (uc *CouponUsecase) CalculateDiscount(ctx context.Context, userID uint64, c
 		}
 	}
 	if applicableTotal == 0 {
-		return 0, errors.New("此优惠券不适用于任何选定商品")
+		return 0, errors.New("this coupon is not applicable to any selected product")
 	}
 
 	// 4. 根据优惠券类型 (type) 和规则 (rules) 计算优惠金额
@@ -195,7 +195,7 @@ func (uc *CouponUsecase) CalculateDiscount(ctx context.Context, userID uint64, c
 		if applicableTotal >= rules.Threshold {
 			discountAmount = rules.Discount
 		} else {
-			return 0, fmt.Errorf("订单总额未达到满减门槛 ¥%.2f", float64(rules.Threshold)/100.0)
+			return 0, fmt.Errorf("order total does not meet the threshold of ¥%.2f", float64(rules.Threshold)/100.0)
 		}
 	case 2: // 折扣券
 		if applicableTotal >= rules.Threshold { // 折扣券也可能有门槛
@@ -205,12 +205,12 @@ func (uc *CouponUsecase) CalculateDiscount(ctx context.Context, userID uint64, c
 				discountAmount = rules.MaxDeduction // 最高优惠限额
 			}
 		} else {
-			return 0, fmt.Errorf("订单总额未达到折扣门槛 ¥%.2f", float64(rules.Threshold)/100.0)
+			return 0, fmt.Errorf("order total does not meet the discount threshold of ¥%.2f", float64(rules.Threshold)/100.0)
 		}
 	case 3: // 无门槛券
 		discountAmount = rules.Discount
 	default:
-		return 0, fmt.Errorf("未知优惠券类型")
+		return 0, fmt.Errorf("unknown coupon type")
 	}
 
 	// 最终校验优惠金额不能超过适用商品总价
@@ -235,10 +235,10 @@ func NewPromotionUsecase(repo PromotionRepo, logger *zap.SugaredLogger) *Promoti
 func (uc *PromotionUsecase) CreatePromotion(ctx context.Context, promotion *Promotion) (*Promotion, error) {
 	// 业务规则校验
 	if promotion.Name == "" {
-		return nil, errors.New("促销名称不能为空")
+		return nil, errors.New("promotion name cannot be empty")
 	}
 	if promotion.StartTime == nil || promotion.EndTime == nil || promotion.EndTime.Before(*promotion.StartTime) {
-		return nil, errors.New("无效的促销时间范围")
+		return nil, errors.New("invalid promotion time range")
 	}
 	// ... 其他规则校验
 
@@ -249,7 +249,7 @@ func (uc *PromotionUsecase) CreatePromotion(ctx context.Context, promotion *Prom
 func (uc *PromotionUsecase) UpdatePromotion(ctx context.Context, promotion *Promotion) (*Promotion, error) {
 	// 业务规则校验
 	if promotion.ID == 0 {
-		return nil, errors.New("更新促销需要提供ID")
+		return nil, errors.New("ID is required to update a promotion")
 	}
 	// ... 其他规则校验
 

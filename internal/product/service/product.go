@@ -16,15 +16,15 @@ func protoToBizSpu(spu *v1.SpuInfo) *biz.Spu {
 		return nil
 	}
 	return &biz.Spu{
-		SpuID:         spu.SpuId,
-		CategoryID:    &spu.CategoryId,
-		BrandID:       &spu.BrandId,
-		Title:         &spu.Title,
-		SubTitle:      &spu.SubTitle,
-		MainImage:     &spu.MainImage,
+		ID:            spu.SpuId, // For update operations, SpuId from proto is the ID
+		CategoryID:    spu.CategoryId,
+		BrandID:       spu.BrandId,
+		Title:         spu.Title,
+		SubTitle:      spu.SubTitle,
+		MainImage:     spu.MainImage,
 		GalleryImages: spu.GalleryImages,
-		DetailHTML:    &spu.DetailHtml,
-		Status:        &spu.Status,
+		DetailHTML:    spu.DetailHtml,
+		Status:        spu.Status,
 	}
 }
 
@@ -33,29 +33,15 @@ func bizSpuToProto(spu *biz.Spu) *v1.SpuInfo {
 		return nil
 	}
 	res := &v1.SpuInfo{
-		SpuID:         spu.SpuID,
+		SpuId:         spu.ID, // Map internal ID to external SpuId
+		CategoryId:    spu.CategoryID,
+		BrandId:       spu.BrandID,
+		Title:         spu.Title,
+		SubTitle:      spu.SubTitle,
+		MainImage:     spu.MainImage,
 		GalleryImages: spu.GalleryImages,
-	}
-	if spu.CategoryID != nil {
-		res.CategoryId = *spu.CategoryID
-	}
-	if spu.BrandID != nil {
-		res.BrandId = *spu.BrandID
-	}
-	if spu.Title != nil {
-		res.Title = *spu.Title
-	}
-	if spu.SubTitle != nil {
-		res.SubTitle = *spu.SubTitle
-	}
-	if spu.MainImage != nil {
-		res.MainImage = *spu.MainImage
-	}
-	if spu.DetailHTML != nil {
-		res.DetailHtml = *spu.DetailHTML
-	}
-	if spu.Status != nil {
-		res.Status = *spu.Status
+		DetailHtml:    spu.DetailHTML,
+		Status:        spu.Status,
 	}
 	return res
 }
@@ -67,15 +53,15 @@ func protoToBizSku(sku *v1.SkuInfo) *biz.Sku {
 		return nil
 	}
 	return &biz.Sku{
-		SkuID:         sku.SkuId,
+		ID:            sku.SkuId, // For update operations, SkuId from proto is the ID
 		SpuID:         sku.SpuId,
-		Title:         &sku.Title,
-		Price:         &sku.Price,
-		OriginalPrice: &sku.OriginalPrice,
-		Stock:         &sku.Stock,
-		Image:         &sku.Image,
+		Title:         sku.Title,
+		Price:         sku.Price,
+		OriginalPrice: sku.OriginalPrice,
+		Stock:         sku.Stock,
+		Image:         sku.Image,
 		Specs:         sku.Specs,
-		Status:        &sku.Status,
+		Status:        sku.Status,
 	}
 }
 
@@ -84,27 +70,15 @@ func bizSkuToProto(sku *biz.Sku) *v1.SkuInfo {
 		return nil
 	}
 	res := &v1.SkuInfo{
-		SkuID: sku.SkuID,
-		SpuID: sku.SpuID,
-		Specs: sku.Specs,
-	}
-	if sku.Title != nil {
-		res.Title = *sku.Title
-	}
-	if sku.Price != nil {
-		res.Price = *sku.Price
-	}
-	if sku.OriginalPrice != nil {
-		res.OriginalPrice = *sku.OriginalPrice
-	}
-	if sku.Stock != nil {
-		res.Stock = *sku.Stock
-	}
-	if sku.Image != nil {
-		res.Image = *sku.Image
-	}
-	if sku.Status != nil {
-		res.Status = *sku.Status
+		SkuId:         sku.ID, // Map internal ID to external SkuId
+		SpuId:         sku.SpuID,
+		Title:         sku.Title,
+		Price:         sku.Price,
+		OriginalPrice: sku.OriginalPrice,
+		Stock:         sku.Stock,
+		Image:         sku.Image,
+		Specs:         sku.Specs,
+		Status:        sku.Status,
 	}
 	return res
 }
@@ -130,11 +104,11 @@ func (s *service) CreateProduct(ctx context.Context, req *v1.CreateProductReques
 
 	var skuIDs []uint64
 	for _, sku := range createdSkus {
-		skuIDs = append(skuIDs, sku.SkuID)
+		skuIDs = append(skuIDs, sku.ID) // Use internal ID for response
 	}
 
 	return &v1.CreateProductResponse{
-		SpuId:  createdSpu.SpuID,
+		SpuId:  createdSpu.ID, // Use internal ID for response
 		SkuIds: skuIDs,
 	}, nil
 }
@@ -224,6 +198,19 @@ func (s *service) ListProducts(ctx context.Context, req *v1.ListProductsRequest)
 	return &v1.ListProductsResponse{Products: productInfos, TotalCount: total}, nil
 }
 
+// IndexProduct 实现了产品索引的 RPC。
+func (s *service) IndexProduct(ctx context.Context, req *v1.IndexProductRequest) (*v1.IndexProductResponse, error) {
+	if req.SpuId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "spu_id is required")
+	}
+
+	err := s.productUsecase.IndexProduct(ctx, req.SpuId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to index product: %v", err)
+	}
+
+	return &v1.IndexProductResponse{}, nil
+}
 // CreateBrand 实现创建品牌接口
 func (s *service) CreateBrand(ctx context.Context, req *v1.CreateBrandRequest) (*v1.BrandInfo, error) {
 	// 调用 biz 层创建品牌

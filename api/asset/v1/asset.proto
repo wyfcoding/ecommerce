@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package api.asset.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/asset/v1;v1";
+
+// AssetService 定义了资产管理服务接口
+service AssetService {
+  // 上传文件
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse) {
+    option (google.api.http) = {
+      post: "/v1/assets/upload"
+      body: "*"
+    };
+  }
+}
+
+// UploadFileRequest 上传文件请求
+message UploadFileRequest {
+  string file_name = 1; // 文件名
+  bytes content = 2;    // 文件内容
+  string content_type = 3; // 文件类型，如 image/jpeg, application/pdf
+  string bucket_name = 4; // 存储桶名称
+}
+
+// UploadFileResponse 上传文件响应
+message UploadFileResponse {
+  string file_url = 1; // 上传成功后的文件URL
+  string file_id = 2;  // 文件唯一ID
+}

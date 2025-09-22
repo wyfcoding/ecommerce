@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package api.data_processing.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/data_processing/v1;v1";
+
+// DataProcessingService 定义了数据处理服务接口
+service DataProcessingService {
+  // 触发一个数据处理作业
+  rpc TriggerProcessingJob(TriggerProcessingJobRequest) returns (TriggerProcessingJobResponse) {
+    option (google.api.http) = {
+      post: "/v1/data_processing/jobs/trigger"
+      body: "*"
+    };
+  }
+
+  // 触发一个 Spark/Flink 作业
+  rpc TriggerSparkFlinkJob(TriggerSparkFlinkJobRequest) returns (TriggerSparkFlinkJobResponse) {
+    option (google.api.http) = {
+      post: "/v1/data_processing/spark_flink_jobs/trigger"
+      body: "*"
+    };
+  }
+}
+
+// TriggerProcessingJobRequest 触发数据处理作业请求
+message TriggerProcessingJobRequest {
+  string job_type = 1; // 作业类型，如 "daily_etl", "user_profile_update"
+  map<string, string> parameters = 2; // 作业参数
+}
+
+// TriggerProcessingJobResponse 触发数据处理作业响应
+message TriggerProcessingJobResponse {
+  string job_id = 1; // 触发的作业ID
+  string status = 2; // 作业状态，如 "TRIGGERED", "FAILED"
+}
+
+// TriggerSparkFlinkJobRequest 触发 Spark/Flink 作业请求
+message TriggerSparkFlinkJobRequest {
+  string job_name = 1; // 作业名称
+  map<string, string> job_parameters = 2; // 作业参数
+  string platform = 3; // 平台类型，如 "SPARK", "FLINK"
+}
+
+// TriggerSparkFlinkJobResponse 触发 Spark/Flink 作业响应
+message TriggerSparkFlinkJobResponse {
+  string job_id = 1; // 触发的作业ID
+  string status = 2; // 作业状态，如 "SUBMITTED", "FAILED"
+  string message = 3; // 消息
+}

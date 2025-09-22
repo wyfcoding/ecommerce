@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package api.ai_model.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/ai_model/v1;v1";
+
+// AIModelService 定义了 AI 模型服务接口
+service AIModelService {
+  // 执行文本生成
+  rpc GenerateText(GenerateTextRequest) returns (GenerateTextResponse) {
+    option (google.api.http) = {
+      post: "/v1/ai_model/generate_text"
+      body: "*"
+    };
+  }
+
+  // 执行文本分类
+  rpc ClassifyText(ClassifyTextRequest) returns (ClassifyTextResponse) {
+    option (google.api.http) = {
+      post: "/v1/ai_model/classify_text"
+      body: "*"
+    };
+  }
+
+  // 执行推荐排序
+  rpc RankRecommendations(RankRecommendationsRequest) returns (RankRecommendationsResponse) {
+    option (google.api.http) = {
+      post: "/v1/ai_model/rank_recommendations"
+      body: "*"
+    };
+  }
+}
+
+// GenerateTextRequest 文本生成请求
+message GenerateTextRequest {
+  string prompt = 1;
+  map<string, string> parameters = 2; // 模型参数，如 temperature, max_tokens
+}
+
+// GenerateTextResponse 文本生成响应
+message GenerateTextResponse {
+  string generated_text = 1;
+}
+
+// ClassifyTextRequest 文本分类请求
+message ClassifyTextRequest {
+  string text = 1;
+  repeated string labels = 2; // 待分类的标签列表
+}
+
+// ClassifyTextResponse 文本分类响应
+message ClassifyTextResponse {
+  string predicted_label = 1;
+  map<string, double> scores = 2; // 各标签的置信度分数
+}
+
+// RankRecommendationsRequest 推荐排序请求
+message RankRecommendationsRequest {
+  string user_id = 1;
+  repeated string item_ids = 2; // 待排序的商品ID列表
+  map<string, string> user_features = 3; // 用户特征
+  map<string, string> item_features = 4; // 商品特征
+}
+
+// RankRecommendationsResponse 推荐排序响应
+message RankRecommendationsResponse {
+  repeated string ranked_item_ids = 1;
+  map<string, double> scores = 2; // 各商品的排序分数
+}

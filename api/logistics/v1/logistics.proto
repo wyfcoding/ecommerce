@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package api.logistics.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/logistics/v1;v1";
+
+// LogisticsService 定义了物流服务接口
+service LogisticsService {
+  // 计算运费
+  rpc CalculateShippingCost(CalculateShippingCostRequest) returns (CalculateShippingCostResponse) {
+    option (google.api.http) = {
+      post: "/v1/logistics/shipping_cost"
+      body: "*"
+    };
+  }
+}
+
+// ItemInfo 商品信息
+message ItemInfo {
+  uint64 product_id = 1;
+  uint32 quantity = 2;
+  // ... 其他可能影响运费的商品属性，如重量、体积
+}
+
+// AddressInfo 地址信息
+message AddressInfo {
+  string province = 1;
+  string city = 2;
+  string district = 3;
+  // ... 其他地址信息
+}
+
+// CalculateShippingCostRequest 计算运费请求
+message CalculateShippingCostRequest {
+  AddressInfo origin_address = 1; // 发货地址
+  AddressInfo destination_address = 2; // 收货地址
+  repeated ItemInfo items = 3; // 订单商品列表
+  // ... 其他可能影响运费的因素，如配送方式、是否保价
+}
+
+// CalculateShippingCostResponse 计算运费响应
+message CalculateShippingCostResponse {
+  uint64 shipping_cost = 1; // 运费 (分)
+  string currency = 2; // 货币单位，如 CNY
+  // ... 其他运费明细
+}

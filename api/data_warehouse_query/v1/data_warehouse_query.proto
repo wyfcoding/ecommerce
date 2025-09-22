@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package api.data_warehouse_query.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/data_warehouse_query/v1;v1";
+
+// DataWarehouseQueryService 定义了数据仓库查询服务接口
+service DataWarehouseQueryService {
+  // 执行数据仓库查询
+  rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse) {
+    option (google.api.http) = {
+      post: "/v1/data_warehouse/query"
+      body: "*"
+    };
+  }
+}
+
+// ExecuteQueryRequest 执行数据仓库查询请求
+message ExecuteQueryRequest {
+  string query_sql = 1; // 查询SQL (例如 HiveQL)
+  map<string, string> parameters = 2; // 查询参数
+}
+
+// ExecuteQueryResponse 执行数据仓库查询响应
+message ExecuteQueryResponse {
+  repeated string column_names = 1; // 列名
+  repeated string rows = 2; // 结果行 (每行一个JSON字符串)
+  string message = 3; // 消息
+}

@@ -31,14 +31,30 @@ func NewLogger(level, format, output string) *zap.Logger {
 
 	// 支持多输出，例如 stdout 和文件
 	var cores []zapcore.Core
-	// 假设 output 可以是 "stdout", "stderr" 或文件路径
-	// 这里简化处理，只支持一个输出
+
+	// Console/File output
 	writeSyncer, _, err := zap.Open(output)
 	if err != nil {
-		// 如果输出配置有问题，则默认输出到 stderr
 		writeSyncer = zapcore.Lock(os.Stderr)
 	}
 	cores = append(cores, zapcore.NewCore(encoder, writeSyncer, logLevel))
+
+	// Optional: Remote logging (simulating Logstash/Elasticsearch)
+	// In a real system, this would be more sophisticated (e.g., using a dedicated client, buffering, retries).
+	// For demonstration, we'll just print to stderr if remote logging is enabled.
+	// A real remote logger would use a network connection (TCP/HTTP).
+	if os.Getenv("REMOTE_LOGGING_ENABLED") == "true" {
+		remoteEncoderConfig := zap.NewProductionEncoderConfig()
+		remoteEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		remoteEncoderConfig.EncodeLevel = zapcore.CapitalEncoder // No color for remote
+		remoteEncoder := zapcore.NewJSONEncoder(remoteEncoderConfig) // JSON for remote
+
+		// Simulate sending to a remote endpoint (e.g., Logstash TCP input)
+		// In a real scenario, you'd replace this with actual network client.
+		remoteWriter := zapcore.AddSync(os.Stderr) // For demonstration, still stderr
+		cores = append(cores, zapcore.NewCore(remoteEncoder, remoteWriter, logLevel))
+		zap.S().Info("Remote logging enabled (simulated to stderr).")
+	}
 
 	logger := zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(1))
 	return logger

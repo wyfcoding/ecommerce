@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package api.notification.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/notification/v1;v1";
+
+// NotificationService 定义了通知服务接口
+service NotificationService {
+  // 发送通知
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications/send"
+      body: "*"
+    };
+  }
+
+  // 获取用户通知列表
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/users/{user_id}/notifications"
+    };
+  }
+
+  // 标记通知为已读
+  rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications/{notification_id}/read"
+      body: "*"
+    };
+  }
+}
+
+// Notification 通知信息
+message Notification {
+  uint64 notification_id = 1;
+  uint64 user_id = 2;
+  string type = 3; // SYSTEM, ORDER, MARKETING, INTERACTION
+  string title = 4;
+  string content = 5;
+  bool is_read = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// SendNotificationRequest 发送通知请求
+message SendNotificationRequest {
+  uint64 user_id = 1;
+  string type = 2;
+  string title = 3;
+  string content = 4;
+}
+
+// SendNotificationResponse 发送通知响应
+message SendNotificationResponse {
+  uint64 notification_id = 1;
+}
+
+// ListNotificationsRequest 获取用户通知列表请求
+message ListNotificationsRequest {
+  uint64 user_id = 1;
+  bool include_read = 2; // 是否包含已读通知
+  uint32 page_size = 3;
+  uint32 page_num = 4;
+}
+
+// ListNotificationsResponse 获取用户通知列表响应
+message ListNotificationsResponse {
+  repeated Notification notifications = 1;
+  uint64 total_count = 2;
+}
+
+// MarkNotificationAsReadRequest 标记通知为已读请求
+message MarkNotificationAsReadRequest {
+  uint64 notification_id = 1;
+  uint64 user_id = 2; // 用于权限校验
+}
+
+// MarkNotificationAsReadResponse 标记通知为已读响应
+message MarkNotificationAsReadResponse {}

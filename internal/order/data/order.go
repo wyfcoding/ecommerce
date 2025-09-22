@@ -41,7 +41,6 @@ func (r *orderRepo) CreateOrder(ctx context.Context, order *biz.Order) (*biz.Ord
 	}
 
 	po := &Order{
-		ID:              order.ID,
 		UserID:          order.UserID,
 		TotalAmount:     order.TotalAmount,
 		PaymentAmount:   order.PaymentAmount,
@@ -52,6 +51,7 @@ func (r *orderRepo) CreateOrder(ctx context.Context, order *biz.Order) (*biz.Ord
 	if err := tx.Create(po).Error; err != nil {
 		return nil, err
 	}
+	order.ID = po.ID // Assign the generated ID back to biz.Order
 	return r.toBizOrder(po), nil
 }
 

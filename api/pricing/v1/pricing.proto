@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package api.pricing.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/pricing/v1;v1";
+
+// PricingService 定义了定价服务接口
+service PricingService {
+  // 计算商品最终价格 (考虑促销、优惠券等)
+  rpc CalculateFinalPrice(CalculateFinalPriceRequest) returns (CalculateFinalPriceResponse) {
+    option (google.api.http) = {
+      post: "/v1/pricing/calculate"
+      body: "*"
+    };
+  }
+
+  // 计算商品动态价格 (考虑AI模型)
+  rpc CalculateDynamicPrice(CalculateDynamicPriceRequest) returns (CalculateDynamicPriceResponse) {
+    option (google.api.http) = {
+      post: "/v1/pricing/dynamic_price"
+      body: "*"
+    };
+  }
+}
+
+// SkuPriceInfo SKU价格信息
+message SkuPriceInfo {
+  uint64 sku_id = 1;
+  uint64 original_price = 2; // 原始价格 (分)
+  uint32 quantity = 3;
+}
+
+// CalculateFinalPriceRequest 计算最终价格请求
+message CalculateFinalPriceRequest {
+  uint64 user_id = 1; // 用户ID，用于个性化定价或用户专属优惠
+  repeated SkuPriceInfo items = 2; // 待计算价格的商品列表
+  string coupon_code = 3; // 使用的优惠券码 (可选)
+  // ... 其他可能影响价格的因素，如会员等级、活动ID等
+}
+
+// CalculateFinalPriceResponse 计算最终价格响应
+message CalculateFinalPriceResponse {
+  uint64 total_original_price = 1; // 商品原始总价 (分)
+  uint64 total_discount_amount = 2; // 总优惠金额 (分)
+  uint64 final_price = 3; // 最终支付价格 (分)
+  // ... 其他价格明细，如运费、税费等
+}
+
+// CalculateDynamicPriceRequest 计算动态价格请求
+message CalculateDynamicPriceRequest {
+  uint64 product_id = 1;
+  uint64 user_id = 2; // 用户ID，用于个性化定价
+  // ... 其他影响动态价格的因素，如库存、销量、时间、竞争对手价格
+  map<string, string> context_features = 3; // 上下文特征
+}
+
+// CalculateDynamicPriceResponse 计算动态价格响应
+message CalculateDynamicPriceResponse {
+  uint64 dynamic_price = 1; // 动态计算出的价格 (分)
+  string explanation = 2; // 价格解释 (可选)
+}

@@ -28,11 +28,11 @@ func (uc *AddressUsecase) validatePhoneNumber(phone string) bool {
 func (uc *AddressUsecase) CreateAddress(ctx context.Context, addr *Address) (*Address, error) {
 	// 业务校验：例如手机号格式
 	if addr.Phone == nil || !uc.validatePhoneNumber(*addr.Phone) {
-		return nil, errors.New("手机号格式不正确")
+		return nil, errors.New("invalid phone number format")
 	}
 	// 其他校验，如地址库校验、字段非空等可在此处添加
 	if addr.Name == nil || *addr.Name == "" {
-		return nil, errors.New("收货人姓名不能为空")
+		return nil, errors.New("recipient name cannot be empty")
 	}
 
 	return uc.repo.CreateAddress(ctx, addr)
@@ -41,7 +41,7 @@ func (uc *AddressUsecase) CreateAddress(ctx context.Context, addr *Address) (*Ad
 // UpdateAddress 负责更新收货地址的业务逻辑。
 func (uc *AddressUsecase) UpdateAddress(ctx context.Context, addr *Address) (*Address, error) {
 	if addr.Phone != nil && !uc.validatePhoneNumber(*addr.Phone) {
-		return nil, fmt.Errorf("手机号格式不正确")
+		return nil, fmt.Errorf("invalid phone number format")
 	}
 	return uc.repo.UpdateAddress(ctx, addr)
 }

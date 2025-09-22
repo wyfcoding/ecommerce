@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package api.realtime_analytics.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/realtime_analytics/v1;v1";
+
+// RealtimeAnalyticsService 定义了实时分析服务接口
+service RealtimeAnalyticsService {
+  // 获取实时销售指标
+  rpc GetRealtimeSalesMetrics(GetRealtimeSalesMetricsRequest) returns (RealtimeSalesMetricsResponse) {
+    option (google.api.http) = {
+      get: "/v1/realtime_analytics/sales_metrics"
+    };
+  }
+
+  // 获取实时用户活跃度
+  rpc GetRealtimeUserActivity(GetRealtimeUserActivityRequest) returns (RealtimeUserActivityResponse) {
+    option (google.api.http) = {
+      get: "/v1/realtime_analytics/user_activity"
+    };
+  }
+
+  // 记录用户行为事件
+  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse) {
+    option (google.api.http) = {
+      post: "/v1/realtime_analytics/user_behavior"
+      body: "*"
+    };
+  }
+}
+
+// RealtimeSalesMetrics 实时销售指标
+message RealtimeSalesMetrics {
+  uint64 current_gmv = 1; // 当前GMV
+  uint32 current_orders = 2; // 当前订单数
+  uint32 active_users = 3; // 活跃用户数
+  google.protobuf.Timestamp last_updated = 4; // 最后更新时间
+}
+
+// RealtimeUserActivity 实时用户活跃度
+message RealtimeUserActivity {
+  uint32 online_users = 1; // 在线用户数
+  uint32 new_users_last_hour = 2; // 过去一小时新增用户数
+  map<string, uint32> page_views_per_minute = 3; // 每分钟页面浏览量
+}
+
+// GetRealtimeSalesMetricsRequest 获取实时销售指标请求
+message GetRealtimeSalesMetricsRequest {}
+
+// RealtimeSalesMetricsResponse 实时销售指标响应
+message RealtimeSalesMetricsResponse {
+  RealtimeSalesMetrics metrics = 1;
+}
+
+// GetRealtimeUserActivityRequest 获取实时用户活跃度请求
+message GetRealtimeUserActivityRequest {}
+
+// RealtimeUserActivityResponse 实时用户活跃度响应
+message RealtimeUserActivityResponse {
+  RealtimeUserActivity activity = 1;
+}
+
+// RecordUserBehaviorRequest 记录用户行为请求
+message RecordUserBehaviorRequest {
+  string user_id = 1;
+  string behavior_type = 2; // VIEW, CLICK, PURCHASE, ADD_TO_CART
+  string item_id = 3; // 行为关联的商品ID或其他实体ID
+  map<string, string> properties = 4; // 行为属性
+  google.protobuf.Timestamp event_time = 5;
+}
+
+// RecordUserBehaviorResponse 记录用户行为响应
+message RecordUserBehaviorResponse {
+  bool success = 1;
+  string message = 2;
+}

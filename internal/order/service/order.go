@@ -79,7 +79,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *v1.CreateOrderReque
 		})
 	}
 
-	createdOrder, err := s.uc.CreateOrder(ctx, userID, bizItems, req.ShippingAddress, req.PaymentAmount)
+	createdOrder, err := s.uc.CreateOrder(ctx, userID, bizItems, req.AddressId, req.Remark, req.ShippingAddress, req.PaymentAmount)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "创建订单失败: %v", err)
 	}

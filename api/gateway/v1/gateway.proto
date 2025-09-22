@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package api.gateway.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/gateway/v1;v1";
+
+// GatewayService 定义了API网关服务接口
+service GatewayService {
+  // 通用请求处理入口
+  rpc HandleRequest(HandleRequestRequest) returns (HandleRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/gateway/request"
+      body: "*"
+    };
+  }
+}
+
+// HandleRequestRequest 通用请求处理请求
+message HandleRequestRequest {
+  string method = 1; // HTTP方法，如 GET, POST
+  string path = 2;   // 请求路径，如 /v1/products/123
+  string body = 3;   // 请求体 (JSON字符串)
+  map<string, string> headers = 4; // 请求头
+  string access_token = 5; // 访问令牌
+}
+
+// HandleRequestResponse 通用请求处理响应
+message HandleRequestResponse {
+  int32 status_code = 1; // HTTP状态码
+  string response_body = 2; // 响应体 (JSON字符串)
+  map<string, string> headers = 3; // 响应头
+}

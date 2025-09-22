@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	v1 "ecommerce/api/cart/v1"
+	v1Product "ecommerce/api/product/v1" // Added product v1 import
 	"ecommerce/internal/cart/biz"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -44,8 +45,23 @@ func getUserIDFromContext(ctx context.Context) (uint64, error) {
 	return userID, nil
 }
 
-// bizCartToProto 将 biz.CartItem 领域模型转换为 v1.CartItem API 模型。
-func bizCartToProto(cartItem *biz.CartItem) *v1.CartItem {
+func bizSkuInfoToProto(skuInfo *biz.SkuInfo) *v1Product.SkuInfo {
+	if skuInfo == nil {
+		return nil
+	}
+	return &v1Product.SkuInfo{
+		SkuId:  skuInfo.SkuID,
+		SpuId:  skuInfo.SpuID,
+		Title:  skuInfo.Title,
+		Price:  skuInfo.Price,
+		Image:  skuInfo.Image,
+		Specs:  skuInfo.Specs,
+		Status: skuInfo.Status,
+	}
+}
+
+// bizCartToProto 将 biz.UsecaseCartItem 领域模型转换为 v1.CartItem API 模型。
+func bizCartToProto(cartItem *biz.UsecaseCartItem) *v1.CartItem {
 	if cartItem == nil || cartItem.SkuInfo == nil {
 		return nil
 	}
@@ -53,10 +69,7 @@ func bizCartToProto(cartItem *biz.CartItem) *v1.CartItem {
 		SkuId:    cartItem.SkuID,
 		Quantity: cartItem.Quantity,
 		Checked:  cartItem.Checked,
-		SpuTitle: cartItem.SkuInfo.Title, // 简化处理，直接用 Sku 标题
-		SkuTitle: cartItem.SkuInfo.Title,
-		SkuImage: cartItem.SkuInfo.Image,
-		Price:    cartItem.SkuInfo.Price,
+		SkuInfo:  bizSkuInfoToProto(cartItem.SkuInfo),
 	}
 }
 
@@ -70,7 +83,12 @@ func (s *CartService) AddItem(ctx context.Context, req *v1.AddItemRequest) (*v1.
 		return nil, status.Error(codes.InvalidArgument, "sku_id and quantity are required")
 	}
 
-	err = s.uc.AddItemToCart(ctx, userID, req.SkuId, req.Quantity)
+	checked := true
+	if req.HasChecked() {
+		checked = req.GetChecked()
+	}
+
+	err = s.uc.AddItem(ctx, userID, req.SkuId, req.Quantity, checked)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to add item: %v", err)
 	}

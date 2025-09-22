@@ -52,7 +52,7 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 	skuInfos, err := uc.product.GetSkuInfos(ctx, skuIDs)
 	if err != nil {
 		uc.log.Errorf("CreateOrder: failed to get sku info from product-service: %v", err)
-		return nil, fmt.Errorf("获取商品信息失败: %w", err)
+		return nil, fmt.Errorf("failed to get product information: %w", err)
 	}
 	if len(skuInfos) != len(reqItems) {
 		return nil, fmt.Errorf("some products are invalid or out of stock")
@@ -68,7 +68,7 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 		for _, skuInfo := range skuInfos {
 			quantity := reqItemMap[skuInfo.SkuID]
 			if skuInfo.Stock < quantity {
-				return fmt.Errorf("商品 '%s' 库存不足", skuInfo.Title)
+				return fmt.Errorf("product '%s' has insufficient stock", skuInfo.Title)
 			}
 
 			subTotal := skuInfo.Price * uint64(quantity)
@@ -98,7 +98,7 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 		var err error
 		createdOrder, err = uc.repo.CreateOrder(txCtx, order)
 		if err != nil {
-			return fmt.Errorf("创建订单失败: %w", err)
+			return fmt.Errorf("failed to create order: %w", err)
 		}
 
 		// 3c. 关联 OrderID 并批量创建订单商品记录
@@ -106,13 +106,13 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 			item.OrderID = createdOrder.ID
 		}
 		if err := uc.repo.CreateOrderItems(txCtx, orderItems); err != nil {
-			return fmt.Errorf("创建订单商品失败: %w", err)
+			return fmt.Errorf("failed to create order items: %w", err)
 		}
 
 		// 3d. 调用商品服务锁定库存
 		if err := uc.product.LockStock(txCtx, stockToLock); err != nil {
 			// 如果这里失败，整个事务会回滚，数据库中不会有订单记录
-			return fmt.Errorf("锁定库存失败: %w", err)
+			return fmt.Errorf("failed to lock stock: %w", err)
 		}
 
 		return nil // 事务成功，提交
