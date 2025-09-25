@@ -3,12 +3,15 @@ package biz
 import (
 	"context"
 	"errors"
+<<<<<<< HEAD
 	couponbiz "ecommerce/internal/coupon/biz"
 	orderbiz "ecommerce/internal/order/biz"
 	productbiz "ecommerce/internal/product/biz"
 	reviewbiz "ecommerce/internal/review/biz"
 	userbiz "ecommerce/internal/user/biz"
 	"strconv"
+=======
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 )
 
 // Transaction 定义了事务管理器接口。
@@ -34,16 +37,20 @@ type AdminRepo interface {
 // AdminUsecase 是管理员的业务用例。
 type AdminUsecase struct {
 	repo AdminRepo
+<<<<<<< HEAD
 	authUsecase    *AuthUsecase // Assuming AuthUsecase is in auth.go
 	productUsecase *productbiz.ProductUsecase
 	userUsecase    *userbiz.UserUsecase
 	orderUsecase   *orderbiz.OrderUsecase
 	reviewUsecase  *reviewbiz.ReviewUsecase
 	couponUsecase  *couponbiz.CouponUsecase
+=======
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 	// TODO: Add password hasher interface
 }
 
 // NewAdminUsecase 创建一个新的 AdminUsecase。
+<<<<<<< HEAD
 func NewAdminUsecase(repo AdminRepo, authUC *AuthUsecase, productUC *productbiz.ProductUsecase, userUC *userbiz.UserUsecase, orderUC *orderbiz.OrderUsecase, reviewUC *reviewbiz.ReviewUsecase, couponUC *couponbiz.CouponUsecase) *AdminUsecase {
 	return &AdminUsecase{
 		repo:           repo,
@@ -54,6 +61,10 @@ func NewAdminUsecase(repo AdminRepo, authUC *AuthUsecase, productUC *productbiz.
 		reviewUsecase:  reviewUC,
 		couponUsecase:  couponUC,
 	}
+=======
+func NewAdminUsecase(repo AdminRepo) *AdminUsecase {
+	return &AdminUsecase{repo: repo}
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 }
 
 // CreateAdminUser 注册一个新管理员用户。
@@ -84,6 +95,7 @@ func (uc *AdminUsecase) CreateAdminUser(ctx context.Context, username, password,
 
 	return createdUser, nil
 }
+<<<<<<< HEAD
 
 // ListUsers 列出用户。
 func (uc *AdminUsecase) ListUsers(ctx context.Context, page, pageSize uint32, searchQuery, statusFilter string) ([]*userbiz.User, uint64, error) {
@@ -149,3 +161,5 @@ func (uc *AdminUsecase) UpdateCoupon(ctx context.Context, coupon *couponbiz.Coup
 func (uc *AdminUsecase) DeleteCoupon(ctx context.Context, couponID uint) error {
 	return uc.couponUsecase.DeleteCoupon(ctx, couponID)
 }
+=======
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d

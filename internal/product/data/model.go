@@ -39,7 +39,11 @@ type Category struct {
 	Icon      string `gorm:"type:varchar(255);comment:分类图标" json:"icon"`
 	SortOrder uint32 `gorm:"default:0;type:int;comment:排序" json:"sortOrder"`
 	IsVisible bool   `gorm:"default:true;type:boolean;comment:是否可见" json:"isVisible"`
+<<<<<<< HEAD
 	Spus      []Spu  `gorm:"" json:"spus"`
+=======
+	Spus      []Spu     `gorm:"foreignKey:CategoryID" json:"spus"` // 关联商品
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 }
 
 // Brand 是品牌的 GORM 模型。
@@ -53,6 +57,7 @@ type Brand struct {
 	IsVisible   bool   `gorm:"default:true;type:boolean;comment:是否可见"`
 }
 
+<<<<<<< HEAD
 // Spu 是商品 (SPU) 的 GORM 模型。
 type Spu struct {
 	gorm.Model
@@ -65,6 +70,20 @@ type Spu struct {
 	DetailHTML    string        `gorm:"type:longtext;comment:商品详情HTML" json:"detailHtml"`
 	Status        int32         `gorm:"not null;default:1;comment:状态 1-上架 2-下架 3-删除" json:"status"`
 	Skus          []Sku         `gorm:"foreignKey:SpuID" json:"skus"` // 关联商品
+=======
+// Spu is a GORM model for products (SPU).
+type Spu struct {
+	gorm.Model
+	CategoryID     uint64        `gorm:"index;not null;comment:分类ID" json:"categoryId"`
+	BrandID        uint64        `gorm:"index;not null;comment:品牌ID" json:"brandId"`
+	Title          string        `gorm:"not null;type:varchar(255);comment:SPU标题" json:"title"`
+	SubTitle       string        `gorm:"type:varchar(255);comment:SPU副标题" json:"subTitle"`
+	MainImage      string        `gorm:"type:varchar(255);comment:主图URL" json:"mainImage"`
+	GalleryImages  GalleryImages `gorm:"type:text;comment:画廊图片URL，JSON数组" json:"galleryImages"`
+	DetailHTML     string        `gorm:"type:longtext;comment:商品详情HTML" json:"detailHtml"`
+	Status         int32         `gorm:"not null;default:1;comment:状态 1-上架 2-下架 3-删除" json:"status"`
+	Skus           []Sku         `gorm:"foreignKey:SpuID" json:"skus"` // 关联商品
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 }
 
 // Sku 库存量单位 (Stock Keeping Unit)
@@ -81,6 +100,7 @@ type Sku struct {
 	Status        int32  `gorm:"not null;default:1;comment:状态 1-在售 2-下架 3-删除"`
 }
 
+<<<<<<< HEAD
 // MongoProduct 表示用于 MongoDB 索引的产品文档。
 type MongoProduct struct {
 	ID         string    `bson:"_id,omitempty"` // MongoDB primary key
@@ -105,6 +125,32 @@ type Review struct {
 	Rating  uint32 `gorm:"not null;type:tinyint;comment:评分 (1-5星)"`
 	Comment string `gorm:"type:text;comment:评论内容"`
 	Images  string `gorm:"type:text;comment:评论图片URL，逗号分隔"` // 存储为逗号分隔的字符串
+=======
+// MongoProduct represents a product document for MongoDB indexing.
+type MongoProduct struct {
+	ID          string    `bson:"_id,omitempty"` // MongoDB primary key
+	SpuID       uint64    `bson:"spu_id"`
+	CategoryID  uint64    `bson:"category_id"`
+	BrandID     uint64    `bson:"brand_id"`
+	Title       string    `bson:"title"`
+	SubTitle    string    `bson:"sub_title"`
+	MainImage   string    `bson:"main_image"`
+	DetailHTML  string    `bson:"detail_html"`
+	Status      int32     `bson:"status"`
+	CreatedAt   time.Time `bson:"created_at"`
+	UpdatedAt   time.Time `bson:"updated_at"`
+	// Add other fields relevant for indexing/search in MongoDB
+}
+
+// Review is a GORM model for product reviews.
+type Review struct {
+	gorm.Model
+	SpuID     uint64 `gorm:"index;not null;comment:商品SPU ID"`
+	UserID    uint64 `gorm:"index;not null;comment:用户ID"`
+	Rating    uint32 `gorm:"not null;type:tinyint;comment:评分 (1-5星)"`
+	Comment   string `gorm:"type:text;comment:评论内容"`
+	Images    string `gorm:"type:text;comment:评论图片URL，逗号分隔"` // Stored as comma-separated string
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 }
 
 // TableName 指定 GORM 使用的表名

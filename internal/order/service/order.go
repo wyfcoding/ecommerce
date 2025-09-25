@@ -38,8 +38,12 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *v1.CreateOrderReque
 		}
 	}
 
+<<<<<<< HEAD
 	// 调用业务逻辑创建订单
 	order, err := s.orderUsecase.CreateOrder(ctx, req.UserId, reqItems, req.ShippingAddress, req.PaymentAmount)
+=======
+	createdOrder, err := s.uc.CreateOrder(ctx, userID, bizItems, req.AddressId, req.Remark, req.ShippingAddress, req.PaymentAmount)
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 	if err != nil {
 		s.log.Errorf("CreateOrder: failed to create order: %v", err)
 		return nil, status.Errorf(codes.Internal, "创建订单失败: %v", err)

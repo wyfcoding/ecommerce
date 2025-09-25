@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+<<<<<<< HEAD
 	"ecommerce/api/user_profile/v1"
 	"ecommerce/internal/user_profile/biz"
 	"ecommerce/internal/user_profile/data"
@@ -19,17 +20,32 @@ import (
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/snowflake"
 	"github.com/BurntSushi/toml"
+=======
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+<<<<<<< HEAD
+=======
+	"github.com/BurntSushi/toml"
+
+	v1 "ecommerce/api/user_profile/v1"
+	"ecommerce/internal/user_profile/biz"
+	"ecommerce/internal/user_profile/data"
+	"ecommerce/internal/user_profile/service"
+	"ecommerce/pkg/logging"
+	"ecommerce/pkg/snowflake"
+	"ecommerce/pkg/database/redis"
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 )
 
 // Config 结构体用于映射 TOML 配置文件
 type Config struct {
 	Server struct {
 		HTTP struct {
+<<<<<<< HEAD
 			Addr    string        `toml:"addr"`
 			Port    int           `toml:"port"`
 			Timeout time.Duration `toml:"timeout"`
@@ -37,6 +53,15 @@ type Config struct {
 		GRPC struct {
 			Addr    string        `toml:"addr"`
 			Port    int           `toml:"port"`
+=======
+			Addr    string `toml:"addr"`
+			Port    int    `toml:"port"`
+			Timeout time.Duration `toml:"timeout"`
+		} `toml:"http"`
+		GRPC struct {
+			Addr    string `toml:"addr"`
+			Port    int    `toml:"port"`
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 			Timeout time.Duration `toml:"timeout"`
 		} `toml:"grpc"`
 	} `toml:"server"`
@@ -45,9 +70,15 @@ type Config struct {
 			DSN string `toml:"dsn"`
 		} `toml:"database"`
 		Redis struct {
+<<<<<<< HEAD
 			Addr         string        `toml:"addr"`
 			Password     string        `toml:"password"`
 			DB           int           `toml:"db"`
+=======
+			Addr         string `toml:"addr"`
+			Password     string `toml:"password"`
+			DB           int    `toml:"db"`
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 			ReadTimeout  time.Duration `toml:"read_timeout"`
 			WriteTimeout time.Duration `toml:"write_timeout"`
 		} `toml:"redis"`

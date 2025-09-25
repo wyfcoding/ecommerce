@@ -3,6 +3,7 @@ syntax = "proto3";
 package api.payment.v1;
 
 import "google/api/annotations.proto";
+<<<<<<< HEAD
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
@@ -14,10 +15,22 @@ service PaymentService {
   rpc CreatePayment(CreatePaymentRequest) returns (PaymentResponse) {
     option (google.api.http) = {
       post: "/v1/payment/create"
+=======
+
+option go_package = "ecommerce/api/payment/v1;v1";
+
+// PaymentService 定义了支付服务接口
+service PaymentService {
+  // 发起支付
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse) {
+    option (google.api.http) = {
+      post: "/v1/payments"
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
       body: "*"
     };
   }
 
+<<<<<<< HEAD
   // 获取支付状态
   rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentResponse) {
     option (google.api.http) = {
@@ -79,3 +92,43 @@ message GetPaymentStatusRequest {
 message PaymentResponse {
   Payment payment = 1;
 }
+=======
+  // 处理支付回调 (由支付网关调用)
+  rpc HandlePaymentCallback(HandlePaymentCallbackRequest) returns (HandlePaymentCallbackResponse) {
+    option (google.api.http) = {
+      post: "/v1/payments/callback"
+      body: "*"
+    };
+  }
+}
+
+// CreatePaymentRequest 发起支付请求
+message CreatePaymentRequest {
+  uint64 order_id = 1;
+  uint64 user_id = 2;
+  uint64 amount = 3; // 支付金额 (分)
+  string currency = 4; // 货币单位，如 CNY
+  string payment_method = 5; // 支付方式，如 "WECHAT_PAY", "ALIPAY"
+  string return_url = 6; // 支付成功后跳转的URL
+}
+
+// CreatePaymentResponse 发起支付响应
+message CreatePaymentResponse {
+  string payment_id = 1; // 支付系统生成的唯一ID
+  string redirect_url = 2; // 跳转到支付网关的URL (如果需要)
+  string qr_code_url = 3; // 扫码支付二维码URL (如果需要)
+  string status = 4; // 支付状态，如 "PENDING", "SUCCESS", "FAIL"
+}
+
+// HandlePaymentCallbackRequest 处理支付回调请求
+message HandlePaymentCallbackRequest {
+  string payment_method = 1; // 支付方式
+  map<string, string> callback_data = 2; // 支付网关回调的原始数据
+}
+
+// HandlePaymentCallbackResponse 处理支付回调响应
+message HandlePaymentCallbackResponse {
+  string status = 1; // 处理结果，如 "SUCCESS", "FAIL"
+  string message = 2; // 消息
+}
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d

@@ -195,12 +195,17 @@ func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		return nil, errChan
 	}
 
+<<<<<<< HEAD
 	r := gin.Default()
 	r.Use(gin.Recovery())
 	// Add service-specific Gin routes here
 	// For example:
 	// r.GET("/realtime_analytics/dashboard", handler.GetRealtimeDashboard)
 
+=======
+	r := gin.New()
+	r.Use(gin.Recovery())
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 	r.Any("/*any", gin.WrapH(mux))
 
 	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)

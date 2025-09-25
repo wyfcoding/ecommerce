@@ -6,7 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
+<<<<<<< HEAD
 // SettlementRecord 结算交易记录
+=======
+// SettlementRecord represents a record of a settlement transaction.
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 type SettlementRecord struct {
 	gorm.Model
 	RecordID         string    `gorm:"uniqueIndex;not null;comment:结算记录唯一ID" json:"recordId"`
@@ -19,7 +23,11 @@ type SettlementRecord struct {
 	SettledAt        *time.Time `gorm:"comment:结算完成时间" json:"settledAt"`
 }
 
+<<<<<<< HEAD
 // TableName 指定 SettlementRecord 的表名
+=======
+// TableName specifies the table name for SettlementRecord.
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 func (SettlementRecord) TableName() string {
 	return "settlement_records"
 }

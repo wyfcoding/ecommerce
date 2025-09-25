@@ -10,18 +10,26 @@ import (
 	"ecommerce/pkg/logging"
 	"fmt"
 	"net"
+<<<<<<< HEAD
 	"net/http"
+=======
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
+<<<<<<< HEAD
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+=======
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 )
 
 // Config 结构体用于映射 analytics.toml 配置文件
@@ -75,6 +83,7 @@ func main() {
 	analyticsUsecase := biz.NewAnalyticsUsecase(analyticsRepo)
 
 	// 7. 初始化 gRPC Server
+<<<<<<< HEAD
 	grpcServer := grpc.NewServer()
 	analyticsService := service.NewAnalyticsService(analyticsUsecase)
 	v1.RegisterAnalyticsServiceServer(grpcServer, analyticsService)
@@ -121,6 +130,32 @@ func main() {
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		zap.S().Errorf("HTTP server shutdown error: %v", err)
 	}
+=======
+	s := grpc.NewServer()
+	analyticsService := service.NewAnalyticsService(analyticsUsecase)
+	v1.RegisterAnalyticsServiceServer(s, analyticsService)
+
+	// 8. 启动 gRPC Server
+	grpcAddr := fmt.Sprintf("%s:%d", config.Server.Grpc.Addr, config.Server.Grpc.Port)
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		zap.S().Fatalf("failed to listen: %v", err)
+	}
+
+	go func() {
+		zap.S().Infof("Analytics Service gRPC server listening on %s", grpcAddr)
+		if err := s.Serve(lis); err != nil {
+			zap.S().Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	// 9. 优雅停机
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	zap.S().Info("Shutting down Analytics Service...")
+	s.GracefulStop()
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
 }
 
 // loadConfig 从 TOML 文件加载配置
@@ -135,6 +170,7 @@ func loadConfig(path string) (*Config, error) {
 	}
 	return &config, nil
 }
+<<<<<<< HEAD
 
 // startHTTPServer 启动 HTTP Gateway
 func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
@@ -172,3 +208,5 @@ func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 	}()
 	return server, errChan
 }
+=======
+>>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
