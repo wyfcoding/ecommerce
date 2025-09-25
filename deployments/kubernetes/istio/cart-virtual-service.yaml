@@ -1,0 +1,50 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: cart-virtual-service
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - ecommerce-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/v1/cart"
+      # 示例：基于请求头进行流量路由
+      # headers:
+      #   end-user:
+      #     exact: jason
+    route:
+    - destination:
+        host: cart-service
+        port:
+          number: 8082 # The HTTP port of the service
+        # subset: v1 # 示例：路由到特定子集，需要在 DestinationRule 中定义
+      # weight: 90 # 示例：流量权重
+    # - destination:
+    #     host: cart-service
+    #     port:
+    #       number: 8082
+    #     subset: v2 # 示例：路由到另一个子集，需要在 DestinationRule 中定义
+    #   weight: 10
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: 5xx
+    # 故障注入示例：10% 的请求延迟 5 秒
+    fault:
+      delay:
+        percentage:
+          value: 10
+        fixedDelay: 5s
+    # 影子流量示例：将所有流量镜像到 cart-service-shadow
+    # 请确保 cart-service-shadow 服务存在
+    mirror:
+      host: cart-service-shadow
+      port:
+        number: 8082
+      percentage:
+        value: 100
+    # 链路追踪通常由 Istio 自动处理，无需在此处显式配置
+

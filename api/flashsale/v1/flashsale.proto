@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package api.flashsale.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/flashsale/v1;v1";
+
+// FlashSale Service
+service FlashSale {
+    // Create a new flash sale event
+    rpc CreateFlashSaleEvent(CreateFlashSaleEventRequest) returns (CreateFlashSaleEventResponse) {
+        option (google.api.http) = {
+            post: "/v1/flashsale/events"
+            body: "*"
+        };
+    }
+
+    // Get a flash sale event by ID
+    rpc GetFlashSaleEvent(GetFlashSaleEventRequest) returns (GetFlashSaleEventResponse) {
+        option (google.api.http) = {
+            get: "/v1/flashsale/events/{id}"
+        };
+    }
+
+    // List active flash sale events
+    rpc ListActiveFlashSaleEvents(ListActiveFlashSaleEventsRequest) returns (ListActiveFlashSaleEventsResponse) {
+        option (google.api.http) = {
+            get: "/v1/flashsale/events/active"
+        };
+    }
+
+    // Participate in a flash sale (e.g., place an order)
+    rpc ParticipateInFlashSale(ParticipateInFlashSaleRequest) returns (ParticipateInFlashSaleResponse) {
+        option (google.api.http) = {
+            post: "/v1/flashsale/participate"
+            body: "*"
+        };
+    }
+
+    // Get flash sale product details (e.g., remaining stock)
+    rpc GetFlashSaleProductDetails(GetFlashSaleProductDetailsRequest) returns (GetFlashSaleProductDetailsResponse) {
+        option (google.api.http) = {
+            get: "/v1/flashsale/events/{event_id}/products/{product_id}"
+        };
+    }
+}
+
+// Represents a flash sale event
+message FlashSaleEvent {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    google.protobuf.Timestamp start_time = 4;
+    google.protobuf.Timestamp end_time = 5;
+    string status = 6; // e.g., UPCOMING, ACTIVE, ENDED
+    repeated FlashSaleProduct products = 7;
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+}
+
+// Represents a product within a flash sale event
+message FlashSaleProduct {
+    string product_id = 1;
+    double flash_price = 2;
+    int32 total_stock = 3;
+    int32 remaining_stock = 4;
+    int32 max_per_user = 5;
+}
+
+// Request to create a flash sale event
+message CreateFlashSaleEventRequest {
+    string name = 1;
+    string description = 2;
+    google.protobuf.Timestamp start_time = 3;
+    google.protobuf.Timestamp end_time = 4;
+    repeated FlashSaleProduct products = 5;
+}
+
+// Response for creating a flash sale event
+message CreateFlashSaleEventResponse {
+    FlashSaleEvent event = 1;
+}
+
+// Request to get a flash sale event
+message GetFlashSaleEventRequest {
+    string id = 1;
+}
+
+// Response for getting a flash sale event
+message GetFlashSaleEventResponse {
+    FlashSaleEvent event = 1;
+}
+
+// Request to list active flash sale events
+message ListActiveFlashSaleEventsRequest {
+    // No specific fields needed for now
+}
+
+// Response for listing active flash sale events
+message ListActiveFlashSaleEventsResponse {
+    repeated FlashSaleEvent events = 1;
+    int32 total_count = 2;
+}
+
+// Request to participate in a flash sale
+message ParticipateInFlashSaleRequest {
+    string event_id = 1;
+    string product_id = 2;
+    string user_id = 3;
+    int32 quantity = 4;
+}
+
+// Response for participating in a flash sale
+message ParticipateInFlashSaleResponse {
+    string order_id = 1;
+    string status = 2; // e.g., SUCCESS, FAILED_NO_STOCK, FAILED_TOO_MANY_ITEMS
+    string message = 3;
+}
+
+// Request to get flash sale product details
+message GetFlashSaleProductDetailsRequest {
+    string event_id = 1;
+    string product_id = 2;
+}
+
+// Response for getting flash sale product details
+message GetFlashSaleProductDetailsResponse {
+    FlashSaleProduct product = 1;
+}

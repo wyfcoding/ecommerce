@@ -4,6 +4,7 @@ import (
 	"context"
 	"ecommerce/internal/order/biz"
 	"encoding/json"
+	"gorm.io/gorm"
 )
 
 type orderRepo struct {
@@ -41,7 +42,6 @@ func (r *orderRepo) CreateOrder(ctx context.Context, order *biz.Order) (*biz.Ord
 	}
 
 	po := &Order{
-		ID:              order.ID,
 		UserID:          order.UserID,
 		TotalAmount:     order.TotalAmount,
 		PaymentAmount:   order.PaymentAmount,
@@ -52,6 +52,7 @@ func (r *orderRepo) CreateOrder(ctx context.Context, order *biz.Order) (*biz.Ord
 	if err := tx.Create(po).Error; err != nil {
 		return nil, err
 	}
+	order.ID = po.ID // Assign the generated ID back to biz.Order
 	return r.toBizOrder(po), nil
 }
 
@@ -85,4 +86,40 @@ func (r *orderRepo) GetOrder(ctx context.Context, id uint64) (*biz.Order, error)
 		return nil, err
 	}
 	return r.toBizOrder(&o), nil
+}
+
+// CreateOrderForFlashSale creates a new order record in the database for flash sale scenarios.
+func (r *orderRepo) CreateOrderForFlashSale(ctx context.Context, order *biz.Order) (*biz.Order, error) {
+	tx := GetDBFromContext(ctx)
+	if tx == nil {
+		tx = r.db
+	}
+
+	po := &Order{
+		ID:              order.ID,
+		UserID:          order.UserID,
+		TotalAmount:     order.TotalAmount,
+		PaymentAmount:   order.PaymentAmount,
+		Status:          order.Status,
+		CreatedAt:       order.CreatedAt,
+		UpdatedAt:       order.UpdatedAt,
+	}
+	if err := tx.Create(po).Error; err != nil {
+		return nil, err
+	}
+	return r.toBizOrder(po), nil
+}
+
+// CompensateCreateOrder updates the status of a given order to 'Cancelled' for Saga compensation.
+func (r *orderRepo) CompensateCreateOrder(ctx context.Context, orderID uint64) error {
+	tx := GetDBFromContext(ctx)
+	if tx == nil {
+		tx = r.db
+	}
+
+	result := tx.WithContext(ctx).Model(&Order{}).Where("id = ?", orderID).Update("status", biz.OrderStatusCancelled)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
 }

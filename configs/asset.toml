@@ -1,0 +1,24 @@
+[server]
+  [server.grpc]
+    addr = "0.0.0.0"
+    port = 8001
+  [server.http]
+    addr = "0.0.0.0"
+    port = 8081
+
+[log]
+  level = "info"
+  format = "console"
+  output = "stdout"
+
+[data]
+  [data.database]
+    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_asset?charset=utf8mb4&parseTime=True&loc=Local"
+    max_idle_conns = 10
+    max_open_conns = 100
+    conn_max_lifetime = "300s"
+  [data.minio]
+    endpoint = "127.0.0.1:9000"
+    access_key_id = "minioadmin"
+    secret_access_key = "minioadmin"
+    use_ssl = false

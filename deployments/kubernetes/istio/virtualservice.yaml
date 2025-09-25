@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: user-virtual-service
+spec:
+  hosts:
+  - "*" # Should match the hosts in the Gateway
+  gateways:
+  - ecommerce-gateway # Binds to our gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/v1/user"
+    route:
+    - destination:
+        host: user-service # The Kubernetes service name
+        port:
+          number: 8080 # The HTTP port of the service

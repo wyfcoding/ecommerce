@@ -1,236 +1,78 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"net"
+	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"github.com/BurntSushi/toml"
-
-	v1 "ecommerce/api/product/v1"
-	"ecommerce/internal/product/biz"
-	"ecommerce/internal/product/data"
-	"ecommerce/internal/product/service"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
-	"ecommerce/pkg/database/redis"
+	"C:\Users\15849\Downloads\ecommerce\internal\product" // 假设内部逻辑在此
+	"C:\Users\15849\Downloads\ecommerce\pkg\config"    // 假设配置包在此
+	"C:\Users\15849\Downloads\ecommerce\pkg\logging"   // 假设日志包在此
 )
 
-// Config 结构体用于映射 TOML 配置文件
+// Config 结构体定义了服务的配置
 type Config struct {
-	Server struct {
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string `toml:"addr"`
-			Port    int    `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
-	Data struct {
-		Database struct {
-			DSN string `toml:"dsn"`
-		} `toml:"database"`
-		Redis struct {
-			Addr         string `toml:"addr"`
-			Password     string `toml:"password"`
-			DB           int    `toml:"db"`
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
-	} `toml:"data"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`}
+	Port string `toml:"port"`
+	// 其他服务特定配置...
+}
+
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/product.toml", "config file path")
-	flag.Parse()
+	// 1. 初始化日志
+	logging.InitLogger()
+	log.Println("Product Service starting...")
 
-	config, err := loadConfig(configPath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+	// 2. 加载配置
+	var cfg Config
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "C:\Users\15849\Downloads\ecommerce\configs\product.toml" // 默认配置路径
 	}
-
-	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger)
-
-	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
+	if err := config.LoadConfig(configPath, &cfg); err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
+	log.Printf("Configuration loaded: %+v\n", cfg)
 
-	// 4. 依赖注入 (DI)
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
-	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
-	}
-	defer cleanup()
+	// 3. 初始化服务依赖 (例如数据库连接、外部客户端等)
+	// db, err := product.NewDatabaseClient(...)
+	// if err != nil {
+	// 	log.Fatalf("Failed to connect to database: %v", err)
+	// }
+	// defer db.Close()
 
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
-	})
-	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer redisCleanup()
+	// 4. 初始化产品服务处理器
+	productService := product.NewService() // 假设 product 包提供了 NewService 函数
 
-	// 初始化业务层
-	categoryRepo := data.NewCategoryRepo(dataInstance)
-	categoryUsecase := biz.NewCategoryUsecase(categoryRepo)
+	// 5. 定义 HTTP 路由
+	http.HandleFunc("/v1/product", productService.HandleGetProduct)
+	http.HandleFunc("/healthz", healthCheckHandler) // 健康检查端点
+	http.HandleFunc("/readyz", readinessCheckHandler) // 就绪检查端点
 
-	productRepo := data.NewProductRepo(dataInstance)
-	productUsecase := biz.NewProductUsecase(productRepo)
-
-	// 初始化品牌业务层
-	brandRepo := data.NewBrandRepo(dataInstance)
-	brandUsecase := biz.NewBrandUsecase(brandRepo)
-
-	// 初始化评论业务层
-	reviewRepo := data.NewReviewRepo(dataInstance)
-	reviewUsecase := biz.NewReviewUsecase(reviewRepo)
-
-	// 初始化服务层
-	productService := service.NewService(categoryUsecase, productUsecase, brandUsecase, reviewUsecase)
-
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := startGRPCServer(productService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := startHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
-	}
-
-	// 6. 等待中断信号或服务器错误以实现优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down product service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down product service due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down product service due to HTTP error...")
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
-
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &config, nil
-}
-
-// startGRPCServer 启动 gRPC 服务器
-func startGRPCServer(svc *service.Service, addr string, port int) (*grpc.Server, chan error) {
-	errChan := make(chan error, 1)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
-	if err != nil {
-		errChan <- fmt.Errorf("failed to listen: %w", err)
-		return nil, errChan
-	}
-	s := grpc.NewServer()
-	// 同时注册 CategoryService 和 ProductService
-	v1.RegisterCategoryServiceServer(s, productService)
-	v1.RegisterProductServiceServer(s, productService)
-
-	zap.S().Infof("gRPC server listening at %v", lis.Addr())
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			errChan <- fmt.Errorf("failed to serve gRPC: %w", err)
-		}
-		close(errChan)
-	}()
-	return s, errChan
-}
-
-// startHTTPServer 启动 HTTP Gateway
-func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
-
-	// 注册 CategoryService 的 HTTP Handler
-	err := v1.RegisterCategoryServiceHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
-	if err != nil {
-		errChan <- fmt.Errorf("failed to register gRPC gateway for CategoryService: %w", err)
-		return nil, errChan
-	}
-	// 注册 ProductService 的 HTTP Handler
-	err = v1.RegisterProductServiceHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
-	if err != nil {
-		errChan <- fmt.Errorf("failed to register gRPC gateway for ProductService: %w", err)
-		return nil, errChan
-	}
-	// 注册 ReviewService 的 HTTP Handler
-	err = v1.RegisterReviewServiceHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
-	if err != nil {
-		errChan <- fmt.Errorf("failed to register gRPC gateway for ReviewService: %w", err)
-		return nil, errChan
-	}
-
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Any("/*any", gin.WrapH(mux))
-
-	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)
+	// 6. 启动 HTTP 服务器
+	addr := fmt.Sprintf(":%s", cfg.Port)
+	log.Printf("Product Service listening on %s\n", addr)
 	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: r,
+		Addr:         addr,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
-	zap.S().Infof("HTTP server listening at %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Could not listen on %s: %v\n", addr, err)
+	}
+}
+
+// healthCheckHandler 简单的健康检查
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "OK")
+}
+
+// readinessCheckHandler 简单的就绪检查
+func readinessCheckHandler(w http.ResponseWriter, r *http.Request) {
+	// 在这里可以添加更复杂的逻辑，例如检查数据库连接、依赖服务等
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Ready")
 }

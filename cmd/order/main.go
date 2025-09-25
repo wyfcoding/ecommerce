@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,10 +17,12 @@ import (
 	"ecommerce/internal/order/service"
 	"ecommerce/pkg/logging"
 
+	"github.com/BurntSushi/toml"
+	"github.com/gin-gonic/gin"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"github.com/BurntSushi/toml"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -31,23 +34,28 @@ type Config struct {
 			Port    int    `toml:"port"`
 			Timeout string `toml:"timeout"`
 		} `toml:"grpc"`
-	} `toml:"server"`
+		HTTP struct {
+			Addr    string `toml:"addr"`
+			Port    int    `toml:"port"`
+			Timeout string `toml:"timeout"`
+		} `toml:"http"`
+	}
 	Data struct {
 		Database struct {
 			DSN string `toml:"dsn"`
-		} `toml:"database"`
+		}
 		ProductService struct {
 			Addr string `toml:"addr"`
-		} `toml:"product_service"`
+		}
 		CartService struct {
 			Addr string `toml:"addr:"`
-		} `toml:"cart_service"`
-	} `toml:"data"`
+		}
+	}
 	Log struct {
 		Level  string `toml:"level"`
 		Format string `toml:"format"`
 		Output string `toml:"output"`
-	} `toml:"log"`
+	}
 }
 
 func main() {
@@ -107,10 +115,14 @@ func main() {
 	orderUsecase := biz.NewOrderUsecase(transaction, orderRepo, productClient, cartClient)
 	orderService := service.NewOrderService(orderUsecase)
 
-	// 5. 启动 gRPC 服务器
-	grpcServer, errChan := startGRPCServer(orderService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
+	// 5. 启动 gRPC 和 HTTP Gateway
+	grpcServer, grpcErrChan := startGRPCServer(orderService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
 	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-errChan)
+		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
+	}
+	httpServer, httpErrChan := startHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
+	if httpServer == nil {
+		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
 	}
 
 	// 6. 等待中断信号或服务器错误以实现优雅停机
@@ -120,12 +132,21 @@ func main() {
 	select {
 	case <-quit:
 		zap.S().Info("Shutting down order service...")
-	case err := <-errChan:
+	case err := <-grpcErrChan:
 		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down order service due to error...")
+		zap.S().Info("Shutting down order service due to gRPC error...")
+	case err := <-httpErrChan:
+		zap.S().Errorf("HTTP server error: %v", err)
+		zap.S().Info("Shutting down order service due to HTTP error...")
 	}
 
+	// 优雅地关闭服务器
 	grpcServer.GracefulStop()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		zap.S().Errorf("HTTP server shutdown error: %v", err)
+	}
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -155,4 +176,41 @@ func startGRPCServer(orderService *service.OrderService, addr string, port int) 
 		close(errChan)
 	}()
 	return s, errChan
+}
+
+// startHTTPServer 启动 HTTP Gateway
+func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+	errChan := make(chan error, 1)
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
+
+	err := v1.RegisterOrderHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
+	if err != nil {
+		errChan <- fmt.Errorf("failed to register gRPC gateway for OrderService: %w", err)
+		return nil, errChan
+	}
+
+	r := gin.Default()
+	r.Use(gin.Recovery())
+	// Add service-specific Gin routes here
+	// For example:
+	// r.GET("/order/:id", handler.GetOrder)
+
+	r.Any("/*any", gin.WrapH(mux))
+
+	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)
+	server := &http.Server{
+		Addr:    httpEndpoint,
+		Handler: r,
+	}
+
+	zap.S().Infof("HTTP server listening at %s", httpEndpoint)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- fmt.Errorf("failed to serve HTTP: %w", err)
+		}
+		close(errChan)
+	}()
+	return server, errChan
 }

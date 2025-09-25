@@ -105,6 +105,14 @@ service ProductService {
     };
   }
 
+  // 索引产品到MongoDB
+  rpc IndexProduct(IndexProductRequest) returns (IndexProductResponse) {
+    option (google.api.http) = {
+      post: "/v1/products/index"
+      body: "*"
+    };
+  }
+
   // --- 内部接口 ---
   rpc GetSkuInfos(GetSkuInfosRequest) returns (GetSkuInfosResponse) {}
   rpc LockStock(LockStockRequest) returns (LockStockResponse) {}
@@ -334,3 +342,9 @@ message LockStockRequest {
 }
 
 message LockStockResponse {}
+
+message IndexProductRequest {
+  uint64 spu_id = 1;
+}
+
+message IndexProductResponse {}

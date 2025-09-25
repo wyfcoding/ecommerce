@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package api.risk_security.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/risk_security/v1;v1";
+
+// RiskSecurityService 定义了风控与安全服务接口
+service RiskSecurityService {
+  // 执行反欺诈检查
+  rpc PerformAntiFraudCheck(PerformAntiFraudCheckRequest) returns (PerformAntiFraudCheckResponse) {
+    option (google.api.http) = {
+      post: "/v1/risk_security/anti_fraud_check"
+      body: "*"
+    };
+  }
+}
+
+// PerformAntiFraudCheckRequest 执行反欺诈检查请求
+message PerformAntiFraudCheckRequest {
+  string user_id = 1; // 用户ID
+  string ip_address = 2; // IP地址
+  string device_info = 3; // 设备信息
+  string order_id = 4; // 订单ID (如果适用)
+  uint64 amount = 5; // 交易金额 (如果适用)
+  map<string, string> additional_data = 6; // 额外数据
+}
+
+// PerformAntiFraudCheckResponse 执行反欺诈检查响应
+message PerformAntiFraudCheckResponse {
+  bool is_fraud = 1; // 是否为欺诈
+  string risk_score = 2; // 风险分数
+  string decision = 3; // 决策 (ALLOW, REVIEW, REJECT)
+  string message = 4; // 消息
+}

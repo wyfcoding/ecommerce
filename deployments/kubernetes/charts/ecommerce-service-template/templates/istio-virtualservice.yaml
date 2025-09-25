@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "ecommerce-service-template.fullname" . }}
+  labels:
+    {{- include "ecommerce-service-template.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - "*" # Or specify your domain, e.g., "product.ecommerce.com"
+  gateways:
+    - {{ include "ecommerce-service-template.fullname" . }}-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /v1/products
+      route:
+        - destination:
+            host: {{ include "ecommerce-service-template.fullname" . }}
+            port:
+              number: 80 # Or your service port

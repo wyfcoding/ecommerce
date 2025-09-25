@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package api.smart_product_selection.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/smart_product_selection/v1;v1";
+
+// SmartProductSelectionService 定义了智能选品服务接口
+service SmartProductSelectionService {
+  // 获取智能选品推荐
+  rpc GetSmartProductRecommendations(GetSmartProductRecommendationsRequest) returns (GetSmartProductRecommendationsResponse) {
+    option (google.api.http) = {
+      post: "/v1/smart_product_selection/recommendations"
+      body: "*"
+    };
+  }
+}
+
+// ProductRecommendation 智能选品推荐结果
+message ProductRecommendation {
+  uint64 product_id = 1;
+  string product_name = 2;
+  double score = 3; // 推荐分数
+  string reason = 4; // 推荐理由
+}
+
+// GetSmartProductRecommendationsRequest 获取智能选品推荐请求
+message GetSmartProductRecommendationsRequest {
+  string merchant_id = 1; // 商家ID
+  map<string, string> context_features = 2; // 选品上下文特征，如季节、流行趋势、库存情况
+}
+
+// GetSmartProductRecommendationsResponse 获取智能选品推荐响应
+message GetSmartProductRecommendationsResponse {
+  repeated ProductRecommendation recommendations = 1;
+}

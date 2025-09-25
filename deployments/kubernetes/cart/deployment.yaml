@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-deployment
+  labels:
+    app: cart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart
+  template:
+    metadata:
+      labels:
+        app: cart
+        istio-injection: enabled # Ensure Istio sidecar is injected
+    spec:
+      containers:
+        - name: cart
+          image: ecommerce/cart:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+            - containerPort: 9002
+              name: grpc

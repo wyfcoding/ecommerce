@@ -1,0 +1,208 @@
+syntax = "proto3";
+
+package api.cms.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/cms/v1;v1";
+
+// CMS Service
+service CMS {
+    // Create a new content page
+    rpc CreateContentPage(CreateContentPageRequest) returns (CreateContentPageResponse) {
+        option (google.api.http) = {
+            post: "/v1/cms/pages"
+            body: "*"
+        };
+    }
+
+    // Get a content page by slug or ID
+    rpc GetContentPage(GetContentPageRequest) returns (GetContentPageResponse) {
+        option (google.api.http) = {
+            get: "/v1/cms/pages/{id}"
+        };
+    }
+
+    // Update an existing content page
+    rpc UpdateContentPage(UpdateContentPageRequest) returns (UpdateContentPageResponse) {
+        option (google.api.http) = {
+            put: "/v1/cms/pages/{id}"
+            body: "*"
+        };
+    }
+
+    // Delete a content page
+    rpc DeleteContentPage(DeleteContentPageRequest) returns (DeleteContentPageResponse) {
+        option (google.api.http) = {
+            delete: "/v1/cms/pages/{id}"
+        };
+    }
+
+    // List content pages
+    rpc ListContentPages(ListContentPagesRequest) returns (ListContentPagesResponse) {
+        option (google.api.http) = {
+            get: "/v1/cms/pages"
+        };
+    }
+
+    // Create a new content block
+    rpc CreateContentBlock(CreateContentBlockRequest) returns (CreateContentBlockResponse) {
+        option (google.api.http) = {
+            post: "/v1/cms/blocks"
+            body: "*"
+        };
+    }
+
+    // Get a content block by slug or ID
+    rpc GetContentBlock(GetContentBlockRequest) returns (GetContentBlockResponse) {
+        option (google.api.http) = {
+            get: "/v1/cms/blocks/{id}"
+        };
+    }
+
+    // Update an existing content block
+    rpc UpdateContentBlock(UpdateContentBlockRequest) returns (UpdateContentBlockResponse) {
+        option (google.api.http) = {
+            put: "/v1/cms/blocks/{id}"
+            body: "*"
+        };
+    }
+
+    // Delete a content block
+    rpc DeleteContentBlock(DeleteContentBlockRequest) returns (DeleteContentBlockResponse) {
+        option (google.api.http) = {
+            delete: "/v1/cms/blocks/{id}"
+        };
+    }
+}
+
+// Represents a content page
+message ContentPage {
+    string id = 1;
+    string title = 2;
+    string slug = 3; // URL-friendly identifier
+    string content_html = 4;
+    string status = 5; // e.g., DRAFT, PUBLISHED, ARCHIVED
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+// Represents a reusable content block
+message ContentBlock {
+    string id = 1;
+    string name = 2; // Internal name for the block
+    string content_html = 3;
+    string type = 4; // e.g., HTML, MARKDOWN, JSON
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+// Request to create a content page
+message CreateContentPageRequest {
+    string title = 1;
+    string slug = 2;
+    string content_html = 3;
+    string status = 4;
+}
+
+// Response for creating a content page
+message CreateContentPageResponse {
+    ContentPage page = 1;
+}
+
+// Request to get a content page
+message GetContentPageRequest {
+    string id = 1;
+    string slug = 2;
+}
+
+// Response for getting a content page
+message GetContentPageResponse {
+    ContentPage page = 1;
+}
+
+// Request to update a content page
+message UpdateContentPageRequest {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+    string content_html = 4;
+    string status = 5;
+}
+
+// Response for updating a content page
+message UpdateContentPageResponse {
+    ContentPage page = 1;
+}
+
+// Request to delete a content page
+message DeleteContentPageRequest {
+    string id = 1;
+}
+
+// Response for deleting a content page
+message DeleteContentPageResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Request to list content pages
+message ListContentPagesRequest {
+    int32 page_size = 1;
+    int32 page_token = 2;
+    string status_filter = 3;
+}
+
+// Response for listing content pages
+message ListContentPagesResponse {
+    repeated ContentPage pages = 1;
+    int32 total_count = 2;
+}
+
+// Request to create a content block
+message CreateContentBlockRequest {
+    string name = 1;
+    string content_html = 2;
+    string type = 3;
+}
+
+// Response for creating a content block
+message CreateContentBlockResponse {
+    ContentBlock block = 1;
+}
+
+// Request to get a content block
+message GetContentBlockRequest {
+    string id = 1;
+    string name = 2;
+}
+
+// Response for getting a content block
+message GetContentBlockResponse {
+    ContentBlock block = 1;
+}
+
+// Request to update a content block
+message UpdateContentBlockRequest {
+    string id = 1;
+    string name = 2;
+    string content_html = 3;
+    string type = 4;
+}
+
+// Response for updating a content block
+message UpdateContentBlockResponse {
+    ContentBlock block = 1;
+}
+
+// Request to delete a content block
+message DeleteContentBlockRequest {
+    string id = 1;
+}
+
+// Response for deleting a content block
+message DeleteContentBlockResponse {
+    bool success = 1;
+    string message = 2;
+}

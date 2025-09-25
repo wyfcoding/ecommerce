@@ -1,0 +1,25 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "ecommerce-service-template.fullname" . }}-access-control
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ecommerce-service-template.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "ecommerce-service-template.name" . }}
+  action: ALLOW
+  rules:
+    {{- if .Values.authorizationPolicy.rules }}
+    {{- toYaml .Values.authorizationPolicy.rules | nindent 4 }}
+    {{- else }}
+    # 默认规则：允许来自同一命名空间的服务账户访问 GET 请求
+    - from:
+      - source:
+          principals: ["cluster.local/ns/{{ .Release.Namespace }}/sa/{{ include "ecommerce-service-template.serviceAccountName" . }}"]
+      to:
+      - operation:
+          methods: ["GET"]
+          paths: ["/*"]
+    {{- end }}

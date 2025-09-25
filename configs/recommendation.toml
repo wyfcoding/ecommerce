@@ -1,20 +1,27 @@
-[server.http]
-addr = "0.0.0.0"
-port = 8087
-timeout = "5s"
-
-[server.grpc]
-addr = "0.0.0.0"
-port = 9097
-timeout = "5s"
-
-[data.database]
-dsn = "root:password@tcp(127.0.0.1:3306)/ecommerce_recommendation?charset=utf8mb4&parseTime=True&loc=Local"
-
-[data.product_service]
-addr = "localhost:9091"
+[server]
+  [server.grpc]
+    addr = "0.0.0.0"
+    port = 8015
+  [server.http]
+    addr = "0.0.0.0"
+    port = 8095
 
 [log]
-level = "debug"
-format = "console"
-output = "stdout"
+  level = "info"
+  format = "console"
+  output = "stdout"
+
+[data]
+  [data.database]
+    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_recommendation?charset=utf8mb4&parseTime=True&loc=Local"
+    max_idle_conns = 10
+    max_open_conns = 100
+    conn_max_lifetime = "300s"
+  [data.neo4j]
+    uri = "bolt://127.0.0.1:7687"
+    username = "neo4j"
+    password = "password"
+
+[services]
+  [services.ai_model]
+    addr = "127.0.0.1:8020"

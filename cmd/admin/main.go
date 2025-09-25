@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,17 +20,39 @@ import (
 	"gorm.io/gorm"
 
 	v1 "ecommerce/api/admin/v1"
+	couponv1 "ecommerce/api/coupon/v1"
+	orderv1 "ecommerce/api/order/v1"
+	productv1 "ecommerce/api/product/v1"
+	reviewv1 "ecommerce/api/review/v1"
+	userv1 "ecommerce/api/user/v1"
 	"ecommerce/internal/admin/biz"
 	"ecommerce/internal/admin/data"
+	adminmodel "ecommerce/internal/admin/data/model"
+	couponbiz "ecommerce/internal/coupon/biz"
+	coupondata "ecommerce/internal/coupon/data"
+	orderbiz "ecommerce/internal/order/biz"
+	orderdata "ecommerce/internal/order/data"
+	productbiz "ecommerce/internal/product/biz"
+	productdata "ecommerce/internal/product/data"
+	reviewbiz "ecommerce/internal/review/biz"
+	reviewdata "ecommerce/internal/review/data"
 	"ecommerce/internal/admin/service"
+	userbiz "ecommerce/internal/user/biz"
+	userdata "ecommerce/internal/user/data"
 	"ecommerce/pkg/logging"
 )
 
 // Config 结构体用于映射 TOML 配置文件
 type Config struct {
 	Server struct {
-		            Timeout time.Duration `toml:"timeout"`		} `toml:"http"`
+		HTTP struct {
+			Addr    string `toml:"addr"`
+			Port    int    `toml:"port"`
+			Timeout time.Duration `toml:"timeout"`
+		} `toml:"http"`
 		GRPC struct {
+			Addr    string `toml:"addr"`
+			Port    int    `toml:"port"`
 			Timeout time.Duration `toml:"timeout"`
 		} `toml:"grpc"`
 	} `toml:"server"`
@@ -40,11 +61,19 @@ type Config struct {
 			DSN string `toml:"dsn"`
 		} `toml:"database"`
 		ProductService struct {
-			Addr string `toml:"addr"`
-		} `toml:"product_service"`
+			Addr string `toml:"addr"`		} `toml:"product_service"`
 		OrderService struct {
 			Addr string `toml:"addr"`
 		} `toml:"order_service"`
+		UserService struct {
+			Addr string `toml:"addr"`
+		} `toml:"user_service"`
+		ReviewService struct {
+			Addr string `toml:"addr"`
+		} `toml:"review_service"`
+		CouponService struct {
+			Addr string `toml:"addr"`
+		} `toml:"coupon_service"`
 	} `toml:"data"`
 	JWT struct {
 		Secret string `toml:"secret"`
@@ -53,8 +82,7 @@ type Config struct {
 	} `toml:"jwt"`
 	Log struct {
 		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
+		Format string `toml:"format"`		Output string `toml:"output"`
 	} `toml:"log"`
 }
 
@@ -94,10 +122,10 @@ func main() {
 		zap.S().Fatalf("failed to connect database: %v", err)
 	}
 
-	// 自动迁移数据库表结构 (TODO: 仅在开发环境或需要时执行)
-	// if err := db.AutoMigrate(&data.AdminUser{}, &data.Role{}, &data.Permission{}); err != nil {
-	// 	zap.S().Fatalf("failed to migrate database: %v", err)
-	// }
+	// 自动迁移数据库表结构
+	if err := db.AutoMigrate(&adminmodel.AdminUser{}, &adminmodel.Role{}, &adminmodel.Permission{}, &adminmodel.AdminUserRole{}); err != nil {
+		zap.S().Fatalf("failed to migrate database: %v", err)
+	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -108,31 +136,69 @@ func main() {
 	// gRPC 客户端连接
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Product Service Client
+	productServiceConn, err := grpc.DialContext(dialCtx, config.Data.ProductService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		zap.S().Fatalf("failed to connect to product service: %v", err)
+	}
+	defer productServiceConn.Close()
+	productClient := productv1.NewProductClient(productServiceConn)
+	productData := productdata.NewData(db) // Assuming product service has its own data layer
+	productRepo := productdata.NewProductRepo(productData)
+	productUsecase := productbiz.NewProductUsecase(productRepo)
+
+	// Order Service Client
 	orderServiceConn, err := grpc.DialContext(dialCtx, config.Data.OrderService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		zap.S().Fatalf("failed to connect to order service: %v", err)
 	}
 	defer orderServiceConn.Close()
+	orderClient := orderv1.NewOrderClient(orderServiceConn)
+	orderData := orderdata.NewData(db) // Assuming order service has its own data layer
+	orderRepo := orderdata.NewOrderRepo(orderData)
+	orderUsecase := orderbiz.NewOrderUsecase(orderRepo)
 
-	dialCtx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel2()
-	productServiceConn, err := grpc.DialContext(dialCtx2, config.Data.ProductService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	// User Service Client
+	userServiceConn, err := grpc.DialContext(dialCtx, config.Data.UserService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		zap.S().Fatalf("failed to connect to product service: %v", err)
+		zap.S().Fatalf("failed to connect to user service: %v", err)
 	}
-	defer productServiceConn.Close()
+	defer userServiceConn.Close()
+	userClient := userv1.NewUserClient(userServiceConn)
+	userData := userdata.NewData(db) // Assuming user service has its own data layer
+	userRepo := userdata.NewUserRepo(userData)
+	userUsecase := userbiz.NewUserUsecase(userRepo)
 
+	// Review Service Client
+	reviewServiceConn, err := grpc.DialContext(dialCtx, config.Data.ReviewService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		zap.S().Fatalf("failed to connect to review service: %v", err)
+	}
+	defer reviewServiceConn.Close()
+	reviewClient := reviewv1.NewReviewClient(reviewServiceConn)
+	reviewData := reviewdata.NewData(db) // Assuming review service has its own data layer
+	reviewRepo := reviewdata.NewReviewRepo(reviewData)
+	reviewUsecase := reviewbiz.NewReviewUsecase(reviewRepo)
+
+	// Coupon Service Client
+	couponServiceConn, err := grpc.DialContext(dialCtx, config.Data.CouponService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		zap.S().Fatalf("failed to connect to coupon service: %v", err)
+	}
+	defer couponServiceConn.Close()
+	couponClient := couponv1.NewCouponClient(couponServiceConn)
+	couponData := coupondata.NewData(db) // Assuming coupon service has its own data layer
+	couponRepo := coupondata.NewCouponRepo(couponData)
+	couponUsecase := couponbiz.NewCouponUsecase(couponRepo)
 
 	// 4. 依赖注入 (DI)
-	authRepo := data.NewAuthRepo(db)
-	authUsecase := biz.NewAuthUsecase(authRepo, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
+	adminData := data.NewData(db)
+	adminRepo := data.NewAdminRepo(adminData)
+	authUsecase := biz.NewAuthUsecase(adminRepo, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
+	adminUsecase := biz.NewAdminUsecase(adminRepo, authUsecase, productUsecase, userUsecase, orderUsecase, reviewUsecase, couponUsecase)
 
-	productClient := data.NewProductClient(productServiceConn)
-	orderClient := data.NewOrderClient(orderServiceConn)
-	productUsecase := biz.NewProductUsecase(productClient) // 假设 productUsecase 需要 productClient
-	orderUsecase := biz.NewOrderUsecase(orderClient)       // 假设 orderUsecase 需要 orderClient
-
-	adminService := service.NewAdminService(authUsecase, productUsecase, orderUsecase) // 整合所有 usecase
+	adminService := service.NewAdminService(authUsecase, productUsecase, userUsecase, orderUsecase, reviewUsecase, couponUsecase) // 整合所有 usecase
 
 	// 创建权限拦截器
 	authInterceptor := service.NewAuthInterceptor(authUsecase, config.JWT.Secret)
@@ -209,6 +275,11 @@ func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(gin.Recovery())
+	// Add service-specific Gin routes here
+	// For example:
+	// r.GET("/admin/users/:id", handler.GetAdminUser)
+	// r.POST("/admin/users", handler.CreateAdminUser)
+
 	r.Any("/*any", gin.WrapH(mux))
 
 	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)

@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package api.inventory.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/inventory/v1;v1";
+
+// InventoryService 定义了库存服务接口
+service InventoryService {
+  // 扣减库存
+  rpc DeductStock(DeductStockRequest) returns (DeductStockResponse) {
+    option (google.api.http) = {
+      post: "/v1/inventory/deduct"
+      body: "*"
+    };
+  }
+
+  // 释放库存 (例如，订单取消或支付超时)
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse) {
+    option (google.api.http) = {
+      post: "/v1/inventory/release"
+      body: "*"
+    };
+  }
+
+  // 获取库存数量
+  rpc GetStock(GetStockRequest) returns (GetStockResponse) {
+    option (google.api.http) = {
+      get: "/v1/inventory/{sku_id}"
+    };
+  }
+}
+
+// StockItem 库存项
+message StockItem {
+  uint64 sku_id = 1;
+  uint32 quantity = 2;
+  // ... 其他库存属性，如仓库ID
+}
+
+// DeductStockRequest 扣减库存请求
+message DeductStockRequest {
+  repeated StockItem items = 1;
+  string order_id = 2; // 关联的订单ID，用于幂等性或日志
+}
+
+// DeductStockResponse 扣减库存响应
+message DeductStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ReleaseStockRequest 释放库存请求
+message ReleaseStockRequest {
+  repeated StockItem items = 1;
+  string order_id = 2; // 关联的订单ID
+}
+
+// ReleaseStockResponse 释放库存响应
+message ReleaseStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// GetStockRequest 获取库存请求
+message GetStockRequest {
+  uint64 sku_id = 1;
+}
+
+// GetStockResponse 获取库存响应
+message GetStockResponse {
+  uint32 quantity = 1;
+}

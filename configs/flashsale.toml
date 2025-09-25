@@ -1,0 +1,22 @@
+# Flash Sale Service Configuration
+[service]
+name = "flashsale"
+version = "1.0.0"
+port = 8088
+
+[database]
+host = "localhost"
+port = 3306
+user = "root"
+password = "password"
+dbname = "flashsale_db"
+
+[redis]
+addr = "localhost:6379"
+password = ""
+
+[data.order_service]
+addr = "localhost:9093" # Assuming order service runs on 9093
+
+[logging]
+level = "info"

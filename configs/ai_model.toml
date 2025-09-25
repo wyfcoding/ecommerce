@@ -1,0 +1,15 @@
+[server]
+  [server.grpc]
+    addr = "0.0.0.0"
+    port = 8020
+  [server.http]
+    addr = "0.0.0.0"
+    port = 8100
+
+[log]
+  level = "info"
+  format = "console"
+  output = "stdout"
+
+[data]
+  # No specific database for AI model, it simulates external calls

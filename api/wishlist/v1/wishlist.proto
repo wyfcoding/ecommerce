@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package api.wishlist.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/wishlist/v1;v1";
+
+// Wishlist Service
+service Wishlist {
+    // Add an item to a user's wishlist
+    rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse) {
+        option (google.api.http) = {
+            post: "/v1/users/{user_id}/wishlist/items"
+            body: "*"
+        };
+    }
+
+    // Remove an item from a user's wishlist
+    rpc RemoveItemFromWishlist(RemoveItemFromWishlistRequest) returns (RemoveItemFromWishlistResponse) {
+        option (google.api.http) = {
+            delete: "/v1/users/{user_id}/wishlist/items/{product_id}"
+        };
+    }
+
+    // List all items in a user's wishlist
+    rpc ListWishlistItems(ListWishlistItemsRequest) returns (ListWishlistItemsResponse) {
+        option (google.api.http) = {
+            get: "/v1/users/{user_id}/wishlist/items"
+        };
+    }
+}
+
+// Represents an item in a user's wishlist
+message WishlistItem {
+    string id = 1;
+    string user_id = 2;
+    string product_id = 3;
+    google.protobuf.Timestamp added_at = 4;
+}
+
+// Request to add an item to wishlist
+message AddItemToWishlistRequest {
+    string user_id = 1;
+    string product_id = 2;
+}
+
+// Response for adding an item to wishlist
+message AddItemToWishlistResponse {
+    WishlistItem item = 1;
+}
+
+// Request to remove an item from wishlist
+message RemoveItemFromWishlistRequest {
+    string user_id = 1;
+    string product_id = 2;
+}
+
+// Response for removing an item from wishlist
+message RemoveItemFromWishlistResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Request to list wishlist items
+message ListWishlistItemsRequest {
+    string user_id = 1;
+    int32 page_size = 2;
+    int32 page_token = 3;
+}
+
+// Response for listing wishlist items
+message ListWishlistItemsResponse {
+    repeated WishlistItem items = 1;
+    int32 total_count = 2;
+}

@@ -1,6 +1,12 @@
 package biz
 
-import "context"
+import (
+	"context"
+	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+)
 
 // Category 是商品分类的业务领域模型。
 type Category struct {
@@ -261,15 +267,15 @@ func bizReviewToProto(r *Review) *v1.ReviewInfo {
 
 // Spu is a Spu model.
 type Spu struct {
-	SpuID         uint64
-	CategoryID    *uint64
-	BrandID       *uint64
-	Title         *string
-	SubTitle      *string
-	MainImage     *string
+	ID            uint64 // 数据库自增ID
+	CategoryID    uint64
+	BrandID       uint64
+	Title         string
+	SubTitle      string
+	MainImage     string
 	GalleryImages []string
-	DetailHTML    *string
-	Status        *int32
+	DetailHTML    string
+	Status        int32
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -286,6 +292,21 @@ type Sku struct {
 	Image         string
 	Specs         map[string]string
 	Status        int32
+}
+
+// MongoProduct represents a product document for MongoDB indexing in biz layer.
+type MongoProduct struct {
+	ID          string
+	SpuID       uint64
+	CategoryID  uint64
+	BrandID     uint64
+	Title       string
+	SubTitle    string
+	MainImage   string
+	DetailHTML  string
+	Status      int32
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // CategoryRepo 定义了分类数据仓库的接口。
@@ -310,39 +331,140 @@ type ProductRepo interface {
 	DeleteSkusBySpuID(ctx context.Context, spuID uint64) error
 	DeleteSku(ctx context.Context, skuID uint64) error
 	GetSkusBySpuID(ctx context.Context, spuID uint64) ([]*Sku, error)
+
+	SaveProductToMongo(ctx context.Context, product *MongoProduct) error // Added for MongoDB indexing
 }
 
 // ProductUsecase is a Product usecase.
 type ProductUsecase struct {
 	repo ProductRepo
+	tracer trace.Tracer // Added OpenTelemetry tracer
 }
 
 // NewProductUsecase creates a new ProductUsecase.
-func NewProductUsecase(repo ProductRepo) *ProductUsecase {
-	return &ProductUsecase{repo: repo}
+func NewProductUsecase(repo ProductRepo, tracer trace.Tracer) *ProductUsecase {
+	return &ProductUsecase{repo: repo, tracer: tracer}
 }
 
 // CreateProduct creates a Product.
-func (uc *ProductUsecase) CreateProduct(ctx context.Context, spu *Spu, skus []*Sku) (*Spu, []*Sku, error) {
-	return uc.repo.CreateProduct(ctx, spu, skus)
+func (uc *ProductUsecase) CreateProduct(ctx context.Context, spu *Spu, skus []*Sku) (createdSpu *Spu, createdSkus []*Sku, err error) {
+	ctx, span := uc.tracer.Start(ctx, "ProductUsecase.CreateProduct")
+	defer span.End()
+
+	// Create SPU
+	createdSpu, err = uc.repo.CreateSpu(ctx, spu)
+	if err != nil {
+		span.RecordError(err)
+		return nil, nil, err
+	}
+
+	// Create SKUs
+	var createdSkus []*Sku
+	for _, sku := range skus {
+		sku.SpuID = createdSpu.ID // Link SKU to the newly created SPU
+		createdSku, err := uc.repo.CreateSku(ctx, sku)
+		if err != nil {
+			// TODO: Handle rollback for created SPU and previous SKUs if any
+			return nil, nil, err
+		}
+		createdSkus = append(createdSkus, createdSku)
+	}
+
+	return createdSpu, createdSkus, nil
 }
 
 // UpdateProduct updates a Product.
 func (uc *ProductUsecase) UpdateProduct(ctx context.Context, spu *Spu, skus []*Sku) (*Spu, []*Sku, error) {
-	return uc.repo.UpdateProduct(ctx, spu, skus)
+	// Update SPU
+	updatedSpu, err := uc.repo.UpdateSpu(ctx, spu)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Delete existing SKUs for this SPU
+	err = uc.repo.DeleteSkusBySpuID(ctx, updatedSpu.ID)
+	if err != nil {
+		// TODO: Handle rollback for updated SPU
+		return nil, nil, err
+	}
+
+	// Create new SKUs
+	var createdSkus []*Sku
+	for _, sku := range skus {
+		sku.SpuID = updatedSpu.ID // Link SKU to the updated SPU
+		createdSku, err := uc.repo.CreateSku(ctx, sku)
+		if err != nil {
+			// TODO: Handle rollback for updated SPU and previously created SKUs
+			return nil, nil, err
+		}
+		createdSkus = append(createdSkus, createdSku)
+	}
+
+	return updatedSpu, createdSkus, nil
 }
 
 // DeleteProduct deletes a Product.
 func (uc *ProductUsecase) DeleteProduct(ctx context.Context, spuID uint64) error {
-	return uc.repo.DeleteProduct(ctx, spuID)
+	// Delete SPU
+	err := uc.repo.DeleteSpu(ctx, spuID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all associated SKUs
+	err = uc.repo.DeleteSkusBySpuID(ctx, spuID)
+	if err != nil {
+		// TODO: Handle rollback for deleted SPU if SKU deletion fails
+		return err
+	}
+
+	return nil
 }
 
 // GetProductDetails gets Product details.
 func (uc *ProductUsecase) GetProductDetails(ctx context.Context, spuID uint64) (*Spu, []*Sku, error) {
-	return uc.repo.GetProductDetails(ctx, spuID)
+	// Get SPU
+	spu, err := uc.repo.GetSpu(ctx, spuID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get associated SKUs
+	skuss, err := uc.repo.GetSkusBySpuID(ctx, spuID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return spu, skuss, nil
 }
 
 // ListProducts lists Products.
 func (uc *ProductUsecase) ListProducts(ctx context.Context, pageSize, pageNum uint32, categoryID *uint64, status *int32, brandID *uint64, minPrice *uint64, maxPrice *uint64, query *string, sortBy *string) ([]*Spu, uint64, error) {
 	return uc.repo.ListProducts(ctx, pageSize, pageNum, categoryID, status, brandID, minPrice, maxPrice, query, sortBy)
+}
+
+// IndexProduct indexes a product in MongoDB.
+func (uc *ProductUsecase) IndexProduct(ctx context.Context, spuID uint64) error {
+	// Get SPU details from MySQL
+	spu, err := uc.repo.GetSpu(ctx, spuID)
+	if err != nil {
+		return err
+	}
+
+	// Convert biz.Spu to MongoProduct
+	mongoProduct := &MongoProduct{
+		SpuID:      spu.ID,
+		CategoryID: spu.CategoryID,
+		BrandID:    spu.BrandID,
+		Title:      spu.Title,
+		SubTitle:   spu.SubTitle,
+		MainImage:  spu.MainImage,
+		DetailHTML: spu.DetailHTML,
+		Status:     spu.Status,
+		CreatedAt:  spu.CreatedAt,
+		UpdatedAt:  spu.UpdatedAt,
+	}
+
+	// Save to MongoDB
+	return uc.repo.SaveProductToMongo(ctx, mongoProduct)
 }

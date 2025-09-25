@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	ErrCartItemNotFound = errors.New("购物车商品不存在")
-	ErrInvalidQuantity  = errors.New("无效的商品数量")
+	ErrCartItemNotFound = errors.New("cart item not found")
+	ErrInvalidQuantity  = errors.New("invalid quantity")
 )
 
 // CartUsecase 封装了购物车相关的业务逻辑。
@@ -26,69 +26,64 @@ func NewCartUsecase(repo CartRepo, productClient ProductClient) *CartUsecase {
 }
 
 // AddItem 添加商品到购物车。
-func (uc *CartUsecase) AddItem(ctx context.Context, item *UsecaseCartItem) error {
-	if item.Quantity <= 0 {
-		return ErrInvalidQuantity
-	}
-
-	// 检查商品是否存在、库存是否充足、价格等
+// 检查商品是否存在、库存是否充足、价格等
 	skuInfos, err := uc.productClient.GetSkuInfos(ctx, []uint64{item.SkuID})
 	if err != nil {
-		return fmt.Errorf("获取商品信息失败: %w", err)
+		return fmt.Errorf("failed to get product information: %w", err)
 	}
 	if len(skuInfos) == 0 {
-		return errors.New("商品不存在")
+		return errors.New("product not found")
 	}
 	targetSku := skuInfos[0]
 
-	if targetSku.Status != 1 { // 假设 1 为正常状态
-		return errors.New("商品已下架或状态异常")
+	if targetSku.Status != 1 { // Assuming 1 is the normal status.
+		return errors.New("product is not available")
 	}
 
 	if targetSku.Stock < item.Quantity {
-		return errors.New("库存不足")
+		return errors.New("insufficient stock")
 	}
 
 	return uc.repo.AddItem(ctx, item.UserID, item.SkuID, item.Quantity)
 }
 
-// UpdateItem 更新购物车中商品的数量。
+// UpdateItem updates the quantity of an item in the shopping cart.
 func (uc *CartUsecase) UpdateItem(ctx context.Context, item *UsecaseCartItem) error {
 	if item.Quantity <= 0 {
 		return ErrInvalidQuantity
 	}
 
-	// 检查商品是否存在、库存是否充足、价格等
+	// Check if the product exists, has enough stock, and get its price.
 	skuInfos, err := uc.productClient.GetSkuInfos(ctx, []uint64{item.SkuID})
 	if err != nil {
-		return fmt.Errorf("获取商品信息失败: %w", err)
+		return fmt.Errorf("failed to get product information: %w", err)
 	}
 	if len(skuInfos) == 0 {
-		return errors.New("商品不存在")
+		return errors.New("product not found")
 	}
 	targetSku := skuInfos[0]
 
-	if targetSku.Status != 1 { // 假设 1 为正常状态
-		return errors.New("商品已下架或状态异常")
+	if targetSku.Status != 1 { // Assuming 1 is the normal status.
+		return errors.New("product is not available")
 	}
 
 	if targetSku.Stock < item.Quantity {
-		return errors.New("库存不足")
+		return errors.New("insufficient stock")
 	}
 
 	return uc.repo.UpdateItem(ctx, item.UserID, item.SkuID, item.Quantity)
 }
 
-// DeleteItem 从购物车中删除商品。
+// DeleteItem removes an item from the shopping cart.
 func (uc *CartUsecase) DeleteItem(ctx context.Context, userID, productID, skuID uint64) error {
 	return uc.repo.RemoveItem(ctx, userID, skuID)
 }
 
-// GetCart 获取用户购物车中的所有商品。
+// GetCart gets all items in a user's shopping cart.
 func (uc *CartUsecase) GetCart(ctx context.Context, userID uint64) ([]*UsecaseCartItem, error) {
 	repoCartItems, err := uc.repo.GetCart(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("从仓库获取购物车商品失败: %w", err)
+		return nil, fmt.Errorf("failed to get cart items from repository: %w", err)
 	}
 
 	if len(repoCartItems) == 0 {
@@ -102,7 +97,7 @@ func (uc *CartUsecase) GetCart(ctx context.Context, userID uint64) ([]*UsecaseCa
 
 	skuInfos, err := uc.productClient.GetSkuInfos(ctx, skuIDs)
 	if err != nil {
-		return nil, fmt.Errorf("从商品服务获取SKU信息失败: %w", err)
+		return nil, fmt.Errorf("failed to get SKU info from product service: %w", err)
 	}
 
 	skuInfoMap := make(map[uint64]*SkuInfo)
@@ -114,7 +109,7 @@ func (uc *CartUsecase) GetCart(ctx context.Context, userID uint64) ([]*UsecaseCa
 	for _, item := range repoCartItems {
 		skuInfo, ok := skuInfoMap[item.SkuID]
 		if !ok {
-			// 如果SKU信息不存在，可能商品已下架或删除，跳过此商品
+			// If SKU info does not exist, the product may have been removed or is unavailable. Skip this item.
 			continue
 		}
 		usecaseCartItems = append(usecaseCartItems, &UsecaseCartItem{
@@ -128,7 +123,7 @@ func (uc *CartUsecase) GetCart(ctx context.Context, userID uint64) ([]*UsecaseCa
 	return usecaseCartItems, nil
 }
 
-// ClearCart 清空用户购物车。
+// ClearCart clears a user's shopping cart.
 func (uc *CartUsecase) ClearCart(ctx context.Context, userID uint64) error {
 	return uc.repo.ClearCart(ctx, userID)
 }

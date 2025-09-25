@@ -45,3 +45,8 @@ func (t *transaction) ExecTx(ctx context.Context, fn func(ctx context.Context) e
 		return fn(ctxWithTx)
 	})
 }
+
+// NewOrderRepo 是 OrderRepo 的构造函数。
+func NewOrderRepo(data *Data) biz.OrderRepo {
+	return &orderRepo{Data: data}
+}

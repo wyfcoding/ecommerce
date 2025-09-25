@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecommerce-service-template.fullname" . }}
+  labels:
+    {{- include "ecommerce-service-template.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ecommerce-service-template.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ecommerce-service-template.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ecommerce-service-template.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: grpc
+              containerPort: 50051
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: GRPC_ADDR
+              value: ":50051"
+            - name: HTTP_ADDR
+              value: ":80"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-agent.observability.svc.cluster.local:6831"
+            - name: MYSQL_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: dsn
+            - name: REDIS_ADDR
+              value: "redis-master.redis.svc.cluster.local:6379"
+            - name: MONGO_URI
+              value: "mongodb://mongodb.mongodb.svc.cluster.local:27017"
+            - name: NEO4J_URI
+              value: "bolt://neo4j.neo4j.svc.cluster.local:7687"
+            - name: NEO4J_USERNAME
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-credentials
+                  key: password
+            - name: MINIO_ENDPOINT
+              value: "minio.minio.svc.cluster.local:9000"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: secret_key
+            - name: CLICKHOUSE_DSN
+              value: "clickhouse.clickhouse.svc.cluster.local:9000"
+            - name: KAFKA_BROKERS
+              value: "kafka-broker.kafka.svc.cluster.local:9092"
+            - name: ELASTICSEARCH_URL
+              value: "http://elasticsearch.elasticsearch.svc.cluster.local:9200"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

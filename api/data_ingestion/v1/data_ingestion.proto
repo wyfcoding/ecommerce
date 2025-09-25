@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package api.data_ingestion.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/data_ingestion/v1;v1";
+
+// DataIngestionService 定义了数据摄取服务接口
+service DataIngestionService {
+  // 摄取通用事件数据
+  rpc IngestEvent(IngestEventRequest) returns (IngestEventResponse) {
+    option (google.api.http) = {
+      post: "/v1/data_ingestion/events"
+      body: "*"
+    };
+  }
+}
+
+// IngestEventRequest 摄取事件请求
+message IngestEventRequest {
+  string event_type = 1; // 事件类型，如 "product_view", "order_created"
+  string user_id = 2;    // 用户ID
+  string entity_id = 3;  // 关联实体ID，如 product_id, order_id
+  map<string, string> properties = 4; // 事件属性，键值对形式
+  string timestamp = 5; // 事件发生时间 (RFC3339 格式)
+}
+
+// IngestEventResponse 摄取事件响应
+message IngestEventResponse {
+  string event_id = 1; // 摄取成功的事件ID
+}

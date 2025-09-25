@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package api.settlement.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/settlement/v1;v1";
+
+// SettlementService 定义了结算服务接口
+service SettlementService {
+  // 处理订单结算
+  rpc ProcessOrderSettlement(ProcessOrderSettlementRequest) returns (ProcessOrderSettlementResponse) {
+    option (google.api.http) = {
+      post: "/v1/settlement/orders"
+      body: "*"
+    };
+  }
+
+  // 获取结算记录
+  rpc GetSettlementRecord(GetSettlementRecordRequest) returns (SettlementRecord) {
+    option (google.api.http) = {
+      get: "/v1/settlement/records/{record_id}"
+    };
+  }
+
+  // 列出结算记录
+  rpc ListSettlementRecords(ListSettlementRecordsRequest) returns (ListSettlementRecordsResponse) {
+    option (google.api.http) = {
+      get: "/v1/settlement/records"
+    };
+  }
+}
+
+// SettlementRecord 结算记录
+message SettlementRecord {
+  uint64 record_id = 1;
+  uint64 order_id = 2;
+  uint64 merchant_id = 3;
+  uint64 total_amount = 4; // 订单总金额
+  uint64 platform_fee = 5; // 平台佣金
+  uint64 settlement_amount = 6; // 结算给商家的金额
+  string status = 7; // PENDING, COMPLETED, FAILED
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp settled_at = 9;
+}
+
+// ProcessOrderSettlementRequest 处理订单结算请求
+message ProcessOrderSettlementRequest {
+  uint64 order_id = 1;
+  uint64 merchant_id = 2;
+  uint64 total_amount = 3;
+  // ... 其他订单相关信息，如商品列表、优惠等
+}
+
+// ProcessOrderSettlementResponse 处理订单结算响应
+message ProcessOrderSettlementResponse {
+  uint64 record_id = 1;
+  string status = 2;
+  string message = 3;
+}
+
+// GetSettlementRecordRequest 获取结算记录请求
+message GetSettlementRecordRequest {
+  uint64 record_id = 1;
+}
+
+// ListSettlementRecordsRequest 列出结算记录请求
+message ListSettlementRecordsRequest {
+  uint64 merchant_id = 1; // 可选
+  string status = 2; // 可选
+  uint32 page_size = 3;
+  uint32 page_num = 4;
+}
+
+// ListSettlementRecordsResponse 列出结算记录响应
+message ListSettlementRecordsResponse {
+  repeated SettlementRecord records = 1;
+  uint64 total_count = 2;
+}

@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package api.config.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/config/v1;v1";
+
+// ConfigService 定义了配置服务接口
+service ConfigService {
+  // 获取配置值
+  rpc GetConfig(GetConfigRequest) returns (ConfigEntry) {
+    option (google.api.http) = {
+      get: "/v1/configs/{key}"
+    };
+  }
+
+  // 设置配置值
+  rpc SetConfig(SetConfigRequest) returns (ConfigEntry) {
+    option (google.api.http) = {
+      post: "/v1/configs"
+      body: "*"
+    };
+  }
+
+  // 列出所有配置
+  rpc ListConfigs(ListConfigsRequest) returns (ListConfigsResponse) {
+    option (google.api.http) = {
+      get: "/v1/configs"
+    };
+  }
+}
+
+// ConfigEntry 配置项
+message ConfigEntry {
+  string key = 1;
+  string value = 2;
+  string description = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+// GetConfigRequest 获取配置请求
+message GetConfigRequest {
+  string key = 1;
+}
+
+// SetConfigRequest 设置配置请求
+message SetConfigRequest {
+  string key = 1;
+  string value = 2;
+  string description = 3;
+}
+
+// ListConfigsRequest 列出配置请求
+message ListConfigsRequest {
+  // 暂无过滤条件
+}
+
+// ListConfigsResponse 列出配置响应
+message ListConfigsResponse {
+  repeated ConfigEntry configs = 1;
+}

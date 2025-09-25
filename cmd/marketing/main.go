@@ -200,6 +200,10 @@ func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(gin.Recovery())
+	// Add service-specific Gin routes here
+	// For example:
+	// r.GET("/marketing/coupons", handler.GetCoupons)
+
 	r.Any("/*any", gin.WrapH(mux))
 
 	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)

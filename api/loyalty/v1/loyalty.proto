@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package api.loyalty.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/loyalty/v1;v1";
+
+// Loyalty Service
+service Loyalty {
+    // Get a user's loyalty profile (points, level)
+    rpc GetUserLoyaltyProfile(GetUserLoyaltyProfileRequest) returns (GetUserLoyaltyProfileResponse) {
+        option (google.api.http) = {
+            get: "/v1/users/{user_id}/loyalty"
+        };
+    }
+
+    // Add points to a user's balance
+    rpc AddPoints(AddPointsRequest) returns (AddPointsResponse) {
+        option (google.api.http) = {
+            post: "/v1/users/{user_id}/loyalty/points/add"
+            body: "*"
+        };
+    }
+
+    // Deduct points from a user's balance
+    rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse) {
+        option (google.api.http) = {
+            post: "/v1/users/{user_id}/loyalty/points/deduct"
+            body: "*"
+        };
+    }
+
+    // Get a user's points transaction history
+    rpc GetPointsHistory(GetPointsHistoryRequest) returns (GetPointsHistoryResponse) {
+        option (google.api.http) = {
+            get: "/v1/users/{user_id}/loyalty/points/history"
+        };
+    }
+
+    // Update a user's loyalty level (e.g., based on points or spending)
+    rpc UpdateUserLevel(UpdateUserLevelRequest) returns (UpdateUserLevelResponse) {
+        option (google.api.http) = {
+            post: "/v1/users/{user_id}/loyalty/level"
+            body: "*"
+        };
+    }
+}
+
+// Represents a user's loyalty profile
+message UserLoyaltyProfile {
+    string user_id = 1;
+    int64 current_points = 2;
+    string loyalty_level = 3;
+    google.protobuf.Timestamp last_level_update = 4;
+}
+
+// Represents a points transaction
+message PointsTransaction {
+    string id = 1;
+    string user_id = 2;
+    int64 points_change = 3;
+    string reason = 4;
+    string order_id = 5;
+    google.protobuf.Timestamp created_at = 6;
+}
+
+// Request to get user loyalty profile
+message GetUserLoyaltyProfileRequest {
+    string user_id = 1;
+}
+
+// Response for getting user loyalty profile
+message GetUserLoyaltyProfileResponse {
+    UserLoyaltyProfile profile = 1;
+}
+
+// Request to add points
+message AddPointsRequest {
+    string user_id = 1;
+    int64 points = 2;
+    string reason = 3;
+    string order_id = 4;
+}
+
+// Response for adding points
+message AddPointsResponse {
+    UserLoyaltyProfile profile = 1;
+    PointsTransaction transaction = 2;
+}
+
+// Request to deduct points
+message DeductPointsRequest {
+    string user_id = 1;
+    int64 points = 2;
+    string reason = 3;
+    string order_id = 4;
+}
+
+// Response for deducting points
+message DeductPointsResponse {
+    UserLoyaltyProfile profile = 1;
+    PointsTransaction transaction = 2;
+}
+
+// Request to get points history
+message GetPointsHistoryRequest {
+    string user_id = 1;
+    int32 page_size = 2;
+    int32 page_token = 3;
+}
+
+// Response for getting points history
+message GetPointsHistoryResponse {
+    repeated PointsTransaction transactions = 1;
+    int32 total_count = 2;
+}
+
+// Request to update user level
+message UpdateUserLevelRequest {
+    string user_id = 1;
+    string new_level = 2;
+    string reason = 3;
+}
+
+// Response for updating user level
+message UpdateUserLevelResponse {
+    UserLoyaltyProfile profile = 1;
+}

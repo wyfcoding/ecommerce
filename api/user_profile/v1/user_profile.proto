@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package api.user_profile.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/user_profile/v1;v1";
+
+// UserProfileService 定义了用户画像服务接口
+service UserProfileService {
+  // 获取用户画像
+  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile) {
+    option (google.api.http) = {
+      get: "/v1/user_profiles/{user_id}"
+    };
+  }
+
+  // 更新用户画像 (部分更新)
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfile) {
+    option (google.api.http) = {
+      put: "/v1/user_profiles/{user_id}"
+      body: "*"
+    };
+  }
+
+  // 记录用户行为事件 (用于画像构建)
+  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse) {
+    option (google.api.http) = {
+      post: "/v1/user_profiles/behavior"
+      body: "*"
+    };
+  }
+}
+
+// UserProfile 用户画像信息
+message UserProfile {
+  string user_id = 1;
+  string gender = 2; // 性别
+  string age_group = 3; // 年龄段
+  string city = 4; // 城市
+  repeated string interests = 5; // 兴趣标签
+  repeated string recent_categories = 6; // 最近浏览的品类
+  repeated string recent_brands = 7; // 最近浏览的品牌
+  uint64 total_spent = 8; // 总消费金额
+  uint32 order_count = 9; // 订单数量
+  google.protobuf.Timestamp last_active_time = 10; // 最后活跃时间
+  map<string, string> custom_tags = 11; // 自定义标签
+}
+
+// GetUserProfileRequest 获取用户画像请求
+message GetUserProfileRequest {
+  string user_id = 1;
+}
+
+// UpdateUserProfileRequest 更新用户画像请求
+message UpdateUserProfileRequest {
+  string user_id = 1;
+  optional string gender = 2;
+  optional string age_group = 3;
+  optional string city = 4;
+  repeated string interests = 5;
+  repeated string recent_categories = 6;
+  repeated string recent_brands = 7;
+  optional uint64 total_spent = 8;
+  optional uint32 order_count = 9;
+  optional google.protobuf.Timestamp last_active_time = 10;
+  map<string, string> custom_tags = 11;
+}
+
+// RecordUserBehaviorRequest 记录用户行为请求
+message RecordUserBehaviorRequest {
+  string user_id = 1;
+  string behavior_type = 2; // VIEW, CLICK, PURCHASE, ADD_TO_CART
+  string item_id = 3; // 行为关联的商品ID或其他实体ID
+  map<string, string> properties = 4; // 行为属性
+  google.protobuf.Timestamp event_time = 5;
+}
+
+// RecordUserBehaviorResponse 记录用户行为响应
+message RecordUserBehaviorResponse {
+  bool success = 1;
+  string message = 2;
+}

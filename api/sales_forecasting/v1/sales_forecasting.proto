@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package api.sales_forecasting.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/sales_forecasting/v1;v1";
+
+// SalesForecastingService 定义了销售预测服务接口
+service SalesForecastingService {
+  // 获取商品销量预测
+  rpc GetProductSalesForecast(GetProductSalesForecastRequest) returns (GetProductSalesForecastResponse) {
+    option (google.api.http) = {
+      get: "/v1/sales_forecasting/products/{product_id}"
+    };
+  }
+
+  // 训练销售预测模型 (后台操作)
+  rpc TrainSalesForecastModel(TrainSalesForecastModelRequest) returns (TrainSalesForecastModelResponse) {
+    option (google.api.http) = {
+      post: "/v1/sales_forecasting/models/train"
+      body: "*"
+    };
+  }
+}
+
+// ForecastResult 预测结果
+message ForecastResult {
+  uint64 product_id = 1;
+  google.protobuf.Timestamp forecast_date = 2;
+  double predicted_sales_quantity = 3;
+  double confidence_interval_lower = 4;
+  double confidence_interval_upper = 5;
+}
+
+// GetProductSalesForecastRequest 获取商品销量预测请求
+message GetProductSalesForecastRequest {
+  uint64 product_id = 1;
+  uint32 forecast_days = 2; // 预测未来多少天
+}
+
+// GetProductSalesForecastResponse 获取商品销量预测响应
+message GetProductSalesForecastResponse {
+  repeated ForecastResult forecasts = 1;
+}
+
+// TrainSalesForecastModelRequest 训练销售预测模型请求
+message TrainSalesForecastModelRequest {
+  string model_name = 1;
+  string data_source = 2; // 训练数据来源
+  map<string, string> parameters = 3; // 模型训练参数
+}
+
+// TrainSalesForecastModelResponse 训练销售预测模型响应
+message TrainSalesForecastModelResponse {
+  string model_id = 1;
+  string status = 2; // TRAINING, COMPLETED, FAILED
+}

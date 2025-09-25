@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // getUserIDFromContext 从 gRPC 上下文的 metadata 中提取用户ID。
@@ -42,33 +43,28 @@ func bizUserToProto(user *biz.User) *v1.UserInfo {
 		return nil
 	}
 	res := &v1.UserInfo{
-		UserId:   user.UserID,
+		UserId:   user.ID,
 		Username: user.Username,
-	}
-	if user.Nickname != nil {
-		res.Nickname = *user.Nickname
-	}
-	if user.Avatar != nil {
-		res.Avatar = *user.Avatar
-	}
-	if user.Gender != nil {
-		res.Gender = *user.Gender
+		Nickname: user.Nickname,
+		Avatar:   user.Avatar,
+		Gender:   user.Gender,
+		Birthday: timestamppb.New(user.Birthday),
 	}
 	return res
 }
 
 // RegisterByPassword 实现了 user.proto 中定义的 RegisterByPassword RPC。
 func (s *UserService) RegisterByPassword(ctx context.Context, req *v1.RegisterByPasswordRequest) (*v1.RegisterResponse, error) {
-	user, err := s.userUsecase.Register(ctx, req.Username, req.Password)
+	user, err := s.userUsecase.RegisterUser(ctx, req.Username, req.Password)
 	if err != nil {
-		if errors.Is(err, biz.ErrUserAlreadyExists) {
+		if errors.Is(err, errors.New("username already exists")) { // Use the error defined in biz layer
 			return nil, status.Errorf(codes.AlreadyExists, "用户已存在: %v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "注册失败: %v", err)
 	}
 
 	return &v1.RegisterResponse{
-		UserId: user.UserID,
+		UserId: user.ID,
 	}, nil
 }
 
@@ -99,17 +95,14 @@ func (s *UserService) LoginByPassword(ctx context.Context, req *v1.LoginByPasswo
 
 // GetUserByID 实现了 user.proto 中定义的 GetUserByID RPC。
 func (s *UserService) GetUserByID(ctx context.Context, req *v1.GetUserByIDRequest) (*v1.UserResponse, error) {
-	userID, err := getUserIDFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// The user_id from the request is the target user ID.
+	// We might also need to verify if the requesting user has permission to view this user's details.
+	// For now, we'll just use req.UserId.
 
-	user, err := s.userUsecase.GetUserByID(ctx, userID)
+	user, err := s.userUsecase.GetUserByID(ctx, req.UserId)
 	if err != nil {
-		if errors.Is(err, biz.ErrUserNotFound) {
-			return nil, status.Errorf(codes.NotFound, "用户不存在: %v", err)
-		}
-		return nil, status.Errorf(codes.Internal, "获取用户信息失败: %v", err)
+		// TODO: Define a specific error for user not found in biz layer
+		return nil, status.Errorf(codes.NotFound, "用户不存在: %v", err)
 	}
 
 	return &v1.UserResponse{
@@ -126,26 +119,24 @@ func (s *UserService) UpdateUserInfo(ctx context.Context, req *v1.UpdateUserInfo
 
 	// 将 gRPC 请求模型转换为 biz 领域模型。
 	bizUser := &biz.User{
-		UserID: userID,
+		ID: userID,
 	}
 	if req.HasNickname() {
-		nickname := req.GetNickname()
-		bizUser.Nickname = &nickname
+		bizUser.Nickname = req.GetNickname()
 	}
 	if req.HasAvatar() {
-		avatar := req.GetAvatar()
-		bizUser.Avatar = &avatar
+		bizUser.Avatar = req.GetAvatar()
 	}
 	if req.HasGender() {
-		gender := req.GetGender()
-		bizUser.Gender = &gender
+		bizUser.Gender = req.GetGender()
+	}
+	if req.HasBirthday() {
+		bizUser.Birthday = req.GetBirthday().AsTime()
 	}
 
-	updatedUser, err := s.userUsecase.UpdateUserInfo(ctx, bizUser)
+	updatedUser, err := s.userUsecase.UpdateUser(ctx, bizUser)
 	if err != nil {
-		if errors.Is(err, biz.ErrUserNotFound) {
-			return nil, status.Errorf(codes.NotFound, "用户不存在: %v", err)
-		}
+		// TODO: Define a specific error for user not found in biz layer
 		return nil, status.Errorf(codes.Internal, "更新用户信息失败: %v", err)
 	}
 

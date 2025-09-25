@@ -1,0 +1,15 @@
+[server]
+  [server.grpc]
+    addr = "0.0.0.0"
+    port = 8004
+  [server.http]
+    addr = "0.0.0.0"
+    port = 8084
+
+[log]
+  level = "info"
+  format = "console"
+  output = "stdout"
+
+[data]
+  # No specific database for data processing, it simulates job triggers

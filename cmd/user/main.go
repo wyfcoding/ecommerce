@@ -6,6 +6,7 @@ import (
 	"ecommerce/internal/user/biz"
 	"ecommerce/internal/user/data"
 	"ecommerce/internal/user/service"
+	configpkg "ecommerce/pkg/config" // Added this line
 	"ecommerce/pkg/jwt"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/snowflake"
@@ -28,14 +29,7 @@ import (
 
 // Config 结构体用于映射 TOML 配置文件
 type Config struct {
-	Server struct {
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`GRPC struct {
-			Addr    string `toml:"addr"`
-			Port    int    `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
+	config.ServerConfig `toml:"server"` // Embed common server config
 	Data struct {
 		Database struct {
 			Driver string `toml:"driver"`
@@ -58,22 +52,17 @@ type Config struct {
 		StartTime string `toml:"start_time"`
 		MachineID int64  `toml:"machine_id"`
 	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
+	config.LogConfig `toml:"log"` // Embed common log config
 }
-
 func main() {
 	// 1. 加载配置
 	var configPath string
 	flag.StringVar(&configPath, "conf", "../../configs/user.toml", "config file path")
 	flag.Parse()
 
-	config, err := loadConfig(configPath)
-	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+	var config Config
+	if err := configpkg.LoadConfig(configPath, &config); err != nil {
+		zap.S().Fatalf("failed to load config: %v", err)
 	}
 
 	// 2. 初始化日志
@@ -149,19 +138,7 @@ func main() {
 		zap.S().Errorf("HTTP server shutdown error: %v", err)
 	}
 
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &config, nil
-}
+
 
 // startGRPCServer 启动 gRPC 服务器
 func startGRPCServer(userService *service.UserService, addr string, port int) (*grpc.Server, chan error) {
@@ -190,14 +167,19 @@ func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
+
 	err := v1.RegisterUserHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
 	if err != nil {
 		errChan <- fmt.Errorf("failed to register gRPC gateway: %w", err)
 		return nil, errChan
 	}
 
-	// 使用 Gin 作为 HTTP 服务器的引擎
 	r := gin.Default()
+	// Add service-specific Gin routes here
+	// For example:
+	// r.GET("/users/:id", handler.GetUser)
+	// r.POST("/users", handler.CreateUser)
+
 	// 将 grpc-gateway 的处理器集成到 Gin
 	r.Any("/*any", gin.WrapH(mux))
 

@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package api.fraud_detection.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/fraud_detection/v1;v1";
+
+// FraudDetection Service
+service FraudDetection {
+    // Submit a transaction for fraud evaluation
+    rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse) {
+        option (google.api.http) = {
+            post: "/v1/fraud/transactions/evaluate"
+            body: "*"
+        };
+    }
+
+    // Get the status of a fraud evaluation
+    rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse) {
+        option (google.api.http) = {
+            get: "/v1/fraud/transactions/{transaction_id}/status"
+        };
+    }
+
+    // Report a suspected fraudulent activity
+    rpc ReportFraud(ReportFraudRequest) returns (ReportFraudResponse) {
+        option (google.api.http) = {
+            post: "/v1/fraud/report"
+            body: "*"
+        };
+    }
+}
+
+// Represents a fraud evaluation result
+message FraudEvaluation {
+    string transaction_id = 1;
+    string user_id = 2;
+    string status = 3; // e.g., PENDING, APPROVED, REJECTED, REVIEW
+    double score = 4; // Fraud risk score
+    repeated string reasons = 5; // Reasons for the score/status
+    google.protobuf.Timestamp evaluated_at = 6;
+}
+
+// Request to evaluate a transaction for fraud
+message EvaluateTransactionRequest {
+    string transaction_id = 1;
+    string user_id = 2;
+    double amount = 3;
+    string currency = 4;
+    string payment_method_type = 5;
+    string ip_address = 6;
+    string user_agent = 7;
+    map<string, string> additional_data = 8;
+}
+
+// Response for evaluating a transaction
+message EvaluateTransactionResponse {
+    FraudEvaluation evaluation = 1;
+}
+
+// Request to get fraud evaluation status
+message GetEvaluationStatusRequest {
+    string transaction_id = 1;
+}
+
+// Response for getting fraud evaluation status
+message GetEvaluationStatusResponse {
+    FraudEvaluation evaluation = 1;
+}
+
+// Request to report fraud
+message ReportFraudRequest {
+    string transaction_id = 1;
+    string user_id = 2;
+    string report_reason = 3;
+    map<string, string> evidence = 4;
+}
+
+// Response for reporting fraud
+message ReportFraudResponse {
+    bool success = 1;
+    string message = 2;
+}

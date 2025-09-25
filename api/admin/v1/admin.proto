@@ -3,9 +3,13 @@ syntax = "proto3";
 package api.admin.v1;
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 // Import other services' proto files to reuse message types
 import "api/product/v1/product.proto";
 import "api/order/v1/order.proto";
+import "api/user/v1/user.proto"; // Assuming user service proto exists
+import "api/review/v1/review.proto"; // Assuming review service proto exists
+import "api/coupon/v1/coupon.proto"; // Assuming coupon service proto exists
 
 option go_package = "ecommerce/api/admin/v1;v1";
 
@@ -18,17 +22,90 @@ service Admin {
     };
   }
 
+  // --- 用户管理 ---
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/users"
+    };
+  }
+  rpc GetUserDetails(GetUserDetailsRequest) returns (GetUserDetailsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/users/{user_id}"
+    };
+  }
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UpdateUserStatusResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/users/{user_id}/status"
+      body: "*"
+    };
+  }
 
-  // --- 业务代理 (BFF) ---
-  // 以订单为例
-  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse) {}
-  // 以商品为例 (假设需要创建一个后台用的商品创建接口)
-  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse) {}
+  // --- 商品管理 ---
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/products"
+    };
+  }
+  // CreateProduct 接口已存在
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/products/{product_id}"
+      body: "*"
+    };
+  }
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse) {
+    option (google.api.http) = {
+      delete: "/v1/admin/products/{product_id}"
+    };
+  }
 
   // --- 订单管理 ---
   rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {}
-  // GetOrderDetail 接口已存在，无需重复添加
+  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse) {}
   rpc ShipOrder(ShipOrderRequest) returns (ShipOrderResponse) {}
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/orders/{order_id}/status"
+      body: "*"
+    };
+  }
+
+  // --- 评论管理 ---
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/reviews"
+    };
+  }
+  rpc ModerateReview(ModerateReviewRequest) returns (ModerateReviewResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/reviews/{review_id}/moderate"
+      body: "*"
+    };
+  }
+
+  // --- 优惠券管理 ---
+  rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/coupons"
+      body: "*"
+    };
+  }
+  rpc ListCoupons(ListCouponsRequest) returns (ListCouponsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/coupons"
+    };
+  }
+  rpc UpdateCoupon(UpdateCouponRequest) returns (UpdateCouponResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/coupons/{coupon_id}"
+      body: "*"
+    };
+  }
+  rpc DeleteCoupon(DeleteCouponRequest) returns (DeleteCouponResponse) {
+    option (google.api.http) = {
+      delete: "/v1/admin/coupons/{coupon_id}"
+    };
+  }
 
   // --- RBAC 管理 ---
   rpc CreateRole(CreateRoleRequest) returns (Role) {}
@@ -90,6 +167,133 @@ message ShipOrderRequest {
 }
 message ShipOrderResponse {
   // 成功时为空
+}
+
+message UpdateOrderStatusRequest {
+  uint64 order_id = 1;
+  string status = 2; // New status, e.g., "SHIPPED", "DELIVERED", "CANCELED"
+}
+message UpdateOrderStatusResponse {
+  api.order.v1.OrderInfo order = 1;
+}
+
+// User Management Messages
+message ListUsersRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+  optional string search_query = 3; // Search by username, email, etc.
+  optional string status_filter = 4; // e.g., "ACTIVE", "INACTIVE", "BANNED"
+}
+message ListUsersResponse {
+  repeated api.user.v1.UserInfo users = 1;
+  uint64 total = 2;
+}
+message GetUserDetailsRequest {
+  string user_id = 1;
+}
+message GetUserDetailsResponse {
+  api.user.v1.UserInfo user = 1;
+}
+message UpdateUserStatusRequest {
+  string user_id = 1;
+  string status = 2; // e.g., "ACTIVE", "INACTIVE", "BANNED"
+}
+message UpdateUserStatusResponse {
+  api.user.v1.UserInfo user = 1;
+}
+
+// Product Management Messages
+message ListProductsRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+  optional string search_query = 3;
+  optional string category_id = 4;
+  optional string status_filter = 5; // e.g., "ACTIVE", "INACTIVE", "DRAFT"
+}
+message ListProductsResponse {
+  repeated api.product.v1.SpuInfo products = 1;
+  uint64 total = 2;
+}
+message UpdateProductRequest {
+  string product_id = 1;
+  api.product.v1.SpuInfo spu = 2; // Full SPU info to update
+  repeated api.product.v1.SkuInfo skus = 3; // Full SKU info to update
+}
+message UpdateProductResponse {
+  api.product.v1.SpuInfo spu = 1;
+}
+message DeleteProductRequest {
+  string product_id = 1;
+}
+message DeleteProductResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Review Management Messages
+message ListReviewsRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+  optional string product_id = 3;
+  optional string user_id = 4;
+  optional string status_filter = 5; // e.g., "PENDING", "APPROVED", "REJECTED"
+}
+message ListReviewsResponse {
+  repeated api.review.v1.ReviewInfo reviews = 1;
+  uint64 total = 2;
+}
+message ModerateReviewRequest {
+  string review_id = 1;
+  string status = 2; // e.g., "APPROVED", "REJECTED", "DELETED"
+  optional string moderation_notes = 3;
+}
+message ModerateReviewResponse {
+  api.review.v1.ReviewInfo review = 1;
+}
+
+// Coupon Management Messages
+message CreateCouponRequest {
+  string code = 1;
+  string description = 2;
+  double discount_value = 3;
+  string type = 4; // e.g., FIXED_AMOUNT, PERCENTAGE
+  google.protobuf.Timestamp valid_from = 5;
+  google.protobuf.Timestamp valid_to = 6;
+  optional int32 max_usage = 7;
+}
+message CreateCouponResponse {
+  api.coupon.v1.CouponInfo coupon = 1;
+}
+message ListCouponsRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+  optional bool active_only = 3;
+  optional string search_query = 4;
+}
+message ListCouponsResponse {
+  repeated api.coupon.v1.CouponInfo coupons = 1;
+  uint64 total = 2;
+}
+message UpdateCouponRequest {
+  string coupon_id = 1;
+  string code = 2;
+  string description = 3;
+  double discount_value = 4;
+  string type = 5;
+  google.protobuf.Timestamp valid_from = 6;
+  google.protobuf.Timestamp valid_to = 7;
+  bool is_active = 8;
+  optional int32 max_usage = 9;
+}
+message UpdateCouponResponse {
+  api.coupon.v1.CouponInfo coupon = 1;
+}
+message DeleteCouponRequest {
+  string coupon_id = 1;
+}
+message DeleteCouponResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message Role {

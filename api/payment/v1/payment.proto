@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package api.payment.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/payment/v1;v1";
+
+// PaymentService 定义了支付相关的 gRPC 服务
+service PaymentService {
+  // 创建支付请求
+  rpc CreatePayment(CreatePaymentRequest) returns (PaymentResponse) {
+    option (google.api.http) = {
+      post: "/v1/payment/create"
+      body: "*"
+    };
+  }
+
+  // 获取支付状态
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentResponse) {
+    option (google.api.http) = {
+      get: "/v1/payment/{payment_id}/status"
+    };
+  }
+
+  // TODO: Add more RPCs for payment callbacks, refunds, etc.
+}
+
+// PaymentStatus 定义支付状态
+enum PaymentStatus {
+  PAYMENT_STATUS_UNKNOWN = 0;
+  PAYMENT_STATUS_PENDING = 1; // 待支付
+  PAYMENT_STATUS_SUCCESS = 2; // 支付成功
+  PAYMENT_STATUS_FAILED = 3;  // 支付失败
+  PAYMENT_STATUS_REFUNDED = 4; // 已退款
+  PAYMENT_STATUS_CLOSED = 5;  // 交易关闭
+}
+
+// PaymentMethod 定义支付方式
+enum PaymentMethod {
+  PAYMENT_METHOD_UNKNOWN = 0;
+  PAYMENT_METHOD_WECHAT = 1;
+  PAYMENT_METHOD_ALIPAY = 2;
+  PAYMENT_METHOD_BANK_TRANSFER = 3;
+  PAYMENT_METHOD_CREDIT_CARD = 4;
+}
+
+// Payment 结构体定义支付信息
+message Payment {
+  string payment_id = 1; // 支付ID，通常由支付系统生成
+  string order_id = 2;   // 关联的订单ID
+  uint64 user_id = 3;    // 用户ID
+  double amount = 4;     // 支付金额
+  PaymentMethod method = 5; // 支付方式
+  PaymentStatus status = 6; // 支付状态
+  string transaction_id = 7; // 第三方支付交易ID
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  optional string currency = 10; // 货币类型，例如 CNY, USD
+}
+
+// CreatePaymentRequest 创建支付请求
+message CreatePaymentRequest {
+  string order_id = 1;
+  uint64 user_id = 2;
+  double amount = 3;
+  PaymentMethod method = 4;
+  optional string currency = 5;
+}
+
+// GetPaymentStatusRequest 获取支付状态请求
+message GetPaymentStatusRequest {
+  string payment_id = 1;
+}
+
+// PaymentResponse 支付响应
+message PaymentResponse {
+  Payment payment = 1;
+}

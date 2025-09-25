@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package api.aftersales.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/aftersales/v1;v1";
+
+// Aftersales Service
+service Aftersales {
+    // Create a new return request
+    rpc CreateReturnRequest(CreateReturnRequestRequest) returns (CreateReturnRequestResponse) {
+        option (google.api.http) = {
+            post: "/v1/aftersales/returns"
+            body: "*"
+        };
+    }
+
+    // Get a return request by ID
+    rpc GetReturnRequest(GetReturnRequestRequest) returns (GetReturnRequestResponse) {
+        option (google.api.http) = {
+            get: "/v1/aftersales/returns/{id}"
+        };
+    }
+
+    // Update a return request status
+    rpc UpdateReturnRequestStatus(UpdateReturnRequestStatusRequest) returns (UpdateReturnRequestStatusResponse) {
+        option (google.api.http) = {
+            put: "/v1/aftersales/returns/{id}/status"
+            body: "*"
+        };
+    }
+
+    // Create a new refund request
+    rpc CreateRefundRequest(CreateRefundRequestRequest) returns (CreateRefundRequestResponse) {
+        option (google.api.http) = {
+            post: "/v1/aftersales/refunds"
+            body: "*"
+        };
+    }
+
+    // Get a refund request by ID
+    rpc GetRefundRequest(GetRefundRequestRequest) returns (GetRefundRequestResponse) {
+        option (google.api.http) = {
+            get: "/v1/aftersales/refunds/{id}"
+        };
+    }
+
+    // Update a refund request status
+    rpc UpdateRefundRequestStatus(UpdateRefundRequestStatusRequest) returns (UpdateRefundRequestStatusResponse) {
+        option (google.api.http) = {
+            put: "/v1/aftersales/refunds/{id}/status"
+            body: "*"
+        };
+    }
+}
+
+// Represents a return request
+message ReturnRequest {
+    string id = 1;
+    string order_id = 2;
+    string user_id = 3;
+    string product_id = 4;
+    int32 quantity = 5;
+    string reason = 6;
+    string status = 7; // e.g., PENDING, APPROVED, REJECTED, RECEIVED, REFUNDED
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+}
+
+// Represents a refund request
+message RefundRequest {
+    string id = 1;
+    string return_request_id = 2;
+    string order_id = 3;
+    string user_id = 4;
+    double amount = 5;
+    string currency = 6;
+    string status = 7; // e.g., PENDING, APPROVED, REJECTED, COMPLETED
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+}
+
+// Request to create a return request
+message CreateReturnRequestRequest {
+    string order_id = 1;
+    string user_id = 2;
+    string product_id = 3;
+    int32 quantity = 4;
+    string reason = 5;
+}
+
+// Response for creating a return request
+message CreateReturnRequestResponse {
+    ReturnRequest request = 1;
+}
+
+// Request to get a return request
+message GetReturnRequestRequest {
+    string id = 1;
+}
+
+// Response for getting a return request
+message GetReturnRequestResponse {
+    ReturnRequest request = 1;
+}
+
+// Request to update a return request status
+message UpdateReturnRequestStatusRequest {
+    string id = 1;
+    string status = 2;
+}
+
+// Response for updating a return request status
+message UpdateReturnRequestStatusResponse {
+    ReturnRequest request = 1;
+}
+
+// Request to create a refund request
+message CreateRefundRequestRequest {
+    string return_request_id = 1;
+    string order_id = 2;
+    string user_id = 3;
+    double amount = 4;
+    string currency = 5;
+}
+
+// Response for creating a refund request
+message CreateRefundRequestResponse {
+    RefundRequest request = 1;
+}
+
+// Request to get a refund request
+message GetRefundRequestRequest {
+    string id = 1;
+}
+
+// Response for getting a refund request
+message GetRefundRequestResponse {
+    RefundRequest request = 1;
+}
+
+// Request to update a refund request status
+message UpdateRefundRequestStatusRequest {
+    string id = 1;
+    string status = 2;
+}
+
+// Response for updating a refund request status
+message UpdateRefundRequestStatusResponse {
+    RefundRequest request = 1;
+}

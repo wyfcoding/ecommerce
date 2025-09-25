@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package api.subscription.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/subscription/v1;v1";
+
+// Subscription Service
+service Subscription {
+    // Create a new subscription plan
+    rpc CreateSubscriptionPlan(CreateSubscriptionPlanRequest) returns (CreateSubscriptionPlanResponse) {
+        option (google.api.http) = {
+            post: "/v1/subscription/plans"
+            body: "*"
+        };
+    }
+
+    // Get a subscription plan by ID
+    rpc GetSubscriptionPlan(GetSubscriptionPlanRequest) returns (GetSubscriptionPlanResponse) {
+        option (google.api.http) = {
+            get: "/v1/subscription/plans/{id}"
+        };
+    }
+
+    // List all subscription plans
+    rpc ListSubscriptionPlans(ListSubscriptionPlansRequest) returns (ListSubscriptionPlansResponse) {
+        option (google.api.http) = {
+            get: "/v1/subscription/plans"
+        };
+    }
+
+    // Subscribe a user to a plan
+    rpc CreateUserSubscription(CreateUserSubscriptionRequest) returns (CreateUserSubscriptionResponse) {
+        option (google.api.http) = {
+            post: "/v1/users/{user_id}/subscriptions"
+            body: "*"
+        };
+    }
+
+    // Get a user's active subscription
+    rpc GetUserSubscription(GetUserSubscriptionRequest) returns (GetUserSubscriptionResponse) {
+        option (google.api.http) = {
+            get: "/v1/users/{user_id}/subscriptions/{id}"
+        };
+    }
+
+    // Cancel a user's subscription
+    rpc CancelUserSubscription(CancelUserSubscriptionRequest) returns (CancelUserSubscriptionResponse) {
+        option (google.api.http) = {
+            post: "/v1/users/{user_id}/subscriptions/{id}/cancel"
+            body: "*"
+        };
+    }
+
+    // Update a user's subscription (e.g., change plan, update payment method)
+    rpc UpdateUserSubscription(UpdateUserSubscriptionRequest) returns (UpdateUserSubscriptionResponse) {
+        option (google.api.http) = {
+            put: "/v1/users/{user_id}/subscriptions/{id}"
+            body: "*"
+        };
+    }
+}
+
+// Represents a subscription plan
+message SubscriptionPlan {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    double price = 4;
+    string currency = 5;
+    string recurrence_type = 6; // e.g., MONTHLY, ANNUALLY
+    int32 duration_months = 7; // 0 for indefinite
+    bool is_active = 8;
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp updated_at = 10;
+}
+
+// Represents a user's subscription to a plan
+message UserSubscription {
+    string id = 1;
+    string user_id = 2;
+    string plan_id = 3;
+    string status = 4; // e.g., ACTIVE, CANCELED, EXPIRED, PENDING_RENEWAL
+    google.protobuf.Timestamp start_date = 5;
+    google.protobuf.Timestamp end_date = 6;
+    google.protobuf.Timestamp next_billing_date = 7;
+    string payment_method_id = 8;
+    bool auto_renew = 9;
+    google.protobuf.Timestamp created_at = 10;
+    google.protobuf.Timestamp updated_at = 11;
+}
+
+// Request to create a subscription plan
+message CreateSubscriptionPlanRequest {
+    string name = 1;
+    string description = 2;
+    double price = 3;
+    string currency = 4;
+    string recurrence_type = 5;
+    int32 duration_months = 6;
+    bool is_active = 7;
+}
+
+// Response for creating a subscription plan
+message CreateSubscriptionPlanResponse {
+    SubscriptionPlan plan = 1;
+}
+
+// Request to get a subscription plan
+message GetSubscriptionPlanRequest {
+    string id = 1;
+}
+
+// Response for getting a subscription plan
+message GetSubscriptionPlanResponse {
+    SubscriptionPlan plan = 1;
+}
+
+// Request to list subscription plans
+message ListSubscriptionPlansRequest {
+    bool active_only = 1;
+}
+
+// Response for listing subscription plans
+message ListSubscriptionPlansResponse {
+    repeated SubscriptionPlan plans = 1;
+    int32 total_count = 2;
+}
+
+// Request to create a user subscription
+message CreateUserSubscriptionRequest {
+    string user_id = 1;
+    string plan_id = 2;
+    string payment_method_id = 3;
+    bool auto_renew = 4;
+}
+
+// Response for creating a user subscription
+message CreateUserSubscriptionResponse {
+    UserSubscription subscription = 1;
+}
+
+// Request to get a user subscription
+message GetUserSubscriptionRequest {
+    string user_id = 1;
+    string id = 2;
+}
+
+// Response for getting a user subscription
+message GetUserSubscriptionResponse {
+    UserSubscription subscription = 1;
+}
+
+// Request to cancel a user subscription
+message CancelUserSubscriptionRequest {
+    string user_id = 1;
+    string id = 2;
+}
+
+// Response for canceling a user subscription
+message CancelUserSubscriptionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Request to update a user subscription
+message UpdateUserSubscriptionRequest {
+    string user_id = 1;
+    string id = 2;
+    string plan_id = 3;
+    string payment_method_id = 4;
+    bool auto_renew = 5;
+}
+
+// Response for updating a user subscription
+message UpdateUserSubscriptionResponse {
+    UserSubscription subscription = 1;
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package api.coupon.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/coupon/v1;v1";
+
+// Coupon Service
+service Coupon {
+    // Create a new coupon
+    rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse) {
+        option (google.api.http) = {
+            post: "/v1/coupons"
+            body: "*"
+        };
+    }
+
+    // Get a coupon by code
+    rpc GetCoupon(GetCouponRequest) returns (GetCouponResponse) {
+        option (google.api.http) = {
+            get: "/v1/coupons/{code}"
+        };
+    }
+
+    // Use a coupon
+    rpc UseCoupon(UseCouponRequest) returns (UseCouponResponse) {
+        option (google.api.http) = {
+            post: "/v1/coupons/use"
+            body: "*"
+        };
+    }
+}
+
+// Represents a coupon
+message CouponInfo {
+    string id = 1;
+    string code = 2;
+    string description = 3;
+    double discount_value = 4;
+    string type = 5; // e.g., FIXED_AMOUNT, PERCENTAGE
+    int64 valid_from = 6;
+    int64 valid_to = 7;
+    bool is_active = 8;
+}
+
+// Request to create a coupon
+message CreateCouponRequest {
+    string code = 1;
+    string description = 2;
+    double discount_value = 3;
+    string type = 4;
+    int64 valid_from = 5;
+    int64 valid_to = 6;
+}
+
+// Response for creating a coupon
+message CreateCouponResponse {
+    CouponInfo coupon = 1;
+}
+
+// Request to get a coupon
+message GetCouponRequest {
+    string code = 1;
+}
+
+// Response for getting a coupon
+message GetCouponResponse {
+    CouponInfo coupon = 1;
+}
+
+// Request to use a coupon
+message UseCouponRequest {
+    string code = 1;
+    string user_id = 2;
+    string order_id = 3;
+}
+
+// Response for using a coupon
+message UseCouponResponse {
+    bool success = 1;
+    string message = 2;
+}

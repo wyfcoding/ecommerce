@@ -109,8 +109,22 @@ func (s *AdminService) ListPermissions(ctx context.Context, req *v1.ListPermissi
 
 // CreateAdminUser 实现了创建管理员用户的 RPC。
 func (s *AdminService) CreateAdminUser(ctx context.Context, req *v1.CreateAdminUserRequest) (*v1.AdminUser, error) {
-	// TODO: 实现业务逻辑
-	return nil, status.Errorf(codes.Unimplemented, "method CreateAdminUser not implemented")
+	if req.Username == "" || req.Password == "" || req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "username, password, and name are required")
+	}
+
+	bizAdminUser, err := s.authUsecase.CreateAdminUser(ctx, req.Username, req.Password, req.Name)
+	if err != nil {
+		// TODO: Define a specific error for username already exists in biz layer
+		return nil, status.Errorf(codes.Internal, "创建管理员用户失败: %v", err)
+	}
+
+	return &v1.AdminUser{
+		Id:       bizAdminUser.ID,
+		Username: bizAdminUser.Username,
+		Name:     bizAdminUser.Name,
+		Status:   bizAdminUser.Status,
+	}, nil
 }
 
 // ListAdminUsers 实现了获取管理员用户列表的 RPC。

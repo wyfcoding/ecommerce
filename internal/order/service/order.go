@@ -2,155 +2,113 @@ package service
 
 import (
 	"context"
-	"strconv"
-	"errors"
+	"encoding/json"
+	"fmt"
 
 	v1 "ecommerce/api/order/v1"
 	"ecommerce/internal/order/biz"
-
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"gorm.io/gorm"
 )
 
+// OrderService 是订单服务的 gRPC 实现。
 type OrderService struct {
 	v1.UnimplementedOrderServer
-	uc *biz.OrderUsecase
+	orderUsecase *biz.OrderUsecase
+	log          *zap.SugaredLogger
 }
 
-// NewOrderService 是 OrderService 的构造函数。
-func NewOrderService(uc *biz.OrderUsecase) *OrderService {
-	return &OrderService{uc: uc}
-}
-
-// getUserIDFromContext 从 gRPC 上下文的 metadata 中提取用户ID。
-func getUserIDFromContext(ctx context.Context) (uint64, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return 0, status.Errorf(codes.Unauthenticated, "无法获取元数据")
-	}
-	// 兼容 gRPC-Gateway 在 HTTP 请求时注入的用户ID
-	values := md.Get("x-md-global-user-id")
-	if len(values) == 0 {
-		// 兼容直接 gRPC 调用时注入的用户ID
-		values = md.Get("x-user-id")
-		if len(values) == 0 {
-			return 0, status.Errorf(codes.Unauthenticated, "请求头中缺少 x-user-id 信息")
-		}
-	}
-	userID, err := strconv.ParseUint(values[0], 10, 64)
-	if err != nil {
-		return 0, status.Errorf(codes.Unauthenticated, "x-user-id 格式无效")
-	}
-	return userID, nil
-}
-
-// bizOrderToProto 将 biz.Order 领域模型转换为 v1.OrderInfo API 模型。
-func bizOrderToProto(order *biz.Order) *v1.OrderInfo {
-	if order == nil {
-		return nil
-	}
-	return &v1.OrderInfo{
-		OrderId:       order.ID,
-		UserId:        order.UserID,
-		TotalAmount:   order.TotalAmount,
-		PaymentAmount: order.PaymentAmount,
-		Status:        order.Status,
+// NewOrderService 创建一个新的 OrderService。
+func NewOrderService(orderUsecase *biz.OrderUsecase, logger *zap.SugaredLogger) *OrderService {
+	return &OrderService{
+		orderUsecase: orderUsecase,
+		log:          logger,
 	}
 }
 
-// CreateOrder 实现了创建订单的 RPC。
+// CreateOrder 实现创建订单 RPC。
 func (s *OrderService) CreateOrder(ctx context.Context, req *v1.CreateOrderRequest) (*v1.CreateOrderResponse, error) {
-	userID, err := getUserIDFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(req.Items) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "items are required")
-	}
-
-	bizItems := make([]*biz.CreateOrderRequestItem, 0, len(req.Items))
-	for _, item := range req.Items {
-		bizItems = append(bizItems, &biz.CreateOrderRequestItem{
+	// 转换请求中的商品项
+	reqItems := make([]*biz.CreateOrderRequestItem, len(req.Items))
+	for i, item := range req.Items {
+		reqItems[i] = &biz.CreateOrderRequestItem{
 			SkuID:    item.SkuId,
 			Quantity: item.Quantity,
-		})
+		}
 	}
 
-	createdOrder, err := s.uc.CreateOrder(ctx, userID, bizItems, req.ShippingAddress, req.PaymentAmount)
+	// 调用业务逻辑创建订单
+	order, err := s.orderUsecase.CreateOrder(ctx, req.UserId, reqItems, req.ShippingAddress, req.PaymentAmount)
 	if err != nil {
+		s.log.Errorf("CreateOrder: failed to create order: %v", err)
 		return nil, status.Errorf(codes.Internal, "创建订单失败: %v", err)
 	}
 
-	return &v1.CreateOrderResponse{
-		OrderId: createdOrder.ID,
-	}, nil
+	return &v1.CreateOrderResponse{OrderId: order.ID}, nil
 }
 
-// GetOrderDetail 实现了获取订单详情的 RPC。
+// GetOrderDetail 实现获取订单详情 RPC。
 func (s *OrderService) GetOrderDetail(ctx context.Context, req *v1.GetOrderDetailRequest) (*v1.GetOrderDetailResponse, error) {
-	userID, err := getUserIDFromContext(ctx)
+	order, err := s.orderUsecase.GetOrder(ctx, req.OrderId)
 	if err != nil {
-		return nil, err
-	}
-
-	if req.OrderId == 0 {
-		return nil, status.Error(codes.InvalidArgument, "order_id is required")
-	}
-
-	order, err := s.uc.GetOrder(ctx, req.OrderId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) { // 假设 GetOrder 会返回 gorm.ErrRecordNotFound
-			return nil, status.Errorf(codes.NotFound, "订单未找到")
-		}
+		s.log.Errorf("GetOrderDetail: failed to get order %d: %v", req.OrderId, err)
 		return nil, status.Errorf(codes.Internal, "获取订单详情失败: %v", err)
 	}
 
-	// 检查订单是否属于当前用户
-	if order.UserID != userID {
-		return nil, status.Errorf(codes.PermissionDenied, "无权访问此订单")
+	// 转换 OrderInfo
+	orderInfo := &v1.OrderInfo{
+		OrderId:      order.ID,
+		UserId:       order.UserID,
+		TotalAmount:  order.TotalAmount,
+		PaymentAmount: order.PaymentAmount,
+		Status:       int32(order.Status),
+		// ... 其他字段
 	}
 
-	// TODO: 获取订单商品项
-	// 目前 biz.OrderUsecase 中没有获取 OrderItems 的方法，需要添加
-	// 假设 s.uc.GetOrderItems(ctx, order.ID) 可以获取到 []*biz.OrderItem
+	// 转换 OrderItem
+	orderItems := make([]*v1.OrderItem, len(order.Items))
+	for i, item := range order.Items {
+		orderItems[i] = &v1.OrderItem{
+			SkuId:        item.SkuID,
+			ProductTitle: item.ProductTitle,
+			ProductImage: item.ProductImage,
+			Price:        item.Price,
+			Quantity:     item.Quantity,
+		}
+	}
 
-	// 为了不阻塞流程，暂时返回一个简化的响应
-	return &v1.GetOrderDetailResponse{
-		Order: bizOrderToProto(order),
-		Items: []*v1.OrderItem{}, // 暂时为空
-	}, nil
+	return &v1.GetOrderDetailResponse{Order: orderInfo, Items: orderItems}, nil
 }
 
-// GetPaymentURL 实现了获取支付链接的 RPC。
+// GetPaymentURL 实现获取支付链接 RPC。
 func (s *OrderService) GetPaymentURL(ctx context.Context, req *v1.GetPaymentURLRequest) (*v1.GetPaymentURLResponse, error) {
-	userID, err := getUserIDFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if req.OrderId == 0 {
-		return nil, status.Error(codes.InvalidArgument, "order_id is required")
-	}
-
 	// TODO: 实现获取支付链接的业务逻辑
-	// 1. 根据 orderID 获取订单信息
-	// 2. 检查订单状态，只有待支付的订单才能获取支付链接
-	// 3. 调用支付服务生成支付链接
-	// 4. 返回支付链接
-
-	return nil, status.Errorf(codes.Unimplemented, "method GetPaymentURL not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "方法未实现")
 }
 
-// ProcessPaymentNotification 实现了处理支付回调的 RPC。
+// ProcessPaymentNotification 实现处理支付异步通知 RPC。
 func (s *OrderService) ProcessPaymentNotification(ctx context.Context, req *v1.ProcessPaymentNotificationRequest) (*v1.ProcessPaymentNotificationResponse, error) {
-	// TODO: 实现支付回调的业务逻辑
-	// 1. 验证支付通知的合法性（签名等）
-	// 2. 解析通知数据，获取订单ID、支付状态等信息
-	// 3. 根据支付状态更新订单状态
-	// 4. 处理库存、积分等后续业务逻辑
+	// TODO: 实现处理支付异步通知的业务逻辑
+	return nil, status.Errorf(codes.Unimplemented, "方法未实现")
+}
 
-	return nil, status.Errorf(codes.Unimplemented, "method ProcessPaymentNotification not implemented")
+// CreateOrderForFlashSale 为秒杀活动创建订单 RPC。
+func (s *OrderService) CreateOrderForFlashSale(ctx context.Context, req *v1.CreateOrderForFlashSaleRequest) (*v1.CreateOrderForFlashSaleResponse, error) {
+	orderID, err := s.orderUsecase.CreateOrderForFlashSale(ctx, req.UserId, req.ProductId, req.Quantity, req.Price)
+	if err != nil {
+		s.log.Errorf("CreateOrderForFlashSale: failed to create order: %v", err)
+		return nil, status.Errorf(codes.Internal, "为秒杀创建订单失败: %v", err)
+	}
+	return &v1.CreateOrderForFlashSaleResponse{OrderId: orderID}, nil
+}
+
+// CompensateCreateOrder 补偿创建订单 RPC。
+func (s *OrderService) CompensateCreateOrder(ctx context.Context, req *v1.CompensateCreateOrderRequest) (*v1.CompensateCreateOrderResponse, error) {
+	err := s.orderUsecase.CompensateCreateOrder(ctx, req.OrderId)
+	if err != nil {
+		s.log.Errorf("CompensateCreateOrder: failed to compensate order %s: %v", req.OrderId, err)
+		return nil, status.Errorf(codes.Internal, "补偿创建订单失败: %v", err)
+	}
+	return &v1.CompensateCreateOrderResponse{Success: true, Message: "订单补偿成功"}, nil
 }

@@ -4,25 +4,33 @@ import (
 	"context"
 	"ecommerce/internal/product/biz"
 	"ecommerce/internal/product/data/model"
+	"fmt" // Added for fmt.Errorf
+	"strconv" // Added for strconv.FormatUint
+
+	"go.mongodb.org/mongo-driver/bson" // Added
+	"go.mongodb.org/mongo-driver/mongo" // Added
+	"go.mongodb.org/mongo-driver/mongo/options" // Added
+	"github.com/olivere/elastic/v7" // Added
 )
 
 type productRepo struct {
 	*Data
+	mongoClient *mongo.Client // Added MongoDB client
+	esClient *elastic.Client // Added Elasticsearch client
 }
 
 // NewProductRepo 是 productRepo 的构造函数。
-func NewProductRepo(data *Data) biz.ProductRepo {
-	return &productRepo{Data: data}
+func NewProductRepo(data *Data, mongoClient *mongo.Client, esClient *elastic.Client) biz.ProductRepo {
+	return &productRepo{Data: data, mongoClient: mongoClient, esClient: esClient}
 }
 
 // toBizSpu 将数据库模型 data.Spu 转换为业务领域模型 biz.Spu。
-func (r *productRepo) toBizSpu(p *Spu) *biz.Spu {
+func (r *productRepo) toBizSpu(p *model.Spu) *biz.Spu {
 	if p == nil {
 		return nil
 	}
 	return &biz.Spu{
-		ID:            uint64(p.ID),
-		SpuID:         p.SpuID,
+		ID:            p.ID, // ID is already uint64 in model.Spu
 		CategoryID:    p.CategoryID,
 		BrandID:       p.BrandID,
 		Title:         p.Title,
@@ -35,12 +43,12 @@ func (r *productRepo) toBizSpu(p *Spu) *biz.Spu {
 }
 
 // toBizSku 将数据库模型 data.Sku 转换为业务领域模型 biz.Sku。
-func (r *productRepo) toBizSku(s *Sku) *biz.Sku {
+func (r *productRepo) toBizSku(s *model.Sku) *biz.Sku {
 	if s == nil {
 		return nil
 	}
 	return &biz.Sku{
-		ID:            uint64(s.ID),
+		ID:            s.ID,
 		SkuID:         s.SkuID,
 		SpuID:         s.SpuID,
 		Title:         s.Title,
@@ -55,8 +63,7 @@ func (r *productRepo) toBizSku(s *Sku) *biz.Sku {
 
 // CreateSpu 创建一个新的 SPU 记录。
 func (r *productRepo) CreateSpu(ctx context.Context, spu *biz.Spu) (*biz.Spu, error) {
-	p := &Spu{
-		SpuID:         spu.SpuID,
+	p := &model.Spu{
 		CategoryID:    spu.CategoryID,
 		BrandID:       spu.BrandID,
 		Title:         spu.Title,
@@ -69,6 +76,7 @@ func (r *productRepo) CreateSpu(ctx context.Context, spu *biz.Spu) (*biz.Spu, er
 	if err := r.db.WithContext(ctx).Create(p).Error; err != nil {
 		return nil, err
 	}
+	spu.ID = p.ID // Assign the generated ID back to biz.Spu
 	return r.toBizSpu(p), nil
 }
 
@@ -139,7 +147,7 @@ func (r *productRepo) ListSpu(ctx context.Context, page, pageSize int) ([]*biz.S
 
 // CreateSku 创建一个新的 SKU 记录。
 func (r *productRepo) CreateSku(ctx context.Context, sku *biz.Sku) (*biz.Sku, error) {
-	s := &Sku{
+	s := &model.Sku{
 		SkuID:         sku.SkuID,
 		SpuID:         sku.SpuID,
 		Title:         sku.Title,
@@ -153,6 +161,7 @@ func (r *productRepo) CreateSku(ctx context.Context, sku *biz.Sku) (*biz.Sku, er
 	if err := r.db.WithContext(ctx).Create(s).Error; err != nil {
 		return nil, err
 	}
+	sku.ID = s.ID // Assign the generated ID back to biz.Sku
 	return r.toBizSku(s), nil
 }
 
@@ -194,4 +203,50 @@ func (r *productRepo) GetSkusBySpuID(ctx context.Context, spuID uint64) ([]*biz.
 		bizSkus = append(bizSkus, r.toBizSku(s))
 	}
 	return bizSkus, nil
+}
+
+// SaveProductToMongo saves a product to MongoDB for indexing.
+func (r *productRepo) SaveProductToMongo(ctx context.Context, product *model.MongoProduct) error {
+	collection := r.mongoClient.Database("ecommerce").Collection("products") // Assuming "ecommerce" DB and "products" collection
+
+	// Upsert: if document exists, update it; otherwise, insert it.
+	filter := bson.M{"spu_id": product.SpuID}
+	update := bson.M{"$set": product}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		return fmt.Errorf("failed to upsert product to MongoDB: %w", err)
+	}
+	return nil
+}
+
+// SaveProductToElasticsearch saves a product to Elasticsearch for indexing.
+func (r *productRepo) SaveProductToElasticsearch(ctx context.Context, spu *biz.Spu) error {
+	// Convert biz.Spu to a format suitable for Elasticsearch
+	esProduct := struct {
+		ID          uint64 `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Price       uint64 `json:"price"` // Assuming price is in cents
+		ImageURL    string `json:"image_url"`
+		// Add other fields relevant for search
+	}{
+		ID:          spu.ID,
+		Name:        spu.Title,
+		Description: spu.SubTitle,
+		Price:       0, // TODO: Get actual price from SKU or SPU
+		ImageURL:    spu.MainImage,
+	}
+
+	_, err := r.esClient.Index().
+		Index("products"). // Assuming "products" index in Elasticsearch
+		Id(strconv.FormatUint(spu.ID, 10)).
+		BodyJson(esProduct).
+		Do(ctx)
+
+	if err != nil {
+		return fmt.Errorf("failed to index product to Elasticsearch: %w", err)
+	}
+	return nil
 }

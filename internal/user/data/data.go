@@ -3,6 +3,7 @@ package data
 // package data 存放与数据持久化相关的代码。
 import (
 	"ecommerce/internal/user/data/model"
+
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"

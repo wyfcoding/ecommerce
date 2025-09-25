@@ -2,10 +2,11 @@ package data
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
 	"ecommerce/internal/product/biz"
 	"ecommerce/internal/product/data/model"
+	"encoding/json"
+	"strings"
+
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ import (
 
 // Data 结构体持有所有数据源的连接，如此处的数据库连接
 type Data struct {
-	db *gorm.DB
+	db  *gorm.DB
 	log *zap.SugaredLogger // 添加日志器
 }
 

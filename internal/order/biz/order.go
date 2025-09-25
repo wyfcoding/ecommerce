@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"ecommerce/pkg/snowflake"
 	"go.uber.org/zap"
@@ -52,7 +53,7 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 	skuInfos, err := uc.product.GetSkuInfos(ctx, skuIDs)
 	if err != nil {
 		uc.log.Errorf("CreateOrder: failed to get sku info from product-service: %v", err)
-		return nil, fmt.Errorf("获取商品信息失败: %w", err)
+		return nil, fmt.Errorf("failed to get product information: %w", err)
 	}
 	if len(skuInfos) != len(reqItems) {
 		return nil, fmt.Errorf("some products are invalid or out of stock")
@@ -68,7 +69,7 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 		for _, skuInfo := range skuInfos {
 			quantity := reqItemMap[skuInfo.SkuID]
 			if skuInfo.Stock < quantity {
-				return fmt.Errorf("商品 '%s' 库存不足", skuInfo.Title)
+				return fmt.Errorf("product '%s' has insufficient stock", skuInfo.Title)
 			}
 
 			subTotal := skuInfo.Price * uint64(quantity)
@@ -98,7 +99,7 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 		var err error
 		createdOrder, err = uc.repo.CreateOrder(txCtx, order)
 		if err != nil {
-			return fmt.Errorf("创建订单失败: %w", err)
+			return fmt.Errorf("failed to create order: %w", err)
 		}
 
 		// 3c. 关联 OrderID 并批量创建订单商品记录
@@ -106,13 +107,13 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 			item.OrderID = createdOrder.ID
 		}
 		if err := uc.repo.CreateOrderItems(txCtx, orderItems); err != nil {
-			return fmt.Errorf("创建订单商品失败: %w", err)
+			return fmt.Errorf("failed to create order items: %w", err)
 		}
 
 		// 3d. 调用商品服务锁定库存
 		if err := uc.product.LockStock(txCtx, stockToLock); err != nil {
 			// 如果这里失败，整个事务会回滚，数据库中不会有订单记录
-			return fmt.Errorf("锁定库存失败: %w", err)
+			return fmt.Errorf("failed to lock stock: %w", err)
 		}
 
 		return nil // 事务成功，提交
@@ -134,4 +135,79 @@ func (uc *OrderUsecase) CreateOrder(ctx context.Context, userID uint64, reqItems
 // GetOrder 获取订单详情。
 func (uc *OrderUsecase) GetOrder(ctx context.Context, id uint64) (*Order, error) {
 	return uc.repo.GetOrder(ctx, id)
+}
+
+// CreateOrderForFlashSale 为秒杀活动创建订单。
+func (uc *OrderUsecase) CreateOrderForFlashSale(ctx context.Context, userID string, productID string, quantity int32, price float64) (string, error) {
+	// 简化处理：直接创建订单，不涉及购物车和复杂的库存锁定
+	// 库存已在秒杀服务中处理
+
+	orderID := snowflake.GenID()
+	order := &Order{
+		ID:            orderID,
+		UserID:        uint64(orderID), // Assuming userID can be converted to uint64 for now
+		TotalAmount:   uint64(price * float64(quantity)),
+		PaymentAmount: uint64(price * float64(quantity)),
+		Status:        OrderStatusPendingPayment,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	orderItem := &OrderItem{
+		OrderID:      orderID,
+		ProductID:    productID,
+		Quantity:     quantity,
+		Price:        uint64(price),
+		SubTotal:     uint64(price * float64(quantity)),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+
+	// 使用事务确保订单和订单项的原子性
+	err := uc.tx.ExecTx(ctx, func(txCtx context.Context) error {
+		_, err := uc.repo.CreateOrder(txCtx, order)
+		if err != nil {
+			return fmt.Errorf("failed to create order for flash sale: %w", err)
+		}
+		if err := uc.repo.CreateOrderItems(txCtx, []*OrderItem{orderItem}); err != nil {
+			return fmt.Errorf("failed to create order item for flash sale: %w", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%d", orderID), nil
+}
+
+// CompensateCreateOrder 补偿创建订单操作，通常是取消订单。
+func (uc *OrderUsecase) CompensateCreateOrder(ctx context.Context, orderID string) error {
+	// 查找订单并将其状态设置为已取消
+	parsedOrderID, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("无效的订单ID: %w", err)
+	}
+
+	order, err := uc.repo.GetOrder(ctx, parsedOrderID)
+	if err != nil {
+		// 如果订单不存在，可能已经被取消或从未成功创建，直接返回成功
+		if errors.Is(err, ErrOrderNotFound) {
+			return nil
+		}
+		return fmt.Errorf("获取订单失败: %w", err)
+	}
+
+	// 只有待支付或已创建的订单才能取消
+	if order.Status == OrderStatusPendingPayment || order.Status == OrderStatusCreated {
+		order.Status = OrderStatusCancelled
+		if _, err := uc.repo.UpdateOrder(ctx, order); err != nil {
+			return fmt.Errorf("更新订单状态为取消失败: %w", err)
+		}
+	}
+
+	// TODO: 如果订单已经支付，可能需要触发退款流程
+
+	return nil
 }

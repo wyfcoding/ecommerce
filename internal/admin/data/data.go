@@ -30,3 +30,10 @@ func NewTransaction(data *Data) biz.Transaction {
 func (t *transaction) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return t.db.WithContext(ctx).Transaction(fn)
 }
+
+// NewAdminRepo 是 AdminRepo 的构造函数。
+func NewAdminRepo(data *Data) biz.AdminRepo {
+	return &adminRepo{
+		data: data,
+	}
+}

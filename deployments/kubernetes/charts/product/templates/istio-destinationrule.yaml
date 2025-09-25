@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "ecommerce-service-template.fullname" . }}
+  labels:
+    {{- include "ecommerce-service-template.labels" . | nindent 4 }}
+spec:
+  host: {{ include "ecommerce-service-template.fullname" . }}
+  {{- if .Values.trafficPolicy }}
+  trafficPolicy:
+    {{- if .Values.trafficPolicy.connectionPool }}
+    connectionPool:
+      {{- toYaml .Values.trafficPolicy.connectionPool | nindent 6 }}
+    {{- end }}
+    {{- if .Values.trafficPolicy.outlierDetection }}
+    outlierDetection:
+      {{- toYaml .Values.trafficPolicy.outlierDetection | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.subsets }}
+  subsets:
+    {{- toYaml .Values.subsets | nindent 4 }}
+  {{- end }}

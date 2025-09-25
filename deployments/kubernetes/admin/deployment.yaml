@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-deployment
+  labels:
+    app: admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin
+  template:
+    metadata:
+      labels:
+        app: admin
+        istio-injection: enabled # Ensure Istio sidecar is injected
+    spec:
+      containers:
+        - name: admin
+          image: ecommerce/admin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+              name: http
+            - containerPort: 9094
+              name: grpc

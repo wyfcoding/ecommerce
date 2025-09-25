@@ -1,0 +1,23 @@
+[server]
+  [server.grpc]
+    addr = "0.0.0.0"
+    port = 8017
+  [server.http]
+    addr = "0.0.0.0"
+    port = 8097
+
+[log]
+  level = "info"
+  format = "console"
+  output = "stdout"
+
+[data]
+  [data.database]
+    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_content_moderation?charset=utf8mb4&parseTime=True&loc=Local"
+    max_idle_conns = 10
+    max_open_conns = 100
+    conn_max_lifetime = "300s"
+
+[services]
+  [services.ai_model]
+    addr = "127.0.0.1:8020"

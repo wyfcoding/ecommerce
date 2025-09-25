@@ -1,0 +1,15 @@
+# Fraud Detection Service Configuration
+[service]
+name = "fraud_detection"
+version = "1.0.0"
+port = 8084
+
+[database]
+host = "localhost"
+port = 3306
+user = "root"
+password = "password"
+dbname = "fraud_detection_db"
+
+[logging]
+level = "info"

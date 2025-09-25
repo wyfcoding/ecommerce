@@ -7,6 +7,15 @@ option go_package = "ecommerce/api/recommendation/v1;v1";
 service RecommendationService {
   // 定义推荐服务的接口
   rpc GetRecommendedProducts (GetRecommendedProductsRequest) returns (GetRecommendedProductsResponse);
+
+  // 索引产品关系到图数据库
+  rpc IndexProductRelationship (IndexProductRelationshipRequest) returns (IndexProductRelationshipResponse);
+
+  // 获取基于图的产品推荐
+  rpc GetGraphRecommendedProducts (GetGraphRecommendedProductsRequest) returns (GetGraphRecommendedProductsResponse);
+
+  // 获取高级个性化推荐 (AI驱动)
+  rpc GetAdvancedRecommendedProducts (GetAdvancedRecommendedProductsRequest) returns (GetAdvancedRecommendedProductsResponse);
 }
 
 message GetRecommendedProductsRequest {
@@ -24,4 +33,35 @@ message Product {
   string description = 3;
   double price = 4;
   string image_url = 5;
+}
+
+message IndexProductRelationshipRequest {
+  string product_id_1 = 1;
+  string product_id_2 = 2;
+  string type = 3; // e.g., "BOUGHT_TOGETHER", "VIEWED_TOGETHER"
+  double weight = 4;
+}
+
+message IndexProductRelationshipResponse {}
+
+message GetGraphRecommendedProductsRequest {
+  string product_id = 1;
+  int32 count = 2;
+}
+
+message GetGraphRecommendedProductsResponse {
+  repeated Product products = 1;
+}
+
+// GetAdvancedRecommendedProductsRequest 获取高级个性化推荐请求
+message GetAdvancedRecommendedProductsRequest {
+  string user_id = 1;
+  int32 count = 2;
+  map<string, string> context_features = 3; // 上下文特征，如当前浏览商品ID，会话信息
+}
+
+// GetAdvancedRecommendedProductsResponse 获取高级个性化推荐响应
+message GetAdvancedRecommendedProductsResponse {
+  repeated Product products = 1;
+  string explanation = 2; // 推荐解释 (可选)
 }

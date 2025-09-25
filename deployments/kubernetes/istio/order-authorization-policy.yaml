@@ -1,0 +1,25 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: order-access-control
+  namespace: default # 替换为您的命名空间
+spec:
+  selector:
+    matchLabels:
+      app: order-service # 匹配 order-service 的 Pod
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/default/sa/default"] # 允许来自 default 命名空间中 default 服务账户的请求
+    to:
+    - operation:
+        methods: ["GET"] # 允许 GET 请求
+        paths: ["/v1/order/*"] # 允许访问 /v1/order/ 下的所有路径
+  - from:
+    - source:
+        namespaces: ["admin-namespace"] # 允许来自 admin-namespace 的请求
+    to:
+    - operation:
+        methods: ["POST", "PUT", "DELETE"] # 允许 POST, PUT, DELETE 请求
+        paths: ["/v1/order/*"]

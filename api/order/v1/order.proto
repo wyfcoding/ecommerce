@@ -51,6 +51,22 @@ service Order {
 
   // 接收支付异步通知 (此接口由支付宝服务器调用，不在网关中通过HTTP注解暴露)
   rpc ProcessPaymentNotification(ProcessPaymentNotificationRequest) returns (ProcessPaymentNotificationResponse) {}
+
+  // --- Flash Sale Specific RPCs ---
+  // 为秒杀活动创建订单
+  rpc CreateOrderForFlashSale(CreateOrderForFlashSaleRequest) returns (CreateOrderForFlashSaleResponse) {
+    option (google.api.http) = {
+      post: "/v1/orders/flashsale"
+      body: "*"
+    };
+  }
+  // 补偿创建订单 (Saga 模式)
+  rpc CompensateCreateOrder(CompensateCreateOrderRequest) returns (CompensateCreateOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/orders/flashsale/compensate"
+      body: "*"
+    };
+  }
 }
 
 // --- Request/Response Messages ---
@@ -98,4 +114,28 @@ message ProcessPaymentNotificationRequest {
 
 message ProcessPaymentNotificationResponse {
   // 成功时为空
+}
+
+// Request for CreateOrderForFlashSale
+message CreateOrderForFlashSaleRequest {
+  string user_id = 1;
+  string product_id = 2;
+  int32 quantity = 3;
+  double price = 4;
+}
+
+// Response for CreateOrderForFlashSale
+message CreateOrderForFlashSaleResponse {
+  string order_id = 1;
+}
+
+// Request for CompensateCreateOrder
+message CompensateCreateOrderRequest {
+  string order_id = 1;
+}
+
+// Response for CompensateCreateOrder
+message CompensateCreateOrderResponse {
+  bool success = 1;
+  string message = 2;
 }

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-deployment
+  labels:
+    app: user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user
+  template:
+    metadata:
+      labels:
+        app: user
+        # This label is for Istio sidecar injection.
+        # The namespace where this is deployed must have the label: istio-injection: enabled
+    spec:
+      containers:
+        - name: user
+          # IMPORTANT: This image name assumes the previous docker build step was successful.
+          # If the image is pushed to a different registry, this needs to be updated.
+          image: ecommerce/user:latest
+          imagePullPolicy: IfNotPresent # Use local image if available
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9090
+              name: grpc
+          # The command is already defined in the Dockerfile's CMD,
+          # so we don't need to specify it here unless we want to override it.
