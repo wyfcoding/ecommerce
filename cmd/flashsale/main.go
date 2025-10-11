@@ -7,7 +7,6 @@ import (
 	"ecommerce/internal/flashsale/service"
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -17,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	orderv1 "ecommerce/api/order/v1"
+	flashsalehandler "ecommerce/internal/flashsale/handler"
 )
 
 // Config holds the application configuration.
@@ -35,7 +35,8 @@ type DatabaseConfig struct {
 	Host     string `toml:"host"`
 	Port     int    `toml:"port"`
 	User     string `toml:"user"`
-	Password string `toml:"password"`	DBName   string `toml:"dbname"`
+	Password string `toml:"password"`
+	DBName   string `toml:"dbname"`
 }
 
 type RedisConfig struct {
@@ -50,7 +51,7 @@ type DataConfig struct {
 }
 
 func main() {
-	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ======== 
+	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ========
 
 	// Load configuration from TOML file
 	var conf Config
@@ -91,7 +92,7 @@ func main() {
 	defer orderServiceConn.Close()
 	orderClient := orderv1.NewOrderClient(orderServiceConn)
 
-	// ======== 2. Wire up the application layers (Dependency Injection) ======== 
+	// ======== 2. Wire up the application layers (Dependency Injection) ========
 
 	dataRepo, cleanup, err := data.NewData(db, conf.Redis.Addr, conf.Redis.Password)
 	if err != nil {
@@ -107,19 +108,9 @@ func main() {
 
 	log.Println("Application layers wired successfully.")
 
-	// ======== 3. Start the Server (e.g., HTTP, gRPC) ======== 
+	// ======== 3. Start the Server (e.g., HTTP, gRPC) ========
 
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fw, _ := fmt.Fprint(w, "OK")
-	})
-
-	portStr := fmt.Sprintf(":%s", conf.Service.Port)
-	log.Printf("Starting HTTP server on port %s", portStr)
-
-	if err := http.ListenAndServe(portStr, nil); err != nil {
-		log.Fatalf("failed to start server: %v", err)
-	}
+	flashsalehandler.StartHTTPServer(flashSaleService, conf.Service.Port)
 
 	_ = flashSaleService
 }

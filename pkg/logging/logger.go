@@ -11,17 +11,23 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// NewLogger 根据提供的级别、格式和输出路径创建一个新的 zap Logger。
+// NewLogger 根据提供的配置创建一个新的 zap Logger 实例。
+// level: 日志级别 (例如, "debug", "info", "warn", "error")
+// format: 日志格式 ("json" 或 "console")
+// output: 日志输出路径 (例如, "stdout", "stderr", 或一个文件路径)
 func NewLogger(level, format, output string) *zap.Logger {
+	// 解析日志级别字符串
 	var logLevel zapcore.Level
 	if err := logLevel.UnmarshalText([]byte(level)); err != nil {
-		logLevel = zapcore.InfoLevel // 默认 Info 级别
+		logLevel = zapcore.InfoLevel // 如果解析失败，默认为 Info 级别
 	}
 
+	// 配置日志编码器
 	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder // 彩色日志
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder     // 时间格式: 2006-01-02T15:04:05.000Z0700
+	encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder // 在终端中为日志级别添加颜色
 
+	// 根据 format 参数选择编码器 (json 或 console)
 	var encoder zapcore.Encoder
 	if format == "json" {
 		encoder = zapcore.NewJSONEncoder(encoderConfig)
@@ -29,48 +35,34 @@ func NewLogger(level, format, output string) *zap.Logger {
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
 	}
 
-	// 支持多输出，例如 stdout 和文件
-	var cores []zapcore.Core
-
-	// Console/File output
+	// 设置日志输出位置
 	writeSyncer, _, err := zap.Open(output)
 	if err != nil {
+		// 如果打开指定路径失败，则默认输出到标准错误
 		writeSyncer = zapcore.Lock(os.Stderr)
 	}
-	cores = append(cores, zapcore.NewCore(encoder, writeSyncer, logLevel))
 
-	// Optional: Remote logging (simulating Logstash/Elasticsearch)
-	// In a real system, this would be more sophisticated (e.g., using a dedicated client, buffering, retries).
-	// For demonstration, we'll just print to stderr if remote logging is enabled.
-	// A real remote logger would use a network connection (TCP/HTTP).
-	if os.Getenv("REMOTE_LOGGING_ENABLED") == "true" {
-		remoteEncoderConfig := zap.NewProductionEncoderConfig()
-		remoteEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		remoteEncoderConfig.EncodeLevel = zapcore.CapitalEncoder // No color for remote
-		remoteEncoder := zapcore.NewJSONEncoder(remoteEncoderConfig) // JSON for remote
+	// 创建核心 logger
+	core := zapcore.NewCore(encoder, writeSyncer, logLevel)
 
-		// Simulate sending to a remote endpoint (e.g., Logstash TCP input)
-		// In a real scenario, you'd replace this with actual network client.
-		remoteWriter := zapcore.AddSync(os.Stderr) // For demonstration, still stderr
-		cores = append(cores, zapcore.NewCore(remoteEncoder, remoteWriter, logLevel))
-		zap.S().Info("Remote logging enabled (simulated to stderr).")
-	}
-
-	logger := zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(1))
+	// 创建最终的 logger，并添加调用者信息
+	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	return logger
 }
 
-// GinLogger 返回一个 Gin 中间件，用于记录请求日志。
+// GinLogger 返回一个 Gin 框架的中间件，用于记录每个HTTP请求的详细信息。
 func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
 
+		// 处理请求
 		c.Next()
 
+		// 请求处理完成，记录日志
 		cost := time.Since(start)
-		logger.Info(path,
+		logger.Info(path, // 使用请求路径作为日志消息
 			zap.Int("status", c.Writer.Status()),
 			zap.String("method", c.Request.Method),
 			zap.String("path", path),
@@ -83,15 +75,17 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 	}
 }
 
-// For 返回一个带有 trace_id 和 span_id 的 logger。
+// For 返回一个包含了 OpenTelemetry Trace ID 和 Span ID 的子 logger。
+// 这对于在微服务架构中追踪完整的请求链路至关重要。
 func For(ctx context.Context, logger *zap.Logger) *zap.Logger {
 	// 检查 context 中是否存在有效的 span
 	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
-		// 如果有，则在日志中自动附加 trace_id 和 span_id
+		// 如果有，则在日志中自动附加 trace_id 和 span_id 字段
 		return logger.With(
 			zap.String("trace_id", span.SpanContext().TraceID().String()),
 			zap.String("span_id", span.SpanContext().SpanID().String()),
 		)
 	}
+	// 如果没有 trace 信息，返回原始 logger
 	return logger
 }

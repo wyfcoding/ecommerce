@@ -2,34 +2,18 @@ syntax = "proto3";
 
 package api.coupon.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/coupon/v1;v1";
 
 // Coupon Service
 service Coupon {
     // Create a new coupon
-    rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse) {
-        option (google.api.http) = {
-            post: "/v1/coupons"
-            body: "*"
-        };
-    }
+    rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse);
 
     // Get a coupon by code
-    rpc GetCoupon(GetCouponRequest) returns (GetCouponResponse) {
-        option (google.api.http) = {
-            get: "/v1/coupons/{code}"
-        };
-    }
+    rpc GetCoupon(GetCouponRequest) returns (GetCouponResponse);
 
     // Use a coupon
-    rpc UseCoupon(UseCouponRequest) returns (UseCouponResponse) {
-        option (google.api.http) = {
-            post: "/v1/coupons/use"
-            body: "*"
-        };
-    }
+    rpc UseCoupon(UseCouponRequest) returns (UseCouponResponse);
 }
 
 // Represents a coupon

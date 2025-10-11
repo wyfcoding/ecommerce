@@ -2,19 +2,12 @@ syntax = "proto3";
 
 package api.asset.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/asset/v1;v1";
 
 // AssetService 定义了资产管理服务接口
 service AssetService {
   // 上传文件
-  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse) {
-    option (google.api.http) = {
-      post: "/v1/assets/upload"
-      body: "*"
-    };
-  }
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
 }
 
 // UploadFileRequest 上传文件请求

@@ -1,14 +1,39 @@
 version: '3.8'
 
+# 定义可重用的服务模板，避免重复
+x-common-service: &common-service
+  restart: always
+  build:
+    context: .
+    dockerfile: Dockerfile
+  networks:
+    - ecommerce-net
+  volumes:
+    # 将本地的configs目录挂载到容器的/app/configs，实现配置热加载
+    # 注意：SERVICE_NAME 变量在这里不可用，所以我们挂载整个目录
+    - ./configs:/app/configs
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    kafka:
+      condition: service_started # Kafka没有简单的健康检查，所以等待启动
+
+# 定义网络
+networks:
+  ecommerce-net:
+    driver: bridge
+
 services:
-  # --- Infrastructure Services ---
+  # --- 基础架构服务 ---
   mysql:
     image: mysql:8.0
     container_name: ecommerce-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: ecommerce_user
+      MYSQL_ROOT_PASSWORD: password # 注意: 'password' 仅用于本地开发环境，生产环境请使用更安全的密码管理方式。
+      MYSQL_DATABASE: ecommerce_db
     ports:
       - "3306:3306"
     volumes:
@@ -16,6 +41,11 @@ services:
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
       - ecommerce-net
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7.0-alpine
@@ -27,6 +57,11 @@ services:
       - ./data/redis:/data
     networks:
       - ecommerce-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -53,7 +88,6 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     networks:
       - ecommerce-net
 
@@ -62,8 +96,8 @@ services:
     container_name: ecommerce-elasticsearch
     restart: always
     environment:
-      discovery.type: single-node
-      xpack.security.enabled: "false" # Disable security for development
+      - discovery.type=single-node
+      - xpack.security.enabled=false # 注意: 'xpack.security.enabled=false' 仅用于本地开发环境，生产环境请务必启用并配置安全。
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -72,211 +106,63 @@ services:
     networks:
       - ecommerce-net
 
-  kibana:
-    image: kibana:8.11.0
-    container_name: ecommerce-kibana
-    restart: always
-    depends_on:
-      - elasticsearch
-    ports:
-      - "5601:5601"
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-    networks:
-      - ecommerce-net
-
-  minio:
-    image: minio/minio
-    container_name: ecommerce-minio
-    restart: always
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data
-    volumes:
-      - ./data/minio:/data
-    networks:
-      - ecommerce-net
-
-  neo4j:
-    image: neo4j:4.4
-    container_name: ecommerce-neo4j
-    restart: always
-    ports:
-      - "7474:7474" # HTTP
-      - "7687:7687" # Bolt
-    environment:
-      NEO4J_AUTH: neo4j/password # WARNING: Use a secure password in production
-    volumes:
-      - ./data/neo4j:/data
-    networks:
-      - ecommerce-net
-
-  # --- Microservices ---
+  # --- 微服务 ---
+  # 使用YAML锚点来继承通用配置
   gateway:
+    <<: *common-service
+    container_name: ecommerce-gateway
     build:
       context: .
-      dockerfile: deployments/docker/Dockerfile.gateway
-    container_name: ecommerce-gateway
-    restart: always
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: gateway
     ports:
-      - "8000:8000"
-    depends_on:
-      - user
-      - product
-      - cart
-      - order
-      - admin
-      - marketing
-      - search
-      - recommendation
-    networks:
-      - ecommerce-net
+      - "8000:8000" # HTTP端口
 
   user:
+    <<: *common-service
+    container_name: ecommerce-user
     build:
       context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
+      dockerfile: Dockerfile
       args:
         SERVICE_NAME: user
-    container_name: ecommerce-user
-    restart: always
     ports:
-      - "8080:8080"
-      - "9090:9090"
-    depends_on:
-      - mysql
-      - redis
-    networks:
-      - ecommerce-net
+      - "8001:8000" # HTTP
+      - "9001:9000" # gRPC
 
   product:
+    <<: *common-service
+    container_name: ecommerce-product
     build:
       context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
+      dockerfile: Dockerfile
       args:
         SERVICE_NAME: product
-    container_name: ecommerce-product
-    restart: always
     ports:
-      - "8081:8081"
-      - "9091:9091"
-    depends_on:
-      - mysql
-      - redis
-    networks:
-      - ecommerce-net
-
-  cart:
-    build:
-      context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
-      args:
-        SERVICE_NAME: cart
-    container_name: ecommerce-cart
-    restart: always
-    ports:
-      - "8082:8082" # Example HTTP port, if cart service exposes HTTP directly
-      - "9092:9092"
-    depends_on:
-      - mysql
-      - redis
-      - product # Cart depends on product service
-    networks:
-      - ecommerce-net
+      - "8002:8000"
+      - "9002:9000"
 
   order:
+    <<: *common-service
+    container_name: ecommerce-order
     build:
       context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
+      dockerfile: Dockerfile
       args:
         SERVICE_NAME: order
-    container_name: ecommerce-order
-    restart: always
     ports:
-      - "8083:8083" # Example HTTP port
-      - "9093:9093"
-    depends_on:
-      - mysql
-      - product
-      - cart
-    networks:
-      - ecommerce-net
+      - "8003:8000"
+      - "9003:9000"
 
-  admin:
-    build:
-      context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
-      args:
-        SERVICE_NAME: admin
-    container_name: ecommerce-admin
-    restart: always
-    ports:
-      - "8084:8084"
-      - "9094:9094"
-    depends_on:
-      - mysql
-      - product
-      - order
-    networks:
-      - ecommerce-net
-
-  marketing:
-    build:
-      context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
-      args:
-        SERVICE_NAME: marketing
-    container_name: ecommerce-marketing
-    restart: always
-    ports:
-      - "8085:8085"
-      - "9095:9095"
-    depends_on:
-      - mysql
-      - redis
-    networks:
-      - ecommerce-net
-
-  search:
-    build:
-      context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
-      args:
-        SERVICE_NAME: search
-    container_name: ecommerce-search
-    restart: always
-    ports:
-      - "8086:8086"
-      - "9096:9096"
-    depends_on:
-      - mysql
-      - elasticsearch
-      - product
-    networks:
-      - ecommerce-net
-
-  recommendation:
-    build:
-      context: .
-      dockerfile: deployments/docker/Dockerfile.service.template
-      args:
-        SERVICE_NAME: recommendation
-    container_name: ecommerce-recommendation
-    restart: always
-    ports:
-      - "8087:8087"
-      - "9097:9097"
-    depends_on:
-      - mysql
-      - product
-      - neo4j # Assuming Neo4j for graph-based recommendations
-    networks:
-      - ecommerce-net
-
-networks:
-  ecommerce-net:
-    driver: bridge
+  # ... 可以按需添加其他服务
+  # 例如:
+  # cart:
+  #   <<: *common-service
+  #   container_name: ecommerce-cart
+  #   build:
+  #     args:
+  #       SERVICE_NAME: cart
+  #   ports:
+  #     - "8004:8000"
+  #     - "9004:9000"

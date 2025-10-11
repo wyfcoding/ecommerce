@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package api.payment.v1;
 
-import "google/api/annotations.proto";
-<<<<<<< HEAD
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
@@ -11,49 +9,40 @@ option go_package = "ecommerce/api/payment/v1;v1";
 
 // PaymentService 定义了支付相关的 gRPC 服务
 service PaymentService {
-  // 创建支付请求
-  rpc CreatePayment(CreatePaymentRequest) returns (PaymentResponse) {
-    option (google.api.http) = {
-      post: "/v1/payment/create"
-=======
+  // 创建支付请求 (由订单服务调用)
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
 
-option go_package = "ecommerce/api/payment/v1;v1";
-
-// PaymentService 定义了支付服务接口
-service PaymentService {
-  // 发起支付
-  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse) {
-    option (google.api.http) = {
-      post: "/v1/payments"
->>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
-      body: "*"
-    };
-  }
-
-<<<<<<< HEAD
   // 获取支付状态
-  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentResponse) {
-    option (google.api.http) = {
-      get: "/v1/payment/{payment_id}/status"
-    };
-  }
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (Payment);
 
-  // TODO: Add more RPCs for payment callbacks, refunds, etc.
+  // 处理来自支付网关的异步回调通知 (由支付网关调用)
+  rpc ProcessCallback(ProcessCallbackRequest) returns (google.protobuf.Empty);
+
+  // 创建退款请求
+  rpc CreateRefund(CreateRefundRequest) returns (Refund);
 }
 
 // PaymentStatus 定义支付状态
 enum PaymentStatus {
-  PAYMENT_STATUS_UNKNOWN = 0;
+  PAYMENT_STATUS_UNSPECIFIED = 0;
   PAYMENT_STATUS_PENDING = 1; // 待支付
   PAYMENT_STATUS_SUCCESS = 2; // 支付成功
   PAYMENT_STATUS_FAILED = 3;  // 支付失败
-  PAYMENT_STATUS_REFUNDED = 4; // 已退款
-  PAYMENT_STATUS_CLOSED = 5;  // 交易关闭
+  PAYMENT_STATUS_CLOSED = 4;  // 交易关闭
 }
+
+// RefundStatus 定义退款状态
+enum RefundStatus {
+  REFUND_STATUS_UNSPECIFIED = 0;
+  REFUND_STATUS_PENDING = 1;    // 退款处理中
+  REFUND_STATUS_SUCCESS = 2;    // 退款成功
+  REFUND_STATUS_FAILED = 3;     // 退款失败
+}
+
 
 // PaymentMethod 定义支付方式
 enum PaymentMethod {
-  PAYMENT_METHOD_UNKNOWN = 0;
+  PAYMENT_METHOD_UNSPECIFIED = 0;
   PAYMENT_METHOD_WECHAT = 1;
   PAYMENT_METHOD_ALIPAY = 2;
   PAYMENT_METHOD_BANK_TRANSFER = 3;
@@ -72,6 +61,19 @@ message Payment {
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
   optional string currency = 10; // 货币类型，例如 CNY, USD
+  string payment_url = 11; // 支付页面的URL
+}
+
+// Refund 结构体定义退款信息
+message Refund {
+    string refund_id = 1;
+    string payment_id = 2;
+    string order_id = 3;
+    double amount = 4;
+    string reason = 5;
+    RefundStatus status = 6;
+    google.protobuf.Timestamp created_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
 }
 
 // CreatePaymentRequest 创建支付请求
@@ -83,52 +85,25 @@ message CreatePaymentRequest {
   optional string currency = 5;
 }
 
+// CreatePaymentResponse 创建支付响应
+message CreatePaymentResponse {
+    Payment payment = 1;
+}
+
 // GetPaymentStatusRequest 获取支付状态请求
 message GetPaymentStatusRequest {
   string payment_id = 1;
 }
 
-// PaymentResponse 支付响应
-message PaymentResponse {
-  Payment payment = 1;
-}
-=======
-  // 处理支付回调 (由支付网关调用)
-  rpc HandlePaymentCallback(HandlePaymentCallbackRequest) returns (HandlePaymentCallbackResponse) {
-    option (google.api.http) = {
-      post: "/v1/payments/callback"
-      body: "*"
-    };
-  }
+// ProcessCallbackRequest 处理支付回调
+message ProcessCallbackRequest {
+    string payment_id = 1;
+    map<string, string> data = 2; // 来自支付网关的原始数据
 }
 
-// CreatePaymentRequest 发起支付请求
-message CreatePaymentRequest {
-  uint64 order_id = 1;
-  uint64 user_id = 2;
-  uint64 amount = 3; // 支付金额 (分)
-  string currency = 4; // 货币单位，如 CNY
-  string payment_method = 5; // 支付方式，如 "WECHAT_PAY", "ALIPAY"
-  string return_url = 6; // 支付成功后跳转的URL
+// CreateRefundRequest 创建退款请求
+message CreateRefundRequest {
+    string payment_id = 1;
+    double amount = 2;
+    string reason = 3;
 }
-
-// CreatePaymentResponse 发起支付响应
-message CreatePaymentResponse {
-  string payment_id = 1; // 支付系统生成的唯一ID
-  string redirect_url = 2; // 跳转到支付网关的URL (如果需要)
-  string qr_code_url = 3; // 扫码支付二维码URL (如果需要)
-  string status = 4; // 支付状态，如 "PENDING", "SUCCESS", "FAIL"
-}
-
-// HandlePaymentCallbackRequest 处理支付回调请求
-message HandlePaymentCallbackRequest {
-  string payment_method = 1; // 支付方式
-  map<string, string> callback_data = 2; // 支付网关回调的原始数据
-}
-
-// HandlePaymentCallbackResponse 处理支付回调响应
-message HandlePaymentCallbackResponse {
-  string status = 1; // 处理结果，如 "SUCCESS", "FAIL"
-  string message = 2; // 消息
-}
->>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d

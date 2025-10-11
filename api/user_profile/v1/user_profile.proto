@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.user_profile.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/user_profile/v1;v1";
@@ -10,27 +9,13 @@ option go_package = "ecommerce/api/user_profile/v1;v1";
 // UserProfileService 定义了用户画像服务接口
 service UserProfileService {
   // 获取用户画像
-  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile) {
-    option (google.api.http) = {
-      get: "/v1/user_profiles/{user_id}"
-    };
-  }
+  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile);
 
   // 更新用户画像 (部分更新)
-  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfile) {
-    option (google.api.http) = {
-      put: "/v1/user_profiles/{user_id}"
-      body: "*"
-    };
-  }
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfile);
 
   // 记录用户行为事件 (用于画像构建)
-  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse) {
-    option (google.api.http) = {
-      post: "/v1/user_profiles/behavior"
-      body: "*"
-    };
-  }
+  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse);
 }
 
 // UserProfile 用户画像信息

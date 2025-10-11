@@ -3,10 +3,10 @@ package main
 import (
 	"ecommerce/internal/review/biz"
 	"ecommerce/internal/review/data"
+	reviewhandler "ecommerce/internal/review/handler"
 	"ecommerce/internal/review/service"
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/BurntSushi/toml"
 	"gorm.io/driver/mysql"
@@ -32,7 +32,7 @@ type DatabaseConfig struct {
 }
 
 func main() {
-	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ======== 
+	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ========
 
 	// Load configuration from TOML file
 	var conf Config
@@ -63,7 +63,7 @@ func main() {
 
 	log.Println("Successfully connected to database and migrated schema.")
 
-	// ======== 2. Wire up the application layers (Dependency Injection) ======== 
+	// ======== 2. Wire up the application layers (Dependency Injection) ========
 
 	dataRepo, cleanup, err := data.NewData(db)
 	if err != nil {
@@ -77,19 +77,9 @@ func main() {
 
 	log.Println("Application layers wired successfully.")
 
-	// ======== 3. Start the Server (e.g., HTTP, gRPC) ======== 
+	// ======== 3. Start the Server (e.g., HTTP, gRPC) ========
 
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fw, _ := fmt.Fprint(w, "OK")
-	})
-
-	portStr := fmt.Sprintf(":%s", conf.Service.Port)
-	log.Printf("Starting HTTP server on port %s", portStr)
-
-	if err := http.ListenAndServe(portStr, nil); err != nil {
-		log.Fatalf("failed to start server: %v", err)
-	}
+	reviewhandler.StartHTTPServer(reviewService, conf.Service.Port)
 
 	_ = reviewService
 }

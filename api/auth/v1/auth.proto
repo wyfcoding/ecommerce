@@ -2,27 +2,15 @@ syntax = "proto3";
 
 package api.auth.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/auth/v1;v1";
 
 // AuthService 定义了认证服务接口
 service AuthService {
   // 用户登录
-  rpc Login(LoginRequest) returns (LoginResponse) {
-    option (google.api.http) = {
-      post: "/v1/auth/login"
-      body: "*"
-    };
-  }
+  rpc Login(LoginRequest) returns (LoginResponse);
 
   // 验证令牌
-  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse) {
-    option (google.api.http) = {
-      post: "/v1/auth/validate_token"
-      body: "*"
-    };
-  }
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
 }
 
 // LoginRequest 登录请求

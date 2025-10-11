@@ -13,7 +13,7 @@ type service struct {
 
 	categoryUsecase *biz.CategoryUsecase
 	productUsecase  *biz.ProductUsecase
-	brandUsecase    *biz.BrandUsecase // 新增：品牌用例
+	brandUsecase    *biz.BrandUsecase  // 新增：品牌用例
 	reviewUsecase   *biz.ReviewUsecase // 新增：评论用例
 }
 

@@ -11,13 +11,13 @@ import (
 
 // Config 结构体用于 Redis 客户端配置。
 type Config struct {
-	Addr         string        `toml:"addr:"`
-	Password     string        `toml:"password:"`
-	DB           int           `toml:"db:"`
-	ReadTimeout  time.Duration `toml:"read_timeout:"`
-	WriteTimeout time.Duration `toml:"write_timeout:"`
-	PoolSize     int           `toml:"pool_size:"`
-	MinIdleConns int           `toml:"min_idle_conns:"`
+	Addr         string        `toml:"addr"`
+	Password     string        `toml:"password"`
+	DB           int           `toml:"db"`
+	ReadTimeout  time.Duration `toml:"read_timeout"`
+	WriteTimeout time.Duration `toml:"write_timeout"`
+	PoolSize     int           `toml:"pool_size"`
+	MinIdleConns int           `toml:"min_idle_conns"`
 }
 
 // NewRedisClient 创建一个新的 Redis 客户端实例。

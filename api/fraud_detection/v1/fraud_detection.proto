@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.fraud_detection.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/fraud_detection/v1;v1";
@@ -10,27 +9,13 @@ option go_package = "ecommerce/api/fraud_detection/v1;v1";
 // FraudDetection Service
 service FraudDetection {
     // Submit a transaction for fraud evaluation
-    rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse) {
-        option (google.api.http) = {
-            post: "/v1/fraud/transactions/evaluate"
-            body: "*"
-        };
-    }
+    rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse);
 
     // Get the status of a fraud evaluation
-    rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse) {
-        option (google.api.http) = {
-            get: "/v1/fraud/transactions/{transaction_id}/status"
-        };
-    }
+    rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse);
 
     // Report a suspected fraudulent activity
-    rpc ReportFraud(ReportFraudRequest) returns (ReportFraudResponse) {
-        option (google.api.http) = {
-            post: "/v1/fraud/report"
-            body: "*"
-        };
-    }
+    rpc ReportFraud(ReportFraudRequest) returns (ReportFraudResponse);
 }
 
 // Represents a fraud evaluation result

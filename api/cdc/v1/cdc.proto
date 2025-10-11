@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.cdc.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/cdc/v1;v1";
@@ -10,12 +9,7 @@ option go_package = "ecommerce/api/cdc/v1;v1";
 // CdcService 定义了变更数据捕获服务接口
 service CdcService {
   // 模拟捕获数据库变更事件
-  rpc CaptureChangeEvent(CaptureChangeEventRequest) returns (CaptureChangeEventResponse) {
-    option (google.api.http) = {
-      post: "/v1/cdc/capture_event"
-      body: "*"
-    };
-  }
+  rpc CaptureChangeEvent(CaptureChangeEventRequest) returns (CaptureChangeEventResponse);
 }
 
 // ChangeEvent 变更事件

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fullname" . }} # Service 的名称，使用 Helm 辅助函数生成
+  labels:
+    {{- include "chart.labels" . | nindent 4 }} # Service 的标签，使用 Helm 辅助函数生成
+spec:
+  type: {{ .Values.service.type }} # Service 的类型，例如 ClusterIP, NodePort, LoadBalancer
+  ports:
+    # HTTP 端口配置
+    - port: {{ .Values.service.httpPort }} # Service 监听的端口
+      targetPort: http # 容器中 HTTP 端口的名称
+      protocol: TCP # 协议类型
+      name: http # 端口名称
+    # gRPC 端口配置
+    - port: {{ .Values.service.grpcPort }} # Service 监听的端口
+      targetPort: grpc # 容器中 gRPC 端口的名称
+      protocol: TCP # 协议类型
+      name: grpc # 端口名称
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }} # 选择器，用于匹配后端 Pod 的标签

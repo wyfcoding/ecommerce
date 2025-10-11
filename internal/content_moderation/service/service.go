@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	v1 "ecommerce/api/content_moderation/v1"

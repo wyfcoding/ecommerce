@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"strconv"
-	"time"
 
 	v1 "ecommerce/api/user_profile/v1"
 	"ecommerce/internal/user_profile/biz"

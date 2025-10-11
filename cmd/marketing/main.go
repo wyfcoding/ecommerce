@@ -3,26 +3,19 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/gin-gonic/gin"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	v1 "ecommerce/api/marketing/v1"
 	"ecommerce/internal/marketing/biz"
 	"ecommerce/internal/marketing/data"
+	marketinghandler "ecommerce/internal/marketing/handler"
 	"ecommerce/internal/marketing/service"
 	"ecommerce/pkg/logging"
 )
@@ -131,11 +124,11 @@ func main() {
 	marketingService := service.NewMarketingService(marketingUsecase)
 
 	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := startGRPCServer(marketingService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
+	grpcServer, grpcErrChan := marketinghandler.StartGRPCServer(marketingService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
 	if grpcServer == nil {
 		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
 	}
-	httpServer, httpErrChan := startHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
+	httpServer, httpErrChan := marketinghandler.StartHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
 	if httpServer == nil {
 		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
 	}
@@ -165,59 +158,5 @@ func main() {
 }
 
 // startGRPCServer 启动 gRPC 服务器
-func startGRPCServer(marketingService *service.MarketingService, addr string, port int) (*grpc.Server, chan error) {
-	errChan := make(chan error, 1)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
-	if err != nil {
-		errChan <- fmt.Errorf("failed to listen: %w", err)
-		return nil, errChan
-	}
-	s := grpc.NewServer()
-	v1.RegisterMarketingServer(s, marketingService)
-
-	zap.S().Infof("gRPC server listening at %v", lis.Addr())
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			errChan <- fmt.Errorf("failed to serve gRPC: %w", err)
-		}
-		close(errChan)
-	}()
-	return s, errChan
-}
 
 // startHTTPServer 启动 HTTP Gateway，它会将 HTTP 请求代理到 gRPC 服务
-func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
-
-	err := v1.RegisterMarketingHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
-	if err != nil {
-		errChan <- fmt.Errorf("failed to register gRPC gateway: %w", err)
-		return nil, errChan
-	}
-
-	r := gin.Default()
-	r.Use(gin.Recovery())
-	// Add service-specific Gin routes here
-	// For example:
-	// r.GET("/marketing/coupons", handler.GetCoupons)
-
-	r.Any("/*any", gin.WrapH(mux))
-
-	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)
-	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: r,
-	}
-
-	zap.S().Infof("HTTP server listening at %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
-}

@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: bi
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - ecommerce-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/bi"
+    route:
+    - destination:
+        host: bi
+        port:
+          number: 80

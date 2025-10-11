@@ -2,19 +2,12 @@ syntax = "proto3";
 
 package api.data_ingestion.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/data_ingestion/v1;v1";
 
 // DataIngestionService 定义了数据摄取服务接口
 service DataIngestionService {
   // 摄取通用事件数据
-  rpc IngestEvent(IngestEventRequest) returns (IngestEventResponse) {
-    option (google.api.http) = {
-      post: "/v1/data_ingestion/events"
-      body: "*"
-    };
-  }
+  rpc IngestEvent(IngestEventRequest) returns (IngestEventResponse);
 }
 
 // IngestEventRequest 摄取事件请求

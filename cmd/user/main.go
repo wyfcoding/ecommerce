@@ -1,200 +1,85 @@
 package main
 
 import (
-	"context"
+	"fmt"
+	"time"
+
 	"ecommerce/api/user/v1"
 	"ecommerce/internal/user/biz"
 	"ecommerce/internal/user/data"
+	"ecommerce/internal/user/handler"
 	"ecommerce/internal/user/service"
-	configpkg "ecommerce/pkg/config" // Added this line
-	"ecommerce/pkg/jwt"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
-	"flag"
-	"fmt"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/redis"
 
 	"github.com/gin-gonic/gin"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"github.com/BurntSushi/toml"
+	"go.uber.org/zap"
+	gormlogger "gorm.io/gorm/logger"
 )
 
-// Config 结构体用于映射 TOML 配置文件
+// Config is the service-specific configuration structure.
 type Config struct {
-	config.ServerConfig `toml:"server"` // Embed common server config
+	configpkg.Config
 	Data struct {
+		configpkg.DataConfig
 		Database struct {
-			Driver string `toml:"driver"`
-			DSN    string `toml:"dsn"`
+			configpkg.DatabaseConfig
+			LogLevel      gormlogger.LogLevel `toml:"log_level"`
+			SlowThreshold time.Duration     `toml:"slow_threshold"`
 		} `toml:"database"`
-		Redis struct {
-			Addr         string `toml:"addr"`
-			Password     string `toml:"password"`
-			DB           int    `toml:"db"`
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
 	} `toml:"data"`
-	JWT struct {
-		Secret   string `toml:"secret"`
-		Issuer   string `toml:"issuer"`
-		Expire   time.Duration `toml:"expire_duration"`
-	} `toml:"jwt"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	config.LogConfig `toml:"log"` // Embed common log config
 }
+
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "../../configs/user.toml", "config file path")
-	flag.Parse()
+	app.NewBuilder("user").
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithMetrics("9090").
+		Build().
+		Run()
+}
 
-	var config Config
-	if err := configpkg.LoadConfig(configPath, &config); err != nil {
-		zap.S().Fatalf("failed to load config: %v", err)
-	}
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	v1.RegisterUserServer(s, srv.(v1.UserServer))
+}
 
-	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger) // 将我们的 logger 设置为全局 logger
+func registerGin(e *gin.Engine, srv interface{}) {
+	userHandler := handler.NewUserHandler(srv.(*service.UserService))
+	// Define routes here, e.g.:
+	e.GET("/v1/users/:id", userHandler.GetUser)
+}
 
-	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
-	}
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
 
-	// 4. 依赖注入 (DI)
-	// 从下到上构建依赖关系：data -> biz -> service
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
+	dataInstance, cleanupData, err := data.NewData(config.Data.Database.DSN, zap.L(), config.Data.Database.LogLevel, config.Data.Database.SlowThreshold)
 	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
+		return nil, nil, fmt.Errorf("failed to new data: %w", err)
 	}
-	defer cleanup()
 
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
-	})
+	_, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis)
 	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
+		cleanupData()
+		return nil, nil, fmt.Errorf("failed to new redis client: %w", err)
 	}
-	defer redisCleanup()
 
 	userRepo := data.NewUserRepo(dataInstance)
 	addressRepo := data.NewAddressRepo(dataInstance)
 
-	userUsecase := biz.NewUserUsecase(userRepo, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
+	userUsecase := biz.NewUserUsecase(userRepo)
 	addressUsecase := biz.NewAddressUsecase(addressRepo)
 
-	userService := service.NewUserService(userUsecase, addressUsecase)
+	userService := service.NewUserService(userUsecase, addressUsecase, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
 
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := startGRPCServer(userService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := startHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
+	cleanup := func() {
+		cleanupRedis()
+		cleanupData()
 	}
 
-	// 6. 等待中断信号或服务器错误以实现优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down servers...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down servers due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down servers due to HTTP error...")
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
-
-
-
-// startGRPCServer 启动 gRPC 服务器
-func startGRPCServer(userService *service.UserService, addr string, port int) (*grpc.Server, chan error) {
-	errChan := make(chan error, 1)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
-	if err != nil {
-		errChan <- fmt.Errorf("failed to listen: %w", err)
-		return nil, errChan
-	}
-	s := grpc.NewServer()
-	v1.RegisterUserServer(s, userService)
-
-	zap.S().Infof("gRPC server listening at %v", lis.Addr())
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			errChan <- fmt.Errorf("failed to serve gRPC: %w", err)
-		}
-		close(errChan)
-	}()
-	return s, errChan
-}
-
-// startHTTPServer 启动 HTTP Gateway，它会将 HTTP 请求代理到 gRPC 服务
-func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
-
-	err := v1.RegisterUserHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
-	if err != nil {
-		errChan <- fmt.Errorf("failed to register gRPC gateway: %w", err)
-		return nil, errChan
-	}
-
-	r := gin.Default()
-	// Add service-specific Gin routes here
-	// For example:
-	// r.GET("/users/:id", handler.GetUser)
-	// r.POST("/users", handler.CreateUser)
-
-	// 将 grpc-gateway 的处理器集成到 Gin
-	r.Any("/*any", gin.WrapH(mux))
-
-	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)
-	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: r,
-	}
-
-	zap.S().Infof("HTTP server listening at %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
+	return userService, cleanup, nil
 }

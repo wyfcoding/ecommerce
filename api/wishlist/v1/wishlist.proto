@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.wishlist.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/wishlist/v1;v1";
@@ -10,26 +9,13 @@ option go_package = "ecommerce/api/wishlist/v1;v1";
 // Wishlist Service
 service Wishlist {
     // Add an item to a user's wishlist
-    rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse) {
-        option (google.api.http) = {
-            post: "/v1/users/{user_id}/wishlist/items"
-            body: "*"
-        };
-    }
+    rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse);
 
     // Remove an item from a user's wishlist
-    rpc RemoveItemFromWishlist(RemoveItemFromWishlistRequest) returns (RemoveItemFromWishlistResponse) {
-        option (google.api.http) = {
-            delete: "/v1/users/{user_id}/wishlist/items/{product_id}"
-        };
-    }
+    rpc RemoveItemFromWishlist(RemoveItemFromWishlistRequest) returns (RemoveItemFromWishlistResponse);
 
     // List all items in a user's wishlist
-    rpc ListWishlistItems(ListWishlistItemsRequest) returns (ListWishlistItemsResponse) {
-        option (google.api.http) = {
-            get: "/v1/users/{user_id}/wishlist/items"
-        };
-    }
+    rpc ListWishlistItems(ListWishlistItemsRequest) returns (ListWishlistItemsResponse);
 }
 
 // Represents an item in a user's wishlist

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/colinmarc/hdfs/v2"
 	"go.uber.org/zap"
@@ -12,9 +11,8 @@ import (
 
 // Config 结构体用于 HDFS 客户端配置。
 type Config struct {
-	Addresses []string      `toml:"addresses"`
-	User      string        `toml:"user"`
-	Timeout   time.Duration `toml:"timeout"`
+	Addresses []string `toml:"addresses"`
+	User      string   `toml:"user"`
 }
 
 // NewHDFSClient 创建一个新的 HDFS 客户端实例。
@@ -22,7 +20,6 @@ func NewHDFSClient(conf *Config) (*hdfs.Client, func(), error) {
 	client, err := hdfs.NewClient(hdfs.ClientOptions{
 		Addresses: conf.Addresses,
 		User:      conf.User,
-		Timeout:   conf.Timeout,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create HDFS client: %w", err)
@@ -39,7 +36,9 @@ func NewHDFSClient(conf *Config) (*hdfs.Client, func(), error) {
 	cleanup := func() {
 		if client != nil {
 			zap.S().Info("closing HDFS client...")
-			client.Close()
+			if err := client.Close(); err != nil {
+				zap.S().Errorf("failed to close hdfs client: %v", err)
+			}
 		}
 	}
 

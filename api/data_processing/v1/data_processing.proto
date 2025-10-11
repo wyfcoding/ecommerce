@@ -2,27 +2,15 @@ syntax = "proto3";
 
 package api.data_processing.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/data_processing/v1;v1";
 
 // DataProcessingService 定义了数据处理服务接口
 service DataProcessingService {
   // 触发一个数据处理作业
-  rpc TriggerProcessingJob(TriggerProcessingJobRequest) returns (TriggerProcessingJobResponse) {
-    option (google.api.http) = {
-      post: "/v1/data_processing/jobs/trigger"
-      body: "*"
-    };
-  }
+  rpc TriggerProcessingJob(TriggerProcessingJobRequest) returns (TriggerProcessingJobResponse);
 
   // 触发一个 Spark/Flink 作业
-  rpc TriggerSparkFlinkJob(TriggerSparkFlinkJobRequest) returns (TriggerSparkFlinkJobResponse) {
-    option (google.api.http) = {
-      post: "/v1/data_processing/spark_flink_jobs/trigger"
-      body: "*"
-    };
-  }
+  rpc TriggerSparkFlinkJob(TriggerSparkFlinkJobRequest) returns (TriggerSparkFlinkJobResponse);
 }
 
 // TriggerProcessingJobRequest 触发数据处理作业请求

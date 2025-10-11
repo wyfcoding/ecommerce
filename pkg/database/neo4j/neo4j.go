@@ -9,9 +9,9 @@ import (
 
 // Config 结构体用于 Neo4j 数据库配置。
 type Config struct {
-	URI      string `toml:"uri:"`
-	Username string `toml:"username:"`
-	Password string `toml:"password:"`
+	URI      string `toml:"uri"`
+	Username string `toml:"username"`
+	Password string `toml:"password"`
 }
 
 // NewNeo4jDriver 创建一个新的 Neo4j 驱动实例。

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.cms.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/cms/v1;v1";
@@ -10,71 +9,31 @@ option go_package = "ecommerce/api/cms/v1;v1";
 // CMS Service
 service CMS {
     // Create a new content page
-    rpc CreateContentPage(CreateContentPageRequest) returns (CreateContentPageResponse) {
-        option (google.api.http) = {
-            post: "/v1/cms/pages"
-            body: "*"
-        };
-    }
+    rpc CreateContentPage(CreateContentPageRequest) returns (CreateContentPageResponse);
 
     // Get a content page by slug or ID
-    rpc GetContentPage(GetContentPageRequest) returns (GetContentPageResponse) {
-        option (google.api.http) = {
-            get: "/v1/cms/pages/{id}"
-        };
-    }
+    rpc GetContentPage(GetContentPageRequest) returns (GetContentPageResponse);
 
     // Update an existing content page
-    rpc UpdateContentPage(UpdateContentPageRequest) returns (UpdateContentPageResponse) {
-        option (google.api.http) = {
-            put: "/v1/cms/pages/{id}"
-            body: "*"
-        };
-    }
+    rpc UpdateContentPage(UpdateContentPageRequest) returns (UpdateContentPageResponse);
 
     // Delete a content page
-    rpc DeleteContentPage(DeleteContentPageRequest) returns (DeleteContentPageResponse) {
-        option (google.api.http) = {
-            delete: "/v1/cms/pages/{id}"
-        };
-    }
+    rpc DeleteContentPage(DeleteContentPageRequest) returns (DeleteContentPageResponse);
 
     // List content pages
-    rpc ListContentPages(ListContentPagesRequest) returns (ListContentPagesResponse) {
-        option (google.api.http) = {
-            get: "/v1/cms/pages"
-        };
-    }
+    rpc ListContentPages(ListContentPagesRequest) returns (ListContentPagesResponse);
 
     // Create a new content block
-    rpc CreateContentBlock(CreateContentBlockRequest) returns (CreateContentBlockResponse) {
-        option (google.api.http) = {
-            post: "/v1/cms/blocks"
-            body: "*"
-        };
-    }
+    rpc CreateContentBlock(CreateContentBlockRequest) returns (CreateContentBlockResponse);
 
     // Get a content block by slug or ID
-    rpc GetContentBlock(GetContentBlockRequest) returns (GetContentBlockResponse) {
-        option (google.api.http) = {
-            get: "/v1/cms/blocks/{id}"
-        };
-    }
+    rpc GetContentBlock(GetContentBlockRequest) returns (GetContentBlockResponse);
 
     // Update an existing content block
-    rpc UpdateContentBlock(UpdateContentBlockRequest) returns (UpdateContentBlockResponse) {
-        option (google.api.http) = {
-            put: "/v1/cms/blocks/{id}"
-            body: "*"
-        };
-    }
+    rpc UpdateContentBlock(UpdateContentBlockRequest) returns (UpdateContentBlockResponse);
 
     // Delete a content block
-    rpc DeleteContentBlock(DeleteContentBlockRequest) returns (DeleteContentBlockResponse) {
-        option (google.api.http) = {
-            delete: "/v1/cms/blocks/{id}"
-        };
-    }
+    rpc DeleteContentBlock(DeleteContentBlockRequest) returns (DeleteContentBlockResponse);
 }
 
 // Represents a content page

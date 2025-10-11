@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"errors"
 	v1 "ecommerce/api/inventory/v1"
 	"ecommerce/internal/inventory/biz"
+	"errors"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

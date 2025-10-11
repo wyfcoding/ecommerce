@@ -2,19 +2,12 @@ syntax = "proto3";
 
 package api.data_warehouse_query.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/data_warehouse_query/v1;v1";
 
 // DataWarehouseQueryService 定义了数据仓库查询服务接口
 service DataWarehouseQueryService {
   // 执行数据仓库查询
-  rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse) {
-    option (google.api.http) = {
-      post: "/v1/data_warehouse/query"
-      body: "*"
-    };
-  }
+  rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
 }
 
 // ExecuteQueryRequest 执行数据仓库查询请求

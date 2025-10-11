@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.cart.v1;
 
-import "google/api/annotations.proto";
 import "api/product/v1/product.proto"; // 导入商品服务的定义
 
 option go_package = "ecommerce/api/cart/v1;v1";
@@ -15,35 +14,17 @@ option go_package = "ecommerce/api/cart/v1;v1";
 service CartService {
   // 添加商品到购物车
   // 如果商品已存在，则增加其数量
-  rpc AddItem(AddItemRequest) returns (AddItemResponse) {
-    option (google.api.http) = {
-      post: "/v1/cart/items"
-      body: "*"
-    };
-  }
+  rpc AddItem(AddItemRequest) returns (AddItemResponse);
 
   // 从购物车移除指定商品
-  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse) {
-    option (google.api.http) = {
-      delete: "/v1/cart/items/{sku_id}"
-    };
-  }
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse);
 
   // 更新购物车中某个商品的数量
-  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse) {
-    option (google.api.http) = {
-      put: "/v1/cart/items/{sku_id}"
-      body: "*"
-    };
-  }
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
 
   // 获取当前用户的购物车详情
-  rpc GetCart(GetCartRequest) returns (GetCartResponse) {
-    option (google.api.http) = {
-      get: "/v1/cart"
-    };
-  }
-  rpc ClearCheckedItems(ClearCheckedItemsRequest) returns (ClearCheckedItemsResponse) {}
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+  rpc ClearCheckedItems(ClearCheckedItemsRequest) returns (ClearCheckedItemsResponse);
 }
 
 // ===================================

@@ -2,25 +2,15 @@ syntax = "proto3";
 
 package api.bi.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/bi/v1;v1";
 
 // BiService 定义了 BI 报表服务接口
 service BiService {
   // 获取销售概览报表
-  rpc GetSalesOverview(GetSalesOverviewRequest) returns (SalesOverviewResponse) {
-    option (google.api.http) = {
-      get: "/v1/bi/sales_overview"
-    };
-  }
+  rpc GetSalesOverview(GetSalesOverviewRequest) returns (SalesOverviewResponse);
 
   // 获取商品销售排行榜
-  rpc GetTopSellingProducts(GetTopSellingProductsRequest) returns (TopSellingProductsResponse) {
-    option (google.api.http) = {
-      get: "/v1/bi/top_selling_products"
-    };
-  }
+  rpc GetTopSellingProducts(GetTopSellingProductsRequest) returns (TopSellingProductsResponse);
 }
 
 // SalesOverview 销售概览数据

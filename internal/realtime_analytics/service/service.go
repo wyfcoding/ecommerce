@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	v1 "ecommerce/api/realtime_analytics/v1"
 	"ecommerce/internal/realtime_analytics/biz"
@@ -31,14 +29,14 @@ func (s *RealtimeAnalyticsService) GetRealtimeSalesMetrics(ctx context.Context, 
 	}
 
 	return &v1.RealtimeSalesMetricsResponse{
-		Metrics: &v1.RealtimeSalesMetrics{
-			CurrentGmv:   metrics.CurrentGmv,
-			CurrentOrders: metrics.CurrentOrders,
-			ActiveUsers:  metrics.ActiveUsers,
-			LastUpdated:  metrics.LastUpdated,
+			Metrics: &v1.RealtimeSalesMetrics{
+				CurrentGmv:    metrics.CurrentGmv,
+				CurrentOrders: metrics.CurrentOrders,
+				ActiveUsers:   metrics.ActiveUsers,
+				LastUpdated:   metrics.LastUpdated,
+			},
 		},
-	},
-			nil
+		nil
 }
 
 // GetRealtimeUserActivity implements the GetRealtimeUserActivity RPC.
@@ -49,11 +47,11 @@ func (s *RealtimeAnalyticsService) GetRealtimeUserActivity(ctx context.Context, 
 	}
 
 	return &v1.RealtimeUserActivityResponse{
-		Activity: &v1.RealtimeUserActivity{
-			OnlineUsers:        activity.OnlineUsers,
-			NewUsersLastHour:   activity.NewUsersLastHour,
-			PageViewsPerMinute: activity.PageViewsPerMinute,
+			Activity: &v1.RealtimeUserActivity{
+				OnlineUsers:        activity.OnlineUsers,
+				NewUsersLastHour:   activity.NewUsersLastHour,
+				PageViewsPerMinute: activity.PageViewsPerMinute,
+			},
 		},
-	},
-			nil
+		nil
 }

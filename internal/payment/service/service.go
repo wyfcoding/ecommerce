@@ -2,63 +2,96 @@ package service
 
 import (
 	"context"
-	"errors"
+
 	v1 "ecommerce/api/payment/v1"
 	"ecommerce/internal/payment/biz"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// PaymentService is the gRPC service implementation for payment.
+// PaymentService 是支付 gRPC 服务的实现。
 type PaymentService struct {
 	v1.UnimplementedPaymentServiceServer
 	uc *biz.PaymentUsecase
 }
 
-// NewPaymentService creates a new PaymentService.
+// NewPaymentService 创建一个新的 PaymentService。
 func NewPaymentService(uc *biz.PaymentUsecase) *PaymentService {
 	return &PaymentService{uc: uc}
 }
 
-// CreatePayment implements the CreatePayment RPC.
+// bizPaymentToProto 将 biz.Payment 领域模型转换为 v1.Payment API 模型。
+func bizPaymentToProto(p *biz.Payment) *v1.Payment {
+	if p == nil {
+		return nil
+	}
+	return &v1.Payment{
+		PaymentId:     p.ID,
+		OrderId:       p.OrderID,
+		UserId:        p.UserID,
+		Amount:        p.Amount,
+		Method:        p.Method,
+		Status:        p.Status,
+		TransactionId: p.TransactionID,
+		CreatedAt:     timestamppb.New(p.CreatedAt),
+		UpdatedAt:     timestamppb.New(p.UpdatedAt),
+		Currency:      &p.Currency,
+		PaymentUrl:    p.PaymentURL,
+	}
+}
+
+// CreatePayment 实现了 CreatePayment RPC。
 func (s *PaymentService) CreatePayment(ctx context.Context, req *v1.CreatePaymentRequest) (*v1.CreatePaymentResponse, error) {
-	if req.OrderId == 0 || req.UserId == 0 || req.Amount == 0 || req.Currency == "" || req.PaymentMethod == "" {
-		return nil, status.Error(codes.InvalidArgument, "order_id, user_id, amount, currency, and payment_method are required")
+	// 基本参数校验
+	if req.OrderId == "" || req.UserId == 0 || req.Amount <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "order_id, user_id, and a positive amount are required")
 	}
 
-	tx, redirectURL, qrCodeURL, err := s.uc.CreatePayment(ctx, req.OrderId, req.UserId, req.Amount, req.Currency, req.PaymentMethod, req.ReturnUrl)
+	// 调用业务逻辑层创建支付
+	payment, err := s.uc.CreatePayment(ctx, req.OrderId, req.UserId, req.Amount, req.GetCurrency(), req.Method)
 	if err != nil {
-		if errors.Is(err, biz.ErrOrderNotFound) {
-			return nil, status.Error(codes.NotFound, err.Error())
-		}
-		if errors.Is(err, biz.ErrInvalidAmount) {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
 		return nil, status.Errorf(codes.Internal, "failed to create payment: %v", err)
 	}
 
+	// 返回包含支付信息的响应
 	return &v1.CreatePaymentResponse{
-		PaymentId:   tx.PaymentID,
-		RedirectUrl: redirectURL,
-		QrCodeUrl:   qrCodeURL,
-		Status:      tx.Status,
+		Payment: bizPaymentToProto(payment),
 	}, nil
 }
 
-// HandlePaymentCallback implements the HandlePaymentCallback RPC.
-func (s *PaymentService) HandlePaymentCallback(ctx context.Context, req *v1.HandlePaymentCallbackRequest) (*v1.HandlePaymentCallbackResponse, error) {
-	if req.PaymentMethod == "" || req.CallbackData == nil {
-		return nil, status.Error(codes.InvalidArgument, "payment_method and callback_data are required")
+// ProcessCallback 实现了 ProcessCallback RPC。
+func (s *PaymentService) ProcessCallback(ctx context.Context, req *v1.ProcessCallbackRequest) (*emptypb.Empty, error) {
+	if req.PaymentId == "" || req.Data == nil {
+		return nil, status.Error(codes.InvalidArgument, "payment_id and data are required")
 	}
 
-	tx, err := s.uc.HandlePaymentCallback(ctx, req.PaymentMethod, req.CallbackData)
+	err := s.uc.HandlePaymentCallback(ctx, req.PaymentId, req.Data)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to handle payment callback: %v", err)
 	}
 
-	return &v1.HandlePaymentCallbackResponse{
-		Status:  tx.Status,
-		Message: "Callback processed successfully",
-	}, nil
+	return &emptypb.Empty{}, nil
+}
+
+// GetPaymentStatus 实现了 GetPaymentStatus RPC。
+func (s *PaymentService) GetPaymentStatus(ctx context.Context, req *v1.GetPaymentStatusRequest) (*v1.Payment, error) {
+	if req.PaymentId == "" {
+		return nil, status.Error(codes.InvalidArgument, "payment_id is required")
+	}
+
+	payment, err := s.uc.repo.GetPaymentByID(ctx, req.PaymentId) // 直接通过 repo 获取
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "payment not found: %v", err)
+	}
+
+	return bizPaymentToProto(payment), nil
+}
+
+// CreateRefund 实现了 CreateRefund RPC。
+func (s *PaymentService) CreateRefund(ctx context.Context, req *v1.CreateRefundRequest) (*v1.Refund, error) {
+	// TODO: 实现退款业务逻辑
+	return nil, status.Error(codes.Unimplemented, "rpc not implemented")
 }

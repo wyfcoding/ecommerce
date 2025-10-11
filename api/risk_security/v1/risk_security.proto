@@ -2,19 +2,12 @@ syntax = "proto3";
 
 package api.risk_security.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/risk_security/v1;v1";
 
 // RiskSecurityService 定义了风控与安全服务接口
 service RiskSecurityService {
   // 执行反欺诈检查
-  rpc PerformAntiFraudCheck(PerformAntiFraudCheckRequest) returns (PerformAntiFraudCheckResponse) {
-    option (google.api.http) = {
-      post: "/v1/risk_security/anti_fraud_check"
-      body: "*"
-    };
-  }
+  rpc PerformAntiFraudCheck(PerformAntiFraudCheckRequest) returns (PerformAntiFraudCheckResponse);
 }
 
 // PerformAntiFraudCheckRequest 执行反欺诈检查请求

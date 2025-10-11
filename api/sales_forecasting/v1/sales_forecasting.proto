@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.sales_forecasting.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/sales_forecasting/v1;v1";
@@ -10,19 +9,10 @@ option go_package = "ecommerce/api/sales_forecasting/v1;v1";
 // SalesForecastingService 定义了销售预测服务接口
 service SalesForecastingService {
   // 获取商品销量预测
-  rpc GetProductSalesForecast(GetProductSalesForecastRequest) returns (GetProductSalesForecastResponse) {
-    option (google.api.http) = {
-      get: "/v1/sales_forecasting/products/{product_id}"
-    };
-  }
+  rpc GetProductSalesForecast(GetProductSalesForecastRequest) returns (GetProductSalesForecastResponse);
 
   // 训练销售预测模型 (后台操作)
-  rpc TrainSalesForecastModel(TrainSalesForecastModelRequest) returns (TrainSalesForecastModelResponse) {
-    option (google.api.http) = {
-      post: "/v1/sales_forecasting/models/train"
-      body: "*"
-    };
-  }
+  rpc TrainSalesForecastModel(TrainSalesForecastModelRequest) returns (TrainSalesForecastModelResponse);
 }
 
 // ForecastResult 预测结果

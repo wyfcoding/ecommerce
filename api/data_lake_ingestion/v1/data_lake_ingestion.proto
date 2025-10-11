@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.data_lake_ingestion.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/data_lake_ingestion/v1;v1";
@@ -10,12 +9,7 @@ option go_package = "ecommerce/api/data_lake_ingestion/v1;v1";
 // DataLakeIngestionService 定义了数据湖摄取服务接口
 service DataLakeIngestionService {
   // 摄取数据到数据湖
-  rpc IngestData(IngestDataRequest) returns (IngestDataResponse) {
-    option (google.api.http) = {
-      post: "/v1/data_lake/ingest"
-      body: "*"
-    };
-  }
+  rpc IngestData(IngestDataRequest) returns (IngestDataResponse);
 }
 
 // IngestDataRequest 摄取数据请求

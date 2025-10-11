@@ -37,9 +37,9 @@ func (s *RiskSecurityService) PerformAntiFraudCheck(ctx context.Context, req *v1
 	}
 
 	return &v1.PerformAntiFraudCheckResponse{
-		IsFraud:  result.IsFraud,
+		IsFraud:   result.IsFraud,
 		RiskScore: result.RiskScore,
-		Decision: result.Decision,
-		Message:  result.Message,
+		Decision:  result.Decision,
+		Message:   result.Message,
 	}, nil
 }

@@ -2,19 +2,12 @@ syntax = "proto3";
 
 package api.smart_product_selection.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/smart_product_selection/v1;v1";
 
 // SmartProductSelectionService 定义了智能选品服务接口
 service SmartProductSelectionService {
   // 获取智能选品推荐
-  rpc GetSmartProductRecommendations(GetSmartProductRecommendationsRequest) returns (GetSmartProductRecommendationsResponse) {
-    option (google.api.http) = {
-      post: "/v1/smart_product_selection/recommendations"
-      body: "*"
-    };
-  }
+  rpc GetSmartProductRecommendations(GetSmartProductRecommendationsRequest) returns (GetSmartProductRecommendationsResponse);
 }
 
 // ProductRecommendation 智能选品推荐结果

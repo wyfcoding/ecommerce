@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: config
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - ecommerce-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/config"
+    route:
+    - destination:
+        host: config
+        port:
+          number: 80

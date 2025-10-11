@@ -4,6 +4,7 @@ import (
 	"context"
 	v1 "ecommerce/api/product/v1"
 	"ecommerce/internal/product/biz"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -152,7 +153,6 @@ func (s *service) DeleteProduct(ctx context.Context, req *v1.DeleteProductReques
 	return &emptypb.Empty{}, nil
 }
 
-
 // GetSpuDetail 实现了获取商品详情的 RPC。
 func (s *service) GetSpuDetail(ctx context.Context, req *v1.GetSpuDetailRequest) (*v1.GetSpuDetailResponse, error) {
 	spu, skus, err := s.productUsecase.GetProductDetails(ctx, req.SpuId)
@@ -211,6 +211,7 @@ func (s *service) IndexProduct(ctx context.Context, req *v1.IndexProductRequest)
 
 	return &v1.IndexProductResponse{}, nil
 }
+
 // CreateBrand 实现创建品牌接口
 func (s *service) CreateBrand(ctx context.Context, req *v1.CreateBrandRequest) (*v1.BrandInfo, error) {
 	// 调用 biz 层创建品牌

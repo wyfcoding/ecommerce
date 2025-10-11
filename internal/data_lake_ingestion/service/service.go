@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	v1 "ecommerce/api/data_lake_ingestion/v1"
 	"ecommerce/internal/data_lake_ingestion/biz"

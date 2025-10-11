@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.settlement.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/settlement/v1;v1";
@@ -10,26 +9,13 @@ option go_package = "ecommerce/api/settlement/v1;v1";
 // SettlementService 定义了结算服务接口
 service SettlementService {
   // 处理订单结算
-  rpc ProcessOrderSettlement(ProcessOrderSettlementRequest) returns (ProcessOrderSettlementResponse) {
-    option (google.api.http) = {
-      post: "/v1/settlement/orders"
-      body: "*"
-    };
-  }
+  rpc ProcessOrderSettlement(ProcessOrderSettlementRequest) returns (ProcessOrderSettlementResponse);
 
   // 获取结算记录
-  rpc GetSettlementRecord(GetSettlementRecordRequest) returns (SettlementRecord) {
-    option (google.api.http) = {
-      get: "/v1/settlement/records/{record_id}"
-    };
-  }
+  rpc GetSettlementRecord(GetSettlementRecordRequest) returns (SettlementRecord);
 
   // 列出结算记录
-  rpc ListSettlementRecords(ListSettlementRecordsRequest) returns (ListSettlementRecordsResponse) {
-    option (google.api.http) = {
-      get: "/v1/settlement/records"
-    };
-  }
+  rpc ListSettlementRecords(ListSettlementRecordsRequest) returns (ListSettlementRecordsResponse);
 }
 
 // SettlementRecord 结算记录

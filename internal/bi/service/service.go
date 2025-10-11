@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	v1 "ecommerce/api/bi/v1"
@@ -47,14 +46,14 @@ func (s *BiService) GetSalesOverview(ctx context.Context, req *v1.GetSalesOvervi
 	}
 
 	return &v1.SalesOverviewResponse{
-		Overview: &v1.SalesOverview{
-			TotalSalesAmount: overview.TotalSalesAmount,
-			TotalOrders:      overview.TotalOrders,
-			TotalUsers:       overview.TotalUsers,
-			ConversionRate:   overview.ConversionRate,
+			Overview: &v1.SalesOverview{
+				TotalSalesAmount: overview.TotalSalesAmount,
+				TotalOrders:      overview.TotalOrders,
+				TotalUsers:       overview.TotalUsers,
+				ConversionRate:   overview.ConversionRate,
+			},
 		},
-	},
-			nil
+		nil
 }
 
 // GetTopSellingProducts implements the GetTopSellingProducts RPC.
@@ -87,10 +86,10 @@ func (s *BiService) GetTopSellingProducts(ctx context.Context, req *v1.GetTopSel
 	protoProducts := make([]*v1.ProductSalesData, len(products))
 	for i, p := range products {
 		protoProducts[i] = &v1.ProductSalesData{
-			ProductId:    p.ProductID,
-			ProductName:  p.ProductName,
+			ProductId:     p.ProductID,
+			ProductName:   p.ProductName,
 			SalesQuantity: p.SalesQuantity,
-			SalesAmount:  p.SalesAmount,
+			SalesAmount:   p.SalesAmount,
 		}
 	}
 

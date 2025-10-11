@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.customer_service.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/customer_service/v1;v1";
@@ -10,34 +9,16 @@ option go_package = "ecommerce/api/customer_service/v1;v1";
 // CustomerService 定义了客户服务接口
 service CustomerService {
   // 创建工单
-  rpc CreateTicket(CreateTicketRequest) returns (Ticket) {
-    option (google.api.http) = {
-      post: "/v1/tickets"
-      body: "*"
-    };
-  }
+  rpc CreateTicket(CreateTicketRequest) returns (Ticket);
 
   // 获取工单详情
-  rpc GetTicket(GetTicketRequest) returns (Ticket) {
-    option (google.api.http) = {
-      get: "/v1/tickets/{ticket_id}"
-    };
-  }
+  rpc GetTicket(GetTicketRequest) returns (Ticket);
 
   // 添加工单消息
-  rpc AddTicketMessage(AddTicketMessageRequest) returns (TicketMessage) {
-    option (google.api.http) = {
-      post: "/v1/tickets/{ticket_id}/messages"
-      body: "*"
-    };
-  }
+  rpc AddTicketMessage(AddTicketMessageRequest) returns (TicketMessage);
 
   // 列出用户工单
-  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse) {
-    option (google.api.http) = {
-      get: "/v1/users/{user_id}/tickets"
-    };
-  }
+  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse);
 }
 
 // Ticket 工单信息

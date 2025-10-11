@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"time"
 
 	v1 "ecommerce/api/cdc/v1"
 	"ecommerce/internal/cdc/biz"

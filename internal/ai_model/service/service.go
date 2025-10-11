@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
-	"time"
 
-	v1 "ecommerce/api/ai_model/v1"
+	// v1 "ecommerce/api/ai_model/v1"
 	"ecommerce/internal/ai_model/biz"
 
 	"google.golang.org/grpc/codes"
@@ -14,7 +12,7 @@ import (
 
 // AIModelService is the gRPC service implementation for AI model interactions.
 type AIModelService struct {
-	v1.UnimplementedAIModelServiceServer
+	// v1.UnimplementedAIModelServiceServer
 	uc *biz.AIModelUsecase
 }
 

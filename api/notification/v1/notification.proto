@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.notification.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/notification/v1;v1";
@@ -10,27 +9,13 @@ option go_package = "ecommerce/api/notification/v1;v1";
 // NotificationService 定义了通知服务接口
 service NotificationService {
   // 发送通知
-  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse) {
-    option (google.api.http) = {
-      post: "/v1/notifications/send"
-      body: "*"
-    };
-  }
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
 
   // 获取用户通知列表
-  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse) {
-    option (google.api.http) = {
-      get: "/v1/users/{user_id}/notifications"
-    };
-  }
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
 
   // 标记通知为已读
-  rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse) {
-    option (google.api.http) = {
-      post: "/v1/notifications/{notification_id}/read"
-      body: "*"
-    };
-  }
+  rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse);
 }
 
 // Notification 通知信息

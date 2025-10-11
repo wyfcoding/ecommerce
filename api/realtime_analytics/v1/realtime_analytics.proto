@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.realtime_analytics.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/realtime_analytics/v1;v1";
@@ -10,26 +9,13 @@ option go_package = "ecommerce/api/realtime_analytics/v1;v1";
 // RealtimeAnalyticsService 定义了实时分析服务接口
 service RealtimeAnalyticsService {
   // 获取实时销售指标
-  rpc GetRealtimeSalesMetrics(GetRealtimeSalesMetricsRequest) returns (RealtimeSalesMetricsResponse) {
-    option (google.api.http) = {
-      get: "/v1/realtime_analytics/sales_metrics"
-    };
-  }
+  rpc GetRealtimeSalesMetrics(GetRealtimeSalesMetricsRequest) returns (RealtimeSalesMetricsResponse);
 
   // 获取实时用户活跃度
-  rpc GetRealtimeUserActivity(GetRealtimeUserActivityRequest) returns (RealtimeUserActivityResponse) {
-    option (google.api.http) = {
-      get: "/v1/realtime_analytics/user_activity"
-    };
-  }
+  rpc GetRealtimeUserActivity(GetRealtimeUserActivityRequest) returns (RealtimeUserActivityResponse);
 
   // 记录用户行为事件
-  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse) {
-    option (google.api.http) = {
-      post: "/v1/realtime_analytics/user_behavior"
-      body: "*"
-    };
-  }
+  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse);
 }
 
 // RealtimeSalesMetrics 实时销售指标

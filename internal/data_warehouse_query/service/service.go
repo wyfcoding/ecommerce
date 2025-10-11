@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"time"
 
 	v1 "ecommerce/api/data_warehouse_query/v1"
 	"ecommerce/internal/data_warehouse_query/biz"

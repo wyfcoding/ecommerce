@@ -19,20 +19,15 @@ import (
 func getUserIDFromContext(ctx context.Context) (uint64, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return 0, status.Errorf(codes.Unauthenticated, "无法获取元数据")
+		return 0, status.Errorf(codes.Unauthenticated, "Cannot get metadata from context")
 	}
-	// 兼容 gRPC-Gateway 在 HTTP 请求时注入的用户ID
-	values := md.Get("x-md-global-user-id")
+	values := md.Get("x-user-id")
 	if len(values) == 0 {
-		// 兼容直接 gRPC 调用时注入的用户ID
-		values = md.Get("x-user-id")
-		if len(values) == 0 {
-			return 0, status.Errorf(codes.Unauthenticated, "请求头中缺少 x-user-id 信息")
-		}
+		return 0, status.Errorf(codes.Unauthenticated, "Missing x-user-id in request header")
 	}
 	userID, err := strconv.ParseUint(values[0], 10, 64)
 	if err != nil {
-		return 0, status.Errorf(codes.Unauthenticated, "x-user-id 格式无效")
+		return 0, status.Errorf(codes.Unauthenticated, "Invalid x-user-id format")
 	}
 	return userID, nil
 }
@@ -42,7 +37,7 @@ func bizUserToProto(user *biz.User) *v1.UserInfo {
 	if user == nil {
 		return nil
 	}
-	res := &v1.UserInfo{
+	return &v1.UserInfo{
 		UserId:   user.ID,
 		Username: user.Username,
 		Nickname: user.Nickname,
@@ -50,17 +45,17 @@ func bizUserToProto(user *biz.User) *v1.UserInfo {
 		Gender:   user.Gender,
 		Birthday: timestamppb.New(user.Birthday),
 	}
-	return res
 }
 
 // RegisterByPassword 实现了 user.proto 中定义的 RegisterByPassword RPC。
 func (s *UserService) RegisterByPassword(ctx context.Context, req *v1.RegisterByPasswordRequest) (*v1.RegisterResponse, error) {
 	user, err := s.userUsecase.RegisterUser(ctx, req.Username, req.Password)
 	if err != nil {
-		if errors.Is(err, errors.New("username already exists")) { // Use the error defined in biz layer
-			return nil, status.Errorf(codes.AlreadyExists, "用户已存在: %v", err)
+		// A more robust way to check for specific errors will be implemented later.
+		if errors.Is(err, errors.New("username already exists")) {
+			return nil, status.Errorf(codes.AlreadyExists, "Username already exists: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "注册失败: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to register: %v", err)
 	}
 
 	return &v1.RegisterResponse{
@@ -70,39 +65,46 @@ func (s *UserService) RegisterByPassword(ctx context.Context, req *v1.RegisterBy
 
 // LoginByPassword 实现了 user.proto 中定义的 LoginByPassword RPC。
 func (s *UserService) LoginByPassword(ctx context.Context, req *v1.LoginByPasswordRequest) (*v1.LoginByPasswordResponse, error) {
-	token, err := s.userUsecase.Login(ctx, req.Username, req.Password)
+	user, err := s.userUsecase.VerifyPassword(ctx, req.Username, req.Password)
 	if err != nil {
-		if errors.Is(err, biz.ErrUserNotFound) {
-			return nil, status.Errorf(codes.NotFound, "用户不存在: %v", err)
-		}
-		if errors.Is(err, biz.ErrPasswordIncorrect) {
-			return nil, status.Errorf(codes.Unauthenticated, "密码错误: %v", err)
-		}
-		return nil, status.Errorf(codes.Internal, "登录失败: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "Incorrect username or password")
 	}
 
-	// 从 JWT token 中解析 expires_at
-	claims, err := jwt.ParseToken(token, s.userUsecase.GetJwtSecret())
+	token, err := jwt.GenerateToken(user.ID, user.Username, s.jwtSecret, s.jwtIssuer, s.jwtExpire, jwt.SigningMethodHS256)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "解析 JWT 失败: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to generate token: %v", err)
+	}
+
+	claims, err := jwt.ParseToken(token, s.jwtSecret)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to parse token: %v", err)
 	}
 
 	return &v1.LoginByPasswordResponse{
-		Token:    token,
-		ExpiresAt: claims.ExpiresAt,
+		Token:     token,
+		ExpiresAt: claims.ExpiresAt.Unix(),
 	}, nil
 }
 
+// VerifyPassword 实现了 user.proto 中定义的 VerifyPassword RPC (供内部服务调用)。
+func (s *UserService) VerifyPassword(ctx context.Context, req *v1.VerifyPasswordRequest) (*v1.VerifyPasswordResponse, error) {
+    user, err := s.userUsecase.VerifyPassword(ctx, req.Username, req.Password)
+    if err != nil {
+        return &v1.VerifyPasswordResponse{Success: false}, nil
+    }
+
+    return &v1.VerifyPasswordResponse{
+        Success: true,
+        User:    bizUserToProto(user),
+    }, nil
+}
+
+
 // GetUserByID 实现了 user.proto 中定义的 GetUserByID RPC。
 func (s *UserService) GetUserByID(ctx context.Context, req *v1.GetUserByIDRequest) (*v1.UserResponse, error) {
-	// The user_id from the request is the target user ID.
-	// We might also need to verify if the requesting user has permission to view this user's details.
-	// For now, we'll just use req.UserId.
-
 	user, err := s.userUsecase.GetUserByID(ctx, req.UserId)
 	if err != nil {
-		// TODO: Define a specific error for user not found in biz layer
-		return nil, status.Errorf(codes.NotFound, "用户不存在: %v", err)
+		return nil, status.Errorf(codes.NotFound, "User not found: %v", err)
 	}
 
 	return &v1.UserResponse{
@@ -117,7 +119,6 @@ func (s *UserService) UpdateUserInfo(ctx context.Context, req *v1.UpdateUserInfo
 		return nil, err
 	}
 
-	// 将 gRPC 请求模型转换为 biz 领域模型。
 	bizUser := &biz.User{
 		ID: userID,
 	}
@@ -136,8 +137,7 @@ func (s *UserService) UpdateUserInfo(ctx context.Context, req *v1.UpdateUserInfo
 
 	updatedUser, err := s.userUsecase.UpdateUser(ctx, bizUser)
 	if err != nil {
-		// TODO: Define a specific error for user not found in biz layer
-		return nil, status.Errorf(codes.Internal, "更新用户信息失败: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to update user info: %v", err)
 	}
 
 	return &v1.UserResponse{

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.subscription.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/subscription/v1;v1";
@@ -10,57 +9,25 @@ option go_package = "ecommerce/api/subscription/v1;v1";
 // Subscription Service
 service Subscription {
     // Create a new subscription plan
-    rpc CreateSubscriptionPlan(CreateSubscriptionPlanRequest) returns (CreateSubscriptionPlanResponse) {
-        option (google.api.http) = {
-            post: "/v1/subscription/plans"
-            body: "*"
-        };
-    }
+    rpc CreateSubscriptionPlan(CreateSubscriptionPlanRequest) returns (CreateSubscriptionPlanResponse);
 
     // Get a subscription plan by ID
-    rpc GetSubscriptionPlan(GetSubscriptionPlanRequest) returns (GetSubscriptionPlanResponse) {
-        option (google.api.http) = {
-            get: "/v1/subscription/plans/{id}"
-        };
-    }
+    rpc GetSubscriptionPlan(GetSubscriptionPlanRequest) returns (GetSubscriptionPlanResponse);
 
     // List all subscription plans
-    rpc ListSubscriptionPlans(ListSubscriptionPlansRequest) returns (ListSubscriptionPlansResponse) {
-        option (google.api.http) = {
-            get: "/v1/subscription/plans"
-        };
-    }
+    rpc ListSubscriptionPlans(ListSubscriptionPlansRequest) returns (ListSubscriptionPlansResponse);
 
     // Subscribe a user to a plan
-    rpc CreateUserSubscription(CreateUserSubscriptionRequest) returns (CreateUserSubscriptionResponse) {
-        option (google.api.http) = {
-            post: "/v1/users/{user_id}/subscriptions"
-            body: "*"
-        };
-    }
+    rpc CreateUserSubscription(CreateUserSubscriptionRequest) returns (CreateUserSubscriptionResponse);
 
     // Get a user's active subscription
-    rpc GetUserSubscription(GetUserSubscriptionRequest) returns (GetUserSubscriptionResponse) {
-        option (google.api.http) = {
-            get: "/v1/users/{user_id}/subscriptions/{id}"
-        };
-    }
+    rpc GetUserSubscription(GetUserSubscriptionRequest) returns (GetUserSubscriptionResponse);
 
     // Cancel a user's subscription
-    rpc CancelUserSubscription(CancelUserSubscriptionRequest) returns (CancelUserSubscriptionResponse) {
-        option (google.api.http) = {
-            post: "/v1/users/{user_id}/subscriptions/{id}/cancel"
-            body: "*"
-        };
-    }
+    rpc CancelUserSubscription(CancelUserSubscriptionRequest) returns (CancelUserSubscriptionResponse);
 
     // Update a user's subscription (e.g., change plan, update payment method)
-    rpc UpdateUserSubscription(UpdateUserSubscriptionRequest) returns (UpdateUserSubscriptionResponse) {
-        option (google.api.http) = {
-            put: "/v1/users/{user_id}/subscriptions/{id}"
-            body: "*"
-        };
-    }
+    rpc UpdateUserSubscription(UpdateUserSubscriptionRequest) returns (UpdateUserSubscriptionResponse);
 }
 
 // Represents a subscription plan

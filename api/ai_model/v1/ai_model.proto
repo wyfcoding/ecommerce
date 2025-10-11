@@ -2,35 +2,18 @@ syntax = "proto3";
 
 package api.ai_model.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/ai_model/v1;v1";
 
 // AIModelService 定义了 AI 模型服务接口
 service AIModelService {
   // 执行文本生成
-  rpc GenerateText(GenerateTextRequest) returns (GenerateTextResponse) {
-    option (google.api.http) = {
-      post: "/v1/ai_model/generate_text"
-      body: "*"
-    };
-  }
+  rpc GenerateText(GenerateTextRequest) returns (GenerateTextResponse);
 
   // 执行文本分类
-  rpc ClassifyText(ClassifyTextRequest) returns (ClassifyTextResponse) {
-    option (google.api.http) = {
-      post: "/v1/ai_model/classify_text"
-      body: "*"
-    };
-  }
+  rpc ClassifyText(ClassifyTextRequest) returns (ClassifyTextResponse);
 
   // 执行推荐排序
-  rpc RankRecommendations(RankRecommendationsRequest) returns (RankRecommendationsResponse) {
-    option (google.api.http) = {
-      post: "/v1/ai_model/rank_recommendations"
-      body: "*"
-    };
-  }
+  rpc RankRecommendations(RankRecommendationsRequest) returns (RankRecommendationsResponse);
 }
 
 // GenerateTextRequest 文本生成请求

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.loyalty.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/loyalty/v1;v1";
@@ -10,42 +9,19 @@ option go_package = "ecommerce/api/loyalty/v1;v1";
 // Loyalty Service
 service Loyalty {
     // Get a user's loyalty profile (points, level)
-    rpc GetUserLoyaltyProfile(GetUserLoyaltyProfileRequest) returns (GetUserLoyaltyProfileResponse) {
-        option (google.api.http) = {
-            get: "/v1/users/{user_id}/loyalty"
-        };
-    }
+    rpc GetUserLoyaltyProfile(GetUserLoyaltyProfileRequest) returns (GetUserLoyaltyProfileResponse);
 
     // Add points to a user's balance
-    rpc AddPoints(AddPointsRequest) returns (AddPointsResponse) {
-        option (google.api.http) = {
-            post: "/v1/users/{user_id}/loyalty/points/add"
-            body: "*"
-        };
-    }
+    rpc AddPoints(AddPointsRequest) returns (AddPointsResponse);
 
     // Deduct points from a user's balance
-    rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse) {
-        option (google.api.http) = {
-            post: "/v1/users/{user_id}/loyalty/points/deduct"
-            body: "*"
-        };
-    }
+    rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse);
 
     // Get a user's points transaction history
-    rpc GetPointsHistory(GetPointsHistoryRequest) returns (GetPointsHistoryResponse) {
-        option (google.api.http) = {
-            get: "/v1/users/{user_id}/loyalty/points/history"
-        };
-    }
+    rpc GetPointsHistory(GetPointsHistoryRequest) returns (GetPointsHistoryResponse);
 
     // Update a user's loyalty level (e.g., based on points or spending)
-    rpc UpdateUserLevel(UpdateUserLevelRequest) returns (UpdateUserLevelResponse) {
-        option (google.api.http) = {
-            post: "/v1/users/{user_id}/loyalty/level"
-            body: "*"
-        };
-    }
+    rpc UpdateUserLevel(UpdateUserLevelRequest) returns (UpdateUserLevelResponse);
 }
 
 // Represents a user's loyalty profile

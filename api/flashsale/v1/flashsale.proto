@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.flashsale.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/flashsale/v1;v1";
@@ -10,41 +9,19 @@ option go_package = "ecommerce/api/flashsale/v1;v1";
 // FlashSale Service
 service FlashSale {
     // Create a new flash sale event
-    rpc CreateFlashSaleEvent(CreateFlashSaleEventRequest) returns (CreateFlashSaleEventResponse) {
-        option (google.api.http) = {
-            post: "/v1/flashsale/events"
-            body: "*"
-        };
-    }
+    rpc CreateFlashSaleEvent(CreateFlashSaleEventRequest) returns (CreateFlashSaleEventResponse);
 
     // Get a flash sale event by ID
-    rpc GetFlashSaleEvent(GetFlashSaleEventRequest) returns (GetFlashSaleEventResponse) {
-        option (google.api.http) = {
-            get: "/v1/flashsale/events/{id}"
-        };
-    }
+    rpc GetFlashSaleEvent(GetFlashSaleEventRequest) returns (GetFlashSaleEventResponse);
 
     // List active flash sale events
-    rpc ListActiveFlashSaleEvents(ListActiveFlashSaleEventsRequest) returns (ListActiveFlashSaleEventsResponse) {
-        option (google.api.http) = {
-            get: "/v1/flashsale/events/active"
-        };
-    }
+    rpc ListActiveFlashSaleEvents(ListActiveFlashSaleEventsRequest) returns (ListActiveFlashSaleEventsResponse);
 
     // Participate in a flash sale (e.g., place an order)
-    rpc ParticipateInFlashSale(ParticipateInFlashSaleRequest) returns (ParticipateInFlashSaleResponse) {
-        option (google.api.http) = {
-            post: "/v1/flashsale/participate"
-            body: "*"
-        };
-    }
+    rpc ParticipateInFlashSale(ParticipateInFlashSaleRequest) returns (ParticipateInFlashSaleResponse);
 
     // Get flash sale product details (e.g., remaining stock)
-    rpc GetFlashSaleProductDetails(GetFlashSaleProductDetailsRequest) returns (GetFlashSaleProductDetailsResponse) {
-        option (google.api.http) = {
-            get: "/v1/flashsale/events/{event_id}/products/{product_id}"
-        };
-    }
+    rpc GetFlashSaleProductDetails(GetFlashSaleProductDetailsRequest) returns (GetFlashSaleProductDetailsResponse);
 }
 
 // Represents a flash sale event

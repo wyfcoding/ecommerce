@@ -1,246 +1,81 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-<<<<<<< HEAD
 	"ecommerce/api/user_profile/v1"
 	"ecommerce/internal/user_profile/biz"
 	"ecommerce/internal/user_profile/data"
+	"ecommerce/internal/user_profile/handler"
 	"ecommerce/internal/user_profile/service"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
 	"ecommerce/pkg/database/redis"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
-	"github.com/BurntSushi/toml"
-=======
->>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
-	"github.com/gin-gonic/gin"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-<<<<<<< HEAD
-=======
-	"github.com/BurntSushi/toml"
+	"ecommerce/pkg/metrics"
 
-	v1 "ecommerce/api/user_profile/v1"
-	"ecommerce/internal/user_profile/biz"
-	"ecommerce/internal/user_profile/data"
-	"ecommerce/internal/user_profile/service"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
-	"ecommerce/pkg/database/redis"
->>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	"go.uber.org/zap"
+	gormlogger "gorm.io/gorm/logger"
 )
 
-// Config 结构体用于映射 TOML 配置文件
+// Config is the service-specific configuration structure.
 type Config struct {
-	Server struct {
-		HTTP struct {
-<<<<<<< HEAD
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-=======
-			Addr    string `toml:"addr"`
-			Port    int    `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string `toml:"addr"`
-			Port    int    `toml:"port"`
->>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
+	configpkg.Config
 	Data struct {
+		configpkg.DataConfig
 		Database struct {
-			DSN string `toml:"dsn"`
+			configpkg.DatabaseConfig
+			LogLevel      gormlogger.LogLevel `toml:"log_level"`
+			SlowThreshold time.Duration     `toml:"slow_threshold"`
 		} `toml:"database"`
-		Redis struct {
-<<<<<<< HEAD
-			Addr         string        `toml:"addr"`
-			Password     string        `toml:"password"`
-			DB           int           `toml:"db"`
-=======
-			Addr         string `toml:"addr"`
-			Password     string `toml:"password"`
-			DB           int    `toml:"db"`
->>>>>>> 04d1270d593e17e866ec0ca4dad1f5d56021f07d
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
+		Redis redis.Config `toml:"redis"`
 	} `toml:"data"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
 }
 
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/user_profile.toml", "config file path")
-	flag.Parse()
+	app.NewBuilder("user_profile").
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithMetrics("9096").
+		Build().
+		Run()
+}
 
-	config, err := loadConfig(configPath)
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	v1.RegisterUserProfileServiceServer(s, srv.(v1.UserProfileServiceServer))
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	userProfileHandler := handler.NewUserProfileHandler(srv.(*service.UserProfileService))
+	// e.g., e.GET("/v1/profiles/:id", userProfileHandler.GetProfile)
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+
+	dataInstance, cleanupData, err := data.NewData(config.Data.Database.DSN, zap.L(), config.Data.Database.LogLevel, config.Data.Database.SlowThreshold)
 	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+		return nil, nil, fmt.Errorf("failed to new data: %w", err)
 	}
 
-	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger)
-
-	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
-	}
-
-	// 4. 依赖注入 (DI)
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
+	redisClient, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis)
 	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
+		cleanupData()
+		return nil, nil, fmt.Errorf("failed to new redis client: %w", err)
 	}
-	defer cleanup()
 
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
-	})
-	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer redisCleanup()
-
-	// 初始化业务层
 	userProfileRepo := data.NewUserProfileRepo(dataInstance, redisClient)
 	userProfileUsecase := biz.NewUserProfileUsecase(userProfileRepo)
-
-	// 初始化服务层
 	userProfileService := service.NewUserProfileService(userProfileUsecase)
 
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := startGRPCServer(userProfileService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := startHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
+	cleanup := func() {
+		cleanupRedis()
+		cleanupData()
 	}
 
-	// 6. 等待中断信号或服务器错误以实现优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down user_profile service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down user_profile service due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down user_profile service due to HTTP error...")
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
-}
-
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &config, nil
-}
-
-// startGRPCServer 启动 gRPC 服务器
-func startGRPCServer(svc *service.UserProfileService, addr string, port int) (*grpc.Server, chan error) {
-	errChan := make(chan error, 1)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
-	if err != nil {
-		errChan <- fmt.Errorf("failed to listen: %w", err)
-		return nil, errChan
-	}
-	s := grpc.NewServer()
-	v1.RegisterUserProfileServiceServer(s, svc)
-
-	zap.S().Infof("gRPC server listening at %v", lis.Addr())
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			errChan <- fmt.Errorf("failed to serve gRPC: %w", err)
-		}
-		close(errChan)
-	}()
-	return s, errChan
-}
-
-// startHTTPServer 启动 HTTP Gateway
-func startHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
-
-	err := v1.RegisterUserProfileServiceHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
-	if err != nil {
-		errChan <- fmt.Errorf("failed to register gRPC gateway for UserProfileService: %w", err)
-		return nil, errChan
-	}
-
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Any("/*any", gin.WrapH(mux))
-
-	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)
-	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: r,
-	}
-
-	zap.S().Infof("HTTP server listening at %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
+	return userProfileService, cleanup, nil
 }

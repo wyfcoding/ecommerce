@@ -1,0 +1,24 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: {{ include "chart.fullname" . }}-default
+spec:
+  host: "*.{{ .Release.Namespace }}.svc.cluster.local" # Apply to all services in the namespace
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN # Default load balancing policy
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 1s
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 10
+        idleTimeout: 300s
+    outlierDetection: # Circuit breaking
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 5m
+      maxEjectionPercent: 100
+---

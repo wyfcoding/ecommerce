@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// 定义标准的JWT错误
 var (
 	ErrTokenMalformed   = errors.New("token is malformed")
 	ErrTokenExpired     = errors.New("token is expired")
@@ -14,15 +15,15 @@ var (
 	ErrTokenInvalid     = errors.New("token is invalid")
 )
 
-// CustomClaims 定义了 JWT 的载荷
+// MyCustomClaims 定义了JWT的自定义载荷 (Payload)
 type MyCustomClaims struct {
 	UserID   uint64 `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
-// GenerateToken 生成 JWT
-func GenerateToken(userID uint64, username string, secretKey []byte, expires time.Duration) (string, int64, error) {
+// GenerateToken 生成一个JWT
+func GenerateToken(userID uint64, username, secretKey, issuer string, expires time.Duration, method jwt.SigningMethod) (string, error) {
 	// 创建 Claims
 	expireTime := time.Now().Add(expires)
 	claims := MyCustomClaims{
@@ -32,35 +33,39 @@ func GenerateToken(userID uint64, username string, secretKey []byte, expires tim
 			ExpiresAt: jwt.NewNumericDate(expireTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "genesis-project",
+			Issuer:    issuer,
 		},
 	}
 
-	// 使用 HS256 签名算法创建一个新的 Token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// 使用提供的签名算法创建一个新的 Token 对象
+	token := jwt.NewWithClaims(method, claims)
 
-	// 使用秘钥签名并获取完整的编码后的字符串 token
-	tokenString, err := token.SignedString(secretKey)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return tokenString, expireTime.Unix(), nil
+	// 使用提供的密钥签名并获取完整的编码后的字符串 token
+	return token.SignedString([]byte(secretKey))
 }
 
-// ParseToken 解析 JWT
-func ParseToken(tokenString string, secretKey []byte) (*MyCustomClaims, error) {
+// ParseToken 解析JWT字符串
+func ParseToken(tokenString string, secretKey string) (*MyCustomClaims, error) {
+	// 解析token
 	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+		return []byte(secretKey), nil
 	})
 
+	// 处理可能发生的错误
 	if err != nil {
-		return nil, err
+		if errors.Is(err, jwt.ErrTokenMalformed) {
+			return nil, ErrTokenMalformed
+		} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+			return nil, ErrTokenExpired
+		} else {
+			return nil, ErrTokenInvalid
+		}
 	}
 
+	// 校验token并返回自定义的Claims
 	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
 		return claims, nil
 	}
 
-	return nil, jwt.ErrInvalidKey
+	return nil, ErrTokenInvalid
 }

@@ -2,18 +2,11 @@ syntax = "proto3";
 
 package api.analytics.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/analytics/v1;v1";
 
 service AnalyticsService {
   // 记录产品浏览事件
-  rpc RecordProductView (RecordProductViewRequest) returns (RecordProductViewResponse) {
-    option (google.api.http) = {
-      post: "/v1/analytics/product_views"
-      body: "*"
-    };
-  }
+  rpc RecordProductView (RecordProductViewRequest) returns (RecordProductViewResponse);
 }
 
 message RecordProductViewRequest {

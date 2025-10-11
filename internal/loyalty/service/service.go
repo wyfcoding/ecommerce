@@ -1,8 +1,6 @@
 package service
 
 import (
-	"context"
-
 	"ecommerce/internal/loyalty/biz"
 	// Assuming the generated pb.go file will be in this path
 	// v1 "ecommerce/api/loyalty/v1"

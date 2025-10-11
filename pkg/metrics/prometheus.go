@@ -1,50 +1,75 @@
 package metrics
 
 import (
-	"log"
+	"context"
 	"net/http"
+	"time"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 )
 
-// OrdersCreatedCounter 是一个自定义的业务指标
-var OrdersCreatedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "ecommerce_orders_created_total",
-		Help: "Total number of created orders.",
-	},
-	[]string{"status"}, // 标签：例如 "success", "failure"
-)
-
-// ProductsCreatedCounter 是一个自定义的业务指标，用于统计产品创建数量
-var ProductsCreatedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "ecommerce_products_created_total",
-		Help: "Total number of created products.",
-	},
-	[]string{"status"}, // 标签：例如 "success", "failure"
-)
-
-// InitMetrics 注册所有需要采集的指标
-func InitMetrics() {
-	// 注册 gRPC 默认指标
-	grpc_prometheus.EnableHandlingTimeHistogram()
-
-	// 注册自定义指标
-	prometheus.MustRegister(OrdersCreatedCounter)
-	prometheus.MustRegister(ProductsCreatedCounter)
+// Metrics holds a custom Prometheus registry and provides methods to create metrics.
+type Metrics struct {
+	registry *prometheus.Registry
 }
 
-// ExposeHttp 启动一个独立的 HTTP 服务器，用于暴露 /metrics 端点
-func ExposeHttp(port string) {
+// NewMetrics creates a new Metrics instance with its own registry.
+func NewMetrics(serviceName string) *Metrics {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewGoCollector())      // Collect default Go metrics
+	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})) // Collect process metrics
+
+	zap.S().Infof("Metrics registry created for service: %s", serviceName)
+
+	return &Metrics{registry: registry}
+}
+
+// NewCounterVec creates, registers, and returns a new CounterVec.
+func (m *Metrics) NewCounterVec(opts prometheus.CounterOpts, labelNames []string) *prometheus.CounterVec {
+	counter := prometheus.NewCounterVec(opts, labelNames)
+	m.registry.MustRegister(counter)
+	return counter
+}
+
+// NewGaugeVec creates, registers, and returns a new GaugeVec.
+func (m *Metrics) NewGaugeVec(opts prometheus.GaugeOpts, labelNames []string) *prometheus.GaugeVec {
+	gauge := prometheus.NewGaugeVec(opts, labelNames)
+	m.registry.MustRegister(gauge)
+	return gauge
+}
+
+// NewHistogramVec creates, registers, and returns a new HistogramVec.
+func (m *Metrics) NewHistogramVec(opts prometheus.HistogramOpts, labelNames []string) *prometheus.HistogramVec {
+	histogram := prometheus.NewHistogramVec(opts, labelNames)
+	m.registry.MustRegister(histogram)
+	return histogram
+}
+
+// ExposeHttp starts a new HTTP server to expose the metrics from the registry.
+// It returns a cleanup function to gracefully shut down the server.
+func (m *Metrics) ExposeHttp(port string) func() {
 	httpServer := &http.Server{
 		Addr:    ":" + port,
-		Handler: promhttp.Handler(),
+		Handler: promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}),
 	}
-	log.Printf("Metrics server listening on :%s", port)
-	if err := httpServer.ListenAndServe(); err != nil {
-		log.Fatalf("failed to start metrics server: %v", err)
+
+	go func() {
+		zap.S().Infof("Metrics server listening on :%s", port)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.S().Fatalf("failed to start metrics server: %v", err)
+		}
+	}()
+
+	cleanup := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		zap.S().Info("shutting down metrics server...")
+		if err := httpServer.Shutdown(ctx); err != nil {
+			zap.S().Errorf("failed to gracefully shutdown metrics server: %v", err)
+		}
 	}
+
+	return cleanup
 }

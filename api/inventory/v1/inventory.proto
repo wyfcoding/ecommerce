@@ -2,34 +2,18 @@ syntax = "proto3";
 
 package api.inventory.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/inventory/v1;v1";
 
 // InventoryService 定义了库存服务接口
 service InventoryService {
   // 扣减库存
-  rpc DeductStock(DeductStockRequest) returns (DeductStockResponse) {
-    option (google.api.http) = {
-      post: "/v1/inventory/deduct"
-      body: "*"
-    };
-  }
+  rpc DeductStock(DeductStockRequest) returns (DeductStockResponse);
 
   // 释放库存 (例如，订单取消或支付超时)
-  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse) {
-    option (google.api.http) = {
-      post: "/v1/inventory/release"
-      body: "*"
-    };
-  }
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
 
   // 获取库存数量
-  rpc GetStock(GetStockRequest) returns (GetStockResponse) {
-    option (google.api.http) = {
-      get: "/v1/inventory/{sku_id}"
-    };
-  }
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
 }
 
 // StockItem 库存项

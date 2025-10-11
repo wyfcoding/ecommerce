@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	v1 "ecommerce/api/smart_product_selection/v1"
 	"ecommerce/internal/smart_product_selection/biz"

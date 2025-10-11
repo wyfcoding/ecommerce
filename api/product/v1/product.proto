@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.product.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/product/v1;v1";
@@ -10,113 +9,37 @@ option go_package = "ecommerce/api/product/v1;v1";
 // 商品服务 (包含商品和分类管理)
 service ProductService {
   // --- 分类管理 ---
-  rpc CreateCategory(CreateCategoryRequest) returns (CategoryInfo) {
-    option (google.api.http) = {
-      post: "/v1/categories"
-      body: "*"
-    };
-  }
-  rpc UpdateCategory(UpdateCategoryRequest) returns (CategoryInfo) {
-    option (google.api.http) = {
-      put: "/v1/categories/{id}"
-      body: "*"
-    };
-  }
-  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete: "/v1/categories/{id}"
-    };
-  }
-  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse) {
-    option (google.api.http) = {
-      get: "/v1/categories"
-    };
-  }
+  rpc CreateCategory(CreateCategoryRequest) returns (CategoryInfo);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (CategoryInfo);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
 
   // --- 品牌管理 ---
-  rpc CreateBrand(CreateBrandRequest) returns (BrandInfo) {
-    option (google.api.http) = {
-      post: "/v1/brands"
-      body: "*"
-    };
-  }
-  rpc UpdateBrand(UpdateBrandRequest) returns (BrandInfo) {
-    option (google.api.http) = {
-      put: "/v1/brands/{id}"
-      body: "*"
-    };
-  }
-  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete: "/v1/brands/{id}"
-    };
-  }
-  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse) {
-    option (google.api.http) = {
-      get: "/v1/brands"
-    };
-  }
+  rpc CreateBrand(CreateBrandRequest) returns (BrandInfo);
+  rpc UpdateBrand(UpdateBrandRequest) returns (BrandInfo);
+  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty);
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
 
   // --- 评论管理 ---
-  rpc CreateReview(CreateReviewRequest) returns (ReviewInfo) {
-    option (google.api.http) = {
-      post: "/v1/reviews"
-      body: "*"
-    };
-  }
-  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse) {
-    option (google.api.http) = {
-      get: "/v1/products/{spu_id}/reviews"
-    };
-  }
-  rpc DeleteReview(DeleteReviewRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete: "/v1/reviews/{id}"
-    };
-  }
+  rpc CreateReview(CreateReviewRequest) returns (ReviewInfo);
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse);
+  rpc DeleteReview(DeleteReviewRequest) returns (google.protobuf.Empty);
 
   // --- 商品管理 ---
-  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse) {
-    option (google.api.http) = {
-      post: "/v1/products"
-      body: "*"
-    };
-  }
-  rpc UpdateProduct(UpdateProductRequest) returns (GetSpuDetailResponse) {
-     option (google.api.http) = {
-      put: "/v1/products/{spu.spu_id}"
-      body: "*"
-    };
-  }
-  rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete: "/v1/products/{spu_id}"
-    };
-  }
-  rpc GetSpuDetail(GetSpuDetailRequest) returns (GetSpuDetailResponse) {
-    option (google.api.http) = {
-      get: "/v1/products/spu/{spu_id}"
-    };
-  }
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+  rpc UpdateProduct(UpdateProductRequest) returns (GetSpuDetailResponse);
+  rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty);
+  rpc GetSpuDetail(GetSpuDetailRequest) returns (GetSpuDetailResponse);
   // 获取产品列表
-  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
-    option (google.api.http) = {
-      get: "/v1/products"
-    };
-  }
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
 
   // 索引产品到MongoDB
-  rpc IndexProduct(IndexProductRequest) returns (IndexProductResponse) {
-    option (google.api.http) = {
-      post: "/v1/products/index"
-      body: "*"
-    };
-  }
+  rpc IndexProduct(IndexProductRequest) returns (IndexProductResponse);
 
   // --- 内部接口 ---
-  rpc GetSkuInfos(GetSkuInfosRequest) returns (GetSkuInfosResponse) {}
-  rpc LockStock(LockStockRequest) returns (LockStockResponse) {}
-  rpc UnlockStock(LockStockRequest) returns (LockStockResponse) {}
+  rpc GetSkuInfos(GetSkuInfosRequest) returns (GetSkuInfosResponse);
+  rpc LockStock(LockStockRequest) returns (LockStockResponse);
+  rpc UnlockStock(LockStockRequest) returns (LockStockResponse);
 }
 
 // --- 消息定义 ---

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.aftersales.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/aftersales/v1;v1";
@@ -10,50 +9,22 @@ option go_package = "ecommerce/api/aftersales/v1;v1";
 // Aftersales Service
 service Aftersales {
     // Create a new return request
-    rpc CreateReturnRequest(CreateReturnRequestRequest) returns (CreateReturnRequestResponse) {
-        option (google.api.http) = {
-            post: "/v1/aftersales/returns"
-            body: "*"
-        };
-    }
+    rpc CreateReturnRequest(CreateReturnRequestRequest) returns (CreateReturnRequestResponse);
 
     // Get a return request by ID
-    rpc GetReturnRequest(GetReturnRequestRequest) returns (GetReturnRequestResponse) {
-        option (google.api.http) = {
-            get: "/v1/aftersales/returns/{id}"
-        };
-    }
+    rpc GetReturnRequest(GetReturnRequestRequest) returns (GetReturnRequestResponse);
 
     // Update a return request status
-    rpc UpdateReturnRequestStatus(UpdateReturnRequestStatusRequest) returns (UpdateReturnRequestStatusResponse) {
-        option (google.api.http) = {
-            put: "/v1/aftersales/returns/{id}/status"
-            body: "*"
-        };
-    }
+    rpc UpdateReturnRequestStatus(UpdateReturnRequestStatusRequest) returns (UpdateReturnRequestStatusResponse);
 
     // Create a new refund request
-    rpc CreateRefundRequest(CreateRefundRequestRequest) returns (CreateRefundRequestResponse) {
-        option (google.api.http) = {
-            post: "/v1/aftersales/refunds"
-            body: "*"
-        };
-    }
+    rpc CreateRefundRequest(CreateRefundRequestRequest) returns (CreateRefundRequestResponse);
 
     // Get a refund request by ID
-    rpc GetRefundRequest(GetRefundRequestRequest) returns (GetRefundRequestResponse) {
-        option (google.api.http) = {
-            get: "/v1/aftersales/refunds/{id}"
-        };
-    }
+    rpc GetRefundRequest(GetRefundRequestRequest) returns (GetRefundRequestResponse);
 
     // Update a refund request status
-    rpc UpdateRefundRequestStatus(UpdateRefundRequestStatusRequest) returns (UpdateRefundRequestStatusResponse) {
-        option (google.api.http) = {
-            put: "/v1/aftersales/refunds/{id}/status"
-            body: "*"
-        };
-    }
+    rpc UpdateRefundRequestStatus(UpdateRefundRequestStatusRequest) returns (UpdateRefundRequestStatusResponse);
 }
 
 // Represents a return request

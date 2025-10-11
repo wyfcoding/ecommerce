@@ -5,12 +5,13 @@ import (
 	"strconv" // 用于 getUserIDFromContext
 	"time"    // 用于 bizUserCouponToProto
 
-	v1 "ecommerce/api/marketing/v1" // 修正路径
+	v1 "ecommerce/api/marketing/v1"    // 修正路径
 	"ecommerce/internal/marketing/biz" // 修正路径
 
-	"google.golang.org/grpc/codes" // 添加
+	"google.golang.org/grpc/codes"    // 添加
 	"google.golang.org/grpc/metadata" // 添加
-	"google.golang.org/grpc/status" // 添加
+	"google.golang.org/grpc/status"   // 添加
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type MarketingService struct {

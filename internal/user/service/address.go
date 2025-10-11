@@ -4,6 +4,7 @@ import (
 	"context"
 	v1 "ecommerce/api/user/v1"
 	"ecommerce/internal/user/biz"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -18,13 +19,27 @@ func bizAddressToProto(addr *biz.Address) *v1.Address {
 		Id:     addr.ID,
 		UserId: addr.UserID,
 	}
-	if addr.Name != nil { res.Name = *addr.Name }
-	if addr.Phone != nil { res.Phone = *addr.Phone }
-	if addr.Province != nil { res.Province = *addr.Province }
-	if addr.City != nil { res.City = *addr.City }
-	if addr.District != nil { res.District = *addr.District }
-	if addr.DetailedAddress != nil { res.DetailedAddress = *addr.DetailedAddress }
-	if addr.IsDefault != nil { res.IsDefault = *addr.IsDefault }
+	if addr.Name != nil {
+		res.Name = *addr.Name
+	}
+	if addr.Phone != nil {
+		res.Phone = *addr.Phone
+	}
+	if addr.Province != nil {
+		res.Province = *addr.Province
+	}
+	if addr.City != nil {
+		res.City = *addr.City
+	}
+	if addr.District != nil {
+		res.District = *addr.District
+	}
+	if addr.DetailedAddress != nil {
+		res.DetailedAddress = *addr.DetailedAddress
+	}
+	if addr.IsDefault != nil {
+		res.IsDefault = *addr.IsDefault
+	}
 	return res
 }
 
@@ -71,13 +86,34 @@ func (s *UserService) UpdateAddress(ctx context.Context, req *v1.UpdateAddressRe
 		ID:     req.Id,
 		UserID: req.UserId,
 	}
-	if req.HasName() { name := req.GetName(); bizAddr.Name = &name }
-	if req.HasPhone() { phone := req.GetPhone(); bizAddr.Phone = &phone }
-	if req.HasProvince() { province := req.GetProvince(); bizAddr.Province = &province }
-	if req.HasCity() { city := req.GetCity(); bizAddr.City = &city }
-	if req.HasDistrict() { district := req.GetDistrict(); bizAddr.District = &district }
-	if req.HasDetailedAddress() { detailed := req.GetDetailedAddress(); bizAddr.DetailedAddress = &detailed }
-	if req.HasIsDefault() { isDefault := req.GetIsDefault(); bizAddr.IsDefault = &isDefault }
+	if req.HasName() {
+		name := req.GetName()
+		bizAddr.Name = &name
+	}
+	if req.HasPhone() {
+		phone := req.GetPhone()
+		bizAddr.Phone = &phone
+	}
+	if req.HasProvince() {
+		province := req.GetProvince()
+		bizAddr.Province = &province
+	}
+	if req.HasCity() {
+		city := req.GetCity()
+		bizAddr.City = &city
+	}
+	if req.HasDistrict() {
+		district := req.GetDistrict()
+		bizAddr.District = &district
+	}
+	if req.HasDetailedAddress() {
+		detailed := req.GetDetailedAddress()
+		bizAddr.DetailedAddress = &detailed
+	}
+	if req.HasIsDefault() {
+		isDefault := req.GetIsDefault()
+		bizAddr.IsDefault = &isDefault
+	}
 
 	updated, err := s.addressUsecase.UpdateAddress(ctx, bizAddr)
 	if err != nil {

@@ -11,10 +11,13 @@ import (
 
 // Config 结构体用于 ClickHouse 数据库配置。
 type Config struct {
-	DSN          string        `toml:"dsn"`
-	DialTimeout  time.Duration `toml:"dial_timeout"`
-	MaxOpenConns int           `toml:"max_open_conns"`
-	MaxIdleConns int           `toml:"max_idle_conns"`
+	DSN             string        `toml:"dsn"`
+	Database        string        `toml:"database"`
+	Username        string        `toml:"username"`
+	Password        string        `toml:"password"`
+	DialTimeout     time.Duration `toml:"dial_timeout"`
+	MaxOpenConns    int           `toml:"max_open_conns"`
+	MaxIdleConns    int           `toml:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `toml:"conn_max_lifetime"`
 }
 
@@ -23,11 +26,14 @@ func NewClickHouseClient(conf *Config) (clickhouse.Conn, func(), error) {
 	conn, err := clickhouse.Open(&clickhouse.Options{
 		Addr: []string{conf.DSN},
 		Auth: clickhouse.Auth{
-			Database: "default", // Default database
-			Username: "default", // Default username
-			Password: "",        // Default password
+			Database: conf.Database,
+			Username: conf.Username,
+			Password: conf.Password,
 		},
-		DialTimeout: conf.DialTimeout,
+		DialTimeout:     conf.DialTimeout,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
 		Settings: clickhouse.Settings{
 			"max_execution_time": 60,
 		},
@@ -46,10 +52,6 @@ func NewClickHouseClient(conf *Config) (clickhouse.Conn, func(), error) {
 	if err := conn.Ping(ctx); err != nil {
 		return nil, nil, fmt.Errorf("failed to ping clickhouse: %w", err)
 	}
-
-	// Set connection pool parameters (if supported by driver, ClickHouse-go v2 handles pooling internally)
-	// For explicit control, you might manage a pool of connections manually or rely on the driver's internal pooling.
-	// The driver's `Open` function returns a connection pool.
 
 	cleanup := func() {
 		if conn != nil {

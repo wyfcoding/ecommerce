@@ -2,27 +2,15 @@ syntax = "proto3";
 
 package api.content_moderation.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/content_moderation/v1;v1";
 
 // ContentModerationService 定义了内容审核服务接口
 service ContentModerationService {
   // 审核文本内容
-  rpc ModerateText(ModerateTextRequest) returns (ModerateTextResponse) {
-    option (google.api.http) = {
-      post: "/v1/content_moderation/text"
-      body: "*"
-    };
-  }
+  rpc ModerateText(ModerateTextRequest) returns (ModerateTextResponse);
 
   // 审核图片内容 (简化为URL)
-  rpc ModerateImage(ModerateImageRequest) returns (ModerateImageResponse) {
-    option (google.api.http) = {
-      post: "/v1/content_moderation/image"
-      body: "*"
-    };
-  }
+  rpc ModerateImage(ModerateImageRequest) returns (ModerateImageResponse);
 }
 
 // ModerateTextRequest 审核文本内容请求

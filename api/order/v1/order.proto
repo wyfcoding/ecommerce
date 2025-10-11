@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package api.order.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/order/v1;v1";
 
 // ===================================
@@ -33,40 +31,21 @@ message OrderItem {
 
 service Order {
   // 创建订单
-  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
-    option (google.api.http) = {
-      post: "/v1/orders"
-      body: "*"
-    };
-  }
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
   // 获取订单详情
-  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse) {
-    option (google.api.http) = {
-      get: "/v1/orders/{order_id}"
-    };
-  }
+  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse);
 
   // 获取支付链接
-  rpc GetPaymentURL(GetPaymentURLRequest) returns (GetPaymentURLResponse) {}
+  rpc GetPaymentURL(GetPaymentURLRequest) returns (GetPaymentURLResponse);
 
   // 接收支付异步通知 (此接口由支付宝服务器调用，不在网关中通过HTTP注解暴露)
-  rpc ProcessPaymentNotification(ProcessPaymentNotificationRequest) returns (ProcessPaymentNotificationResponse) {}
+  rpc ProcessPaymentNotification(ProcessPaymentNotificationRequest) returns (ProcessPaymentNotificationResponse);
 
   // --- Flash Sale Specific RPCs ---
   // 为秒杀活动创建订单
-  rpc CreateOrderForFlashSale(CreateOrderForFlashSaleRequest) returns (CreateOrderForFlashSaleResponse) {
-    option (google.api.http) = {
-      post: "/v1/orders/flashsale"
-      body: "*"
-    };
-  }
+  rpc CreateOrderForFlashSale(CreateOrderForFlashSaleRequest) returns (CreateOrderForFlashSaleResponse);
   // 补偿创建订单 (Saga 模式)
-  rpc CompensateCreateOrder(CompensateCreateOrderRequest) returns (CompensateCreateOrderResponse) {
-    option (google.api.http) = {
-      post: "/v1/orders/flashsale/compensate"
-      body: "*"
-    };
-  }
+  rpc CompensateCreateOrder(CompensateCreateOrderRequest) returns (CompensateCreateOrderResponse);
 }
 
 // --- Request/Response Messages ---

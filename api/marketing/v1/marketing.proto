@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.marketing.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/empty.proto"; // Added for google.protobuf.Empty
 
 option go_package = "ecommerce/api/marketing/v1;v1";
@@ -17,51 +16,20 @@ service Marketing {
 
   // --- User Facing ---
   // 用户领取优惠券
-  rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse) {
-    option (google.api.http) = {
-      post: "/v1/coupons/claim"
-      body: "*"
-    };
-  }
+  rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse);
   // 查看我的优惠券
-  rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse) {
-    option (google.api.http) = {
-      get: "/v1/my/coupons"
-    };
-  }
+  rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse);
 
   // --- Internal Service Facing ---
   // 为订单服务计算优惠金额
   rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse) {}
 
   // --- 促销管理 ---
-  rpc CreatePromotion(CreatePromotionRequest) returns (PromotionInfo) {
-    option (google.api.http) = {
-      post: "/v1/promotions"
-      body: "*"
-    };
-  }
-  rpc UpdatePromotion(UpdatePromotionRequest) returns (PromotionInfo) {
-    option (google.api.http) = {
-      put: "/v1/promotions/{id}"
-      body: "*"
-    };
-  }
-  rpc DeletePromotion(DeletePromotionRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete: "/v1/promotions/{id}"
-    };
-  }
-  rpc GetPromotion(GetPromotionRequest) returns (PromotionInfo) {
-    option (google.api.http) = {
-      get: "/v1/promotions/{id}"
-    };
-  }
-  rpc ListPromotions(ListPromotionsRequest) returns (ListPromotionsResponse) {
-    option (google.api.http) = {
-      get: "/v1/promotions"
-    };
-  }
+  rpc CreatePromotion(CreatePromotionRequest) returns (PromotionInfo);
+  rpc UpdatePromotion(UpdatePromotionRequest) returns (PromotionInfo);
+  rpc DeletePromotion(DeletePromotionRequest) returns (google.protobuf.Empty);
+  rpc GetPromotion(GetPromotionRequest) returns (PromotionInfo);
+  rpc ListPromotions(ListPromotionsRequest) returns (ListPromotionsResponse);
 }
 
 // ===================================

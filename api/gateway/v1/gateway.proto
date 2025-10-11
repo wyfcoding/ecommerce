@@ -2,19 +2,12 @@ syntax = "proto3";
 
 package api.gateway.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/gateway/v1;v1";
 
 // GatewayService 定义了API网关服务接口
 service GatewayService {
   // 通用请求处理入口
-  rpc HandleRequest(HandleRequestRequest) returns (HandleRequestResponse) {
-    option (google.api.http) = {
-      post: "/v1/gateway/request"
-      body: "*"
-    };
-  }
+  rpc HandleRequest(HandleRequestRequest) returns (HandleRequestResponse);
 }
 
 // HandleRequestRequest 通用请求处理请求

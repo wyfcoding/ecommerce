@@ -1,0 +1,11 @@
+replicaCount: 1
+
+image:
+  repository: your-docker-registry/sales_forecasting
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080

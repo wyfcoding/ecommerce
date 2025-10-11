@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.review.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "ecommerce/api/review/v1;v1";
@@ -10,33 +9,16 @@ option go_package = "ecommerce/api/review/v1;v1";
 // Review Service
 service Review {
     // Submit a new product review
-    rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse) {
-        option (google.api.http) = {
-            post: "/v1/reviews"
-            body: "*"
-        };
-    }
+    rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse);
 
     // Get reviews for a specific product
-    rpc ListProductReviews(ListProductReviewsRequest) returns (ListProductReviewsResponse) {
-        option (google.api.http) = {
-            get: "/v1/products/{product_id}/reviews"
-        };
-    }
+    rpc ListProductReviews(ListProductReviewsRequest) returns (ListProductReviewsResponse);
 
     // Get reviews by a specific user
-    rpc ListUserReviews(ListUserReviewsRequest) returns (ListUserReviewsResponse) {
-        option (google.api.http) = {
-            get: "/v1/users/{user_id}/reviews"
-        };
-    }
+    rpc ListUserReviews(ListUserReviewsRequest) returns (ListUserReviewsResponse);
 
     // Get overall rating for a product
-    rpc GetProductRating(GetProductRatingRequest) returns (GetProductRatingResponse) {
-        option (google.api.http) = {
-            get: "/v1/products/{product_id}/rating"
-        };
-    }
+    rpc GetProductRating(GetProductRatingRequest) returns (GetProductRatingResponse);
 }
 
 // Represents a product review

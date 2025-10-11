@@ -1,8 +1,6 @@
 package service
 
 import (
-	"context"
-
 	"ecommerce/internal/flashsale/biz"
 	// Assuming the generated pb.go file will be in this path
 	// v1 "ecommerce/api/flashsale/v1"

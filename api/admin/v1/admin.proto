@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package api.admin.v1;
 
-import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 // Import other services' proto files to reuse message types
 import "api/product/v1/product.proto";
@@ -15,97 +14,34 @@ option go_package = "ecommerce/api/admin/v1;v1";
 
 service Admin {
   // --- 认证 ---
-  rpc AdminLogin(AdminLoginRequest) returns (AdminLoginResponse) {
-    option (google.api.http) = {
-      post: "/v1/admin/login",
-      body: "*"
-    };
-  }
+  rpc AdminLogin(AdminLoginRequest) returns (AdminLoginResponse);
 
   // --- 用户管理 ---
-  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
-    option (google.api.http) = {
-      get: "/v1/admin/users"
-    };
-  }
-  rpc GetUserDetails(GetUserDetailsRequest) returns (GetUserDetailsResponse) {
-    option (google.api.http) = {
-      get: "/v1/admin/users/{user_id}"
-    };
-  }
-  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UpdateUserStatusResponse) {
-    option (google.api.http) = {
-      put: "/v1/admin/users/{user_id}/status"
-      body: "*"
-    };
-  }
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUserDetails(GetUserDetailsRequest) returns (GetUserDetailsResponse);
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UpdateUserStatusResponse);
 
   // --- 商品管理 ---
-  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
-    option (google.api.http) = {
-      get: "/v1/admin/products"
-    };
-  }
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
   // CreateProduct 接口已存在
-  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse) {
-    option (google.api.http) = {
-      put: "/v1/admin/products/{product_id}"
-      body: "*"
-    };
-  }
-  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse) {
-    option (google.api.http) = {
-      delete: "/v1/admin/products/{product_id}"
-    };
-  }
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse);
 
   // --- 订单管理 ---
   rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {}
   rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse) {}
   rpc ShipOrder(ShipOrderRequest) returns (ShipOrderResponse) {}
-  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse) {
-    option (google.api.http) = {
-      put: "/v1/admin/orders/{order_id}/status"
-      body: "*"
-    };
-  }
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
 
   // --- 评论管理 ---
-  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse) {
-    option (google.api.http) = {
-      get: "/v1/admin/reviews"
-    };
-  }
-  rpc ModerateReview(ModerateReviewRequest) returns (ModerateReviewResponse) {
-    option (google.api.http) = {
-      put: "/v1/admin/reviews/{review_id}/moderate"
-      body: "*"
-    };
-  }
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse);
+  rpc ModerateReview(ModerateReviewRequest) returns (ModerateReviewResponse);
 
   // --- 优惠券管理 ---
-  rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse) {
-    option (google.api.http) = {
-      post: "/v1/admin/coupons"
-      body: "*"
-    };
-  }
-  rpc ListCoupons(ListCouponsRequest) returns (ListCouponsResponse) {
-    option (google.api.http) = {
-      get: "/v1/admin/coupons"
-    };
-  }
-  rpc UpdateCoupon(UpdateCouponRequest) returns (UpdateCouponResponse) {
-    option (google.api.http) = {
-      put: "/v1/admin/coupons/{coupon_id}"
-      body: "*"
-    };
-  }
-  rpc DeleteCoupon(DeleteCouponRequest) returns (DeleteCouponResponse) {
-    option (google.api.http) = {
-      delete: "/v1/admin/coupons/{coupon_id}"
-    };
-  }
+  rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse);
+  rpc ListCoupons(ListCouponsRequest) returns (ListCouponsResponse);
+  rpc UpdateCoupon(UpdateCouponRequest) returns (UpdateCouponResponse);
+  rpc DeleteCoupon(DeleteCouponRequest) returns (DeleteCouponResponse);
 
   // --- RBAC 管理 ---
   rpc CreateRole(CreateRoleRequest) returns (Role) {}

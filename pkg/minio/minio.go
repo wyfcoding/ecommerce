@@ -18,22 +18,25 @@ type Config struct {
 }
 
 // NewMinioClient 创建一个新的 MinIO 客户端实例。
-func NewMinioClient(conf *Config) (*minio.Client, error) {
+func NewMinioClient(conf *Config) (*minio.Client, func(), error) {
 	minioClient, err := minio.New(conf.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(conf.AccessKeyID, conf.SecretAccessKey, ""),
 		Secure: conf.UseSSL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create minio client: %w", err)
+		return nil, nil, fmt.Errorf("failed to create minio client: %w", err)
 	}
 
 	// 检查连接
 	_, err = minioClient.ListBuckets(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("failed to list minio buckets: %w", err)
+		return nil, nil, fmt.Errorf("failed to list minio buckets: %w", err)
 	}
 
 	zap.S().Infof("Successfully connected to MinIO at %s", conf.Endpoint)
 
-	return minioClient, nil
+	// 返回一个空的清理函数以保持接口一致性
+	cleanup := func() {}
+
+	return minioClient, cleanup, nil
 }

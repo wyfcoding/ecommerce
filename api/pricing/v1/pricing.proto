@@ -2,27 +2,15 @@ syntax = "proto3";
 
 package api.pricing.v1;
 
-import "google/api/annotations.proto";
-
 option go_package = "ecommerce/api/pricing/v1;v1";
 
 // PricingService 定义了定价服务接口
 service PricingService {
   // 计算商品最终价格 (考虑促销、优惠券等)
-  rpc CalculateFinalPrice(CalculateFinalPriceRequest) returns (CalculateFinalPriceResponse) {
-    option (google.api.http) = {
-      post: "/v1/pricing/calculate"
-      body: "*"
-    };
-  }
+  rpc CalculateFinalPrice(CalculateFinalPriceRequest) returns (CalculateFinalPriceResponse);
 
   // 计算商品动态价格 (考虑AI模型)
-  rpc CalculateDynamicPrice(CalculateDynamicPriceRequest) returns (CalculateDynamicPriceResponse) {
-    option (google.api.http) = {
-      post: "/v1/pricing/dynamic_price"
-      body: "*"
-    };
-  }
+  rpc CalculateDynamicPrice(CalculateDynamicPriceRequest) returns (CalculateDynamicPriceResponse);
 }
 
 // SkuPriceInfo SKU价格信息
