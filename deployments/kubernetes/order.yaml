@@ -1,0 +1,92 @@
+# deployments/kubernetes/order.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  labels:
+    app: order
+spec:
+  type: ClusterIP
+  selector:
+    app: order
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8083
+      targetPort: 8083
+    - name: grpc
+      protocol: TCP
+      port: 9093
+      targetPort: 9093
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-deployment
+  labels:
+    app: order
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order
+  template:
+    metadata:
+      labels:
+        app: order
+    spec:
+      containers:
+        - name: order-service
+          image: your-docker-registry/ecommerce-order-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+              name: http
+            - containerPort: 9093
+              name: grpc
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "200Mi"
+            limits:
+              cpu: "800m"
+              memory: "800Mi"
+          env:
+            # 数据库连接字符串，建议使用 Secret
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: order_dsn
+            # 依赖的服务地址
+            - name: USER_SERVICE_GRPC_ADDR
+              value: "user-service:9090"
+            - name: CART_SERVICE_GRPC_ADDR
+              value: "cart-service:9091"
+            - name: PRODUCT_SERVICE_GRPC_ADDR
+              value: "product-service:9092"
+            - name: PAYMENT_SERVICE_GRPC_ADDR
+              value: "payment-service:9094"
+            # 消息队列地址
+            - name: MQ_URL
+              value: "amqp://guest:guest@rabbitmq-service:5672/"
+            # 链路追踪
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 25
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20

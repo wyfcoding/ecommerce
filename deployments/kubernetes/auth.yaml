@@ -1,0 +1,83 @@
+# deployments/kubernetes/auth.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  labels:
+    app: auth
+spec:
+  type: ClusterIP
+  selector:
+    app: auth
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8085
+      targetPort: 8085
+    - name: grpc
+      protocol: TCP
+      port: 9098
+      targetPort: 9098
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-deployment
+  labels:
+    app: auth
+spec:
+  replicas: 2 # 认证是关键无状态服务，可以水平扩展
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      containers:
+        - name: auth-service
+          image: your-docker-registry/ecommerce-auth-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+              name: http
+            - containerPort: 9098
+              name: grpc
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          env:
+            # JWT Secret 必须通过 Kubernetes Secret 注入，而不是硬编码
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
+            # 依赖的用户服务地址
+            - name: USER_SERVICE_GRPC_ADDR
+              value: "user-service:9090"
+            # 链路追踪
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          livenessProbe:
+            httpGet:
+              path: /health # 假设存在 /health 检查端点
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10

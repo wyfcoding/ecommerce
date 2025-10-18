@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce/pkg/gormlogger"
+	"ecommerce/pkg/logging"
 
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
@@ -14,19 +14,19 @@ import (
 
 // Config 结构体用于 MySQL 数据库配置。
 type Config struct {
-	DSN             string        `toml:"dsn"`
-	MaxIdleConns    int           `toml:"max_idle_conns"`
-	MaxOpenConns    int           `toml:"max_open_conns"`
-	ConnMaxLifetime time.Duration `toml:"conn_max_lifetime"`
+	DSN             string          `toml:"dsn"`
+	MaxIdleConns    int             `toml:"max_idle_conns"`
+	MaxOpenConns    int             `toml:"max_open_conns"`
+	ConnMaxLifetime time.Duration   `toml:"conn_max_lifetime"`
 	LogLevel        logger.LogLevel `toml:"log_level"`
-	SlowThreshold   time.Duration `toml:"slow_threshold"`
+	SlowThreshold   time.Duration   `toml:"slow_threshold"`
 }
 
 // NewGORMDB 创建一个新的 GORM 数据库连接实例。
 func NewGORMDB(conf *Config, zapLogger *zap.Logger) (*gorm.DB, func(), error) {
 	// 使用 GORM 连接到 MySQL 数据库
 	db, err := gorm.Open(mysql.Open(conf.DSN), &gorm.Config{
-		Logger: gormlogger.New(zapLogger, conf.LogLevel, conf.SlowThreshold),
+		Logger: logging.NewGormLogger(zapLogger, conf.LogLevel, conf.SlowThreshold),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)

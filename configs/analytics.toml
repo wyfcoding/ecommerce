@@ -1,20 +1,33 @@
-[server]
-  [server.grpc]
-    addr = "0.0.0.0"
-    port = 8002
-  [server.http]
-    addr = "0.0.0.0"
-    port = 8082
+# 分析服务基础配置
+[server.http]
+# 主要提供给内部仪表盘或数据可视化工具的查询接口
+addr = "0.0.0.0"
+port = 8092
+timeout = "10s" # 分析查询可能耗时较长
 
+# 数据库配置 (使用 ClickHouse 作为示例，它非常适合 OLAP 场景)
+[data.database]
+driver = "clickhouse"
+# DSN 格式: tcp://host1:9000?database=...&username=...&password=...
+dsn = "tcp://127.0.0.1:9000?database=ecommerce_analytics&username=default&password="
+
+# 消息队列 (RabbitMQ / Kafka) 配置
+# 消费来自整个平台的各种事件，以收集数据点
+[mq]
+type = "rabbitmq"
+url = "amqp://guest:guest@localhost:5672/"
+# 订阅通配符路由键，捕获所有订单、支付、用户行为等事件
+consumer_queues = [
+  { queue_name = "analytics.events", exchange_name = "all_events_fanout", routing_key = "#" }
+]
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "analytics-service"
+
+# 日志配置
 [log]
-  level = "info"
-  format = "console"
-  output = "stdout"
-
-[data]
-  [data.clickhouse]
-    dsn = "127.0.0.1:9000"
-    dial_timeout = "5s"
-    max_open_conns = 10
-    max_idle_conns = 5
-    conn_max_lifetime = "300s"
+level = "info" # 分析服务日志量可能很大，默认使用 info 级别
+format = "json"
+output = "stdout"

@@ -4,20 +4,22 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce/api/user_profile/v1"
-	"ecommerce/internal/user_profile/biz"
-	"ecommerce/internal/user_profile/data"
+	v1 "ecommerce/api/user_profile/v1"
 	"ecommerce/internal/user_profile/handler"
+	"ecommerce/internal/user_profile/model"
+	"ecommerce/internal/user_profile/repository"
 	"ecommerce/internal/user_profile/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	"ecommerce/pkg/database/redis"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	redisPkg "ecommerce/pkg/database/redis"
 	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 	"go.uber.org/zap"
-	gormlogger "gorm.io/gorm/logger"
+	"google.golang.org/grpc"
+	"gorm.io/gorm/logger"
 )
 
 // Config is the service-specific configuration structure.
@@ -27,10 +29,10 @@ type Config struct {
 		configpkg.DataConfig
 		Database struct {
 			configpkg.DatabaseConfig
-			LogLevel      gormlogger.LogLevel `toml:"log_level"`
+			LogLevel      logger.LogLevel `toml:"log_level"`
 			SlowThreshold time.Duration     `toml:"slow_threshold"`
 		} `toml:"database"`
-		Redis redis.Config `toml:"redis"`
+		Redis redisPkg.Config `toml:"redis"`
 	} `toml:"data"`
 }
 
@@ -57,24 +59,27 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	dataInstance, cleanupData, err := data.NewData(config.Data.Database.DSN, zap.L(), config.Data.Database.LogLevel, config.Data.Database.SlowThreshold)
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to new data: %w", err)
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	redisClient, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis)
+	if err := db.AutoMigrate(&model.UserProfile{}, &model.UserBehaviorEvent{}); err != nil {
+		return nil, nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	redisClient, cleanupRedis, err := redisPkg.NewRedisClient(&config.Data.Redis)
 	if err != nil {
-		cleanupData()
+		cleanupDB()
 		return nil, nil, fmt.Errorf("failed to new redis client: %w", err)
 	}
 
-	userProfileRepo := data.NewUserProfileRepo(dataInstance, redisClient)
-	userProfileUsecase := biz.NewUserProfileUsecase(userProfileRepo)
-	userProfileService := service.NewUserProfileService(userProfileUsecase)
+	userProfileRepo := repository.NewUserProfileRepo(db, redisClient)
+	userProfileService := service.NewUserProfileService(userProfileRepo)
 
 	cleanup := func() {
 		cleanupRedis()
-		cleanupData()
+		cleanupDB()
 	}
 
 	return userProfileService, cleanup, nil

@@ -1,24 +1,32 @@
-[server]
-  [server.grpc]
-    addr = "0.0.0.0"
-    port = 8001
-  [server.http]
-    addr = "0.0.0.0"
-    port = 8081
+# 资产管理服务基础配置
+[server.http]
+# 提供上传/下载 URL 的接口
+addr = "0.0.0.0"
+port = 8093
+timeout = "5s" # 上传操作可能需要更长时间
 
+# 数据库配置 (用于存储资产元数据)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_asset?charset=utf8mb4&parseTime=True&loc=Local"
+
+# 对象存储配置 (以 AWS S3 为例)
+[storage.s3]
+region = "us-east-1"
+bucket = "ecommerce-assets-bucket"
+# Access Key 和 Secret Key 应该通过环境变量或 K8s Secret 注入
+access_key_id = "YOUR_AWS_ACCESS_KEY_ID"
+secret_access_key = "YOUR_AWS_SECRET_ACCESS_KEY"
+# 用于生成预签名 URL 的过期时间
+presigned_url_expire_duration = "15m"
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "asset-service"
+
+# 日志配置
 [log]
-  level = "info"
-  format = "console"
-  output = "stdout"
-
-[data]
-  [data.database]
-    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_asset?charset=utf8mb4&parseTime=True&loc=Local"
-    max_idle_conns = 10
-    max_open_conns = 100
-    conn_max_lifetime = "300s"
-  [data.minio]
-    endpoint = "127.0.0.1:9000"
-    access_key_id = "minioadmin"
-    secret_access_key = "minioadmin"
-    use_ssl = false
+level = "info"
+format = "json"
+output = "stdout"

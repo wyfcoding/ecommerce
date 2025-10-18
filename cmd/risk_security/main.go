@@ -9,53 +9,29 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
-	"ecommerce/internal/risk_security/biz"
-	"ecommerce/internal/risk_security/data"
 	risksecurityhandler "ecommerce/internal/risk_security/handler"
+	"ecommerce/internal/risk_security/model"
+	"ecommerce/internal/risk_security/repository"
 	"ecommerce/internal/risk_security/service"
-	"ecommerce/pkg/database/redis"
+	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	redisPkg "ecommerce/pkg/database/redis"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/snowflake"
 )
 
 // Config 结构体用于映射 TOML 配置文件
 type Config struct {
-	Server struct {
-		HTTP struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
-	Data struct {
-		Database struct {
-			DSN string `toml:"dsn"`
-		} `toml:"database"`
-		Redis struct {
-			Addr         string        `toml:"addr"`
-			Password     string        `toml:"password"`
-			DB           int           `toml:"db"`
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
+	configpkg.ServerConfig `toml:"server"`
+	Data                   struct {
+		Database mysqlpkg.Config `toml:"database"`
+		Redis    redisPkg.Config `toml:"redis"`
 	} `toml:"data"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
+	Snowflake snowflake.Config `toml:"snowflake"`
+	Log       logging.Config   `toml:"log"`
 }
 
 func main() {
@@ -64,55 +40,49 @@ func main() {
 	flag.StringVar(&configPath, "conf", "./configs/risk_security.toml", "config file path")
 	flag.Parse()
 
-	config, err := loadConfig(configPath)
-	if err != nil {
+	var cfg Config
+	if err := configpkg.LoadConfig(configPath, &cfg); err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
 
 	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
+	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
 	zap.ReplaceGlobals(logger)
 
 	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
+	if err := snowflake.NewSnowflakeNode(&cfg.Snowflake); err != nil {
 		zap.S().Fatalf("failed to init snowflake: %v", err)
 	}
 
 	// 4. 依赖注入 (DI)
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
+	// 数据库连接
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&cfg.Data.Database)
 	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
+		zap.S().Fatalf("failed to connect database: %v", err)
 	}
-	defer cleanup()
+	defer cleanupDB()
+
+	// 自动迁移数据库表结构
+	if err := db.AutoMigrate(&model.FraudCheckResult{}); err != nil {
+		zap.S().Fatalf("failed to migrate database: %v", err)
+	}
 
 	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
-	})
+	redisClient, redisCleanup, err := redisPkg.NewRedisClient(&cfg.Data.Redis)
 	if err != nil {
 		zap.S().Fatalf("failed to new redis client: %v", err)
 	}
 	defer redisCleanup()
 
-	// 初始化业务层
-	riskSecurityRepo := data.NewRiskSecurityRepo(dataInstance, redisClient)
-	riskSecurityUsecase := biz.NewRiskSecurityUsecase(riskSecurityRepo)
-
-	// 初始化服务层
-	riskSecurityService := service.NewRiskSecurityService(riskSecurityUsecase)
+	riskSecurityRepo := repository.NewRiskSecurityRepo(db, redisClient)
+	riskSecurityService := service.NewRiskSecurityService(riskSecurityRepo)
 
 	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := risksecurityhandler.StartGRPCServer(riskSecurityService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
+	grpcServer, grpcErrChan := risksecurityhandler.StartGRPCServer(riskSecurityService, cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port)
 	if grpcServer == nil {
 		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
 	}
-	httpServer, httpErrChan := risksecurityhandler.StartHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
+	httpServer, httpErrChan := risksecurityhandler.StartHTTPServer(context.Background(), cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port, cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
 	if httpServer == nil {
 		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
 	}
@@ -126,10 +96,8 @@ func main() {
 		zap.S().Info("Shutting down risk_security service...")
 	case err := <-grpcErrChan:
 		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down risk_security service due to gRPC error...")
 	case err := <-httpErrChan:
 		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down risk_security service due to HTTP error...")
 	}
 
 	// 优雅地关闭服务器
@@ -140,21 +108,3 @@ func main() {
 		zap.S().Errorf("HTTP server shutdown error: %v", err)
 	}
 }
-
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &config, nil
-}
-
-// startGRPCServer 启动 gRPC 服务器
-
-// startHTTPServer 启动 HTTP Gateway

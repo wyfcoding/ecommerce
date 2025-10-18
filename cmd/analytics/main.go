@@ -1,74 +1,85 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	v1 "ecommerce/api-go/api/analytics/v1"
-	"ecommerce/internal/analytics/biz"
-	"ecommerce/internal/analytics/data"
-	"ecommerce/internal/analytics/service"
-	"ecommerce/pkg/app"
-	configpkg "ecommerce/pkg/config"
-	"ecommerce/pkg/database/clickhouse"
-	"ecommerce/pkg/metrics"
-
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	gormlogger "gorm.io/gorm/logger"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"gorm.io/driver/clickhouse" // 假设使用 GORM 的 ClickHouse 驱动
+	"gorm.io/gorm"
+
+	"ecommerce/internal/analytics/handler"
+	"ecommerce/internal/analytics/repository"
+	"ecommerce/internal/analytics/service"
+	// 伪代码
+	// "ecommerce/pkg/mq/consumer"
 )
 
-// Config is the service-specific configuration structure.
-type Config struct {
-	configpkg.Config
-	Data struct {
-		configpkg.DataConfig
-		Database struct {
-			configpkg.DatabaseConfig
-			LogLevel      gormlogger.LogLevel `toml:"log_level"`
-			SlowThreshold time.Duration       `toml:"slow_threshold"`
-		} `toml:"database"`
-		Clickhouse clickhouse.Config `toml:"clickhouse"`
-	} `toml:"data"`
-}
-
 func main() {
-	app.NewBuilder("analytics").
-		WithConfig(&Config{}).
-		WithService(initService).
-		WithGRPC(registerGRPC).
-		WithGin(registerGin).
-		WithMetrics("9097").
-		Build().
-		Run()
-}
+	// 1. 初始化配置和日志
+	viper.SetConfigName("analytics")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath("./configs")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("读取配置文件失败: %s", err)
+	}
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
 
-func registerGRPC(s *grpc.Server, srv interface{}) {
-	v1.RegisterAnalyticsServiceServer(s, srv.(v1.AnalyticsServiceServer))
-}
-
-func registerGin(e *gin.Engine, srv interface{}) {
-	analyticsHandler := handler.NewAnalyticsHandler(srv.(*service.AnalyticsService))
-	// e.g., e.POST("/v1/analytics/events", analyticsHandler.RecordEvent)
-}
-
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
-
-	chClient, chCleanup, err := clickhouse.NewClickHouseClient(&config.Data.Clickhouse)
+	// 2. 初始化数据存储 (ClickHouse)
+	dsn := viper.GetString("data.database.dsn")
+	db, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to clickhouse: %w", err)
+		logger.Fatal("连接 ClickHouse 失败", zap.Error(err))
 	}
 
-	dataInstance, dataCleanup := data.NewData(nil) // No GORM DB for analytics
-	analyticsRepo := data.NewAnalyticsRepo(dataInstance, chClient)
-	analyticsUsecase := biz.NewAnalyticsUsecase(analyticsRepo)
-	analyticsService := service.NewAnalyticsService(analyticsUsecase)
+	// 3. 依赖注入
+	analyticsRepo := repository.NewAnalyticsRepository(db)
+	analyticsService := service.NewAnalyticsService(analyticsRepo, logger)
 
-	cleanup := func() {
-		dataCleanup()
-		chCleanup()
-	}
+	// 4. 启动消息队列消费者
+	go func() {
+		// mqConsumer, _ := consumer.New(...)
+		// handler := func(eventType string, body []byte) error {
+		// 	 return analyticsService.ProcessEvent(context.Background(), eventType, body)
+		// }
+		// mqConsumer.StartConsuming("analytics.events", "all_events_fanout", "#", handler)
+		logger.Info("消息队列消费者已启动 (模拟)")
+	}()
 
-	return analyticsService, cleanup, nil
+	// 5. 启动 HTTP 服务器
+	analyticsHttpHandler := handler.NewAnalyticsHandler(analyticsService, logger)
+	router := gin.Default()
+	analyticsHttpHandler.RegisterRoutes(router)
+
+	httpAddr := fmt.Sprintf("%s:%d", viper.GetString("server.http.addr"), viper.GetInt("server.http.port"))
+	srv := &http.Server{Addr: httpAddr, Handler: router}
+
+	go func() {
+		logger.Info("Analytics HTTP 服务器正在监听", zap.String("address", httpAddr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("HTTP 服务监听失败", zap.Error(err))
+		}
+	}()
+
+	// 6. 优雅停机
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("准备关闭服务 ...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	srv.Shutdown(ctx)
+	// mqConsumer.Stop()
+
+	logger.Info("服务已退出")
 }

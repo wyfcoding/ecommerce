@@ -1,85 +1,115 @@
 package main
 
 import (
-	"ecommerce/internal/fraud_detection/biz"
-	"ecommerce/internal/fraud_detection/data"
-	frauddetectionhandler "ecommerce/internal/fraud_detection/handler"
-	"ecommerce/internal/fraud_detection/service"
+	"context"
+	"flag"
 	"fmt"
-	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/BurntSushi/toml"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	v1 "ecommerce/api/fraud_detection/v1"
+	frauddetectionhandler "ecommerce/internal/fraud_detection/handler"
+	"ecommerce/internal/fraud_detection/model"
+	"ecommerce/internal/fraud_detection/repository"
+	"ecommerce/internal/fraud_detection/service"
+	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/logging"
+	"ecommerce/pkg/metrics"
 )
 
-// Config holds the application configuration.
+// Config 结构体用于映射 TOML 配置文件
 type Config struct {
-	Service  ServiceConfig  `toml:"service"`
-	Database DatabaseConfig `toml:"database"`
-}
-
-type ServiceConfig struct {
-	Port string `toml:"port"`
-}
-
-type DatabaseConfig struct {
-	Host     string `toml:"host"`
-	Port     int    `toml:"port"`
-	User     string `toml:"user"`
-	Password string `toml:"password"`
-	DBName   string `toml:"dbname"`
+	configpkg.ServerConfig `toml:"server"`
+	Data                   struct {
+		Database mysqlpkg.Config `toml:"database"`
+	} `toml:"data"`
+	configpkg.LogConfig `toml:"log"`
+	configpkg.TraceConfig `toml:"trace"`
+	Metrics                struct {
+		Port string `toml:"port"`
+	} `toml:"metrics"`
 }
 
 func main() {
-	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ========
+	var configPath string
+	flag.StringVar(&configPath, "conf", "./configs/fraud_detection.toml", "config file path")
+	flag.Parse()
 
-	// Load configuration from TOML file
-	var conf Config
-	if _, err := toml.DecodeFile("../../configs/fraud_detection.toml", &conf); err != nil {
-		log.Fatalf("failed to load config file: %v", err)
+	// 1. 加载配置
+	var cfg Config
+	if err := configpkg.LoadConfig(configPath, &cfg); err != nil {
+		zap.S().Fatalf("failed to load config: %v", err)
 	}
 
-	// Construct MySQL DSN (Data Source Name)
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		conf.Database.User,
-		conf.Database.Password,
-		conf.Database.Host,
-		conf.Database.Port,
-		conf.Database.DBName,
-	)
+	// 2. 初始化日志
+	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
+	zap.ReplaceGlobals(logger)
+	defer logger.Sync()
 
-	// Connect to MySQL database
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	// 3. 初始化追踪
+	_, cleanupTracing, err := tracing.InitTracer(&cfg.Trace)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		zap.S().Fatalf("failed to init tracing: %v", err)
 	}
+	defer cleanupTracing()
 
-	// Auto-migrate the schema
-	err = db.AutoMigrate(&data.FraudEvaluation{}, &data.FraudReport{})
+	// 4. 初始化指标暴露
+	cleanupMetrics := metrics.ExposeHttp(cfg.Metrics.Port)
+	defer cleanupMetrics()
+
+	// 5. 初始化依赖
+	// 数据库连接
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&cfg.Data.Database)
 	if err != nil {
-		log.Fatalf("failed to migrate schema: %v", err)
+		zap.S().Fatalf("failed to connect database: %v", err)
+	}
+	defer cleanupDB()
+
+	// 自动迁移数据库表结构
+	if err := db.AutoMigrate(&model.FraudEvaluation{}, &model.FraudReport{}); err != nil {
+		zap.S().Fatalf("failed to migrate database: %v", err)
 	}
 
-	log.Println("Successfully connected to database and migrated schema.")
+	// 6. 依赖注入 (DI)
+	fraudDetectionRepo := repository.NewFraudDetectionRepo(db)
+	fraudDetectionService := service.NewFraudDetectionService(fraudDetectionRepo)
 
-	// ======== 2. Wire up the application layers (Dependency Injection) ========
-
-	dataRepo, cleanup, err := data.NewData(db)
-	if err != nil {
-		log.Fatalf("failed to create data layer: %v", err)
+	// 7. 启动 gRPC 服务器
+	grpcServer, grpcErrChan := frauddetectionhandler.StartGRPCServer(fraudDetectionService, cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port)
+	if grpcServer == nil {
+		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
 	}
-	defer cleanup()
 
-	fraudDetectionRepo := data.NewFraudDetectionRepo(dataRepo)
-	fraudDetectionUsecase := biz.NewFraudDetectionUsecase(fraudDetectionRepo)
-	fraudDetectionService := service.NewFraudDetectionService(fraudDetectionUsecase)
+	// 8. 启动 Gin HTTP 服务器
+	ginServer, ginErrChan := frauddetectionhandler.StartHTTPServer(fraudDetectionService, cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
+	if ginServer == nil {
+		zap.S().Fatalf("failed to start Gin HTTP server: %v", <-ginErrChan)
+	}
 
-	log.Println("Application layers wired successfully.")
+	// 9. 等待中断信号或服务器错误以实现优雅停机
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// ======== 3. Start the Server (e.g., HTTP, gRPC) ========
+	select {
+	case <-quit:
+		zap.S().Info("Shutting down fraud_detection service...")
+	case err := <-grpcErrChan:
+		zap.S().Errorf("gRPC server error: %v", err)
+	case err := <-ginErrChan:
+		zap.S().Errorf("Gin HTTP server error: %v", err)
+	}
 
-	frauddetectionhandler.StartHTTPServer(fraudDetectionService, conf.Service.Port)
-
-	_ = fraudDetectionService
+	// 优雅地关闭服务器
+	grpcServer.GracefulStop()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := ginServer.Shutdown(shutdownCtx); err != nil {
+		zap.S().Errorf("Gin HTTP server shutdown error: %v", err)
+	}
 }

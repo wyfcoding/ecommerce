@@ -1,56 +1,89 @@
-package aftersaleshandler
+package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
 	"ecommerce/internal/aftersales/service"
-	"ecommerce/pkg/logging"
 )
 
-// StartGinServer 启动 Gin HTTP 服务器
-func StartGinServer(aftersalesService *service.AftersalesService, addr string, port int) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	r := gin.New()
-	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // 使用项目的 GinLogger
+// AftersalesHandler 负责处理售后的 HTTP 请求
+type AftersalesHandler struct {
+	svc    service.AftersalesService
+	logger *zap.Logger
+}
 
-	// 健康检查端点
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+// NewAftersalesHandler 创建一个新的 AftersalesHandler 实例
+func NewAftersalesHandler(svc service.AftersalesService, logger *zap.Logger) *AftersalesHandler {
+	return &AftersalesHandler{svc: svc, logger: logger}
+}
 
-	// --- 在此处注册服务特定的 HTTP 路由 ---
-	// 示例：
-	// aftersalesHandler := handler.NewAftersalesHandler(aftersalesService)
-	// r.GET("/api/v1/aftersales/requests/:id", aftersalesHandler.GetAftersalesRequest)
-	// r.POST("/api/v1/aftersales/requests", aftersalesHandler.CreateAftersalesRequest)
-	//
-	// --- 应用级降级 ---
-	// 降级逻辑高度依赖于具体的应用场景。
-	// 例如，如果下游服务不可用，您可以：
-	// - 返回缓存数据。
-	// - 返回默认响应。
-	// - 重定向到静态错误页面。
-	// - 使用功能的简化版本。
-	// 这通常涉及检查依赖项的健康/状态
-	// 或在您的处理程序中实现回退逻辑。
-	// --------------------------------------------------
-
-	httpEndpoint := fmt.Sprintf("%s:%d", addr, port)
-	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: r,
+// RegisterRoutes 在 Gin 引擎上注册所有售后相关的路由
+func (h *AftersalesHandler) RegisterRoutes(r *gin.Engine) {
+	// 用户端路由
+	userGroup := r.Group("/api/v1/aftersales/applications")
+	// userGroup.Use(auth.AuthMiddleware(...))
+	{
+		userGroup.POST("", h.CreateApplication)
+		userGroup.GET("", h.ListApplications)
+		userGroup.GET("/:id", h.GetApplication)
 	}
 
-	zap.S().Infof("Gin HTTP server listening at %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve Gin HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
+	// 管理端路由
+	adminGroup := r.Group("/api/v1/admin/aftersales/applications")
+	// adminGroup.Use(auth.AuthMiddleware(...), auth.AdminMiddleware(...))
+	{
+		adminGroup.PUT("/:id/approve", h.ApproveApplication)
+		adminGroup.POST("/:id/process-return", h.ProcessReturn)
+	}
+}
+
+// CreateApplicationRequest 定义了创建售后申请的请求体
+type CreateApplicationRequest struct {
+	OrderID uint   `json:"order_id" binding:"required"`
+	Type    string `json:"type" binding:"required"` // RETURN, EXCHANGE
+	Reason  string `json:"reason" binding:"required"`
+	// Items   []... `json:"items" binding:"required"`
+}
+
+// CreateApplication 处理用户提交售后申请的请求
+func (h *AftersalesHandler) CreateApplication(c *gin.Context) {
+	// userID, _ := c.Get("userID")
+	// var req CreateApplicationRequest
+	// ...
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "功能待实现"})
+}
+
+// ListApplications 处理获取用户售后申请列表的请求
+func (h *AftersalesHandler) ListApplications(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	apps, err := h.svc.ListApplications(c.Request.Context(), userID.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取列表失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"applications": apps})
+}
+
+// GetApplication ...
+func (h *AftersalesHandler) GetApplication(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "功能待实现"})
+}
+
+// ApproveApplication ...
+func (h *AftersalesHandler) ApproveApplication(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "功能待实现"})
+}
+
+// ProcessReturn ...
+func (h *AftersalesHandler) ProcessReturn(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "功能待实现"})
 }

@@ -7,34 +7,33 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewDefaultGinEngine creates a new Gin engine with default middleware.
-func NewDefaultGinEngine() *gin.Engine {
+// NewDefaultGinEngine 创建一个新的 Gin 引擎，并应用默认及自定义的中间件。
+func NewDefaultGinEngine(middleware ...gin.HandlerFunc) *gin.Engine {
 	engine := gin.New()
 
-	// Add recovery middleware
+	// 应用默认中间件
 	engine.Use(gin.Recovery())
-
-	// Add logging middleware
 	engine.Use(ZapLogger())
+
+	// 应用外部传入的自定义中间件
+	engine.Use(middleware...)
 
 	return engine
 }
 
-// ZapLogger is a Gin middleware for logging requests using Zap.
+// ZapLogger 是一个用于 Zap 日志记录的 Gin 中间件。
 func ZapLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
 
-		// Process request
 		c.Next()
 
 		end := time.Now()
 		latency := end.Sub(start)
 
 		if len(c.Errors) > 0 {
-			// Log errors
 			for _, e := range c.Errors.Errors() {
 				zap.S().Error(e)
 			}

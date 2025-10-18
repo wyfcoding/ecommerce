@@ -1,11 +1,40 @@
+# replicaCount 定义了 Deployment 的副本数量
 replicaCount: 1
 
+# image 定义了要部署的容器镜像
 image:
+  # repository 是镜像仓库的地址
   repository: your-docker-registry/data_warehouse_query
+  # pullPolicy 定义了镜像拉取策略
   pullPolicy: IfNotPresent
-  tag: "latest"
+  # tag 是镜像的标签，建议使用不可变标签，而不是 'latest'。
+  # 此值通常由 CI/CD 管道在部署时通过 --set 覆盖。
+  # tag: "BUILD_ID" # 示例：使用构建ID作为标签
 
+# service 定义了 Kubernetes Service 的配置
 service:
+  # type 是 Service 的类型
   type: ClusterIP
-  port: 80
-  targetPort: 8080
+  # grpcPort 是 gRPC 服务暴露的端口
+  grpcPort: 9000
+  # httpPort 是 HTTP 服务暴露的端口
+  httpPort: 8000
+
+# resources 定义了容器的资源请求和限制
+# 对于生产环境，强烈建议根据实际负载进行调整
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# autoscaling 定义了水平自动伸缩的配置 (HPA)
+# 默认禁用，可以根据需要启用
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80

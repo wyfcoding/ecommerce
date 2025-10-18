@@ -1,148 +1,181 @@
 package main
 
 import (
-	"context"
-	"flag"
-	"os"
-	"os/signal"
-	"syscall"
+	"fmt"
 	"time"
 
-	"go.uber.org/zap"
-
-	// Project packages
+	v1 "ecommerce/api/ai_model/v1"
+	"ecommerce/internal/ai_model/handler"
+	"ecommerce/internal/ai_model/service"
+	"ecommerce/pkg/app"
 	"ecommerce/pkg/config"
-	"ecommerce/pkg/database/redis"
-	"ecommerce/pkg/logging"
+	"ecommerce/pkg/database/mysql"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/snowflake"
 	"ecommerce/pkg/tracing"
 
-	// Service-specific imports
-	// v1 "ecommerce/api/ai_model/v1"
-	"ecommerce/internal/ai_model/biz"
-	"ecommerce/internal/ai_model/data"
-	aimodelhandler "ecommerce/internal/ai_model/handler"
-	"ecommerce/internal/ai_model/service"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
-// Config 结构体用于映射 TOML 配置文件
+// Config 定义了 ai_model-service 的所有配置项。
 type Config struct {
-	Server struct {
-		HTTP struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	}
+	config.Config
 	Data struct {
-		Redis redis.Config `toml:"redis"` // Use pkg/database/redis.Config
-		// ... other service client configs
+		config.DataConfig
+		Database struct {
+			config.DatabaseConfig
+		} `toml:"database"`
 	} `toml:"data"`
-	Snowflake snowflake.Config `toml:"snowflake"` // Use pkg/snowflake.Config
-	Log       logging.Config   `toml:"log"`       // Use pkg/logging.Config
-	Trace     tracing.Config   `toml:"trace"`     // Use pkg/tracing.Config
-	Metrics   struct {
-		Port string `toml:"port"`
-	} `toml:"metrics"`
+	Tracing struct {
+		JaegerEndpoint string `toml:"jaeger_endpoint"`
+	} `toml:"tracing"`
+	// 外部服务客户端配置
+	Clients struct {
+		ProductService struct {
+			Addr string `toml:"addr"`
+			Port int    `toml:"port"`
+		} `toml:"product_service"`
+		UserService struct {
+			Addr string `toml:"addr"`
+			Port int    `toml:"port"`
+		} `toml:"user_service"`
+		OrderService struct {
+			Addr string `toml:"addr"`
+			Port int    `toml:"port"`
+		} `toml:"order_service"`
+		ReviewService struct {
+			Addr string `toml:"addr"`
+			Port int    `toml:"port"`
+		} `toml:"review_service"`
+		// TODO: Add other service clients if needed
+	} `toml:"clients"`
+	AIPlatform struct {
+		Endpoint string `toml:"endpoint"` // 外部AI平台或模型服务地址
+		ApiKey   string `toml:"api_key"`
+	}
 }
 
+const serviceName = "ai_model-service"
+
+// main 是应用程序的入口点。
 func main() {
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/ai_model.toml", "config file path")
-	flag.Parse()
-
-	// 1. 加载配置
-	var cfg Config
-	if err := config.LoadConfig(configPath, &cfg); err != nil {
-		zap.S().Fatalf("failed to load config: %v", err)
-	}
-
-	// 2. 初始化日志
-	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
-	zap.ReplaceGlobals(logger)
-	defer logger.Sync() // Flush any buffered log entries
-
-	// 3. 初始化追踪
-	_, cleanupTracing, err := tracing.InitTracer(&cfg.Trace)
-	if err != nil {
-		zap.S().Fatalf("failed to init tracing: %v", err)
-	}
-	defer cleanupTracing()
-
-	// 4. 初始化指标暴露
-	cleanupMetrics := metrics.ExposeHttp(cfg.Metrics.Port)
-	defer cleanupMetrics()
-
-	// 5. 初始化依赖
-	// 初始化 Redis
-	redisClient, cleanupRedis, err := redis.NewRedisClient(&cfg.Data.Redis)
-	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer cleanupRedis()
-
-	// 初始化雪花算法
-	snowflakeNode, cleanupSnowflake, err := snowflake.NewSnowflakeNode(&cfg.Snowflake)
-	if err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
-	}
-	defer cleanupSnowflake()
-
-	// 6. 依赖注入 (DI)
-	dataInstance, cleanupData, err := data.NewData(redisClient) // Assuming data.NewData takes redisClient
-	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
-	}
-	defer cleanupData()
-
-	aiModelRepo := data.NewAiModelRepo(dataInstance)
-	aiModelUsecase := biz.NewAiModelUsecase(aiModelRepo, snowflakeNode)
-
-	// 初始化服务层
-	aiModelService := service.NewAiModelService(aiModelUsecase)
-
-	// 7. 启动 gRPC 服务器
-	grpcServer, grpcErrChan := aimodelhandler.StartGRPCServer(aiModelService, cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-
-	// 8. 启动 Gin HTTP 服务器
-	ginServer, ginErrChan := aimodelhandler.StartGinServer(aiModelService, cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
-	if ginServer == nil {
-		zap.S().Fatalf("failed to start Gin HTTP server: %v", <-ginErrChan)
-	}
-
-	// 9. 等待中断信号或服务器错误以实现优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down ai_model service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down ai_model service due to gRPC error...")
-	case err := <-ginErrChan:
-		zap.S().Errorf("Gin HTTP server error: %v", err)
-		zap.S().Info("Shutting down ai_model service due to Gin HTTP error...")
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := ginServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("Gin HTTP server shutdown error: %v", err)
-	}
+	app.NewBuilder(serviceName).WithConfig(&Config{}).WithService(initService).WithGRPC(registerGRPC).WithGin(registerGin).WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).WithMetrics("9091").Build().Run()
 }
 
-// startGRPCServer 启动 gRPC 服务器
+// registerGRPC 将 gRPC 服务注册到服务器。
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	v1.RegisterAIModelServiceServer(s, srv.(v1.AIModelServiceServer))
+}
 
-// startGinServer 启动 Gin HTTP 服务器
+// registerGin 将 HTTP 路由注册到 Gin 引擎。
+func registerGin(e *gin.Engine, srv interface{}) {
+	handler.RegisterRoutes(e, srv.(*service.AIModelService))
+}
+
+// initService 负责初始化服务所需的所有依赖项。
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+
+	// 1. 初始化 Jaeger Tracer
+	zap.S().Info("initializing Jaeger tracer...")
+	_, cleanupTracer, err := tracing.InitTracer(&tracing.Config{
+		ServiceName:    serviceName,
+		JaegerEndpoint: config.Tracing.JaegerEndpoint,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize tracer: %w", err)
+	}
+
+	// 2. 初始化数据库连接 (如果AI模型服务需要持久化存储，例如模型元数据)
+	zap.S().Info("initializing database connection...")
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
+	if err != nil {
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
+	}
+
+	// 3. 初始化数据层
+	data, cleanupData, err := repository.NewData(db)
+	if err != nil {
+		cleanupDB()
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to initialize data layer: %w", err)
+	}
+
+	// 4. 初始化 Repositories (如果需要)
+	modelMetadataRepo := repository.NewModelMetadataRepo(data)
+
+	// 5. 初始化外部服务客户端
+	// Product Service Client
+	productServiceAddr := fmt.Sprintf("%s:%d", config.Clients.ProductService.Addr, config.Clients.ProductService.Port)
+	productServiceClient, cleanupProductClient, err := client.NewProductServiceClient(productServiceAddr)
+	if err != nil {
+		cleanupData()
+		cleanupDB()
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to create product service client: %w", err)
+	}
+
+	// User Service Client
+	userServiceAddr := fmt.Sprintf("%s:%d", config.Clients.UserService.Addr, config.Clients.UserService.Port)
+	userServiceClient, cleanupUserClient, err := client.NewUserServiceClient(userServiceAddr)
+	if err != nil {
+		cleanupProductClient()
+		cleanupData()
+		cleanupDB()
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to create user service client: %w", err)
+	}
+
+	// Order Service Client
+	orderServiceAddr := fmt.Sprintf("%s:%d", config.Clients.OrderService.Addr, config.Clients.OrderService.Port)
+	orderServiceClient, cleanupOrderClient, err := client.NewOrderServiceClient(orderServiceAddr)
+	if err != nil {
+		cleanupUserClient()
+		cleanupProductClient()
+		cleanupData()
+		cleanupDB()
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to create order service client: %w", err)
+	}
+
+	// Review Service Client
+	reviewServiceAddr := fmt.Sprintf("%s:%d", config.Clients.ReviewService.Addr, config.Clients.ReviewService.Port)
+	reviewServiceClient, cleanupReviewClient, err := client.NewReviewServiceClient(reviewServiceAddr)
+	if err != nil {
+		cleanupOrderClient()
+		cleanupUserClient()
+		cleanupProductClient()
+		cleanupData()
+		cleanupDB()
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to create review service client: %w", err)
+	}
+
+	// 6. 初始化 Service
+	zap.S().Info("initializing AI model service...")
+	aiModelService := service.NewAIModelService(
+		modelMetadataRepo,
+		productServiceClient,
+		userServiceClient,
+		orderServiceClient,
+		reviewServiceClient,
+		config.AIPlatform.Endpoint,
+		config.AIPlatform.ApiKey,
+	)
+
+	// 定义一个总的清理函数，按初始化的相反顺序执行。
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		cleanupReviewClient()
+		cleanupOrderClient()
+		cleanupUserClient()
+		cleanupProductClient()
+		cleanupData()
+		cleanupDB()
+		cleanupTracer()
+	}
+
+	return aiModelService, cleanup, nil
+}

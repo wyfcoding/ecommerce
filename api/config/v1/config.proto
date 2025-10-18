@@ -3,47 +3,55 @@ syntax = "proto3";
 package api.config.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/config/v1;v1";
 
-// ConfigService 定义了配置服务接口
-service ConfigService {
-  // 获取配置值
-  rpc GetConfig(GetConfigRequest) returns (ConfigEntry);
+// Config 配置服务定义了所有与动态配置管理相关的RPC接口。
+service Config {
+  // --- 核心配置接口 ---
 
-  // 设置配置值
-  rpc SetConfig(SetConfigRequest) returns (ConfigEntry);
-
-  // 列出所有配置
-  rpc ListConfigs(ListConfigsRequest) returns (ListConfigsResponse);
+  // GetConfig 获取指定键的配置值。
+  rpc GetConfig(GetConfigRequest) returns (ConfigResponse);
+  // SetConfig 设置指定键的配置值。
+  rpc SetConfig(SetConfigRequest) returns (ConfigResponse);
+  // DeleteConfig 删除指定键的配置。
+  rpc DeleteConfig(DeleteConfigRequest) returns (google.protobuf.Empty);
+  // WatchConfig 监听配置变更。
+  rpc WatchConfig(WatchConfigRequest) returns (stream ConfigResponse);
 }
 
-// ConfigEntry 配置项
+// --- 消息定义 ---
+
+// ConfigEntry 代表一个配置项。
 message ConfigEntry {
-  string key = 1;
-  string value = 2;
-  string description = 3;
-  google.protobuf.Timestamp updated_at = 4;
+  string key = 1; // 配置键
+  string value = 2; // 配置值
+  google.protobuf.Timestamp updated_at = 3;
 }
 
-// GetConfigRequest 获取配置请求
+// GetConfigRequest 获取配置请求消息。
 message GetConfigRequest {
   string key = 1;
 }
 
-// SetConfigRequest 设置配置请求
+// ConfigResponse 配置响应消息。
+message ConfigResponse {
+  ConfigEntry config = 1;
+}
+
+// SetConfigRequest 设置配置请求消息。
 message SetConfigRequest {
   string key = 1;
   string value = 2;
-  string description = 3;
 }
 
-// ListConfigsRequest 列出配置请求
-message ListConfigsRequest {
-  // 暂无过滤条件
+// DeleteConfigRequest 删除配置请求消息。
+message DeleteConfigRequest {
+  string key = 1;
 }
 
-// ListConfigsResponse 列出配置响应
-message ListConfigsResponse {
-  repeated ConfigEntry configs = 1;
+// WatchConfigRequest 监听配置请求消息。
+message WatchConfigRequest {
+  string key = 1;
 }

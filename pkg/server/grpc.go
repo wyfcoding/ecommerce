@@ -16,8 +16,10 @@ type GRPCServer struct {
 }
 
 // NewGRPCServer 创建一个新的 gRPC 服务器。
-func NewGRPCServer(addr string, register func(*grpc.Server)) *GRPCServer {
-	s := grpc.NewServer()
+// 它现在可以接收一个或多个一元拦截器。
+func NewGRPCServer(addr string, register func(*grpc.Server), interceptors ...grpc.UnaryServerInterceptor) *GRPCServer {
+	// 使用 grpc.ChainUnaryInterceptor 将所有传入的拦截器链接起来
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
 	register(s)
 	return &GRPCServer{
 		srv:  s,
@@ -29,15 +31,15 @@ func NewGRPCServer(addr string, register func(*grpc.Server)) *GRPCServer {
 func (s *GRPCServer) Start(ctx context.Context) error {
 	lis, err := net.Listen("tcp", s.addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err) // 错误信息保持英文
+		return fmt.Errorf("failed to listen: %w", err)
 	}
-	zap.S().Infof("gRPC server listening at %v", lis.Addr()) // 日志信息保持英文
+	zap.S().Infof("gRPC server listening at %v", lis.Addr())
 	return s.srv.Serve(lis)
 }
 
 // Stop 停止 gRPC 服务器。
 func (s *GRPCServer) Stop(ctx context.Context) error {
-	zap.S().Info("Stopping gRPC server...") // 日志信息保持英文
+	zap.S().Info("Stopping gRPC server...")
 	s.srv.GracefulStop()
 	return nil
 }

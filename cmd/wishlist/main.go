@@ -1,95 +1,79 @@
 package main
 
 import (
-	"ecommerce/internal/wishlist/biz"
-	"ecommerce/internal/wishlist/data"
-	"ecommerce/internal/wishlist/service"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"ecommerce/internal/wishlist/handler"
+	"ecommerce/internal/wishlist/repository"
+	"ecommerce/internal/wishlist/service"
 )
 
-// Config holds the application configuration.
-type Config struct {
-	Service  ServiceConfig  `toml:"service"`
-	Database DatabaseConfig `toml:"database"`
-}
-
-type ServiceConfig struct {
-	Port string `toml:"port"`
-}
-
-type DatabaseConfig struct {
-	Host     string `toml:"host"`
-	Port     int    `toml:"port"`
-	User     string `toml:"user"`
-	Password string `toml:"password"`
-	DBName   string `toml:"dbname"`
-}
-
 func main() {
-	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ======== 
-
-	// Load configuration from TOML file
-	var conf Config
-	if _, err := toml.DecodeFile("../../configs/wishlist.toml", &conf); err != nil {
-		log.Fatalf("failed to load config file: %v", err)
+	// 1. 初始化配置和日志
+	viper.SetConfigName("wishlist")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath("./configs")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("读取配置文件失败: %s", err)
 	}
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
 
-	// Construct MySQL DSN (Data Source Name)
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		conf.Database.User,
-		conf.Database.Password,
-		conf.Database.Host,
-		conf.Database.Port,
-		conf.Database.DBName,
-	)
-
-	// Connect to MySQL database
+	// 2. 初始化数据存储
+	dsn := viper.GetString("data.database.dsn")
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		logger.Fatal("连接数据库失败", zap.Error(err))
 	}
 
-	// Auto-migrate the schema
-	err = db.AutoMigrate(&data.WishlistItem{})
-	if err != nil {
-		log.Fatalf("failed to migrate schema: %v", err)
+	// 3. 初始化 gRPC 客户端 (此处省略)
+	// ...
+
+	// 4. 依赖注入
+	wishlistRepo := repository.NewWishlistRepository(db)
+	// 实际应传入 gRPC 客户端
+	wishlistService := service.NewWishlistService(wishlistRepo, logger)
+	wishlistHandler := handler.NewWishlistHandler(wishlistService, logger)
+
+	// 5. 初始化 HTTP 引擎
+	router := gin.Default()
+	wishlistHandler.RegisterRoutes(router)
+
+	// 6. 启动 HTTP 服务器
+	httpAddr := fmt.Sprintf("%s:%d", viper.GetString("server.http.addr"), viper.GetInt("server.http.port"))
+	srv := &http.Server{Addr: httpAddr, Handler: router}
+
+	go func() {
+		logger.Info("HTTP 服务器正在监听", zap.String("address", httpAddr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("HTTP 服务监听失败", zap.Error(err))
+		}
+	}()
+
+	// 7. 优雅停机
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("准备关闭 HTTP 服务器 ...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("HTTP 服务器强制关闭", zap.Error(err))
 	}
 
-	log.Println("Successfully connected to database and migrated schema.")
-
-	// ======== 2. Wire up the application layers (Dependency Injection) ======== 
-
-	dataRepo, cleanup, err := data.NewData(db)
-	if err != nil {
-		log.Fatalf("failed to create data layer: %v", err)
-	}
-	defer cleanup()
-
-	wishlistRepo := data.NewWishlistRepo(dataRepo)
-	wishlistUsecase := biz.NewWishlistUsecase(wishlistRepo)
-	wishlistService := service.NewWishlistService(wishlistUsecase)
-
-	log.Println("Application layers wired successfully.")
-
-	// ======== 3. Start the Server (e.g., HTTP, gRPC) ======== 
-
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fw, _ := fmt.Fprint(w, "OK")
-	})
-
-	portStr := fmt.Sprintf(":%s", conf.Service.Port)
-	log.Printf("Starting HTTP server on port %s", portStr)
-
-	if err := http.ListenAndServe(portStr, nil); err != nil {
-		log.Fatalf("failed to start server: %v", err)
-	}
-
-	_ = wishlistService
+	logger.Info("HTTP 服务器已退出")
 }

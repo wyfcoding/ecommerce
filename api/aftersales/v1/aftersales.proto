@@ -3,122 +3,315 @@ syntax = "proto3";
 package api.aftersales.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/aftersales/v1;v1";
 
-// Aftersales Service
-service Aftersales {
-    // Create a new return request
-    rpc CreateReturnRequest(CreateReturnRequestRequest) returns (CreateReturnRequestResponse);
+// AftersalesService 定义了所有与售后服务相关的RPC接口。
+service AftersalesService {
+  // --- 退货/退款/换货管理 ---
 
-    // Get a return request by ID
-    rpc GetReturnRequest(GetReturnRequestRequest) returns (GetReturnRequestResponse);
+  // CreateReturnRequest 创建一个退货/退款/换货请求。
+  rpc CreateReturnRequest(CreateReturnRequestRequest) returns (ReturnRequestResponse);
+  // GetReturnRequest 获取指定ID的退货/退款/换货请求详情。
+  rpc GetReturnRequest(GetReturnRequestRequest) returns (ReturnRequestResponse);
+  // UpdateReturnRequestStatus 更新退货/退款/换货请求的状态。
+  rpc UpdateReturnRequestStatus(UpdateReturnRequestStatusRequest) returns (ReturnRequestResponse);
+  // ListReturnRequests 获取退货/退款/换货请求列表。
+  rpc ListReturnRequests(ListReturnRequestsRequest) returns (ListReturnRequestsResponse);
+  // ProcessRefund 处理退款。
+  rpc ProcessRefund(ProcessRefundRequest) returns (RefundResponse);
+  // ProcessExchange 处理换货。
+  rpc ProcessExchange(ProcessExchangeRequest) returns (ExchangeResponse);
 
-    // Update a return request status
-    rpc UpdateReturnRequestStatus(UpdateReturnRequestStatusRequest) returns (UpdateReturnRequestStatusResponse);
+  // --- 客户支持工单管理 ---
 
-    // Create a new refund request
-    rpc CreateRefundRequest(CreateRefundRequestRequest) returns (CreateRefundRequestResponse);
+  // CreateSupportTicket 创建一个客户支持工单。
+  rpc CreateSupportTicket(CreateSupportTicketRequest) returns (SupportTicketResponse);
+  // GetSupportTicket 获取指定ID的客户支持工单详情。
+  rpc GetSupportTicket(GetSupportTicketRequest) returns (SupportTicketResponse);
+  // UpdateSupportTicketStatus 更新客户支持工单的状态。
+  rpc UpdateSupportTicketStatus(UpdateSupportTicketStatusRequest) returns (SupportTicketResponse);
+  // AddSupportTicketMessage 为客户支持工单添加消息。
+  rpc AddSupportTicketMessage(AddSupportTicketMessageRequest) returns (SupportTicketMessageResponse);
+  // ListSupportTickets 获取客户支持工单列表。
+  rpc ListSupportTickets(ListSupportTicketsRequest) returns (ListSupportTicketsResponse);
+  // ListSupportTicketMessages 获取客户支持工单的消息列表。
+  rpc ListSupportTicketMessages(ListSupportTicketMessagesRequest) returns (ListSupportTicketMessagesResponse);
 
-    // Get a refund request by ID
-    rpc GetRefundRequest(GetRefundRequestRequest) returns (GetRefundRequestResponse);
+  // --- 售后服务配置 ---
 
-    // Update a refund request status
-    rpc UpdateRefundRequestStatus(UpdateRefundRequestStatusRequest) returns (UpdateRefundRequestStatusResponse);
+  // GetAftersalesConfig 获取售后服务配置。
+  rpc GetAftersalesConfig(GetAftersalesConfigRequest) returns (AftersalesConfigResponse);
+  // SetAftersalesConfig 设置售后服务配置。
+  rpc SetAftersalesConfig(SetAftersalesConfigRequest) returns (AftersalesConfigResponse);
 }
 
-// Represents a return request
+// --- 消息定义 ---
+
+// ReturnRequestType 退货/退款/换货请求类型。
+enum ReturnRequestType {
+  RETURN_REQUEST_TYPE_UNSPECIFIED = 0; // 未指定
+  RETURN_REQUEST_TYPE_RETURN = 1;      // 退货
+  RETURN_REQUEST_TYPE_REFUND = 2;      // 退款 (仅退款，不退货)
+  RETURN_REQUEST_TYPE_EXCHANGE = 3;    // 换货
+}
+
+// ReturnRequestStatus 退货/退款/换货请求状态。
+enum ReturnRequestStatus {
+  RETURN_REQUEST_STATUS_UNSPECIFIED = 0; // 未指定
+  RETURN_REQUEST_STATUS_PENDING = 1;     // 待处理
+  RETURN_REQUEST_STATUS_APPROVED = 2;    // 已批准
+  RETURN_REQUEST_STATUS_REJECTED = 3;    // 已拒绝
+  RETURN_REQUEST_STATUS_SHIPPED_BACK = 4; // 已寄回
+  RETURN_REQUEST_STATUS_RECEIVED = 5;    // 已收到退货
+  RETURN_REQUEST_STATUS_REFUNDED = 6;    // 已退款
+  RETURN_REQUEST_STATUS_EXCHANGED = 7;   // 已换货
+  RETURN_REQUEST_STATUS_CLOSED = 8;      // 已关闭
+}
+
+// ReturnRequest 代表一个退货/退款/换货请求。
 message ReturnRequest {
-    string id = 1;
-    string order_id = 2;
-    string user_id = 3;
-    string product_id = 4;
-    int32 quantity = 5;
-    string reason = 6;
-    string status = 7; // e.g., PENDING, APPROVED, REJECTED, RECEIVED, REFUNDED
-    google.protobuf.Timestamp created_at = 8;
-    google.protobuf.Timestamp updated_at = 9;
+  uint64 id = 1; // 请求ID
+  uint64 user_id = 2; // 用户ID
+  uint64 order_id = 3; // 订单ID
+  uint64 order_item_id = 4; // 订单项ID
+  ReturnRequestType request_type = 5; // 请求类型
+  ReturnRequestStatus status = 6; // 请求状态
+  string reason = 7; // 请求原因
+  string description = 8; // 详细描述
+  repeated string image_urls = 9; // 相关图片URL
+  double refund_amount = 10; // 实际退款金额
+  string tracking_number = 11; // 退货物流单号
+  string return_address = 12; // 退货地址
+  google.protobuf.Timestamp created_at = 13; // 创建时间
+  google.protobuf.Timestamp updated_at = 14; // 更新时间
 }
 
-// Represents a refund request
-message RefundRequest {
-    string id = 1;
-    string return_request_id = 2;
-    string order_id = 3;
-    string user_id = 4;
-    double amount = 5;
-    string currency = 6;
-    string status = 7; // e.g., PENDING, APPROVED, REJECTED, COMPLETED
-    google.protobuf.Timestamp created_at = 8;
-    google.protobuf.Timestamp updated_at = 9;
-}
-
-// Request to create a return request
+// CreateReturnRequestRequest 创建退货/退款/换货请求。
 message CreateReturnRequestRequest {
-    string order_id = 1;
-    string user_id = 2;
-    string product_id = 3;
-    int32 quantity = 4;
-    string reason = 5;
+  uint64 user_id = 1;
+  uint64 order_id = 2;
+  uint64 order_item_id = 3;
+  ReturnRequestType request_type = 4;
+  string reason = 5;
+  optional string description = 6;
+  repeated string image_urls = 7;
 }
 
-// Response for creating a return request
-message CreateReturnRequestResponse {
-    ReturnRequest request = 1;
-}
-
-// Request to get a return request
+// GetReturnRequestRequest 获取退货/退款/换货请求详情。
 message GetReturnRequestRequest {
-    string id = 1;
+  uint64 id = 1;
 }
 
-// Response for getting a return request
-message GetReturnRequestResponse {
-    ReturnRequest request = 1;
-}
-
-// Request to update a return request status
+// UpdateReturnRequestStatusRequest 更新退货/退款/换货请求状态。
 message UpdateReturnRequestStatusRequest {
-    string id = 1;
-    string status = 2;
+  uint64 id = 1;
+  ReturnRequestStatus status = 2;
+  optional string admin_note = 3; // 管理员备注
+  optional double refund_amount = 4; // 最终退款金额
+  optional string tracking_number = 5; // 退货物流单号
 }
 
-// Response for updating a return request status
-message UpdateReturnRequestStatusResponse {
-    ReturnRequest request = 1;
+// ListReturnRequestsRequest 获取退货/退款/换货请求列表。
+message ListReturnRequestsRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+  optional uint64 user_id = 3;
+  optional uint64 order_id = 4;
+  optional ReturnRequestType request_type = 5;
+  optional ReturnRequestStatus status = 6;
+  optional google.protobuf.Timestamp start_date = 7;
+  optional google.protobuf.Timestamp end_date = 8;
 }
 
-// Request to create a refund request
-message CreateRefundRequestRequest {
-    string return_request_id = 1;
-    string order_id = 2;
-    string user_id = 3;
-    double amount = 4;
-    string currency = 5;
+// ListReturnRequestsResponse 获取退货/退款/换货请求列表响应。
+message ListReturnRequestsResponse {
+  repeated ReturnRequest requests = 1;
+  int32 total_count = 2;
+  int32 next_page_token = 3;
 }
 
-// Response for creating a refund request
-message CreateRefundRequestResponse {
-    RefundRequest request = 1;
+// ReturnRequestResponse 退货/退款/换货请求响应。
+message ReturnRequestResponse {
+  ReturnRequest request = 1;
 }
 
-// Request to get a refund request
-message GetRefundRequestRequest {
-    string id = 1;
+// RefundResponse 退款响应。
+message RefundResponse {
+  uint64 refund_id = 1;
+  uint64 return_request_id = 2;
+  double amount = 3;
+  string currency = 4;
+  string status = 5; // 例如: "PENDING", "SUCCESS", "FAILED"
+  google.protobuf.Timestamp created_at = 6;
 }
 
-// Response for getting a refund request
-message GetRefundRequestResponse {
-    RefundRequest request = 1;
+// ProcessRefundRequest 处理退款请求。
+message ProcessRefundRequest {
+  uint64 return_request_id = 1;
+  double amount = 2;
+  string currency = 3;
+  optional string payment_transaction_id = 4; // 支付系统交易ID
 }
 
-// Request to update a refund request status
-message UpdateRefundRequestStatusRequest {
-    string id = 1;
-    string status = 2;
+// ExchangeResponse 换货响应。
+message ExchangeResponse {
+  uint64 exchange_id = 1;
+  uint64 return_request_id = 2;
+  uint64 new_order_id = 3; // 新生成的订单ID
+  string status = 4; // 例如: "PENDING", "SHIPPED", "COMPLETED"
+  google.protobuf.Timestamp created_at = 5;
 }
 
-// Response for updating a refund request status
-message UpdateRefundRequestStatusResponse {
-    RefundRequest request = 1;
+// ProcessExchangeRequest 处理换货请求。
+message ProcessExchangeRequest {
+  uint64 return_request_id = 1;
+  uint64 new_product_id = 2; // 换货的新商品ID
+  int32 new_quantity = 3; // 换货的新商品数量
+  optional string shipping_address = 4; // 新商品的收货地址
+}
+
+// SupportTicketStatus 客户支持工单状态。
+enum SupportTicketStatus {
+  SUPPORT_TICKET_STATUS_UNSPECIFIED = 0; // 未指定
+  SUPPORT_TICKET_STATUS_OPEN = 1;        // 开放
+  SUPPORT_TICKET_STATUS_IN_PROGRESS = 2; // 处理中
+  SUPPORT_TICKET_STATUS_RESOLVED = 3;    // 已解决
+  SUPPORT_TICKET_STATUS_CLOSED = 4;      // 已关闭
+}
+
+// SupportTicketPriority 客户支持工单优先级。
+enum SupportTicketPriority {
+  SUPPORT_TICKET_PRIORITY_UNSPECIFIED = 0; // 未指定
+  SUPPORT_TICKET_PRIORITY_LOW = 1;         // 低
+  SUPPORT_TICKET_PRIORITY_MEDIUM = 2;      // 中
+  SUPPORT_TICKET_PRIORITY_HIGH = 3;        // 高
+  SUPPORT_TICKET_PRIORITY_URGENT = 4;      // 紧急
+}
+
+// SupportTicket 代表一个客户支持工单。
+message SupportTicket {
+  uint64 id = 1; // 工单ID
+  uint64 user_id = 2; // 用户ID
+  optional uint64 order_id = 3; // 相关订单ID
+  string subject = 4; // 主题
+  SupportTicketStatus status = 5; // 状态
+  SupportTicketPriority priority = 6; // 优先级
+  optional uint64 assigned_to_admin_user_id = 7; // 分配给的管理员用户ID
+  google.protobuf.Timestamp created_at = 8; // 创建时间
+  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  google.protobuf.Timestamp resolved_at = 10; // 解决时间
+}
+
+// CreateSupportTicketRequest 创建客户支持工单请求。
+message CreateSupportTicketRequest {
+  uint64 user_id = 1;
+  optional uint64 order_id = 2;
+  string subject = 3;
+  string initial_message = 4; // 初始消息内容
+  repeated string attachment_urls = 5; // 附件URL
+  optional SupportTicketPriority priority = 6; // 优先级，默认为中
+}
+
+// GetSupportTicketRequest 获取客户支持工单详情。
+message GetSupportTicketRequest {
+  uint64 id = 1;
+}
+
+// UpdateSupportTicketStatusRequest 更新客户支持工单状态。
+message UpdateSupportTicketStatusRequest {
+  uint64 id = 1;
+  SupportTicketStatus status = 2;
+  optional uint64 assigned_to_admin_user_id = 3; // 分配给的管理员用户ID
+  optional SupportTicketPriority priority = 4; // 优先级
+}
+
+// AddSupportTicketMessageRequest 为客户支持工单添加消息。
+message AddSupportTicketMessageRequest {
+  uint64 ticket_id = 1;
+  uint64 sender_id = 2; // 发送者ID (用户ID或管理员ID)
+  bool is_admin_sender = 3; // 是否是管理员发送
+  string content = 4; // 消息内容
+  repeated string attachment_urls = 5; // 附件URL
+}
+
+// SupportTicketMessage 代表客户支持工单中的一条消息。
+message SupportTicketMessage {
+  uint64 id = 1; // 消息ID
+  uint64 ticket_id = 2; // 工单ID
+  uint64 sender_id = 3; // 发送者ID
+  bool is_admin_sender = 4; // 是否是管理员发送
+  string content = 5; // 消息内容
+  repeated string attachment_urls = 6; // 附件URL
+  google.protobuf.Timestamp created_at = 7; // 创建时间
+}
+
+// ListSupportTicketsRequest 获取客户支持工单列表。
+message ListSupportTicketsRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+  optional uint64 user_id = 3;
+  optional SupportTicketStatus status = 4;
+  optional SupportTicketPriority priority = 5;
+  optional uint64 assigned_to_admin_user_id = 6;
+  optional string subject_keyword = 7;
+  optional google.protobuf.Timestamp start_date = 8;
+  optional google.protobuf.Timestamp end_date = 9;
+}
+
+// ListSupportTicketsResponse 获取客户支持工单列表响应。
+message ListSupportTicketsResponse {
+  repeated SupportTicket tickets = 1;
+  int32 total_count = 2;
+  int32 next_page_token = 3;
+}
+
+// ListSupportTicketMessagesRequest 获取客户支持工单的消息列表。
+message ListSupportTicketMessagesRequest {
+  uint64 ticket_id = 1;
+  int32 page_size = 2;
+  int32 page_token = 3;
+}
+
+// ListSupportTicketMessagesResponse 获取客户支持工单的消息列表响应。
+message ListSupportTicketMessagesResponse {
+  repeated SupportTicketMessage messages = 1;
+  int32 total_count = 2;
+  int32 next_page_token = 3;
+}
+
+// SupportTicketResponse 客户支持工单响应。
+message SupportTicketResponse {
+  SupportTicket ticket = 1;
+}
+
+// SupportTicketMessageResponse 客户支持工单消息响应。
+message SupportTicketMessageResponse {
+  SupportTicketMessage message = 1;
+}
+
+// AftersalesConfig 代表售后服务配置。
+message AftersalesConfig {
+  string key = 1; // 配置项键
+  string value = 2; // 配置项值
+  string description = 3; // 配置项描述
+  google.protobuf.Timestamp updated_at = 4; // 更新时间
+}
+
+// GetAftersalesConfigRequest 获取售后服务配置请求。
+message GetAftersalesConfigRequest {
+  string key = 1;
+}
+
+// AftersalesConfigResponse 售后服务配置响应。
+message AftersalesConfigResponse {
+  AftersalesConfig config = 1;
+}
+
+// SetAftersalesConfigRequest 设置售后服务配置请求。
+message SetAftersalesConfigRequest {
+  string key = 1;
+  string value = 2;
+  string description = 3;
 }

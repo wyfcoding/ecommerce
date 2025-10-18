@@ -1,15 +1,33 @@
-# Aftersales Service Configuration
-[service]
-name = "aftersales"
-version = "1.0.0"
-port = 8087
+# 售后服务基础配置
+[server.http]
+addr = "0.0.0.0"
+port = 8091
+timeout = "2s"
 
-[database]
-host = "localhost"
-port = 3306
-user = "root"
-password = "password"
-dbname = "aftersales_db"
+[server.grpc]
+addr = "0.0.0.0"
+port = 9102
+timeout = "2s"
 
-[logging]
-level = "info"
+# 数据库配置 (用于存储售后申请单)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_aftersales?charset=utf8mb4&parseTime=True&loc=Local"
+
+# 依赖的下游服务 gRPC 地址
+[dependencies]
+order_service_grpc_addr = "localhost:9093"
+payment_service_grpc_addr = "localhost:9094"
+inventory_service_grpc_addr = "localhost:9096"
+logistics_service_grpc_addr = "localhost:9097"
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "aftersales-service"
+
+# 日志配置
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

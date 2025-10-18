@@ -2,26 +2,22 @@ syntax = "proto3";
 
 package api.gateway.v1;
 
+import "google/protobuf/empty.proto";
+
 option go_package = "ecommerce/api/gateway/v1;v1";
 
-// GatewayService 定义了API网关服务接口
-service GatewayService {
-  // 通用请求处理入口
-  rpc HandleRequest(HandleRequestRequest) returns (HandleRequestResponse);
+// Gateway 网关服务定义了所有与API网关相关的RPC接口。
+service Gateway {
+  // --- 核心网关接口 ---
+
+  // HealthCheck 健康检查接口。
+  rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
 }
 
-// HandleRequestRequest 通用请求处理请求
-message HandleRequestRequest {
-  string method = 1; // HTTP方法，如 GET, POST
-  string path = 2;   // 请求路径，如 /v1/products/123
-  string body = 3;   // 请求体 (JSON字符串)
-  map<string, string> headers = 4; // 请求头
-  string access_token = 5; // 访问令牌
-}
+// --- 消息定义 ---
 
-// HandleRequestResponse 通用请求处理响应
-message HandleRequestResponse {
-  int32 status_code = 1; // HTTP状态码
-  string response_body = 2; // 响应体 (JSON字符串)
-  map<string, string> headers = 3; // 响应头
+// HealthCheckResponse 健康检查响应消息。
+message HealthCheckResponse {
+  string status = 1; // e.g., "UP", "DOWN"
+  string message = 2;
 }

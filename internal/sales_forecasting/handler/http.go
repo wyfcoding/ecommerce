@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -12,31 +13,36 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	v1 "ecommerce/api/sales_forecasting/v1"
+	"ecommerce/internal/sales_forecasting/service"
 	"ecommerce/pkg/logging"
 )
 
 // StartHTTPServer starts the HTTP Gateway, which proxies HTTP requests to gRPC services.
-func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+func StartHTTPServer(svc *service.SalesForecastingService, addr string, port int) (*http.Server, chan error) {
 	errChan := make(chan error, 1)
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	grpcEndpoint := fmt.Sprintf("%s:%d", grpcAddr, grpcPort)
+	grpcEndpoint := fmt.Sprintf("%s:%d", addr, port)
 
-	err := v1.RegisterSalesForecastingServiceHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
+	err := v1.RegisterSalesForecastingServiceHandlerFromEndpoint(context.Background(), mux, grpcEndpoint, opts)
 	if err != nil {
 		errChan <- fmt.Errorf("failed to register gRPC gateway for SalesForecastingService: %w", err)
 		return nil, errChan
 	}
 
 	r := gin.Default()
-	r.Use(logging.GinLogger(zap.L()), gin.Recovery())
+	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // Use project's GinLogger
+
 	// Add service-specific Gin routes here
-	// For example:
-	// r.GET("/sales_forecasting/forecast", handler.GetSalesForecast)
+	api := r.Group("/api/v1/sales-forecasting")
+	{
+		api.GET("/products/:product_id", getProductSalesForecastHandler(svc))
+		api.POST("/models/train", trainSalesForecastModelHandler(svc))
+	}
 
 	r.Any("/*any", gin.WrapH(mux))
 
-	httpEndpoint := fmt.Sprintf("%s:%d", httpAddr, httpPort)
+	httpEndpoint := fmt.Sprintf("%s:%d", addr, port)
 	server := &http.Server{
 		Addr:    httpEndpoint,
 		Handler: r,
@@ -50,4 +56,49 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		close(errChan)
 	}()
 	return server, errChan
+}
+
+func getProductSalesForecastHandler(s *service.SalesForecastingService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		productID, err := strconv.ParseUint(c.Param("product_id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
+			return
+		}
+		forecastDays, err := strconv.ParseUint(c.DefaultQuery("forecast_days", "7"), 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid forecast days"})
+			return
+		}
+
+		forecasts, err := s.GetProductSalesForecast(c.Request.Context(), productID, uint32(forecastDays))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, forecasts)
+	}
+}
+
+func trainSalesForecastModelHandler(s *service.SalesForecastingService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			ModelName  string            `json:"model_name"`
+			DataSource string            `json:"data_source"`
+			Parameters map[string]string `json:"parameters"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		jobID, status, err := s.TrainSalesForecastModel(c.Request.Context(), req.ModelName, req.DataSource, req.Parameters)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"job_id": jobID, "status": status})
+	}
 }

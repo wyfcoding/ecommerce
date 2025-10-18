@@ -2,157 +2,92 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
-	"ecommerce/internal/payment/biz"
-	"ecommerce/internal/payment/data"
-	paymenthandler "ecommerce/internal/payment/handler"
+	"ecommerce/internal/payment/handler"
+	"ecommerce/internal/payment/repository"
 	"ecommerce/internal/payment/service"
-	"ecommerce/pkg/database/redis"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
+	// 伪代码: "ecommerce/pkg/middleware"
 )
 
-// Config 结构体用于映射 TOML 配置文件
-type Config struct {
-	Server struct {
-		HTTP struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
-	Data struct {
-		Database struct {
-			DSN string `toml:"dsn"`
-		} `toml:"database"`
-		Redis struct {
-			Addr         string        `toml:"addr"`
-			Password     string        `toml:"password"`
-			DB           int           `toml:"db"`
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
-	} `toml:"data"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
-}
-
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/payment.toml", "config file path")
-	flag.Parse()
-
-	config, err := loadConfig(configPath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+	// 1. 初始化配置
+	vm := viper.New()
+	vm.SetConfigName("payment")
+	vm.SetConfigType("toml")
+	vm.AddConfigPath("./configs")
+	if err := vm.ReadInConfig(); err != nil {
+		log.Fatalf("读取配置文件失败: %s \n", err)
 	}
 
 	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger)
-
-	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
-	}
-
-	// 4. 依赖注入 (DI)
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
+	logger, err := zap.NewProduction()
 	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
+		log.Fatalf("初始化 Zap logger 失败: %v", err)
 	}
-	defer cleanup()
+	defer logger.Sync()
 
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
-	})
+	// 3. 初始化数据存储
+	dsn := vm.GetString("data.database.dsn")
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer redisCleanup()
-
-	// 初始化业务层
-	paymentRepo := data.NewPaymentRepo(dataInstance, redisClient)
-	paymentUsecase := biz.NewPaymentUsecase(paymentRepo)
-
-	// 初始化服务层
-	paymentService := service.NewPaymentService(paymentUsecase)
-
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := paymenthandler.StartGRPCServer(paymentService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := paymenthandler.StartHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
+		logger.Fatal("连接数据库失败", zap.Error(err))
 	}
 
-	// 6. 等待中断信号或服务器错误以实现优雅停机
+	// 4. 初始化第三方 SDK、gRPC 客户端、消息队列等 (此处省略)
+	// ...
+
+	// 5. 依赖注入
+	paymentRepo := repository.NewPaymentRepository(db)
+	// 实际应传入支付网关客户端和 MQ 生产者
+	paymentService := service.NewPaymentService(paymentRepo, logger)
+	paymentHandler := handler.NewPaymentHandler(paymentService, logger)
+
+	// 6. 初始化 HTTP 引擎 (Gin)
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(gin.Recovery())
+
+	// 注册路由
+	// 注意：部分路由需要认证中间件，部分（webhook）则不需要
+	paymentHandler.RegisterRoutes(router)
+
+	// 7. 启动 HTTP 服务器
+	httpAddr := fmt.Sprintf("%s:%d", vm.GetString("server.http.addr"), vm.GetInt("server.http.port"))
+	srv := &http.Server{
+		Addr:    httpAddr,
+		Handler: router,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("HTTP 服务监听失败", zap.Error(err))
+		}
+	}()
+
+	// 8. 优雅停机
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-
+	logger.Info("准备关闭服务器 ...")
 
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down payment service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down payment service due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down payment service due to HTTP error...")
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("服务器强制关闭: ", zap.Error(err))
 	}
-}
 
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &config, nil
+	logger.Info("服务器已退出")
 }
-
-// startGRPCServer 启动 gRPC 服务器

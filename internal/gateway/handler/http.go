@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
@@ -34,55 +31,13 @@ import (
 	riskSecurityV1 "ecommerce/api/risk_security/v1"
 	settlementV1 "ecommerce/api/settlement/v1"
 	userV1 "ecommerce/api/user/v1"
-	"ecommerce/internal/gateway/internal/middleware"
 	"ecommerce/pkg/logging"
 )
 
-// Config 结构体用于映射 gateway.toml 配置文件
-type Config struct {
-	Server struct {
-		HTTP struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-	} `toml:"server"`
-	JWT struct {
-		Secret string `toml:"secret"`
-	} `toml:"jwt"`
-	Services map[string]struct {
-		Addr string `toml:"addr"`
-	} `toml:"services"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
-}
-
-// StartHTTPServer 启动 HTTP 服务器
-func StartHTTPServer(addr string, port int, handler http.Handler) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	httpEndpoint := fmt.Sprintf("%s:%d", addr, port)
-	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: handler,
-	}
-
-	zap.S().Infof("API Gateway listening on %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
-}
-
 // RegisterServiceHandlers 动态注册所有 gRPC 服务处理器
-func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, config *Config, opts []grpc.DialOption) {
+func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, servicesConfig map[string]struct{ Addr string }, opts []grpc.DialOption) {
 	// 注册用户服务
-	if userService, ok := config.Services["user"]; ok {
+	if userService, ok := servicesConfig["user"]; ok {
 		if err := userV1.RegisterUserHandlerFromEndpoint(ctx, gwmux, userService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register user service: %v", err)
 		}
@@ -90,7 +45,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册商品服务
-	if productService, ok := config.Services["product"]; ok {
+	if productService, ok := servicesConfig["product"]; ok {
 		if err := productV1.RegisterProductHandlerFromEndpoint(ctx, gwmux, productService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register product service: %v", err)
 		}
@@ -98,7 +53,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册购物车服务
-	if cartService, ok := config.Services["cart"]; ok {
+	if cartService, ok := servicesConfig["cart"]; ok {
 		if err := cartV1.RegisterCartHandlerFromEndpoint(ctx, gwmux, cartService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register cart service: %v", err)
 		}
@@ -106,7 +61,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册订单服务
-	if orderService, ok := config.Services["order"]; ok {
+	if orderService, ok := servicesConfig["order"]; ok {
 		if err := orderV1.RegisterOrderHandlerFromEndpoint(ctx, gwmux, orderService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register order service: %v", err)
 		}
@@ -114,7 +69,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册管理服务
-	if adminService, ok := config.Services["admin"]; ok {
+	if adminService, ok := servicesConfig["admin"]; ok {
 		if err := adminV1.RegisterAdminHandlerFromEndpoint(ctx, gwmux, adminService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register admin service: %v", err)
 		}
@@ -122,7 +77,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册营销服务
-	if marketingService, ok := config.Services["marketing"]; ok {
+	if marketingService, ok := servicesConfig["marketing"]; ok {
 		if err := marketingV1.RegisterMarketingHandlerFromEndpoint(ctx, gwmux, marketingService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register marketing service: %v", err)
 		}
@@ -130,7 +85,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册资产服务
-	if assetService, ok := config.Services["asset"]; ok {
+	if assetService, ok := servicesConfig["asset"]; ok {
 		if err := assetV1.RegisterAssetServiceHandlerFromEndpoint(ctx, gwmux, assetService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register asset service: %v", err)
 		}
@@ -138,7 +93,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册分析服务
-	if analyticsService, ok := config.Services["analytics"]; ok {
+	if analyticsService, ok := servicesConfig["analytics"]; ok {
 		if err := analyticsV1.RegisterAnalyticsServiceHandlerFromEndpoint(ctx, gwmux, analyticsService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register analytics service: %v", err)
 		}
@@ -146,7 +101,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册数据摄取服务
-	if dataIngestionService, ok := config.Services["data_ingestion"]; ok {
+	if dataIngestionService, ok := servicesConfig["data_ingestion"]; ok {
 		if err := dataIngestionV1.RegisterDataIngestionServiceHandlerFromEndpoint(ctx, gwmux, dataIngestionService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register data ingestion service: %v", err)
 		}
@@ -154,7 +109,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册数据处理服务
-	if dataProcessingService, ok := config.Services["data_processing"]; ok {
+	if dataProcessingService, ok := servicesConfig["data_processing"]; ok {
 		if err := dataProcessingV1.RegisterDataProcessingServiceHandlerFromEndpoint(ctx, gwmux, dataProcessingService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register data processing service: %v", err)
 		}
@@ -162,7 +117,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册认证服务
-	if authService, ok := config.Services["auth"]; ok {
+	if authService, ok := servicesConfig["auth"]; ok {
 		if err := authV1.RegisterAuthServiceHandlerFromEndpoint(ctx, gwmux, authService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register auth service: %v", err)
 		}
@@ -170,7 +125,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册定价服务
-	if pricingService, ok := config.Services["pricing"]; ok {
+	if pricingService, ok := servicesConfig["pricing"]; ok {
 		if err := pricingV1.RegisterPricingServiceHandlerFromEndpoint(ctx, gwmux, pricingService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register pricing service: %v", err)
 		}
@@ -178,7 +133,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册物流服务
-	if logisticsService, ok := config.Services["logistics"]; ok {
+	if logisticsService, ok := servicesConfig["logistics"]; ok {
 		if err := logisticsV1.RegisterLogisticsServiceHandlerFromEndpoint(ctx, gwmux, logisticsService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register logistics service: %v", err)
 		}
@@ -186,7 +141,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册库存服务
-	if inventoryService, ok := config.Services["inventory"]; ok {
+	if inventoryService, ok := servicesConfig["inventory"]; ok {
 		if err := inventoryV1.RegisterInventoryServiceHandlerFromEndpoint(ctx, gwmux, inventoryService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register inventory service: %v", err)
 		}
@@ -194,7 +149,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册支付服务
-	if paymentService, ok := config.Services["payment"]; ok {
+	if paymentService, ok := servicesConfig["payment"]; ok {
 		if err := paymentV1.RegisterPaymentServiceHandlerFromEndpoint(ctx, gwmux, paymentService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register payment service: %v", err)
 		}
@@ -202,7 +157,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册客户服务
-	if customerService, ok := config.Services["customer_service"]; ok {
+	if customerService, ok := servicesConfig["customer_service"]; ok {
 		if err := customerServiceV1.RegisterCustomerServiceHandlerFromEndpoint(ctx, gwmux, customerService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register customer service: %v", err)
 		}
@@ -210,7 +165,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册风控与安全服务
-	if riskSecurityService, ok := config.Services["risk_security"]; ok {
+	if riskSecurityService, ok := servicesConfig["risk_security"]; ok {
 		if err := riskSecurityV1.RegisterRiskSecurityServiceHandlerFromEndpoint(ctx, gwmux, riskSecurityService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register risk security service: %v", err)
 		}
@@ -218,7 +173,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册结算服务
-	if settlementService, ok := config.Services["settlement"]; ok {
+	if settlementService, ok := servicesConfig["settlement"]; ok {
 		if err := settlementV1.RegisterSettlementServiceHandlerFromEndpoint(ctx, gwmux, settlementService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register settlement service: %v", err)
 		}
@@ -226,7 +181,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册通知服务
-	if notificationService, ok := config.Services["notification"]; ok {
+	if notificationService, ok := servicesConfig["notification"]; ok {
 		if err := notificationV1.RegisterNotificationServiceHandlerFromEndpoint(ctx, gwmux, notificationService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register notification service: %v", err)
 		}
@@ -234,7 +189,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册配置服务
-	if configService, ok := config.Services["config"]; ok {
+	if configService, ok := servicesConfig["config"]; ok {
 		if err := configV1.RegisterConfigServiceHandlerFromEndpoint(ctx, gwmux, configService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register config service: %v", err)
 		}
@@ -242,7 +197,7 @@ func RegisterServiceHandlers(ctx context.Context, gwmux *runtime.ServeMux, confi
 	}
 
 	// 注册推荐服务 (already had productV1, but this is the correct one)
-	if recommendationService, ok := config.Services["recommendation"]; ok {
+	if recommendationService, ok := servicesConfig["recommendation"]; ok {
 		if err := recommendationV1.RegisterRecommendationServiceHandlerFromEndpoint(ctx, gwmux, recommendationService.Addr, opts); err != nil {
 			zap.S().Fatalf("failed to register recommendation service: %v", err)
 		}

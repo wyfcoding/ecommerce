@@ -1,0 +1,72 @@
+# deployments/kubernetes/analytics.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-service
+  labels:
+    app: analytics
+spec:
+  type: ClusterIP
+  selector:
+    app: analytics
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8092
+      targetPort: 8092
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-deployment
+  labels:
+    app: analytics
+spec:
+  replicas: 1 # 分析服务的数据写入是幂等的，可以部署多个，但查询部分通常是单个实例
+  selector:
+    matchLabels:
+      app: analytics
+  template:
+    metadata:
+      labels:
+        app: analytics
+    spec:
+      containers:
+        - name: analytics-service
+          image: your-docker-registry/ecommerce-analytics-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8092
+              name: http
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi" # 数据处理可能需要更多内存
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: analytics_dsn # 指向 ClickHouse 的 DSN
+            - name: MQ_URL
+              value: "amqp://guest:guest@rabbitmq-service:5672/"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 25

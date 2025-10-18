@@ -2,157 +2,87 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
-	"ecommerce/internal/notification/biz"
-	"ecommerce/internal/notification/data"
-	notificationhandler "ecommerce/internal/notification/handler"
+	"ecommerce/internal/notification/repository"
 	"ecommerce/internal/notification/service"
-	"ecommerce/pkg/database/redis"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
+	// 伪代码: 模拟 MQ 消费者
+	// "ecommerce/pkg/mq/consumer"
 )
 
-// Config 结构体用于映射 TOML 配置文件
-type Config struct {
-	Server struct {
-		HTTP struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
-	Data struct {
-		Database struct {
-			DSN string `toml:"dsn"`
-		} `toml:"database"`
-		Redis struct {
-			Addr         string        `toml:"addr"`
-			Password     string        `toml:"password"`
-			DB           int           `toml:"db"`
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
-	} `toml:"data"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
-}
-
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/notification.toml", "config file path")
-	flag.Parse()
-
-	config, err := loadConfig(configPath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+	// 1. 初始化配置
+	vper.SetConfigName("notification")
+	vper.SetConfigType("toml")
+	vper.AddConfigPath("./configs")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("读取配置文件失败: %s \n", err)
 	}
 
 	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger)
-
-	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
-	}
-
-	// 4. 依赖注入 (DI)
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
+	logger, err := zap.NewProduction()
 	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
+		log.Fatalf("初始化 Zap logger 失败: %v", err)
 	}
-	defer cleanup()
+	defer logger.Sync()
 
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
-	})
+	// 3. 初始化数据存储
+	dsn := viper.GetString("data.database.dsn")
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer redisCleanup()
-
-	// 初始化业务层
-	notificationRepo := data.NewNotificationRepo(dataInstance, redisClient)
-	notificationUsecase := biz.NewNotificationUsecase(notificationRepo)
-
-	// 初始化服务层
-	notificationService := service.NewNotificationService(notificationUsecase)
-
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := notificationhandler.StartGRPCServer(notificationService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := notificationhandler.StartHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
+		logger.Fatal("连接数据库失败", zap.Error(err))
 	}
 
-	// 6. 等待中断信号或服务器错误以实现优雅停机
+	// 4. 初始化第三方 SDK (Email, SMS, Push 客户端)
+	// ...
+
+	// 5. 依赖注入
+	notiRepo := repository.NewNotificationRepository(db)
+	// 实际应传入各通知渠道的客户端
+	notiService := service.NewNotificationService(notiRepo, logger)
+
+	// 6. 初始化并启动消息队列消费者
+	// 这是此服务的核心驱动力
+	// mqConsumer, err := consumer.NewRabbitMQConsumer(viper.GetString("mq.url"))
+	// if err != nil {
+	// 	 logger.Fatal("连接消息队列失败", zap.Error(err))
+	// }
+
+	// 获取要消费的队列列表
+	// consumerQueues := viper.Get("mq.consumer_queues")
+	// for _, q := range consumerQueues...
+	// 	 go func(queueName, exchangeName, routingKey string) {
+	// 		 handler := func(eventType string, body []byte) error {
+	// 			 return notiService.ProcessEvent(context.Background(), eventType, body)
+	// 		 }
+	// 		 if err := mqConsumer.StartConsuming(queueName, exchangeName, routingKey, handler); err != nil {
+	// 			 logger.Error("启动消费者失败", zap.String("queue", queueName), zap.Error(err))
+	// 		 }
+	// 	}(q...)
+	// }
+	logger.Info("消息队列消费者已启动 (模拟)")
+
+	// 7. (可选) 启动 gRPC 服务器
+	// ...
+
+	// 8. 优雅停机
+	// 程序将持续运行，直到接收到终止信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("准备关闭服务 ...")
 
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down notification service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down notification service due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down notification service due to HTTP error...")
-	}
+	// 关闭消费者和服务器
+	// mqConsumer.Stop()
+	// grpcServer.GracefulStop()
 
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
+	logger.Info("服务已退出")
 }
-
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &config, nil
-}
-
-// startGRPCServer 启动 gRPC 服务器

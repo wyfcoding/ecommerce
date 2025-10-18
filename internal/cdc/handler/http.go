@@ -12,11 +12,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	v1 "ecommerce/api/cdc/v1"
+	"ecommerce/internal/cdc/service"
 	"ecommerce/pkg/logging"
 )
 
 // StartHTTPServer 启动 HTTP Gateway
-func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int, cdcService *service.CdcService) (*http.Server, chan error) {
 	errChan := make(chan error, 1)
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -30,9 +31,12 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // Use project's GinLogger
+
 	// Add service-specific Gin routes here
-	// For example:
-	// r.GET("/cdc/events", handler.GetCdcEvents)
+	api := r.Group("/api/v1/cdc")
+	{
+		api.POST("/events", captureChangeEventHandler(cdcService))
+	}
 
 	r.Any("/*any", gin.WrapH(mux))
 
@@ -50,4 +54,35 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		close(errChan)
 	}()
 	return server, errChan
+}
+
+func captureChangeEventHandler(s *service.CdcService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			TableName       string `json:"table_name"`
+			OperationType   string `json:"operation_type"`
+			PrimaryKeyValue string `json:"primary_key_value"`
+			OldData         string `json:"old_data"`
+			NewData         string `json:"new_data"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		event, err := s.CaptureChangeEvent(
+			c.Request.Context(),
+			req.TableName,
+			req.OperationType,
+			req.PrimaryKeyValue,
+			req.OldData,
+			req.NewData,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, event)
+	}
 }

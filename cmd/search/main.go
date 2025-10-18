@@ -5,22 +5,21 @@ import (
 	"fmt"
 	"time"
 
-	v1 "ecommerce/api-go/api/search/v1"
-	"ecommerce/internal/search/biz"
-	"ecommerce/internal/search/data"
+	"ecommerce/api/search/v1"
 	"ecommerce/internal/search/handler"
+	"ecommerce/internal/search/repository"
 	"ecommerce/internal/search/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
 	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"go.uber.org/zap"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
+	"gorm.io/gorm/logger"
 )
 
 // Config is the service-specific configuration structure.
@@ -30,7 +29,7 @@ type Config struct {
 		configpkg.DataConfig
 		Database struct {
 			configpkg.DatabaseConfig
-			LogLevel      gormlogger.LogLevel `toml:"log_level"`
+			LogLevel      logger.LogLevel `toml:"log_level"`
 			SlowThreshold time.Duration     `toml:"slow_threshold"`
 		} `toml:"database"`
 		ProductService struct {
@@ -62,33 +61,30 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	db, err := gorm.Open(mysql.Open(config.Data.Database.DSN), &gorm.Config{
-		Logger: gormlogger.New(zap.L(), config.Data.Database.LogLevel, config.Data.Database.SlowThreshold),
-	})
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get database instance: %w", err)
-	}
+	// 自动迁移数据库表结构 (TODO: 仅在开发环境或需要时执行)
+	// if err := db.AutoMigate(&model.SearchQuery{}); err != nil {
+	// 	return nil, nil, fmt.Errorf("failed to migrate database: %w", err)
+	// }
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelDial()
 	productServiceConn, err := grpc.DialContext(dialCtx, config.Data.ProductService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		sqlDB.Close()
+		cleanupDB()
 		return nil, nil, fmt.Errorf("failed to connect to product service: %w", err)
 	}
 
-	productClient := data.NewProductClient(productServiceConn)
-	searchRepo := data.NewSearchRepo(db)
-	searchUsecase := biz.NewSearchUsecase(searchRepo, productClient)
-	searchService := service.NewSearchService(searchUsecase)
+	productClient := client.NewProductClient(productServiceConn)
+	searchRepo := repository.NewSearchRepo(db)
+	searchService := service.NewSearchService(searchRepo)
 
 	cleanup := func() {
-		sqlDB.Close()
+		cleanupDB()
 		productServiceConn.Close()
 	}
 

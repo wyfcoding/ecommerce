@@ -2,119 +2,254 @@ syntax = "proto3";
 
 package api.order.v1;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
 option go_package = "ecommerce/api/order/v1;v1";
 
-// ===================================
-// Message Definitions
-// ===================================
-
-message OrderInfo {
-  uint64 order_id = 1;
-  uint64 user_id = 2;
-  uint64 total_amount = 3;
-  uint64 payment_amount = 4;
-  int32 status = 5;
-  // ... more fields
+// OrderStatus 订单状态枚举
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0; // 未指定
+  PENDING_PAYMENT = 1;          // 待支付
+  PAID = 2;                     // 已支付
+  SHIPPED = 3;                  // 已发货
+  DELIVERED = 4;                // 已送达
+  COMPLETED = 5;                // 已完成 (用户确认收货)
+  CANCELLED = 6;                // 已取消 (用户或系统取消)
+  REFUND_REQUESTED = 7;         // 退款申请中
+  REFUNDED = 8;                 // 已退款
+  CLOSED = 9;                   // 已关闭 (交易失败或超时)
 }
 
-message OrderItem {
-  uint64 sku_id = 1;
-  string product_title = 2;
-  string product_image = 3;
-  uint64 price = 4;
-  uint32 quantity = 5;
+// PaymentStatus 支付状态枚举
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0; // 未指定
+  UNPAID = 1;                     // 未支付
+  PROCESSING = 2;                 // 支付处理中
+  SUCCESS = 3;                    // 支付成功
+  FAILED = 4;                     // 支付失败
+  REFUNDING = 5;                  // 退款中
+  REFUND_SUCCESS = 6;             // 退款成功
+  REFUND_FAILED = 7;              // 退款失败
 }
 
-// ===================================
-// Service Definition
-// ===================================
+// ShippingStatus 配送状态枚举
+enum ShippingStatus {
+  SHIPPING_STATUS_UNSPECIFIED = 0; // 未指定
+  PENDING_SHIPMENT = 1;            // 待发货
+  SHIPPED = 2;                     // 已发货
+  IN_TRANSIT = 3;                  // 运输中
+  DELIVERED = 4;                   // 已送达
+  EXCEPTION = 5;                   // 配送异常
+}
 
+// Order 订单服务定义了所有与订单创建、查询、更新和管理相关的RPC接口。
 service Order {
-  // 创建订单
-  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
-  // 获取订单详情
-  rpc GetOrderDetail(GetOrderDetailRequest) returns (GetOrderDetailResponse);
+  // --- 订单核心接口 ---
 
-  // 获取支付链接
-  rpc GetPaymentURL(GetPaymentURLRequest) returns (GetPaymentURLResponse);
+  // CreateOrder 创建一个新订单。
+  // 接收购物车信息或直接的商品列表，计算价格，生成订单。
+  rpc CreateOrder(CreateOrderRequest) returns (OrderInfo);
 
-  // 接收支付异步通知 (此接口由支付宝服务器调用，不在网关中通过HTTP注解暴露)
-  rpc ProcessPaymentNotification(ProcessPaymentNotificationRequest) returns (ProcessPaymentNotificationResponse);
+  // GetOrderByID 根据订单ID获取订单详细信息。
+  rpc GetOrderByID(GetOrderByIDRequest) returns (OrderInfo);
 
-  // --- Flash Sale Specific RPCs ---
-  // 为秒杀活动创建订单
-  rpc CreateOrderForFlashSale(CreateOrderForFlashSaleRequest) returns (CreateOrderForFlashSaleResponse);
-  // 补偿创建订单 (Saga 模式)
-  rpc CompensateCreateOrder(CompensateCreateOrderRequest) returns (CompensateCreateOrderResponse);
+  // UpdateOrderStatus 更新订单状态。
+  // 仅允许特定的状态流转，例如：待支付 -> 已支付，已支付 -> 已发货。
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (OrderInfo);
+
+  // CancelOrder 取消订单。
+  // 仅允许在特定状态下取消，例如：待支付、已支付但未发货。
+  rpc CancelOrder(CancelOrderRequest) returns (OrderInfo);
+
+  // ListOrders 分页列出订单。支持按用户ID、状态、时间范围等条件进行筛选和排序。
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+
+  // --- 支付相关接口 ---
+
+  // ProcessPayment 模拟支付处理。
+  // 实际系统中会与支付网关集成。
+  rpc ProcessPayment(ProcessPaymentRequest) returns (PaymentResult);
+
+  // RequestRefund 申请退款。
+  // 仅允许在特定状态下申请退款。
+  rpc RequestRefund(RequestRefundRequest) returns (OrderInfo);
+
+  // --- 内部接口 (通常供其他微服务调用) ---
+
+  // GetOrderItemsByOrderID 根据订单ID获取所有订单项。
+  rpc GetOrderItemsByOrderID(GetOrderItemsByOrderIDRequest) returns (GetOrderItemsByOrderIDResponse);
+
+  // UpdateOrderShippingStatus 更新订单的配送状态。
+  rpc UpdateOrderShippingStatus(UpdateOrderShippingStatusRequest) returns (OrderInfo);
 }
 
-// --- Request/Response Messages ---
+// --- 核心消息定义 ---
 
-message CreateOrderRequestItem {
-  uint64 sku_id = 1;
-  uint32 quantity = 2;
+// OrderInfo 代表一个订单的完整信息。
+message OrderInfo {
+  uint64 id = 1;                                  // 订单ID
+  string order_no = 2;                            // 订单编号 (唯一)
+  uint64 user_id = 3;                             // 用户ID
+  OrderStatus status = 4;                         // 订单当前状态
+  PaymentStatus payment_status = 5;               // 支付状态
+  ShippingStatus shipping_status = 6;             // 配送状态
+  int64 total_amount = 7;                         // 订单总金额 (单位: 分)
+  int64 actual_amount = 8;                        // 实际支付金额 (单位: 分)
+  int64 shipping_fee = 9;                         // 运费 (单位: 分)
+  int64 discount_amount = 10;                     // 优惠金额 (单位: 分)
+  string payment_method = 11;                     // 支付方式 (例如: "WeChatPay", "Alipay")
+  google.protobuf.Timestamp created_at = 12;      // 订单创建时间
+  google.protobuf.Timestamp updated_at = 13;      // 最后更新时间
+  google.protobuf.Timestamp paid_at = 14;         // 支付时间
+  google.protobuf.Timestamp shipped_at = 15;      // 发货时间
+  google.protobuf.Timestamp delivered_at = 16;    // 送达时间
+  google.protobuf.Timestamp completed_at = 17;    // 完成时间
+  google.protobuf.Timestamp cancelled_at = 18;    // 取消时间
+  string remark = 19;                             // 订单备注
+  ShippingAddress shipping_address = 20;          // 收货地址信息
+  repeated OrderItem items = 21;                  // 订单包含的商品列表
+  repeated OrderLog logs = 22;                    // 订单操作日志
 }
 
+// OrderItem 代表订单中的一个商品项。
+message OrderItem {
+  uint64 id = 1;                                  // 订单项ID
+  uint64 order_id = 2;                            // 所属订单ID
+  uint64 product_id = 3;                          // 商品SPU ID
+  uint64 sku_id = 4;                              // 商品SKU ID
+  string product_name = 5;                        // 商品名称
+  string sku_name = 6;                            // SKU名称
+  string product_image_url = 7;                   // 商品图片URL
+  int64 price = 8;                                // 购买时单价 (单位: 分)
+  int32 quantity = 9;                             // 购买数量
+  int64 total_price = 10;                         // 该订单项总价 (单位: 分)
+}
+
+// ShippingAddress 代表订单的收货地址信息。
+message ShippingAddress {
+  string recipient_name = 1;                      // 收货人姓名
+  string phone_number = 2;                        // 手机号
+  string province = 3;                            // 省份
+  string city = 4;                                // 城市
+  string district = 5;                            // 区县
+  string detailed_address = 6;                    // 详细地址
+  string postal_code = 7;                         // 邮政编码
+}
+
+// OrderLog 记录订单的关键操作和状态变更。
+message OrderLog {
+  uint64 id = 1;
+  uint64 order_id = 2;
+  string operator = 3;                            // 操作人 (用户ID或系统)
+  string action = 4;                              // 操作描述 (例如: "订单创建", "支付成功", "发货")
+  string old_status = 5;                          // 旧状态
+  string new_status = 6;                          // 新状态
+  google.protobuf.Timestamp created_at = 7;       // 操作时间
+}
+
+// PaymentResult 支付结果信息。
+message PaymentResult {
+  uint64 order_id = 1;
+  string transaction_id = 2;                      // 支付平台交易ID
+  PaymentStatus status = 3;                       // 支付状态
+  string message = 4;                             // 支付结果消息
+  google.protobuf.Timestamp paid_at = 5;          // 支付时间
+}
+
+// --- RPC 请求/响应 消息 ---
+
+// CreateOrderRequest 创建订单的请求。
 message CreateOrderRequest {
-  uint64 user_id = 1;
-  repeated CreateOrderRequestItem items = 2;
-  uint64 address_id = 3; // 用户选择的收货地址ID
-  string remark = 4; // 用户备注
-  bytes shipping_address = 5; // 收货地址的 JSON 字符串
-  uint64 payment_amount = 6; // 实际支付金额
+  uint64 user_id = 1;                             // 用户ID
+  repeated OrderItemCreate items = 2;             // 订单项列表
+  ShippingAddress shipping_address = 3;           // 收货地址
+  string remark = 4;                              // 订单备注
+  string payment_method = 5;                      // 支付方式
+  google.protobuf.StringValue coupon_code = 6;    // 优惠券码 (可选)
 }
 
-message CreateOrderResponse {
+// OrderItemCreate 用于创建订单时描述一个订单项。
+message OrderItemCreate {
+  uint64 product_id = 1;                          // 商品SPU ID
+  uint64 sku_id = 2;                              // 商品SKU ID
+  int32 quantity = 3;                             // 购买数量
+}
+
+// GetOrderByIDRequest 获取单个订单的请求。
+message GetOrderByIDRequest {
+  uint64 id = 1;
+  uint64 user_id = 2;                             // 用于权限校验
+}
+
+// UpdateOrderStatusRequest 更新订单状态的请求。
+message UpdateOrderStatusRequest {
+  uint64 id = 1;
+  uint64 user_id = 2;                             // 用于权限校验或操作记录
+  OrderStatus new_status = 3;                     // 新的订单状态
+  string operator = 4;                            // 操作人 (用户ID或系统)
+  string remark = 5;                              // 操作备注
+}
+
+// CancelOrderRequest 取消订单的请求。
+message CancelOrderRequest {
+  uint64 id = 1;
+  uint64 user_id = 2;                             // 用于权限校验
+  string reason = 3;                              // 取消原因
+}
+
+// ListOrdersRequest 列表订单的请求。
+message ListOrdersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  uint64 user_id = 3;                             // 按用户ID筛选
+  OrderStatus status = 4;                         // 按订单状态筛选
+  google.protobuf.Timestamp start_time = 5;       // 订单创建时间范围开始
+  google.protobuf.Timestamp end_time = 6;         // 订单创建时间范围结束
+  string sort_by = 7;                             // 排序字段, e.g., "created_at_desc", "total_amount_asc"
+}
+
+// ListOrdersResponse 列表订单的响应。
+message ListOrdersResponse {
+  repeated OrderInfo orders = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// ProcessPaymentRequest 支付处理请求。
+message ProcessPaymentRequest {
+  uint64 order_id = 1;
+  uint64 user_id = 2;                             // 用于权限校验
+  string payment_method = 3;                      // 支付方式
+  int64 amount = 4;                               // 支付金额 (单位: 分)
+  string transaction_id = 5;                      // 支付平台交易ID (模拟)
+}
+
+// RequestRefundRequest 申请退款请求。
+message RequestRefundRequest {
+  uint64 order_id = 1;
+  uint64 user_id = 2;                             // 用于权限校验
+  int64 refund_amount = 3;                        // 退款金额 (单位: 分)
+  string reason = 4;                              // 退款原因
+}
+
+// GetOrderItemsByOrderIDRequest 获取订单项列表请求。
+message GetOrderItemsByOrderIDRequest {
   uint64 order_id = 1;
 }
 
-message GetOrderDetailRequest {
-  uint64 user_id = 1;
-  uint64 order_id = 2;
+// GetOrderItemsByOrderIDResponse 获取订单项列表响应。
+message GetOrderItemsByOrderIDResponse {
+  repeated OrderItem items = 1;
 }
 
-message GetOrderDetailResponse {
-  OrderInfo order = 1;
-  repeated OrderItem items = 2;
-}
-
-message GetPaymentURLRequest {
-  uint64 user_id = 1;
-  uint64 order_id = 2;
-}
-
-message GetPaymentURLResponse {
-  string payment_url = 1;
-}
-
-message ProcessPaymentNotificationRequest {
-  map<string, string> notification_data = 1; // 接收支付宝POST的Form数据
-}
-
-message ProcessPaymentNotificationResponse {
-  // 成功时为空
-}
-
-// Request for CreateOrderForFlashSale
-message CreateOrderForFlashSaleRequest {
-  string user_id = 1;
-  string product_id = 2;
-  int32 quantity = 3;
-  double price = 4;
-}
-
-// Response for CreateOrderForFlashSale
-message CreateOrderForFlashSaleResponse {
-  string order_id = 1;
-}
-
-// Request for CompensateCreateOrder
-message CompensateCreateOrderRequest {
-  string order_id = 1;
-}
-
-// Response for CompensateCreateOrder
-message CompensateCreateOrderResponse {
-  bool success = 1;
-  string message = 2;
+// UpdateOrderShippingStatusRequest 更新订单配送状态请求。
+message UpdateOrderShippingStatusRequest {
+  uint64 order_id = 1;
+  ShippingStatus new_shipping_status = 2;         // 新的配送状态
+  string tracking_number = 3;                     // 快递单号
+  string logistics_company = 4;                   // 物流公司
+  string operator = 5;                            // 操作人 (例如: "系统", "仓库管理员")
 }

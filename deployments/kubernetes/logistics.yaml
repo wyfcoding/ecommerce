@@ -1,0 +1,77 @@
+# deployments/kubernetes/logistics.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: logistics-service
+  labels:
+    app: logistics
+spec:
+  type: ClusterIP
+  selector:
+    app: logistics
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: 9097
+      targetPort: 9097
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logistics-deployment
+  labels:
+    app: logistics
+spec:
+  replicas: 1 # 物流创建通常不是超高频操作，可以从 1 个副本开始
+  selector:
+    matchLabels:
+      app: logistics
+  template:
+    metadata:
+      labels:
+        app: logistics
+    spec:
+      containers:
+        - name: logistics-service
+          image: your-docker-registry/ecommerce-logistics-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9097
+              name: grpc
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          envFrom:
+            - secretRef:
+                name: logistics-gateway-secrets # 从 Secret 加载物流网关的 API Key
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: logistics_dsn
+            - name: MQ_URL
+              value: "amqp://guest:guest@rabbitmq-service:5672/"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            exec:
+              command:
+                - "/bin/grpc_health_probe"
+                - "-addr=:9097"
+            initialDelaySeconds: 20
+          livenessProbe:
+            exec:
+              command:
+                - "/bin/grpc_health_probe"
+                - "-addr=:9097"
+            initialDelaySeconds: 25

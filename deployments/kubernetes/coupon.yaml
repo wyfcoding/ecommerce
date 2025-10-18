@@ -1,0 +1,82 @@
+# deployments/kubernetes/coupon.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: coupon-service
+  labels:
+    app: coupon
+spec:
+  type: ClusterIP
+  selector:
+    app: coupon
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8086
+      targetPort: 8086
+    - name: grpc
+      protocol: TCP
+      port: 9099
+      targetPort: 9099
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coupon-deployment
+  labels:
+    app: coupon
+spec:
+  replicas: 2 # 优惠券服务是核心服务之一，可扩展
+  selector:
+    matchLabels:
+      app: coupon
+  template:
+    metadata:
+      labels:
+        app: coupon
+    spec:
+      containers:
+        - name: coupon-service
+          image: your-docker-registry/ecommerce-coupon-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8086
+              name: http
+            - containerPort: 9099
+              name: grpc
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: coupon_dsn
+            - name: REDIS_ADDR
+              value: "redis-service:6379"
+            - name: USER_SERVICE_GRPC_ADDR
+              value: "user-service:9090"
+            - name: PRODUCT_SERVICE_GRPC_ADDR
+              value: "product-service:9092"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            httpGet:
+              path: /health # 假设有健康检查端点
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20

@@ -1,15 +1,32 @@
-# Review Service Configuration
-[service]
-name = "review"
-version = "1.0.0"
-port = 8081
+# 评论服务基础配置
+[server.http]
+addr = "0.0.0.0"
+port = 8087
+timeout = "1s"
 
-[database]
-host = "localhost"
-port = 3306
-user = "root"
-password = "password"
-dbname = "review_db"
+[server.grpc]
+addr = "0.0.0.0"
+port = 9100
+timeout = "1s"
 
-[logging]
-level = "info"
+# 数据库配置 (用于存储评论和评分)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_review?charset=utf8mb4&parseTime=True&loc=Local"
+
+# 依赖服务 gRPC 地址
+[dependencies]
+user_service_grpc_addr = "localhost:9090"
+product_service_grpc_addr = "localhost:9092"
+order_service_grpc_addr = "localhost:9093" # 用于验证用户是否购买过该商品
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "review-service"
+
+# 日志配置
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

@@ -1,18 +1,20 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: config
+  name: {{ include "chart.fullname" . }} # VirtualService 的名称，使用 Helm 辅助函数生成
+  labels:
+    {{- include "chart.labels" . | nindent 4 }} # VirtualService 的标签，使用 Helm 辅助函数生成
 spec:
   hosts:
-  - "*"
+  - "*" # 匹配所有主机名，通常用于内部服务或单个网关
   gateways:
-  - ecommerce-gateway
+  - ecommerce-gateway # 绑定到名为 ecommerce-gateway 的 Istio Gateway
   http:
   - match:
     - uri:
-        prefix: "/api/config"
+        prefix: "/api/config" # 匹配以 "/api/config" 为前缀的 URI
     route:
     - destination:
-        host: config
+        host: {{ include "chart.fullname" . }} # 目标服务的主机名，指向 Kubernetes Service
         port:
-          number: 80
+          number: {{ .Values.service.httpPort }} # 目标服务的 HTTP 端口，应与 Service 定义匹配

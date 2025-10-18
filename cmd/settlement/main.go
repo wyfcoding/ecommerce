@@ -1,24 +1,29 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"ecommerce/api/settlement/v1"
+	v1 "ecommerce/api/settlement/v1"
+	"ecommerce/internal/settlement/client"
+	"ecommerce/internal/settlement/handler"
+	"ecommerce/internal/settlement/model"
 	"ecommerce/internal/settlement/repository"
 	"ecommerce/internal/settlement/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	"ecommerce/pkg/database/redis"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	redisPkg "ecommerce/pkg/database/redis"
 	"ecommerce/pkg/metrics"
 	"ecommerce/pkg/snowflake"
+	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 	"go.uber.org/zap"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"gorm.io/gorm/logger"
 )
 
 // Config is the service-specific configuration structure.
@@ -28,10 +33,13 @@ type Config struct {
 		configpkg.DataConfig
 		Database struct {
 			configpkg.DatabaseConfig
-			LogLevel      gormlogger.LogLevel `toml:"log_level"`
+			LogLevel      logger.LogLevel `toml:"log_level"`
 			SlowThreshold time.Duration     `toml:"slow_threshold"`
 		} `toml:"database"`
-		Redis redis.Config `toml:"redis"`
+		Redis redisPkg.Config `toml:"redis"`
+		OrderService struct {
+			Addr string `toml:"addr"`
+		} `toml:"order_service"`
 	} `toml:"data"`
 }
 
@@ -51,57 +59,52 @@ func registerGRPC(s *grpc.Server, srv interface{}) {
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	// Placeholder for Gin handlers
+	settlementHandler := handler.NewSettlementHandler(srv.(*service.SettlementService))
+	// e.g., e.POST("/v1/settlements", settlementHandler.ProcessSettlement)
 }
 
-// NOTE: This service appears to be broken. The 'biz' directory is missing.
-// The following initService function is a reconstruction based on the available files.
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	snowflakeNode, cleanupSnowflake, err := snowflake.NewSnowflakeNode(&config.Snowflake)
+	// --- Downstream gRPC clients ---
+	orderServiceConn, err := grpc.Dial(config.Data.OrderService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to new snowflake node: %w", err)
+		return nil, nil, fmt.Errorf("failed to connect to order service: %w", err)
 	}
 
-	db, err := gorm.Open(mysql.Open(config.Data.Database.DSN), &gorm.Config{
-		Logger: gormlogger.New(zap.L(), config.Data.Database.LogLevel, config.Data.Database.SlowThreshold),
-	})
+	// --- Data layer ---
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
 	if err != nil {
-		cleanupSnowflake()
+		orderServiceConn.Close()
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
+	}
+
+	if err := db.AutoMigrate(&model.SettlementRecord{}); err != nil {
+		return nil, nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		cleanupSnowflake()
+		orderServiceConn.Close()
 		return nil, nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
-	data, cleanupData, err := repository.NewData(db)
+	redisClient, cleanupRedis, err := redisPkg.NewRedisClient(&config.Data.Redis)
 	if err != nil {
-		cleanupSnowflake()
-		sqlDB.Close()
-		return nil, nil, fmt.Errorf("failed to create data struct: %w", err)
-	}
-
-	redisClient, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis)
-	if err != nil {
-		cleanupData()
-		cleanupSnowflake()
-		sqlDB.Close()
+		cleanupDB()
+		orderServiceConn.Close()
 		return nil, nil, fmt.Errorf("failed to new redis client: %w", err)
 	}
 
-	settlementRepo := repository.NewSettlementRepo(data, redisClient, snowflakeNode) // Assuming this is the correct signature
-	settlementUsecase := service.NewSettlementUsecase(settlementRepo)      // Assuming this exists in the service package
-	settlementService := service.NewSettlementService(settlementUsecase)
+	// --- DI (Data -> Biz -> Service) ---
+	orderClient := client.NewOrderClient(orderServiceConn)
+	settlementRepo := repository.NewSettlementRepo(db, redisClient)
+	settlementService := service.NewSettlementService(settlementRepo, orderClient)
 
 	cleanup := func() {
 		cleanupRedis()
-		cleanupData()
-		sqlDB.Close()
-		cleanupSnowflake()
+		cleanupDB()
+		orderServiceConn.Close()
 	}
 
 	return settlementService, cleanup, nil

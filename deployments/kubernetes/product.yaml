@@ -1,0 +1,80 @@
+# deployments/kubernetes/product.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  labels:
+    app: product
+spec:
+  type: ClusterIP
+  selector:
+    app: product
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8082
+      targetPort: 8082
+    - name: grpc
+      protocol: TCP
+      port: 9092
+      targetPort: 9092
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-deployment
+  labels:
+    app: product
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product
+  template:
+    metadata:
+      labels:
+        app: product
+    spec:
+      containers:
+        - name: product-service
+          image: your-docker-registry/ecommerce-product-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+            - containerPort: 9092
+              name: grpc
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m" # 1 core
+              memory: "1Gi"
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: product_dsn
+            - name: ES_ADDRESSES
+              value: "http://elasticsearch-service:9200"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 25
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15

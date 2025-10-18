@@ -1,31 +1,30 @@
-# 服务基础配置
+# 商品服务基础配置
 [server.http]
 addr = "0.0.0.0"
-port = 8081 # 商品服务 HTTP 端口
+port = 8081  # 为商品服务选择一个不同的端口
 timeout = "1s"
 
 [server.grpc]
 addr = "0.0.0.0"
-port = 9091 # 商品服务 gRPC 端口
+port = 9091  # 为商品服务选择一个不同的端口
 timeout = "1s"
 
-# 数据库配置
+# 数据库配置 (指向商品数据库)
 [data.database]
 driver = "mysql"
 dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_product?charset=utf8mb4&parseTime=True&loc=Local"
 
-[data.redis]
-addr = "127.0.0.1:6379"
-password = ""
-db = 1 # 使用 1 号数据库，避免和用户服务冲突
-
-# 雪花算法配置
-[snowflake]
-start_time = "2025-01-01"
-machine_id = 2 # 使用 2 号机器ID，避免和用户服务冲突
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
 
 # 日志配置
 [log]
 level = "debug"
-format = "json"
-output = "stdout"
+format = "json" # 可选: text 或 json
+output = "stdout" # 可选: stdout, stderr 或 文件路径
+
+# 业务相关配置
+[business]
+default_page_size = 10 # 列表查询时的默认分页大小
+max_page_size = 100 # 列表查询时允许的最大分页大小

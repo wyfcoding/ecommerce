@@ -1,0 +1,80 @@
+# deployments/kubernetes/wishlist.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: wishlist-service
+  labels:
+    app: wishlist
+spec:
+  type: ClusterIP
+  selector:
+    app: wishlist
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8088
+      targetPort: 8088
+    - name: grpc
+      protocol: TCP
+      port: 9101
+      targetPort: 9101
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlist-deployment
+  labels:
+    app: wishlist
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wishlist
+  template:
+    metadata:
+      labels:
+        app: wishlist
+    spec:
+      containers:
+        - name: wishlist-service
+          image: your-docker-registry/ecommerce-wishlist-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8088
+              name: http
+            - containerPort: 9101
+              name: grpc
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: wishlist_dsn
+            - name: USER_SERVICE_GRPC_ADDR
+              value: "user-service:9090"
+            - name: PRODUCT_SERVICE_GRPC_ADDR
+              value: "product-service:9092"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20

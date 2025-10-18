@@ -12,11 +12,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	v1 "ecommerce/api/data_warehouse_query/v1"
+	"ecommerce/internal/data_warehouse_query/service"
 	"ecommerce/pkg/logging"
 )
 
 // StartHTTPServer 启动 HTTP Gateway
-func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int, dataWarehouseQueryService *service.DataWarehouseQueryService) (*http.Server, chan error) {
 	errChan := make(chan error, 1)
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -30,9 +31,12 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // Use project's GinLogger
+
 	// Add service-specific Gin routes here
-	// For example:
-	// r.GET("/data_warehouse_query/report", handler.GetReport)
+	api := r.Group("/api/v1/data-warehouse-query")
+	{
+		api.POST("/execute", executeQueryHandler(dataWarehouseQueryService))
+	}
 
 	r.Any("/*any", gin.WrapH(mux))
 
@@ -50,4 +54,25 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		close(errChan)
 	}()
 	return server, errChan
+}
+
+func executeQueryHandler(s *service.DataWarehouseQueryService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			QuerySQL   string            `json:"query_sql"`
+			Parameters map[string]string `json:"parameters"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		result, err := s.ExecuteQuery(c.Request.Context(), req.QuerySQL, req.Parameters)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, result)
+	}
 }

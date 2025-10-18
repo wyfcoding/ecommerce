@@ -1,160 +1,119 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/BurntSushi/toml"
-	"go.uber.org/zap"
+	"ecommerce/internal/cdc/handler"
 
-	"ecommerce/internal/cdc/biz"
-	"ecommerce/internal/cdc/data"
-	cdchandler "ecommerce/internal/cdc/handler"
 	"ecommerce/internal/cdc/service"
-	"ecommerce/pkg/database/redis"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	v1 "ecommerce/api/cdc/v1"
 )
 
-// Config 结构体用于映射 TOML 配置文件
+// Config 定义了 cdc-service 的所有配置项。
 type Config struct {
-	Server struct {
-		HTTP struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"http"`
-		GRPC struct {
-			Addr    string        `toml:"addr"`
-			Port    int           `toml:"port"`
-			Timeout time.Duration `toml:"timeout"`
-		} `toml:"grpc"`
-	} `toml:"server"`
+	configpkg.Config
 	Data struct {
+		configpkg.DataConfig
 		Database struct {
-			DSN string `toml:"dsn"`
+			configpkg.DatabaseConfig
 		} `toml:"database"`
-		Redis struct {
-			Addr         string        `toml:"addr"`
-			Password     string        `toml:"password"`
-			DB           int           `toml:"db"`
-			ReadTimeout  time.Duration `toml:"read_timeout"`
-			WriteTimeout time.Duration `toml:"write_timeout"`
-		} `toml:"redis"`
 	} `toml:"data"`
-	Snowflake struct {
-		StartTime string `toml:"start_time"`
-		MachineID int64  `toml:"machine_id"`
-	} `toml:"snowflake"`
-	Log struct {
-		Level  string `toml:"level"`
-		Format string `toml:"format"`
-		Output string `toml:"output"`
-	} `toml:"log"`
+	JWT struct {
+		Secret string        `toml:"secret"`
+		Issuer string        `toml:"issuer"`
+		Expire time.Duration `toml:"expire"`
+	} `toml:"jwt"`
+	Tracing struct {
+		JaegerEndpoint string `toml:"jaeger_endpoint"`
+	} `toml:"tracing"`
 }
 
+const serviceName = "cdc-service"
+
+// main 是应用程序的入口点。
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/cdc.toml", "config file path")
-	flag.Parse()
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		// 注入 OpenTelemetry (Jaeger) 的拦截器和中间件
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9091"). // 为 metrics server 使用一个不同的端口
+		Build().
+		Run()
+}
 
-	config, err := loadConfig(configPath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
-	}
+// registerGRPC 将 gRPC 服务注册到服务器。
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	v1.RegisterCDCServer(s, srv.(v1.CDCServiceServer))
+}
 
-	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger)
+// registerGin 将 HTTP 路由注册到 Gin 引擎。
+func registerGin(e *gin.Engine, srv interface{}) {
+	handler.RegisterRoutes(e, srv.(*service.CDCService))
+}
 
-	// 3. 初始化雪花算法
-	if err := snowflake.Init(config.Snowflake.StartTime, config.Snowflake.MachineID); err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
-	}
+// initService 负责初始化服务所需的所有依赖项。
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
 
-	// 4. 依赖注入 (DI)
-	dataInstance, cleanup, err := data.NewData(config.Data.Database.DSN)
-	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
-	}
-	defer cleanup()
-
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redis.NewRedisClient(&redis.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     10, // 默认值
-		MinIdleConns: 5,  // 默认值
+	// 1. 初始化 Jaeger Tracer
+	zap.S().Info("initializing Jaeger tracer...")
+	_, cleanupTracer, err := tracing.InitTracer(&tracing.Config{
+		ServiceName:    serviceName,
+		JaegerEndpoint: config.Tracing.JaegerEndpoint,
 	})
 	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer redisCleanup()
-
-	// 初始化业务层
-	cdcRepo := data.NewCdcRepo(dataInstance, redisClient)
-	cdcUsecase := biz.NewCdcUsecase(cdcRepo)
-
-	// 初始化服务层
-	cdcService := service.NewCdcService(cdcUsecase)
-
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := cdchandler.StartGRPCServer(cdcService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := cdchandler.StartHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
+		return nil, nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}
 
-	// 6. 等待中断信号或服务器错误以实现优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down cdc service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down cdc service due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down cdc service due to HTTP error...")
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
-}
-
-// loadConfig 从指定路径加载并解析 TOML 配置文件
-func loadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	// 2. 初始化数据库连接
+	zap.S().Info("initializing database connection...")
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
 	if err != nil {
-		return nil, err
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
-	var config Config
-	err = toml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
+
+	// 3. 初始化数据层
+	// data, cleanupData, err := repository.NewData(db)
+	// if err != nil {
+	//	cleanupDB()
+	//	cleanupTracer()
+	//	return nil, nil, fmt.Errorf("failed to initialize data layer: %w", err)
+	// }
+
+	// 4. 初始化 Repositories
+	// cdcRepo := repository.NewCDCRepo(data)
+
+	// 5. 初始化 Service
+	zap.S().Info("initializing cdc service...")
+	// cdcService := service.NewCDCService(cdcRepo, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
+
+	// TODO: Replace with actual service initialization
+	cdcService := struct{}{
 	}
-	return &config, nil
+
+	// 定义一个总的清理函数，按初始化的相反顺序执行。
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		// cleanupData()
+		cleanupDB()
+		cleanupTracer()
+	}
+
+	return cdcService, cleanup, nil
 }
-
-// startGRPCServer 启动 gRPC 服务器
-
-// startHTTPServer 启动 HTTP Gateway

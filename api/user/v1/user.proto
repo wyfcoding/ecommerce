@@ -7,76 +7,85 @@ import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/user/v1;v1";
 
-// 用户服务定义
+// User 用户服务定义了所有与用户和地址相关的RPC接口。
 service User {
-  // 通过用户名密码注册
+  // --- 用户核心接口 ---
+
+  // RegisterByPassword 通过用户名和密码注册一个新用户。
   rpc RegisterByPassword(RegisterByPasswordRequest) returns (RegisterResponse);
-  // 通过用户名密码登录
+  // LoginByPassword 通过用户名和密码登录，成功后返回JWT Token。
   rpc LoginByPassword(LoginByPasswordRequest) returns (LoginByPasswordResponse);
-  // 根据用户ID获取用户信息
+  // GetUserByID 根据用户ID获取公开的用户信息。
   rpc GetUserByID(GetUserByIDRequest) returns (UserResponse);
-  // 更新用户信息
+  // UpdateUserInfo 更新当前登录用户的个人信息。
   rpc UpdateUserInfo(UpdateUserInfoRequest) returns (UserResponse);
 
-  // --- 地址管理 ---
-  // 添加收货地址
+  // --- 地址管理接口 ---
+
+  // AddAddress 为当前登录用户添加一个新的收货地址。
   rpc AddAddress(AddAddressRequest) returns (Address);
-  // 更新收货地址
+  // GetAddress 获取指定ID的收货地址信息。
+  rpc GetAddress(GetAddressRequest) returns (Address);
+  // UpdateAddress 更新指定ID的收货地址信息。
   rpc UpdateAddress(UpdateAddressRequest) returns (Address);
-  // 删除收货地址
+  // DeleteAddress 删除指定ID的收货地址。
   rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty);
-  // 获取收货地址列表
+  // ListAddresses 获取当前登录用户的所有收货地址列表。
   rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
 
   // --- 内部接口 ---
-  // 验证密码 (供Auth服务调用)
+
+  // VerifyPassword 验证用户名和密码是否匹配 (通常供Auth等内部服务调用)。
   rpc VerifyPassword(VerifyPasswordRequest) returns (VerifyPasswordResponse);
 }
 
-// 用户信息结构体
+// --- 消息定义 ---
+
+// UserInfo 代表用户的公开信息。
 message UserInfo {
-  uint64 user_id = 1;
-  string username = 2;
-  string nickname = 3;
-  string avatar = 4;
-  int32 gender = 5;
-  google.protobuf.Timestamp birthday = 6;
+  uint64 user_id = 1; // 用户ID
+  string username = 2; // 用户名
+  string nickname = 3; // 昵称
+  string avatar = 4; // 头像URL
+  int32 gender = 5; // 性别, 1:男, 2:女
+  google.protobuf.Timestamp birthday = 6; // 生日
 }
 
-// 注册请求
+// RegisterByPasswordRequest 注册请求消息。
 message RegisterByPasswordRequest {
   string username = 1;
   string password = 2;
 }
 
-// 注册响应
+// RegisterResponse 注册响应消息。
 message RegisterResponse {
   uint64 user_id = 1;
 }
 
-// 登录请求
+// LoginByPasswordRequest 登录请求消息。
 message LoginByPasswordRequest {
   string username = 1;
   string password = 2;
 }
 
-// 登录响应
+// LoginByPasswordResponse 登录响应消息。
 message LoginByPasswordResponse {
-  string token = 1;
-  int64 expires_at = 2; // Token 过期时间戳
+  string token = 1; // JWT Token
+  int64 expires_at = 2; // Token 过期时间戳 (Unix seconds)
 }
 
-// 获取用户信息请求
+// GetUserByIDRequest 获取用户信息请求。
 message GetUserByIDRequest {
   uint64 user_id = 1;
 }
 
-// 用户信息响应
+// UserResponse 获取用户信息响应。
 message UserResponse {
   UserInfo user = 1;
 }
 
-// 更新用户信息请求
+// UpdateUserInfoRequest 更新用户信息请求。
+// 所有字段都是可选的，只更新提供的字段。
 message UpdateUserInfoRequest {
   uint64 user_id = 1;
   optional string nickname = 2;
@@ -85,20 +94,20 @@ message UpdateUserInfoRequest {
   optional google.protobuf.Timestamp birthday = 5;
 }
 
-// --- 地址管理消息 ---
-
+// Address 代表一个收货地址。
 message Address {
-  uint64 id = 1;
-  uint64 user_id = 2;
-  string name = 3;
-  string phone = 4;
-  string province = 5;
-  string city = 6;
-  string district = 7;
-  string detailed_address = 8;
-  bool is_default = 9;
+  uint64 id = 1; // 地址ID
+  uint64 user_id = 2; // 所属用户ID
+  string name = 3; // 收货人姓名
+  string phone = 4; // 手机号
+  string province = 5; // 省份
+  string city = 6; // 城市
+  string district = 7; // 区县
+  string detailed_address = 8; // 详细地址
+  bool is_default = 9; // 是否为默认地址
 }
 
+// AddAddressRequest 添加地址请求。
 message AddAddressRequest {
   uint64 user_id = 1;
   string name = 2;
@@ -110,6 +119,14 @@ message AddAddressRequest {
   optional bool is_default = 8;
 }
 
+// GetAddressRequest 获取单个地址请求。
+message GetAddressRequest {
+  uint64 user_id = 1;
+  uint64 id = 2;
+}
+
+// UpdateAddressRequest 更新地址请求。
+// 所有地址信息字段都是可选的。
 message UpdateAddressRequest {
   uint64 user_id = 1;
   uint64 id = 2;
@@ -122,27 +139,30 @@ message UpdateAddressRequest {
   optional bool is_default = 9;
 }
 
+// DeleteAddressRequest 删除地址请求。
 message DeleteAddressRequest {
   uint64 user_id = 1;
   uint64 id = 2;
 }
 
+// ListAddressesRequest 获取地址列表请求。
 message ListAddressesRequest {
   uint64 user_id = 1;
 }
 
+// ListAddressesResponse 获取地址列表响应。
 message ListAddressesResponse {
   repeated Address addresses = 1;
 }
 
-// --- 内部接口消息 ---
-
+// VerifyPasswordRequest 验证密码请求 (内部使用)。
 message VerifyPasswordRequest {
     string username = 1;
     string password = 2;
 }
 
+// VerifyPasswordResponse 验证密码响应 (内部使用)。
 message VerifyPasswordResponse {
-    bool success = 1;
-    UserInfo user = 2;
+    bool success = 1; // 是否成功
+    UserInfo user = 2; // 成功时返回用户信息
 }

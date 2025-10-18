@@ -4,119 +4,156 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"ecommerce/internal/cart/biz"
-	"ecommerce/internal/cart/data"
-	carthandler "ecommerce/internal/cart/handler"
+	v1 "ecommerce/api/cart/v1"
+	"ecommerce/internal/cart/config"
+	"ecommerce/internal/cart/model"
+	"ecommerce/internal/cart/repository"
 	"ecommerce/internal/cart/service"
-	configpkg "ecommerce/pkg/config" // Added this line
-	"ecommerce/pkg/logging"
+	"ecommerce/pkg/database"
+	"ecommerce/pkg/log"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
+	gorm_logger "gorm.io/gorm/logger"
 )
 
-type Config struct {
-	configpkg.ServerConfig `toml:"server"` // Embed common server config
-	Data                   struct {
-		Redis struct {
-			Addr         string `toml:"addr"`
-			Password     string `toml:"password"`
-			DB           int    `toml:"db"`
-			ReadTimeout  string `toml:"read_timeout"`
-			WriteTimeout string `toml:"write_timeout"`
-		} `toml:"redis"`
-		ProductService struct {
-			Addr string `toml:"addr"`
-		} `toml:"product_service"`
-	} `toml:"data"`
-	configpkg.LogConfig `toml:"log"` // Embed common log config
+var (
+	// configPath 配置文件路径，通过命令行参数传入。
+	configPath string
+)
+
+func init() {
+	// 注册命令行参数。
+	flag.StringVar(&configPath, "conf", "configs/cart.toml", "config path, eg: -conf configs/cart.toml")
 }
 
 func main() {
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/cart.toml", "config file path")
 	flag.Parse()
 
 	// 1. 加载配置
-	var config Config
-	if err := configpkg.LoadConfig(configPath, &config); err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+	conf, err := config.LoadConfig(configPath)
+	if err != nil {
+		fmt.Printf("failed to load config: %v\n", err)
+		os.Exit(1)
 	}
 
 	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
-	zap.ReplaceGlobals(logger)
+	logger, err := log.NewLogger(&conf.Log)
+	if err != nil {
+		fmt.Printf("failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	zap.ReplaceGlobals(logger) // 将新创建的 logger 设置为全局 logger
 
-	// 3. 初始化依赖
-	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	zap.S().Infof("cart service starting with config: %+v", conf)
+
+	// 3. 初始化数据库
+	db, err := database.NewDB(&conf.Data.Database, gorm_logger.Default.LogMode(gorm_logger.Info))
+	if err != nil {
+		zap.S().Fatalf("failed to connect to database: %v", err)
+	}
+
+	// 自动迁移数据库表结构
+	// 注意：生产环境中，数据库迁移通常通过独立的工具或流程来管理，而不是在服务启动时自动执行。
+	// 这里为了简化示例，直接在启动时执行。
+	err = db.AutoMigrate(
+		&model.Cart{},
+		&model.CartItem{},
+	)
+	if err != nil {
+		zap.S().Fatalf("failed to auto migrate database: %v", err)
+	}
+	zap.S().Info("database auto migration completed")
+
+	// 4. 初始化 Repository 层
+	cartRepo := repository.NewCartRepo(db)
+	cartItemRepo := repository.NewCartItemRepo(db)
+
+	// 5. 初始化 Service 层
+	cartService := service.NewCartService(
+		cartRepo,
+		cartItemRepo,
+		conf.Business.MaxCartItemQuantity,
+		conf.Business.CartExpirationHours,
+	)
+
+	// 创建一个上下文，用于控制 gRPC 和 HTTP 服务器的生命周期
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	productServiceConn, err := grpc.DialContext(dialCtx, config.Data.ProductService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	if err != nil {
-		zap.S().Fatalf("failed to connect to product service: %v", err)
-	}
-	defer productServiceConn.Close()
 
-	readTimeout, err := time.ParseDuration(config.Data.Redis.ReadTimeout)
-	if err != nil {
-		zap.S().Fatalf("failed to parse redis read timeout: %v", err)
-	}
-	writeTimeout, err := time.ParseDuration(config.Data.Redis.WriteTimeout)
-	if err != nil {
-		zap.S().Fatalf("failed to parse redis write timeout: %v", err)
-	}
-	redisConfig := &data.RedisConfig{
-		Addr:         config.Data.Redis.Addr,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
-	}
-	dataInstance, cleanup, err := data.NewData(redisConfig)
-	if err != nil {
-		zap.S().Fatalf("failed to new data: %v", err)
-	}
-	defer cleanup()
+	// 6. 启动 gRPC 服务器
+	go func() {
+		grpcAddr := fmt.Sprintf("%s:%d", conf.Server.Grpc.Addr, conf.Server.Grpc.Port)
+		// 创建 gRPC 服务器
+		s := grpc.NewServer()
+		// 注册 CartService 到 gRPC 服务器
+		v1.RegisterCartServer(s, cartService)
+		// 注册反射服务，用于 gRPC 客户端工具（如grpcurl）发现服务
+		reflection.Register(s)
 
-	// 4. 依赖注入 (DI)
-	productClient := data.NewProductClient(productServiceConn)
-	cartRepo := data.NewCartRepo(dataInstance)
-	cartUsecase := biz.NewCartUsecase(cartRepo, productClient)
-	cartService := service.NewCartService(cartUsecase)
+		zap.S().Infof("gRPC server listening on %s", grpcAddr)
+		if err := s.Serve(log.NewGRPCListener(grpcAddr)); err != nil {
+			zap.S().Fatalf("failed to serve gRPC: %v", err)
+		}
+	}()
 
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := carthandler.StartGRPCServer(cartService, config.Server.GRPC.Addr, config.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := carthandler.StartHTTPServer(context.Background(), config.Server.GRPC.Addr, config.Server.GRPC.Port, config.Server.HTTP.Addr, config.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
-	}
+	// 7. 启动 HTTP Gateway (gRPC-Gateway)
+	go func() {
+		httpAddr := fmt.Sprintf("%s:%d", conf.Server.Http.Addr, conf.Server.Http.Port)
+		grpcAddr := fmt.Sprintf("%s:%d", conf.Server.Grpc.Addr, conf.Server.Grpc.Port)
 
-	// 6. 等待中断信号或服务器错误以实现优雅停机
+		// 创建 gRPC 客户端连接到 gRPC 服务器
+		conn, err := grpc.DialContext(
+			ctx,
+			grpcAddr,
+			grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
+			grpc.WithBlock(),
+		)
+		if err != nil {
+			zap.S().Fatalf("failed to dial gRPC server: %v", err)
+		}
+		defer conn.Close()
+
+		// 注册 gRPC-Gateway mux
+		gwmux := runtime.NewServeMux()
+		err = v1.RegisterCartHandler(ctx, gwmux, conn)
+		if err != nil {
+			zap.S().Fatalf("failed to register gateway: %v", err)
+		}
+
+		httpServer := &http.Server{
+			Addr:    httpAddr,
+			Handler: gwmux,
+		}
+
+		zap.S().Infof("HTTP gateway server listening on %s", httpAddr)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.S().Fatalf("failed to serve HTTP gateway: %v", err)
+		}
+	}()
+
+	// 优雅关闭
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	zap.S().Info("shutting down server...")
 
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down cart service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-		zap.S().Info("Shutting down cart service due to gRPC error...")
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-		zap.S().Info("Shutting down cart service due to HTTP error...")
-	}
+	// 给服务器一个关闭的宽限期
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
 
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
+	// 在这里可以添加 gRPC 和 HTTP 服务器的优雅关闭逻辑
+	// 例如：grpcServer.GracefulStop()
+	//       httpServer.Shutdown(shutdownCtx)
+
+	zap.S().Info("server exited")
 }

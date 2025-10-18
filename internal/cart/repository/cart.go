@@ -1,166 +1,192 @@
-package data
+package repository
 
 import (
 	"context"
-	"ecommerce/internal/cart/biz"
 	"fmt"
-	"strconv"
+	"time"
 
-	"github.com/go-redis/redis/v8"
+	"ecommerce/internal/cart/model"
+
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
-type cartRepo struct {
-	*Data
+// CartRepo 定义了购物车数据的存储接口。
+type CartRepo interface {
+	// GetCartByUserID 根据用户ID获取购物车，包含所有购物车项。
+	GetCartByUserID(ctx context.Context, userID uint64) (*model.Cart, error)
+	// CreateCart 创建一个新的购物车。
+	CreateCart(ctx context.Context, cart *model.Cart) (*model.Cart, error)
+	// UpdateCart 更新购物车信息。
+	UpdateCart(ctx context.Context, cart *model.Cart) (*model.Cart, error)
+	// DeleteCart 逻辑删除购物车。
+	DeleteCart(ctx context.Context, userID uint64) error
 }
 
-// NewCartRepo 是 cartRepo 的构造函数。
-func NewCartRepo(data *Data) biz.CartRepo {
-	return &cartRepo{Data: data}
+// CartItemRepo 定义了购物车项数据的存储接口。
+type CartItemRepo interface {
+	// GetCartItemByID 根据ID获取购物车项。
+	GetCartItemByID(ctx context.Context, id uint64) (*model.CartItem, error)
+	// GetCartItemBySKUID 根据用户ID和SKUID获取购物车项。
+	GetCartItemBySKUID(ctx context.Context, userID, skuID uint64) (*model.CartItem, error)
+	// CreateCartItem 创建一个新的购物车项。
+	CreateCartItem(ctx context.Context, item *model.CartItem) (*model.CartItem, error)
+	// UpdateCartItem 更新购物车项信息。
+	UpdateCartItem(ctx context.Context, item *model.CartItem) (*model.CartItem, error)
+	// DeleteCartItem 逻辑删除购物车项。
+	DeleteCartItem(ctx context.Context, id uint64) error
+	// DeleteCartItemsByUserID 逻辑删除某个用户的所有购物车项。
+	DeleteCartItemsByUserID(ctx context.Context, userID uint64) error
+	// DeleteCartItemsByIDs 批量逻辑删除指定ID的购物车项。
+	DeleteCartItemsByIDs(ctx context.Context, userID uint64, itemIDs []uint64) error
+	// ListCartItemsByUserID 根据用户ID获取所有购物车项。
+	ListCartItemsByUserID(ctx context.Context, userID uint64) ([]*model.CartItem, error)
 }
 
-// cartItemsKey 生成用户购物车商品数量的 redis key。
-func (r *cartRepo) cartItemsKey(userID uint64) string {
-	return fmt.Sprintf("cart:%d:items", userID)
+// cartRepoImpl 是 CartRepo 接口的 GORM 实现。
+type cartRepoImpl struct {
+	db *gorm.DB
 }
 
-// cartCheckedKey 生成用户购物车商品勾选状态的 redis key。
-func (r *cartRepo) cartCheckedKey(userID uint64) string {
-	return fmt.Sprintf("cart:%d:checked", userID)
+// NewCartRepo 创建一个新的 CartRepo 实例。
+func NewCartRepo(db *gorm.DB) CartRepo {
+	return &cartRepoImpl{db: db}
 }
 
-// AddItem 向购物车中添加指定数量的商品，并默认设置为勾选状态。
-func (r *cartRepo) AddItem(ctx context.Context, userID, skuID uint64, quantity uint32) error {
-	pipe := r.rdb.Pipeline()
-	keyItems := r.cartItemsKey(userID)
-	keyChecked := r.cartCheckedKey(userID)
-
-	pipe.HIncrBy(ctx, keyItems, strconv.FormatUint(skuID, 10), int64(quantity))
-	pipe.HSet(ctx, keyChecked, strconv.FormatUint(skuID, 10), "1") // 默认勾选
-
-	_, err := pipe.Exec(ctx)
-	return err
-}
-
-// GetCart 获取用户购物车中所有商品的skuID及数量和勾选状态。
-func (r *cartRepo) GetCart(ctx context.Context, userID uint64) ([]*biz.CartItem, error) {
-	keyItems := r.cartItemsKey(userID)
-	keyChecked := r.cartCheckedKey(userID)
-
-	pipe := r.rdb.Pipeline()
-	itemsCmd := pipe.HGetAll(ctx, keyItems)
-	checkedCmd := pipe.HGetAll(ctx, keyChecked)
-	_, err := pipe.Exec(ctx)
-	if err != nil && err != redis.Nil {
-		return nil, err
-	}
-
-	itemResults, err := itemsCmd.Result()
-	if err != nil && err != redis.Nil {
-		return nil, err
-	}
-
-	checkedResults, err := checkedCmd.Result()
-	if err != nil && err != redis.Nil {
-		return nil, err
-	}
-
-	cartItems := make([]*biz.CartItem, 0, len(itemResults))
-	for skuIDStr, quantityStr := range itemResults {
-		skuID, _ := strconv.ParseUint(skuIDStr, 10, 64)
-		quantity, _ := strconv.ParseUint(quantityStr, 10, 32)
-		if skuID > 0 {
-			_, checked := checkedResults[skuIDStr] // 检查是否存在于 checkedResults 中
-			cartItems = append(cartItems, &biz.CartItem{
-				SkuID:    skuID,
-				Quantity: uint32(quantity),
-				Checked:  checked,
-			})
+// GetCartByUserID 实现 CartRepo.GetCartByUserID 方法。
+func (r *cartRepoImpl) GetCartByUserID(ctx context.Context, userID uint64) (*model.Cart, error) {
+	var cart model.Cart
+	// 预加载所有购物车项
+	if err := r.db.WithContext(ctx).Preload("Items").First(&cart, "user_id = ?", userID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
 		}
+		zap.S().Errorf("failed to get cart by user id %d: %v", userID, err)
+		return nil, fmt.Errorf("failed to get cart by user id: %w", err)
 	}
-	return cartItems, nil
+	return &cart, nil
 }
 
-// UpdateItem 更新购物车中商品的数量。
-func (r *cartRepo) UpdateItem(ctx context.Context, userID, skuID uint64, quantity uint32) error {
-	if quantity == 0 {
-		return r.RemoveItem(ctx, userID, skuID)
+// CreateCart 实现 CartRepo.CreateCart 方法。
+func (r *cartRepoImpl) CreateCart(ctx context.Context, cart *model.Cart) (*model.Cart, error) {
+	if err := r.db.WithContext(ctx).Create(cart).Error; err != nil {
+		zap.S().Errorf("failed to create cart for user %d: %v", cart.UserID, err)
+		return nil, fmt.Errorf("failed to create cart: %w", err)
 	}
-	pipe := r.rdb.Pipeline()
-	pipe.HSet(ctx, r.cartItemsKey(userID), strconv.FormatUint(skuID, 10), quantity)
-	// 默认更新时保持勾选状态为 true
-	pipe.HSet(ctx, r.cartCheckedKey(userID), strconv.FormatUint(skuID, 10), "1")
-	_, err := pipe.Exec(ctx)
-	return err
+	return cart, nil
 }
 
-// RemoveItem 从购物车中移除一个或多个商品。
-func (r *cartRepo) RemoveItem(ctx context.Context, userID uint64, skuIDs ...uint64) error {
-	if len(skuIDs) == 0 {
-		return nil
+// UpdateCart 实现 CartRepo.UpdateCart 方法。
+func (r *cartRepoImpl) UpdateCart(ctx context.Context, cart *model.Cart) (*model.Cart, error) {
+	if err := r.db.WithContext(ctx).Save(cart).Error; err != nil {
+		zap.S().Errorf("failed to update cart for user %d: %v", cart.UserID, err)
+		return nil, fmt.Errorf("failed to update cart: %w", err)
 	}
-	// 将 skuIDs 转换为字符串切片
-	skuIDStrs := make([]string, len(skuIDs))
-	for i, id := range skuIDs {
-		skuIDStrs[i] = strconv.FormatUint(id, 10)
-	}
-
-	// 使用 pipeline 原子化地删除两个 hash 中的字段
-	pipe := r.rdb.Pipeline()
-	pipe.HDel(ctx, r.cartItemsKey(userID), skuIDStrs...)
-	pipe.HDel(ctx, r.cartCheckedKey(userID), skuIDStrs...)
-	_, err := pipe.Exec(ctx)
-	return err
+	return cart, nil
 }
 
-// UpdateCheckStatus 更新一个或多个商品的勾选状态。
-func (r *cartRepo) UpdateCheckStatus(ctx context.Context, userID uint64, skuIDs []uint64, checked bool) error {
-	key := r.cartCheckedKey(userID)
-	// 如果是勾选，则批量设置；如果是取消勾选，则批量删除。
-	if checked {
-		fields := make(map[string]interface{}, len(skuIDs))
-		for _, id := range skuIDs {
-			fields[strconv.FormatUint(id, 10)] = "1"
+// DeleteCart 实现 CartRepo.DeleteCart 方法 (逻辑删除)。
+func (r *cartRepoImpl) DeleteCart(ctx context.Context, userID uint64) error {
+	// 逻辑删除购物车主记录
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.Cart{}).Error; err != nil {
+		zap.S().Errorf("failed to delete cart for user %d: %v", userID, err)
+		return fmt.Errorf("failed to delete cart: %w", err)
+	}
+	// 同时逻辑删除所有关联的购物车项
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.CartItem{}).Error; err != nil {
+		zap.S().Errorf("failed to delete cart items for user %d: %v", userID, err)
+		return fmt.Errorf("failed to delete cart items: %w", err)
+	}
+	return nil
+}
+
+// cartItemRepoImpl 是 CartItemRepo 接口的 GORM 实现。
+type cartItemRepoImpl struct {
+	db *gorm.DB
+}
+
+// NewCartItemRepo 创建一个新的 CartItemRepo 实例。
+func NewCartItemRepo(db *gorm.DB) CartItemRepo {
+	return &cartItemRepoImpl{db: db}
+}
+
+// GetCartItemByID 实现 CartItemRepo.GetCartItemByID 方法。
+func (r *cartItemRepoImpl) GetCartItemByID(ctx context.Context, id uint64) (*model.CartItem, error) {
+	var item model.CartItem
+	if err := r.db.WithContext(ctx).First(&item, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
 		}
-		return r.rdb.HSet(ctx, key, fields).Err()
-	} else {
-		skuIDStrs := make([]string, len(skuIDs))
-		for i, id := range skuIDs {
-			skuIDStrs[i] = strconv.FormatUint(id, 10)
+		zap.S().Errorf("failed to get cart item by id %d: %v", id, err)
+		return nil, fmt.Errorf("failed to get cart item by id: %w", err)
+	}
+	return &item, nil
+}
+
+// GetCartItemBySKUID 实现 CartItemRepo.GetCartItemBySKUID 方法。
+func (r *cartItemRepoImpl) GetCartItemBySKUID(ctx context.Context, userID, skuID uint64) (*model.CartItem, error) {
+	var item model.CartItem
+	if err := r.db.WithContext(ctx).Where("user_id = ? AND sku_id = ?", userID, skuID).First(&item).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
 		}
-		return r.rdb.HDel(ctx, key, skuIDStrs...).Err()
+		zap.S().Errorf("failed to get cart item by user %d and sku %d: %v", userID, skuID, err)
+		return nil, fmt.Errorf("failed to get cart item by user id and sku id: %w", err)
 	}
+	return &item, nil
 }
 
-// GetCheckStatus 获取购物车中所有商品的勾选状态。
-func (r *cartRepo) GetCheckStatus(ctx context.Context, userID uint64) (map[uint64]bool, error) {
-	key := r.cartCheckedKey(userID)
-	result, err := r.rdb.HGetAll(ctx, key).Result()
-	if err != nil {
-		return nil, err
+// CreateCartItem 实现 CartItemRepo.CreateCartItem 方法。
+func (r *cartItemRepoImpl) CreateCartItem(ctx context.Context, item *model.CartItem) (*model.CartItem, error) {
+	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
+		zap.S().Errorf("failed to create cart item for user %d, sku %d: %v", item.UserID, item.SKUID, err)
+		return nil, fmt.Errorf("failed to create cart item: %w", err)
 	}
-
-	checkedStatus := make(map[uint64]bool, len(result))
-	for skuIDStr := range result {
-		skuID, _ := strconv.ParseUint(skuIDStr, 10, 64)
-		if skuID > 0 {
-			checkedStatus[skuID] = true
-		}
-	}
-	return checkedStatus, nil
+	return item, nil
 }
 
-// GetCartItemCount 获取购物车中商品的种类数量。
-func (r *cartRepo) GetCartItemCount(ctx context.Context, userID uint64) (uint32, error) {
-	key := r.cartItemsKey(userID)
-	count, err := r.rdb.HLen(ctx, key).Result()
-	return uint32(count), err
+// UpdateCartItem 实现 CartItemRepo.UpdateCartItem 方法。
+func (r *cartItemRepoImpl) UpdateCartItem(ctx context.Context, item *model.CartItem) (*model.CartItem, error) {
+	if err := r.db.WithContext(ctx).Save(item).Error; err != nil {
+		zap.S().Errorf("failed to update cart item %d for user %d: %v", item.ID, item.UserID, err)
+		return nil, fmt.Errorf("failed to update cart item: %w", err)
+	}
+	return item, nil
 }
 
-// ClearCart 清空用户购物车（通常在下单后调用）。
-func (r *cartRepo) ClearCart(ctx context.Context, userID uint64) error {
-	pipe := r.rdb.Pipeline()
-	pipe.Del(ctx, r.cartItemsKey(userID))
-	pipe.Del(ctx, r.cartCheckedKey(userID))
-	_, err := pipe.Exec(ctx)
-	return err
+// DeleteCartItem 实现 CartItemRepo.DeleteCartItem 方法 (逻辑删除)。
+func (r *cartItemRepoImpl) DeleteCartItem(ctx context.Context, id uint64) error {
+	if err := r.db.WithContext(ctx).Delete(&model.CartItem{}, id).Error; err != nil {
+		zap.S().Errorf("failed to delete cart item %d: %v", id, err)
+		return fmt.Errorf("failed to delete cart item: %w", err)
+	}
+	return nil
+}
+
+// DeleteCartItemsByUserID 实现 CartItemRepo.DeleteCartItemsByUserID 方法 (逻辑删除)。
+func (r *cartItemRepoImpl) DeleteCartItemsByUserID(ctx context.Context, userID uint64) error {
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.CartItem{}).Error; err != nil {
+		zap.S().Errorf("failed to delete cart items for user %d: %v", userID, err)
+		return fmt.Errorf("failed to delete cart items by user id: %w", err)
+	}
+	return nil
+}
+
+// DeleteCartItemsByIDs 实现 CartItemRepo.DeleteCartItemsByIDs 方法 (批量逻辑删除)。
+func (r *cartItemRepoImpl) DeleteCartItemsByIDs(ctx context.Context, userID uint64, itemIDs []uint64) error {
+	if err := r.db.WithContext(ctx).Where("user_id = ? AND id IN (?) ", userID, itemIDs).Delete(&model.CartItem{}).Error; err != nil {
+		zap.S().Errorf("failed to delete cart items %v for user %d: %v", itemIDs, userID, err)
+		return fmt.Errorf("failed to delete cart items by ids: %w", err)
+	}
+	return nil
+}
+
+// ListCartItemsByUserID 实现 CartItemRepo.ListCartItemsByUserID 方法。
+func (r *cartItemRepoImpl) ListCartItemsByUserID(ctx context.Context, userID uint64) ([]*model.CartItem, error) {
+	var items []*model.CartItem
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&items).Error; err != nil {
+		zap.S().Errorf("failed to list cart items for user %d: %v", userID, err)
+		return nil, fmt.Errorf("failed to list cart items by user id: %w", err)
+	}
+	return items, nil
 }

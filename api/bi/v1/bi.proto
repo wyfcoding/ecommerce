@@ -2,53 +2,56 @@ syntax = "proto3";
 
 package api.bi.v1;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 option go_package = "ecommerce/api/bi/v1;v1";
 
-// BiService 定义了 BI 报表服务接口
-service BiService {
-  // 获取销售概览报表
-  rpc GetSalesOverview(GetSalesOverviewRequest) returns (SalesOverviewResponse);
+// BI 商业智能服务定义了所有与商业智能报告和数据分析相关的RPC接口。
+service BI {
+  // --- 示例核心接口 ---
 
-  // 获取商品销售排行榜
-  rpc GetTopSellingProducts(GetTopSellingProductsRequest) returns (TopSellingProductsResponse);
+  // GetSalesData 获取销售数据。
+  rpc GetSalesData(GetSalesDataRequest) returns (GetSalesDataResponse);
+  // GetUserRetention 获取用户留存数据。
+  rpc GetUserRetention(GetUserRetentionRequest) returns (GetUserRetentionResponse);
 }
 
-// SalesOverview 销售概览数据
-message SalesOverview {
-  uint64 total_sales_amount = 1; // 总销售额
-  uint32 total_orders = 2; // 总订单数
-  uint32 total_users = 3; // 总用户数
-  double conversion_rate = 4; // 转化率
+// --- 消息定义 ---
+
+// GetSalesDataRequest 获取销售数据请求消息。
+message GetSalesDataRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+  optional string product_category = 3;
 }
 
-// ProductSalesData 商品销售数据
-message ProductSalesData {
-  uint64 product_id = 1;
-  string product_name = 2;
-  uint32 sales_quantity = 3; // 销售数量
-  uint64 sales_amount = 4; // 销售额
+// SalesDataPoint 代表一个销售数据点。
+message SalesDataPoint {
+  google.protobuf.Timestamp date = 1;
+  double total_sales = 2;
+  uint64 order_count = 3;
 }
 
-// GetSalesOverviewRequest 获取销售概览报表请求
-message GetSalesOverviewRequest {
-  // 时间范围等过滤条件
-  optional string start_date = 1; // YYYY-MM-DD
-  optional string end_date = 2; // YYYY-MM-DD
+// GetSalesDataResponse 获取销售数据响应消息。
+message GetSalesDataResponse {
+  repeated SalesDataPoint data_points = 1;
 }
 
-// SalesOverviewResponse 销售概览报表响应
-message SalesOverviewResponse {
-  SalesOverview overview = 1;
+// GetUserRetentionRequest 获取用户留存数据请求消息。
+message GetUserRetentionRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+  int32 cohort_size_days = 3;
 }
 
-// GetTopSellingProductsRequest 获取商品销售排行榜请求
-message GetTopSellingProductsRequest {
-  uint32 limit = 1; // 限制数量
-  optional string start_date = 2; // YYYY-MM-DD
-  optional string end_date = 3; // YYYY-MM-DD
+// UserRetentionDataPoint 代表一个用户留存数据点。
+message UserRetentionDataPoint {
+  google.protobuf.Timestamp cohort_date = 1;
+  repeated double retention_rates = 2; // 例如：[100%, 50%, 30%] 代表第0天，第7天，第14天留存率
 }
 
-// TopSellingProductsResponse 商品销售排行榜响应
-message TopSellingProductsResponse {
-  repeated ProductSalesData products = 1;
+// GetUserRetentionResponse 获取用户留存数据响应消息。
+message GetUserRetentionResponse {
+  repeated UserRetentionDataPoint data_points = 1;
 }

@@ -2,272 +2,336 @@ syntax = "proto3";
 
 package api.product.v1;
 
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "ecommerce/api/product/v1;v1";
 
-// 商品服务 (包含商品和分类管理)
-service ProductService {
-  // --- 分类管理 ---
-  rpc CreateCategory(CreateCategoryRequest) returns (CategoryInfo);
-  rpc UpdateCategory(UpdateCategoryRequest) returns (CategoryInfo);
-  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
-  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+// Product 商品服务定义了所有与商品、分类、品牌和SKU相关的RPC接口。
+service Product {
+  // --- 商品 (SPU) 核心接口 ---
 
-  // --- 品牌管理 ---
-  rpc CreateBrand(CreateBrandRequest) returns (BrandInfo);
-  rpc UpdateBrand(UpdateBrandRequest) returns (BrandInfo);
-  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty);
-  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
+  // CreateProduct 创建一个新的商品 (SPU)。
+  // 需要提供商品的详细信息，但SKU在此步骤可选，可以后续添加。
+  rpc CreateProduct(CreateProductRequest) returns (ProductInfo);
 
-  // --- 评论管理 ---
-  rpc CreateReview(CreateReviewRequest) returns (ReviewInfo);
-  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse);
-  rpc DeleteReview(DeleteReviewRequest) returns (google.protobuf.Empty);
+  // GetProductByID 根据商品ID获取商品详细信息，包括其所有的SKU、分类、品牌等。
+  rpc GetProductByID(GetProductByIDRequest) returns (ProductInfo);
 
-  // --- 商品管理 ---
-  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
-  rpc UpdateProduct(UpdateProductRequest) returns (GetSpuDetailResponse);
+  // UpdateProductInfo 更新商品的核心信息（不包括SKU）。
+  // 使用 FieldMask 来指定需要更新的字段。
+  rpc UpdateProductInfo(UpdateProductInfoRequest) returns (ProductInfo);
+
+  // DeleteProduct 删除一个商品及其所有关联的SKU。
+  // 这是一个危险操作，通常建议使用逻辑删除（通过更新商品状态实现）。
   rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty);
-  rpc GetSpuDetail(GetSpuDetailRequest) returns (GetSpuDetailResponse);
-  // 获取产品列表
+
+  // ListProducts 分页列出商品。支持按分类、品牌、状态等条件进行筛选和排序。
   rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
 
-  // 索引产品到MongoDB
-  rpc IndexProduct(IndexProductRequest) returns (IndexProductResponse);
+  // --- SKU (Stock Keeping Unit) 接口 ---
 
-  // --- 内部接口 ---
-  rpc GetSkuInfos(GetSkuInfosRequest) returns (GetSkuInfosResponse);
-  rpc LockStock(LockStockRequest) returns (LockStockResponse);
-  rpc UnlockStock(LockStockRequest) returns (LockStockResponse);
+  // AddSKUsToProduct 为指定商品批量添加SKU。
+  rpc AddSKUsToProduct(AddSKUsToProductRequest) returns (AddSKUsToProductResponse);
+
+  // UpdateSKU 更新单个SKU的信息，如价格、库存等。
+  rpc UpdateSKU(UpdateSKURequest) returns (SKU);
+
+  // DeleteSKU 删除商品下的一个或多个SKU。
+  rpc DeleteSKU(DeleteSKURequest) returns (google.protobuf.Empty);
+
+  // GetSKUByID 根据SKU ID获取其详细信息。
+  rpc GetSKUByID(GetSKUByIDRequest) returns (SKU);
+
+  // --- 商品分类接口 ---
+
+  // CreateCategory 创建一个新的商品分类。
+  rpc CreateCategory(CreateCategoryRequest) returns (Category);
+
+  // GetCategoryByID 根据ID获取分类信息。
+  rpc GetCategoryByID(GetCategoryByIDRequest) returns (Category);
+
+  // UpdateCategory 更新分类信息，如名称、父分类等。
+  rpc UpdateCategory(UpdateCategoryRequest) returns (Category);
+
+  // DeleteCategory 删除一个分类。如果分类下有商品，可能需要特殊处理。
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
+
+  // ListCategories 获取分类列表，可以获取全部分类或某个父分类下的子分类。
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  // --- 商品品牌接口 ---
+
+  // CreateBrand 创建一个新的品牌。
+  rpc CreateBrand(CreateBrandRequest) returns (Brand);
+
+  // GetBrandByID 根据ID获取品牌信息。
+  rpc GetBrandByID(GetBrandByIDRequest) returns (Brand);
+
+  // UpdateBrand 更新品牌信息。
+  rpc UpdateBrand(UpdateBrandRequest) returns (Brand);
+
+  // DeleteBrand 删除一个品牌。
+  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty);
+
+  // ListBrands 分页列出所有品牌。
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
 }
 
-// --- 消息定义 ---
+// --- 枚举定义 ---
 
-// --- 品牌 RPC ---
+// ProductStatus 商品状态枚举
+enum ProductStatus {
+  PRODUCT_STATUS_UNSPECIFIED = 0; // 未指定
+  DRAFT = 1;                      // 草稿
+  ACTIVE = 2;                     // 上架/销售中
+  INACTIVE = 3;                   // 下架
+  DISCONTINUED = 4;               // 停产
+  ARCHIVED = 5;                   // 归档
+}
 
-message CreateBrandRequest {
+// --- 核心消息定义 ---
+
+// ProductInfo 代表一个标准商品单元 (SPU - Standard Product Unit) 的完整信息。
+message ProductInfo {
+  uint64 id = 1;                                  // 商品SPU ID
+  string name = 2;                                // 商品名称
+  string spu_no = 3;                              // SPU编码, 例如 "SPU123456"
+  string description = 4;                         // 商品详细描述 (支持HTML)
+  Category category = 5;                          // 所属分类
+  Brand brand = 6;                                // 所属品牌
+  ProductStatus status = 7;                       // 商品状态
+  repeated SKU skus = 8;                           // 关联的SKU列表
+  repeated ProductAttribute attributes = 9;       // 商品属性 (例如: 材质, 产地)
+  string main_image_url = 10;                     // 商品主图URL
+  repeated string gallery_image_urls = 11;        // 商品画廊图片URL列表
+  SeoInfo seo_info = 12;                          // SEO优化信息
+  google.protobuf.Timestamp created_at = 13;      // 创建时间
+  google.protobuf.Timestamp updated_at = 14;      // 最后更新时间
+  google.protobuf.DoubleValue weight = 15;        // 商品重量 (kg)
+}
+
+// SKU 代表一个库存量单位 (SKU - Stock Keeping Unit)。
+// SKU是实际销售的单位，例如 "iPhone 15 Pro Max 256GB 蓝色"。
+message SKU {
+  uint64 id = 1;                                  // SKU ID
+  uint64 product_id = 2;                          // 所属SPU ID
+  string sku_no = 3;                              // SKU编码, 例如 "SKU123456-BLUE-256G"
+  string name = 4;                                // SKU名称 (通常由SPU名称 + 规格值构成)
+  int64 price = 5;                                // 价格 (单位: 分，避免浮点数精度问题)
+  int32 stock_quantity = 6;                       // 库存数量
+  string image_url = 7;                           // SKU特定图片URL (例如不同颜色的商品图)
+  repeated SpecValue spec_values = 8;             // 规格值列表 (例如: {"颜色", "蓝色"}, {"存储", "256GB"})
+  google.protobuf.Timestamp created_at = 9;       // 创建时间
+  google.protobuf.Timestamp updated_at = 10;      // 最后更新时间
+}
+
+// Category 商品分类信息。
+message Category {
+  uint64 id = 1;                                  // 分类ID
+  string name = 2;                                // 分类名称
+  uint64 parent_id = 3;                           // 父分类ID, 0表示顶级分类
+  int32 level = 4;                                // 分类层级
+  string icon_url = 5;                            // 分类图标URL
+  int32 sort_order = 6;                           // 排序值
+}
+
+// Brand 商品品牌信息。
+message Brand {
+  uint64 id = 1;                                  // 品牌ID
+  string name = 2;                                // 品牌名称
+  string logo_url = 3;                            // 品牌Logo URL
+  string description = 4;                         // 品牌故事/描述
+}
+
+// ProductAttribute 商品的通用属性。
+message ProductAttribute {
+  string key = 1;   // 属性名, 例如 "材质"
+  string value = 2; // 属性值, 例如 "纯棉"
+}
+
+// SpecValue SKU的规格值。
+message SpecValue {
+  string key = 1;   // 规格名, 例如 "颜色"
+  string value = 2; // 规格值, 例如 "深空灰"
+}
+
+// SeoInfo SEO优化相关信息。
+message SeoInfo {
+  string meta_title = 1;       // SEO标题
+  string meta_description = 2; // SEO描述
+  string meta_keywords = 3;    // SEO关键词 (逗号分隔)
+  string url_slug = 4;         // URL Slug (例如: "iphone-15-pro-max")
+}
+
+// --- RPC 请求/响应 消息 ---
+
+// CreateProductRequest 创建商品的请求。
+message CreateProductRequest {
   string name = 1;
-  optional string logo = 2;
-  optional string description = 3;
-  optional string website = 4;
-  optional uint32 sort_order = 5;
-  optional bool is_visible = 6;
+  string description = 2;
+  uint64 category_id = 3;
+  uint64 brand_id = 4;
+  ProductStatus status = 5;
+  repeated ProductAttribute attributes = 6;
+  string main_image_url = 7;
+  repeated string gallery_image_urls = 8;
+  SeoInfo seo_info = 9;
+  google.protobuf.DoubleValue weight = 10;
 }
 
-message UpdateBrandRequest {
-  uint64 id = 1;
-  optional string name = 2;
-  optional string logo = 3;
-  optional string description = 4;
-  optional string website = 5;
-  optional uint32 sort_order = 6;
-  optional bool is_visible = 7;
-}
-
-message DeleteBrandRequest {
+// GetProductByIDRequest 获取单个商品的请求。
+message GetProductByIDRequest {
   uint64 id = 1;
 }
 
-message ListBrandsRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
-  optional string name = 3; // 品牌名称模糊查询
-  optional bool is_visible = 4;
-}
-
-message ListBrandsResponse {
-  repeated BrandInfo brands = 1;
-  uint64 total_count = 2;
-}
-
-// 评论信息
-message ReviewInfo {
+// UpdateProductInfoRequest 更新商品信息的请求。
+message UpdateProductInfoRequest {
   uint64 id = 1;
-  uint64 spu_id = 2;
-  uint64 user_id = 3;
-  uint32 rating = 4; // 评分 (1-5星)
-  string comment = 5;
-  repeated string images = 6; // 评论图片URL
-  string created_at = 7;
+  google.protobuf.StringValue name = 2;
+  google.protobuf.StringValue description = 3;
+  google.protobuf.UInt64Value category_id = 4;
+  google.protobuf.UInt64Value brand_id = 5;
+  ProductStatus status = 6;
+  string main_image_url = 7;
+  repeated string gallery_image_urls = 8;
+  SeoInfo seo_info = 9;
+  google.protobuf.DoubleValue weight = 10;
 }
 
-message CreateReviewRequest {
-  uint64 spu_id = 1;
-  uint64 user_id = 2;
-  uint32 rating = 3;
-  string comment = 4;
-  repeated string images = 5;
-}
-
-message ListReviewsRequest {
-  uint64 spu_id = 1; // 商品SPU ID
-  uint32 page_size = 2;
-  uint32 page_num = 3;
-  optional uint32 min_rating = 4; // 最小评分
-}
-
-message ListReviewsResponse {
-  repeated ReviewInfo reviews = 1;
-  uint64 total_count = 2;
-}
-
-message DeleteReviewRequest {
+// DeleteProductRequest 删除商品的请求。
+message DeleteProductRequest {
   uint64 id = 1;
-  uint64 user_id = 2; // 验证用户权限
 }
 
-// 商品分类信息
-message CategoryInfo {
+// ListProductsRequest 列表商品的请求。
+message ListProductsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  uint64 category_id = 3; // 按分类筛选
+  uint64 brand_id = 4;    // 按品牌筛选
+  ProductStatus status = 5; // 按状态筛选
+  string sort_by = 6;     // 排序字段, e.g., "price_asc", "created_at_desc"
+}
+
+// ListProductsResponse 列表商品的响应。
+message ListProductsResponse {
+  repeated ProductInfo products = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// AddSKUsToProductRequest 批量添加SKU的请求。
+message AddSKUsToProductRequest {
+  uint64 product_id = 1;
+  repeated SKUCreate skus = 2;
+}
+
+// SKUCreate 用于创建时描述一个SKU。
+message SKUCreate {
+  string name = 1;
+  int64 price = 2;
+  int32 stock_quantity = 3;
+  string image_url = 4;
+  repeated SpecValue spec_values = 5;
+}
+
+// AddSKUsToProductResponse 批量添加SKU的响应。
+message AddSKUsToProductResponse {
+  repeated SKU created_skus = 1;
+}
+
+// UpdateSKURequest 更新SKU的请求。
+message UpdateSKURequest {
   uint64 id = 1;
-  uint64 parent_id = 2;
-  string name = 3;
-  uint32 level = 4;
-  string icon = 5;
-  uint32 sort_order = 6;
-  bool is_visible = 7;
+  google.protobuf.Int64Value price = 2;
+  google.protobuf.Int32Value stock_quantity = 3;
+  google.protobuf.StringValue image_url = 4;
 }
 
-// 品牌信息
-message BrandInfo {
+// DeleteSKURequest 删除SKU的请求。
+message DeleteSKURequest {
+  uint64 product_id = 1;
+  repeated uint64 sku_ids = 2;
+}
+
+// GetSKUByIDRequest 获取单个SKU的请求。
+message GetSKUByIDRequest {
   uint64 id = 1;
-  string name = 2;
-  string logo = 3;
-  string description = 4;
-  string website = 5;
-  uint32 sort_order = 6;
-  bool is_visible = 7;
 }
 
-// 商品SPU信息
-message SpuInfo {
-  uint64 spu_id = 1;
-  uint64 category_id = 2;
-  uint64 brand_id = 3;
-  string title = 4;
-  string sub_title = 5;
-  string main_image = 6;
-  repeated string gallery_images = 7;
-  string detail_html = 8;
-  int32 status = 9;
-}
-
-// 商品SKU信息
-message SkuInfo {
-  uint64 sku_id = 1;
-  uint64 spu_id = 2;
-  string title = 3;
-  uint64 price = 4;
-  uint64 original_price = 5;
-  uint32 stock = 6;
-  string image = 7;
-  map<string, string> specs = 8;
-  int32 status = 9;
-}
-
-// --- 分类 RPC ---
-
+// CreateCategoryRequest 创建分类的请求。
 message CreateCategoryRequest {
-  uint64 parent_id = 1;
-  string name = 2;
-  optional string icon = 3;
-  optional uint32 sort_order = 4;
-  optional bool is_visible = 5;
+  string name = 1;
+  uint64 parent_id = 2;
+  string icon_url = 3;
+  int32 sort_order = 4;
 }
 
+// GetCategoryByIDRequest 获取分类的请求。
+message GetCategoryByIDRequest {
+  uint64 id = 1;
+}
+
+// UpdateCategoryRequest 更新分类的请求。
 message UpdateCategoryRequest {
   uint64 id = 1;
-  optional uint64 parent_id = 2;
-  optional string name = 3;
-  optional string icon = 4;
-  optional uint32 sort_order = 5;
-  optional bool is_visible = 6;
+  google.protobuf.StringValue name = 2;
+  google.protobuf.UInt64Value parent_id = 3;
+  google.protobuf.StringValue icon_url = 4;
+  google.protobuf.Int32Value sort_order = 5;
 }
 
+// DeleteCategoryRequest 删除分类的请求。
 message DeleteCategoryRequest {
   uint64 id = 1;
 }
 
+// ListCategoriesRequest 列表分类的请求。
 message ListCategoriesRequest {
-  uint64 parent_id = 1;
+  uint64 parent_id = 1; // 0 表示获取所有顶级分类
 }
 
+// ListCategoriesResponse 列表分类的响应。
 message ListCategoriesResponse {
-  repeated CategoryInfo categories = 1;
+  repeated Category categories = 1;
 }
 
-// --- 商品 RPC ---
-
-message CreateProductRequest {
-  SpuInfo spu = 1;
-  repeated SkuInfo skus = 2;
+// CreateBrandRequest 创建品牌的请求。
+message CreateBrandRequest {
+  string name = 1;
+  string logo_url = 2;
+  string description = 3;
 }
 
-message CreateProductResponse {
-  uint64 spu_id = 1;
-  repeated uint64 sku_ids = 2;
+// GetBrandByIDRequest 获取品牌的请求。
+message GetBrandByIDRequest {
+  uint64 id = 1;
 }
 
-message UpdateProductRequest {
-  SpuInfo spu = 1; // spu.spu_id is required
-  repeated SkuInfo skus = 2;
+// UpdateBrandRequest 更新品牌的请求。
+message UpdateBrandRequest {
+  uint64 id = 1;
+  google.protobuf.StringValue name = 2;
+  google.protobuf.StringValue logo_url = 3;
+  google.protobuf.StringValue description = 4;
 }
 
-message DeleteProductRequest {
-  uint64 spu_id = 1;
+// DeleteBrandRequest 删除品牌的请求。
+message DeleteBrandRequest {
+  uint64 id = 1;
 }
 
-message GetSpuDetailRequest {
-  uint64 spu_id = 1;
+// ListBrandsRequest 列表品牌的请求。
+message ListBrandsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
 }
 
-message GetSpuDetailResponse {
-  SpuInfo spu = 1;
-  repeated SkuInfo skus = 2;
+// ListBrandsResponse 列表品牌的响应。
+message ListBrandsResponse {
+  repeated Brand brands = 1;
+  int32 total = 2;
 }
-
-// 获取产品列表请求
-message ListProductsRequest {
-  uint32 page_size = 1;   // 每页大小
-  uint32 page_num = 2;    // 页码
-  optional uint64 category_id = 3; // 分类ID，用于过滤
-  optional int32 status = 4;       // 产品状态，用于过滤
-  optional uint64 brand_id = 5;    // 品牌ID，用于过滤
-  optional uint64 min_price = 6;   // 最小价格，单位分
-  optional uint64 max_price = 7;   // 最大价格，单位分
-  optional string query = 8;       // 搜索关键词
-  optional string sort_by = 9;     // 排序字段 (e.g., "price_asc", "price_desc", "sales_desc", "created_at_desc")
-}
-
-// 获取产品列表响应
-message ListProductsResponse {
-  repeated SpuInfo products = 1; // 产品列表
-  uint64 total_count = 2;        // 总产品数量
-}
-
-// --- 内部 RPC ---
-
-message GetSkuInfosRequest {
-  repeated uint64 sku_ids = 1;
-}
-
-message GetSkuInfosResponse {
-  repeated SkuInfo skus = 1;
-}
-
-message LockStockItem {
-  uint64 sku_id = 1;
-  uint32 quantity = 2;
-}
-
-message LockStockRequest {
-  repeated LockStockItem items = 1;
-}
-
-message LockStockResponse {}
-
-message IndexProductRequest {
-  uint64 spu_id = 1;
-}
-
-message IndexProductResponse {}

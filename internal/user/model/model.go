@@ -1,10 +1,9 @@
 package model
 
-import (
-	"time"
-)
+import "time"
 
-// User 是用户的业务领域模型。
+// User 是用户的业务领域模型 (Business Domain Model)。
+// 它代表了业务逻辑中的核心用户实体。
 type User struct {
 	ID        uint64
 	Username  string

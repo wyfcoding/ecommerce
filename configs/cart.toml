@@ -1,19 +1,30 @@
-[server.grpc]
+# 购物车服务基础配置
+[server.http]
 addr = "0.0.0.0"
-port = 9002
+port = 8083  # 为购物车服务选择一个不同的端口
 timeout = "1s"
 
-[data.redis]
-addr = "localhost:6379"
-password = ""
-db = 0
-read_timeout = "0.2s"
-write_timeout = "0.2s"
+[server.grpc]
+addr = "0.0.0.0"
+port = 9093  # 为购物车服务选择一个不同的端口
+timeout = "1s"
 
-[data.product_service]
-addr = "localhost:9001" # Address of the product gRPC service
+# 数据库配置 (指向购物车数据库)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_cart?charset=utf8mb4&parseTime=True&loc=Local"
 
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+
+# 日志配置
 [log]
 level = "debug"
-format = "console"
-output = "stdout"
+format = "json" # 可选: text 或 json
+output = "stdout" # 可选: stdout, stderr 或 文件路径
+
+# 业务相关配置
+[business]
+max_cart_item_quantity = 99 # 单个商品在购物车中的最大数量
+cart_expiration_hours = 72 # 购物车数据保留时间 (小时)

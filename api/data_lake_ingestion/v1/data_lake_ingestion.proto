@@ -3,25 +3,24 @@ syntax = "proto3";
 package api.data_lake_ingestion.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/data_lake_ingestion/v1;v1";
 
-// DataLakeIngestionService 定义了数据湖摄取服务接口
-service DataLakeIngestionService {
-  // 摄取数据到数据湖
-  rpc IngestData(IngestDataRequest) returns (IngestDataResponse);
+// DataLakeIngestion 数据湖摄取服务定义了所有与数据湖摄取相关的RPC接口。
+service DataLakeIngestion {
+  // --- 核心数据湖摄取接口 ---
+
+  // IngestToDataLake 摄取数据到数据湖。
+  rpc IngestToDataLake(IngestToDataLakeRequest) returns (google.protobuf.Empty);
 }
 
-// IngestDataRequest 摄取数据请求
-message IngestDataRequest {
-  string table_name = 1; // 目标表名 (Hudi表)
-  string record_id = 2; // 记录ID (用于Hudi upsert)
-  map<string, string> data = 3; // 记录数据
-  google.protobuf.Timestamp event_time = 4; // 事件时间
-}
+// --- 消息定义 ---
 
-// IngestDataResponse 摄取数据响应
-message IngestDataResponse {
-  bool success = 1;
-  string message = 2;
+// IngestToDataLakeRequest 摄取数据到数据湖请求消息。
+message IngestToDataLakeRequest {
+  string data_source = 1;
+  string data_format = 2;
+  bytes data_content = 3;
+  map<string, string> metadata = 4;
 }

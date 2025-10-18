@@ -2,38 +2,51 @@ syntax = "proto3";
 
 package api.auth.v1;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 option go_package = "ecommerce/api/auth/v1;v1";
 
-// AuthService 定义了认证服务接口
-service AuthService {
-  // 用户登录
-  rpc Login(LoginRequest) returns (LoginResponse);
+// Auth 认证服务定义了所有与用户认证和授权相关的RPC接口。
+service Auth {
+  // --- 核心认证接口 ---
 
-  // 验证令牌
+  // Authenticate 验证用户凭据并返回JWT Token。
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  // RefreshToken 刷新JWT Token。
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthenticateResponse);
+  // ValidateToken 验证JWT Token的有效性。
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
 }
 
-// LoginRequest 登录请求
-message LoginRequest {
+// --- 消息定义 ---
+
+// AuthenticateRequest 认证请求消息。
+message AuthenticateRequest {
   string username = 1;
   string password = 2;
 }
 
-// LoginResponse 登录响应
-message LoginResponse {
-  string access_token = 1;
-  string refresh_token = 2;
-  int64 expires_in = 3; // Access Token 过期时间 (秒)
+// AuthenticateResponse 认证响应消息。
+message AuthenticateResponse {
+  string token = 1; // JWT Token
+  int64 expires_at = 2; // Token 过期时间戳 (Unix seconds)
 }
 
-// ValidateTokenRequest 验证令牌请求
+// RefreshTokenRequest 刷新Token请求消息。
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// ValidateTokenRequest 验证Token请求消息。
 message ValidateTokenRequest {
-  string access_token = 1;
+  string token = 1;
 }
 
-// ValidateTokenResponse 验证令牌响应
+// ValidateTokenResponse 验证Token响应消息。
 message ValidateTokenResponse {
-  bool is_valid = 1;
-  string user_id = 2;
+  bool valid = 1;
+  uint64 user_id = 2;
   string username = 3;
+  int64 expires_at = 4;
 }

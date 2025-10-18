@@ -2,81 +2,118 @@ syntax = "proto3";
 
 package api.cart.v1;
 
-import "api/product/v1/product.proto"; // 导入商品服务的定义
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "ecommerce/api/cart/v1;v1";
 
-// ===================================
-// 服务定义 (Service Definition)
-// ===================================
+// Cart 购物车服务定义了所有与用户购物车管理相关的RPC接口。
+service Cart {
+  // AddItemToCart 向用户的购物车添加一个商品SKU。
+  // 如果商品已存在，则更新数量。
+  rpc AddItemToCart(AddItemToCartRequest) returns (CartInfo);
 
-// CartService 定义了与购物车相关的接口
-service CartService {
-  // 添加商品到购物车
-  // 如果商品已存在，则增加其数量
-  rpc AddItem(AddItemRequest) returns (AddItemResponse);
+  // UpdateCartItem 更新购物车中某个商品的数量。
+  rpc UpdateCartItem(UpdateCartItemRequest) returns (CartInfo);
 
-  // 从购物车移除指定商品
-  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse);
+  // RemoveItemFromCart 从购物车中移除一个或多个商品SKU。
+  rpc RemoveItemFromCart(RemoveItemFromCartRequest) returns (CartInfo);
 
-  // 更新购物车中某个商品的数量
-  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
+  // GetCart 获取指定用户的购物车详细信息。
+  rpc GetCart(GetCartRequest) returns (CartInfo);
 
-  // 获取当前用户的购物车详情
-  rpc GetCart(GetCartRequest) returns (GetCartResponse);
-  rpc ClearCheckedItems(ClearCheckedItemsRequest) returns (ClearCheckedItemsResponse);
+  // ClearCart 清空指定用户的购物车。
+  rpc ClearCart(ClearCartRequest) returns (google.protobuf.Empty);
+
+  // MergeCarts 合并两个购物车。
+  // 通常用于用户登录后，将匿名购物车与用户已有的购物车合并。
+  rpc MergeCarts(MergeCartsRequest) returns (CartInfo);
+
+  // ApplyCouponToCart 为购物车应用优惠券。
+  rpc ApplyCouponToCart(ApplyCouponToCartRequest) returns (CartInfo);
+
+  // RemoveCouponFromCart 从购物车移除已应用的优惠券。
+  rpc RemoveCouponFromCart(RemoveCouponFromCartRequest) returns (CartInfo);
 }
 
-// ===================================
-// 消息定义 (Message Definitions)
-// ===================================
+// --- 核心消息定义 ---
 
-// CartItem 购物车中的商品项
+// CartInfo 代表一个用户的购物车完整信息。
+message CartInfo {
+  uint64 user_id = 1;                             // 用户ID
+  repeated CartItem items = 2;                    // 购物车中的商品列表
+  int64 total_quantity = 3;                       // 购物车中商品总数量
+  int64 total_amount = 4;                         // 购物车中商品总金额 (原价，单位: 分)
+  int64 discount_amount = 5;                      // 优惠金额 (单位: 分)
+  int64 actual_amount = 6;                        // 实际支付金额 (总金额 - 优惠金额，单位: 分)
+  google.protobuf.StringValue applied_coupon_code = 7; // 已应用的优惠券码
+  google.protobuf.Timestamp created_at = 8;       // 购物车创建时间
+  google.protobuf.Timestamp updated_at = 9;       // 最后更新时间
+}
+
+// CartItem 代表购物车中的一个商品项。
 message CartItem {
-  uint64 sku_id = 1; // 商品SKU ID
-  uint32 quantity = 2; // 数量
-  // 商品的详细信息, 从商品服务获取后填充
-  api.product.v1.SkuInfo sku_info = 3;
+  uint64 id = 1;                                  // 购物车项ID
+  uint64 user_id = 2;                             // 所属用户ID
+  uint64 product_id = 3;                          // 商品SPU ID
+  uint64 sku_id = 4;                              // 商品SKU ID
+  string product_name = 5;                        // 商品名称
+  string sku_name = 6;                            // SKU名称
+  string product_image_url = 7;                   // 商品图片URL
+  int64 price = 8;                                // 商品单价 (单位: 分)
+  int32 quantity = 9;                             // 购买数量
+  int64 total_price = 10;                         // 该购物车项总价 (单位: 分)
+  google.protobuf.Timestamp created_at = 11;      // 添加到购物车时间
+  google.protobuf.Timestamp updated_at = 12;      // 最后更新时间
 }
 
-// AddItemRequest 添加商品请求
-// 注意：user_id 将从网关解析JWT后通过gRPC metadata传递，不在请求体中
-message AddItemRequest {
-  uint64 sku_id = 1; // 要添加的商品SKU ID
-  uint32 quantity = 2; // 数量
-  optional bool checked = 3; // 是否勾选，默认为true
+// --- RPC 请求/响应 消息 ---
+
+// AddItemToCartRequest 向购物车添加商品的请求。
+message AddItemToCartRequest {
+  uint64 user_id = 1;                             // 用户ID
+  uint64 product_id = 2;                          // 商品SPU ID
+  uint64 sku_id = 3;                              // 商品SKU ID
+  int32 quantity = 4;                             // 添加数量
 }
 
-// AddItemResponse 添加商品响应
-message AddItemResponse {}
-
-// RemoveItemRequest 移除商品请求
-message RemoveItemRequest {
-  uint64 sku_id = 1; // 要移除的商品SKU ID
+// UpdateCartItemRequest 更新购物车商品数量的请求。
+message UpdateCartItemRequest {
+  uint64 user_id = 1;                             // 用户ID
+  uint64 cart_item_id = 2;                        // 购物车项ID
+  int32 quantity = 3;                             // 新的数量
 }
 
-// RemoveItemResponse 移除商品响应
-message RemoveItemResponse {}
-
-// UpdateItemRequest 更新商品数量请求
-message UpdateItemRequest {
-  uint64 sku_id = 1; // 要更新的商品SKU ID
-  uint32 quantity = 2; // 更新后的最终数量, 如果为0则删除该商品
+// RemoveItemFromCartRequest 从购物车移除商品的请求。
+message RemoveItemFromCartRequest {
+  uint64 user_id = 1;                             // 用户ID
+  repeated uint64 cart_item_ids = 2;              // 要移除的购物车项ID列表
 }
 
-// UpdateItemResponse 更新商品数量响应
-message UpdateItemResponse {}
-
-// GetCartRequest 获取购物车请求
-message GetCartRequest {}
-
-// GetCartResponse 获取购物车响应
-message GetCartResponse {
-  repeated CartItem items = 1; // 购物车中的所有商品项
+// GetCartRequest 获取购物车信息的请求。
+message GetCartRequest {
+  uint64 user_id = 1;                             // 用户ID
 }
 
-message ClearCheckedItemsRequest {
-  uint64 user_id = 1;
+// ClearCartRequest 清空购物车的请求。
+message ClearCartRequest {
+  uint64 user_id = 1;                             // 用户ID
 }
 
-message ClearCheckedItemsResponse {}
+// MergeCartsRequest 合并购物车的请求。
+message MergeCartsRequest {
+  uint64 source_user_id = 1;                      // 源用户ID (通常是匿名用户)
+  uint64 target_user_id = 2;                      // 目标用户ID (登录用户)
+}
+
+// ApplyCouponToCartRequest 应用优惠券到购物车的请求。
+message ApplyCouponToCartRequest {
+  uint64 user_id = 1;                             // 用户ID
+  string coupon_code = 2;                         // 优惠券码
+}
+
+// RemoveCouponFromCartRequest 移除优惠券的请求。
+message RemoveCouponFromCartRequest {
+  uint64 user_id = 1;                             // 用户ID
+}

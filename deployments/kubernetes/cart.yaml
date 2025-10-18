@@ -1,0 +1,97 @@
+# deployments/kubernetes/cart.yaml
+
+# --- Service --- #
+# 定义 Cart 服务的 ClusterIP Service，用于在集群内部暴露服务
+apiVersion: v1
+kind: Service
+metadata:
+  # 服务名称
+  name: cart-service
+  # 标签，用于关联 Deployment
+  labels:
+    app: cart
+spec:
+  # 服务类型，ClusterIP 表示仅在集群内部可见
+  type: ClusterIP
+  # 选择器，用于找到该服务应该路由流量到的 Pod
+  selector:
+    app: cart
+  ports:
+    # HTTP 端口
+    - name: http
+      protocol: TCP
+      port: 8081
+      targetPort: 8081
+    # gRPC 端口
+    - name: grpc
+      protocol: TCP
+      port: 9091
+      targetPort: 9091
+
+---
+
+# --- Deployment --- #
+# 定义 Cart 服务的 Deployment，用于管理 Pod 的生命周期
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # Deployment 名称
+  name: cart-deployment
+  labels:
+    app: cart
+spec:
+  # 副本数量，即运行多少个 Pod 实例
+  replicas: 2
+  # 选择器，用于关联此 Deployment 管理的 Pod
+  selector:
+    matchLabels:
+      app: cart
+  # Pod 模板
+  template:
+    metadata:
+      labels:
+        app: cart
+    spec:
+      containers:
+        - name: cart-service
+          # 容器镜像，这里使用一个占位符，实际应替换为构建好的镜像地址
+          image: your-docker-registry/ecommerce-cart-service:latest
+          # 镜像拉取策略，IfNotPresent 表示如果本地有则不拉取
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+            - containerPort: 9091
+              name: grpc
+          # 资源请求与限制，用于资源调度和防止资源滥用
+          resources:
+            requests:
+              cpu: "100m" # 请求 0.1 核 CPU
+              memory: "128Mi" # 请求 128MB 内存
+            limits:
+              cpu: "500m" # 最多使用 0.5 核 CPU
+              memory: "512Mi" # 最多使用 512MB 内存
+          # 环境变量，用于向应用注入配置
+          # 更好的实践是使用 ConfigMap 和 Secret
+          env:
+            - name: DB_DSN
+              value: "root:your_password@tcp(mysql-service:3306)/ecommerce_cart?charset=utf8mb4&parseTime=True&loc=Local"
+            - name: REDIS_ADDR
+              value: "redis-service:6379"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+            - name: PRODUCT_SERVICE_GRPC_ADDR
+              value: "product-service:9093"
+          # 健康检查探针
+          livenessProbe:
+            httpGet:
+              path: /health # 假设存在 /health 检查端点
+              port: http
+            initialDelaySeconds: 15 # 启动后 15 秒开始检查
+            periodSeconds: 20 # 每 20 秒检查一次
+          readinessProbe:
+            httpGet:
+              path: /ready # 假设存在 /ready 检查端点
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10

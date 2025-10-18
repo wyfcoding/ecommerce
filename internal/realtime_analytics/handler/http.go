@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -12,11 +13,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	v1 "ecommerce/api/realtime_analytics/v1"
+	"ecommerce/internal/realtime_analytics/service"
 	"ecommerce/pkg/logging"
 )
 
 // StartHTTPServer 启动 HTTP Gateway
-func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int, realtimeAnalyticsService *service.RealtimeAnalyticsService) (*http.Server, chan error) {
 	errChan := make(chan error, 1)
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -30,9 +32,14 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // Use project's GinLogger
+
 	// Add service-specific Gin routes here
-	// For example:
-	// r.GET("/realtime_analytics/dashboard", handler.GetRealtimeDashboard)
+	api := r.Group("/api/v1/realtime-analytics")
+	{
+		api.GET("/sales-metrics", getRealtimeSalesMetricsHandler(realtimeAnalyticsService))
+		api.GET("/user-activity", getRealtimeUserActivityHandler(realtimeAnalyticsService))
+		api.POST("/user-behavior", recordUserBehaviorHandler(realtimeAnalyticsService))
+	}
 
 	r.Any("/*any", gin.WrapH(mux))
 
@@ -50,4 +57,56 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		close(errChan)
 	}()
 	return server, errChan
+}
+
+func getRealtimeSalesMetricsHandler(s *service.RealtimeAnalyticsService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		metrics, err := s.GetRealtimeSalesMetrics(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, metrics)
+	}
+}
+
+func getRealtimeUserActivityHandler(s *service.RealtimeAnalyticsService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		activity, err := s.GetRealtimeUserActivity(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, activity)
+	}
+}
+
+func recordUserBehaviorHandler(s *service.RealtimeAnalyticsService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			UserID       string            `json:"user_id"`
+			BehaviorType string            `json:"behavior_type"`
+			ItemID       string            `json:"item_id"`
+			Properties   map[string]string `json:"properties"`
+			EventTime    time.Time         `json:"event_time"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		if err := s.RecordUserBehavior(
+			c.Request.Context(),
+			req.UserID,
+			req.BehaviorType,
+			req.ItemID,
+			req.Properties,
+			req.EventTime,
+		); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "user behavior recorded"})
+	}
 }

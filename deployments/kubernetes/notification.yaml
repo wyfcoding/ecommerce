@@ -1,0 +1,58 @@
+# deployments/kubernetes/notification.yaml
+
+# --- Deployment --- #
+# 通知服务是一个后台工作者，主要消费消息队列，因此它不需要一个标准的 Kubernetes Service 来暴露端口
+# 如果提供了 gRPC 接口，可以像其他服务一样添加一个 ClusterIP Service
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-deployment
+  labels:
+    app: notification
+spec:
+  replicas: 2 # 可以部署多个副本来提高事件处理能力
+  selector:
+    matchLabels:
+      app: notification
+  template:
+    metadata:
+      labels:
+        app: notification
+    spec:
+      containers:
+        - name: notification-service
+          image: your-docker-registry/ecommerce-notification-service:latest
+          imagePullPolicy: IfNotPresent
+          # 由于没有 HTTP 端口，可以不定义 ports
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "150Mi"
+            limits:
+              cpu: "500m"
+              memory: "500Mi"
+          # 使用 envFrom 从 Secret 加载所有通知渠道的凭证
+          envFrom:
+            - secretRef:
+                name: notification-channel-secrets
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: notification_dsn
+            - name: MQ_URL
+              value: "amqp://guest:guest@rabbitmq-service:5672/"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          # 对于后台工作者，存活探针 (livenessProbe) 可以检查主进程是否仍在运行
+          # 准备就绪探针 (readinessProbe) 可以检查是否已成功连接到数据库和消息队列
+          # 这里使用一个简单的存活探针示例，通过执行一个命令
+          livenessProbe:
+            exec:
+              command:
+                - "/bin/grpc_health_probe"
+                - "-addr=:9095" # 假设 gRPC 服务器运行在 9095 端口并支持健康检查
+            initialDelaySeconds: 30
+            periodSeconds: 30

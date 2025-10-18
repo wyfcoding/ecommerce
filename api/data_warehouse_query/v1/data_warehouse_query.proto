@@ -2,23 +2,47 @@ syntax = "proto3";
 
 package api.data_warehouse_query.v1;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 option go_package = "ecommerce/api/data_warehouse_query/v1;v1";
 
-// DataWarehouseQueryService 定义了数据仓库查询服务接口
-service DataWarehouseQueryService {
-  // 执行数据仓库查询
+// DataWarehouseQuery 数据仓库查询服务定义了所有与数据仓库查询相关的RPC接口。
+service DataWarehouseQuery {
+  // --- 核心数据仓库查询接口 ---
+
+  // ExecuteQuery 执行数据仓库查询。
   rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
+  // GetQueryResult 获取查询结果。
+  rpc GetQueryResult(GetQueryResultRequest) returns (GetQueryResultResponse);
 }
 
-// ExecuteQueryRequest 执行数据仓库查询请求
+// --- 消息定义 ---
+
+// ExecuteQueryRequest 执行查询请求消息。
 message ExecuteQueryRequest {
-  string query_sql = 1; // 查询SQL (例如 HiveQL)
-  map<string, string> parameters = 2; // 查询参数
+  string query_string = 1;
+  map<string, string> query_params = 2;
+  optional string query_engine = 3; // e.g., "Presto", "Hive", "Spark"
 }
 
-// ExecuteQueryResponse 执行数据仓库查询响应
+// ExecuteQueryResponse 执行查询响应消息。
 message ExecuteQueryResponse {
-  repeated string column_names = 1; // 列名
-  repeated string rows = 2; // 结果行 (每行一个JSON字符串)
-  string message = 3; // 消息
+  string query_id = 1;
+  string status = 2;
+}
+
+// GetQueryResultRequest 获取查询结果请求消息。
+message GetQueryResultRequest {
+  string query_id = 1;
+  optional int32 page_size = 2;
+  optional int32 page_number = 3;
+}
+
+// GetQueryResultResponse 获取查询结果响应消息。
+message GetQueryResultResponse {
+  string query_id = 1;
+  string status = 2;
+  repeated map<string, string> rows = 3;
+  bool has_more = 4;
 }

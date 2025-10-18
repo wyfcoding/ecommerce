@@ -1,22 +1,42 @@
-[server]
-  [server.grpc]
-    addr = "0.0.0.0"
-    port = 8005
-  [server.http]
-    addr = "0.0.0.0"
-    port = 8085
+# 认证服务基础配置
+[server.http]
+addr = "0.0.0.0"
+port = 8085 # 假设 auth 服务在 8085
+timeout = "1s"
 
-[log]
-  level = "info"
-  format = "console"
-  output = "stdout"
+[server.grpc]
+addr = "0.0.0.0"
+port = 9098 # 假设 gRPC 在 9098
+timeout = "1s"
 
-[data]
-  [data.database]
-    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_auth?charset=utf8mb4&parseTime=True&loc=Local"
-    max_idle_conns = 10
-    max_open_conns = 100
-    conn_max_lifetime = "300s"
+# 认证服务依赖用户服务来获取和创建用户
+# 因此它不需要自己的数据库，而是通过 gRPC 调用用户服务
+[dependencies]
+user_service_grpc_addr = "localhost:9090"
 
+# JWT (JSON Web Token) 配置
 [jwt]
-  secret = "your-secret-key-for-jwt"
+# 这个密钥必须严格保密，并且在生产环境中足够复杂
+secret = "a_very_secret_and_long_key_for_hs256" # 强烈建议使用环境变量或 secrets 管理
+# 令牌签发者
+issuer = "ecommerce-auth-service"
+# 访问令牌 (Access Token) 的过期时间
+access_token_expire_duration = "2h"
+# 刷新令牌 (Refresh Token) 的过期时间
+refresh_token_expire_duration = "720h" # 30 days
+
+# 密码哈希配置
+[password]
+# 使用 bcrypt 算法时的 cost，数值越高越安全但越慢
+bcrypt_cost = 12
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "auth-service"
+
+# 日志配置
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

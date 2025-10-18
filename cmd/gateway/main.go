@@ -2,25 +2,39 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"ecommerce/internal/gateway/handler"
+	"go.uber.org/zap"
+
+	gatewayclient "ecommerce/internal/gateway/client"
+	gatewayhandler "ecommerce/internal/gateway/handler"
+	"ecommerce/internal/gateway/service"
 	"ecommerce/pkg/app"
-	"ecommerce/pkg/server"
 	configpkg "ecommerce/pkg/config"
 	"ecommerce/pkg/logging"
-
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/server"
+	"ecommerce/pkg/tracing"
 )
 
 // Config is the service-specific configuration structure.
 type Config struct {
-	configpkg.Config
+	configpkg.ServerConfig `toml:"server"`
+	configpkg.LogConfig    `toml:"log"`
+	configpkg.TraceConfig  `toml:"trace"`
+	Metrics                struct {
+		Port string `toml:"port"`
+	} `toml:"metrics"`
 	Services struct {
+		AuthService struct {
+			Addr string `toml:"addr"`
+		} `toml:"auth_service"`
 		ProductService struct {
 			Addr string `toml:"addr"`
 		} `toml:"product_service"`
@@ -39,31 +53,46 @@ func main() {
 	flag.StringVar(&configPath, "conf", "./configs/gateway.toml", "config file path")
 	flag.Parse()
 
-	var config Config
-	if err := configpkg.Load(configPath, &config); err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+	var cfg Config
+	if err := configpkg.LoadConfig(configPath, &cfg); err != nil {
+		zap.S().Fatalf("failed to load config: %v", err)
 	}
 
 	// 2. 初始化日志
-	logger := logging.NewLogger(config.Log.Level, config.Log.Format, config.Log.Output)
+	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
 	zap.ReplaceGlobals(logger)
+	defer logger.Sync()
 
-	// 3. 初始化下游服务客户端
-	clients, cleanup, err := initClients(&config)
+	// 3. 初始化追踪
+	_, cleanupTracing, err := tracing.InitTracer(&cfg.Trace)
+	if err != nil {
+		zap.S().Fatalf("failed to init tracing: %v", err)
+	}
+	defer cleanupTracing()
+
+	// 4. 初始化指标暴露
+	cleanupMetrics := metrics.ExposeHttp(cfg.Metrics.Port)
+	defer cleanupMetrics()
+
+	// 5. 初始化下游服务客户端
+	clients, cleanupClients, err := gatewayclient.NewClients(&cfg.Services.AuthService.Addr, &cfg.Services.ProductService.Addr, &cfg.Services.OrderService.Addr, &cfg.Services.UserService.Addr)
 	if err != nil {
 		zap.S().Fatalf("failed to init clients: %v", err)
 	}
-	defer cleanup()
+	defer cleanupClients()
 
-	// 4. 创建 Gin Engine
+	// 6. 依赖注入 (DI)
+	gatewayService := service.NewGatewayService(clients.AuthClient)
+
+	// 7. 创建 Gin Engine
 	engine := gin.Default()
 
-	// 5. 注册路由
-	h := handler.NewHandler(clients)
+	// 8. 注册路由
+	h := gatewayhandler.NewHandler(gatewayService)
 	h.RegisterRoutes(engine)
 
-	// 6. 创建并运行应用
-	httpAddr := fmt.Sprintf("%s:%d", config.Server.HTTP.Addr, config.Server.HTTP.Port)
+	// 9. 创建并运行应用
+	httpAddr := fmt.Sprintf("%s:%d", cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
 	httpSrv := server.NewGinServer(engine, httpAddr)
 
 	application := app.New(
@@ -73,34 +102,4 @@ func main() {
 	if err := application.Run(); err != nil {
 		zap.S().Fatalf("failed to run app: %v", err)
 	}
-}
-
-func initClients(config *Config) (*handler.Clients, func(), error) {
-	productConn, err := grpc.Dial(config.Services.ProductService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to product service: %w", err)
-	}
-
-	orderConn, err := grpc.Dial(config.Services.OrderService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		productConn.Close()
-		return nil, nil, fmt.Errorf("failed to connect to order service: %w", err)
-	}
-    
-    userConn, err := grpc.Dial(config.Services.UserService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		productConn.Close()
-		orderConn.Close()
-		return nil, nil, fmt.Errorf("failed to connect to user service: %w", err)
-	}
-
-	clients := handler.NewClients(productConn, orderConn, userConn)
-
-	cleanup := func() {
-		productConn.Close()
-		orderConn.Close()
-        userConn.Close()
-	}
-
-	return clients, cleanup, nil
 }

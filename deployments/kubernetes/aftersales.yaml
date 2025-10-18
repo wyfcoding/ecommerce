@@ -1,0 +1,84 @@
+# deployments/kubernetes/aftersales.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: aftersales-service
+  labels:
+    app: aftersales
+spec:
+  type: ClusterIP
+  selector:
+    app: aftersales
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8091
+      targetPort: 8091
+    - name: grpc
+      protocol: TCP
+      port: 9102
+      targetPort: 9102
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aftersales-deployment
+  labels:
+    app: aftersales
+spec:
+  replicas: 1 # 售后流程通常不属于超高频业务，从 1 个副本开始
+  selector:
+    matchLabels:
+      app: aftersales
+  template:
+    metadata:
+      labels:
+        app: aftersales
+    spec:
+      containers:
+        - name: aftersales-service
+          image: your-docker-registry/ecommerce-aftersales-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8091
+              name: http
+            - containerPort: 9102
+              name: grpc
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: aftersales_dsn
+            - name: ORDER_SERVICE_GRPC_ADDR
+              value: "order-service:9093"
+            - name: PAYMENT_SERVICE_GRPC_ADDR
+              value: "payment-service:9094"
+            - name: INVENTORY_SERVICE_GRPC_ADDR
+              value: "inventory-service:9096"
+            - name: LOGISTICS_SERVICE_GRPC_ADDR
+              value: "logistics-service:9097"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20

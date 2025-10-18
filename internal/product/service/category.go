@@ -2,115 +2,55 @@ package service
 
 import (
 	"context"
-	v1 "ecommerce/api/product/v1"
-	"ecommerce/internal/product/biz"
+	"fmt"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"ecommerce/internal/product/model"
+	"ecommerce/internal/product/repository"
 )
 
-// bizCategoryToProto 将 biz.Category 领域模型转换为 v1.CategoryInfo API 模型。
-func bizCategoryToProto(c *biz.Category) *v1.CategoryInfo {
-	if c == nil {
-		return nil
-	}
-	res := &v1.CategoryInfo{
-		Id:       c.ID,
-		ParentId: c.ParentID,
-		Name:     c.Name,
-		Level:    c.Level,
-	}
-	if c.Icon != nil {
-		res.Icon = *c.Icon
-	}
-	if c.SortOrder != nil {
-		res.SortOrder = *c.SortOrder
-	}
-	if c.IsVisible != nil {
-		res.IsVisible = *c.IsVisible
-	}
-	return res
+// CategoryService 封装了分类相关的业务逻辑。
+type CategoryService struct {
+	repo repository.CategoryRepo
 }
 
-// CreateCategory 实现了创建商品分类的 RPC。
-func (s *service) CreateCategory(ctx context.Context, req *v1.CreateCategoryRequest) (*v1.CategoryInfo, error) {
-	bizCate := &biz.Category{
-		ParentID: req.ParentId,
-		Name:     req.Name,
-	}
-	if req.HasIcon() {
-		icon := req.GetIcon()
-		bizCate.Icon = &icon
-	}
-	if req.HasSortOrder() {
-		sortOrder := req.GetSortOrder()
-		bizCate.SortOrder = &sortOrder
-	}
-	if req.HasIsVisible() {
-		isVisible := req.GetIsVisible()
-		bizCate.IsVisible = &isVisible
-	}
-
-	created, err := s.categoryUsecase.CreateCategory(ctx, bizCate)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create category: %v", err)
-	}
-	return bizCategoryToProto(created), nil
+// NewCategoryService 是 CategoryService 的构造函数。
+func NewCategoryService(repo repository.CategoryRepo) *CategoryService {
+	return &CategoryService{repo: repo}
 }
 
-// UpdateCategory 实现了更新商品分类的 RPC。
-func (s *service) UpdateCategory(ctx context.Context, req *v1.UpdateCategoryRequest) (*v1.CategoryInfo, error) {
-	bizCate := &biz.Category{
-		ID: req.Id,
+// CreateCategory 负责创建商品分类的业务逻辑。
+func (s *CategoryService) CreateCategory(ctx context.Context, c *model.Category) (*model.Category, error) {
+	// 核心业务逻辑：根据父ID计算新分类的层级。
+	if c.ParentID == 0 {
+		c.Level = 1
+	} else {
+		parent, err := s.repo.GetCategory(ctx, c.ParentID)
+		if err != nil {
+			return nil, fmt.Errorf("parent category not found: %w", err)
+		}
+		c.Level = parent.Level + 1
 	}
-	if req.HasParentId() {
-		bizCate.ParentID = req.GetParentId()
-	}
-	if req.HasName() {
-		bizCate.Name = req.GetName()
-	}
-	if req.HasIcon() {
-		icon := req.GetIcon()
-		bizCate.Icon = &icon
-	}
-	if req.HasSortOrder() {
-		sortOrder := req.GetSortOrder()
-		bizCate.SortOrder = &sortOrder
-	}
-	if req.HasIsVisible() {
-		isVisible := req.GetIsVisible()
-		bizCate.IsVisible = &isVisible
-	}
-
-	updated, err := s.categoryUsecase.UpdateCategory(ctx, bizCate)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to update category: %v", err)
-	}
-	return bizCategoryToProto(updated), nil
+	return s.repo.CreateCategory(ctx, c)
 }
 
-// DeleteCategory 实现了删除商品分类的 RPC。
-func (s *service) DeleteCategory(ctx context.Context, req *v1.DeleteCategoryRequest) (*emptypb.Empty, error) {
-	if err := s.categoryUsecase.DeleteCategory(ctx, req.Id); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to delete category: %v", err)
-	}
-	return &emptypb.Empty{}, nil
+// UpdateCategory 负责更新商品分类的业务逻辑。
+func (s *CategoryService) UpdateCategory(ctx context.Context, c *model.Category) (*model.Category, error) {
+	// 此处可添加业务校验，例如检查 ParentID 是否会导致循环引用等。
+	return s.repo.UpdateCategory(ctx, c)
 }
 
-// ListCategories 实现了获取商品分类列表的 RPC。
-func (s *service) ListCategories(ctx context.Context, req *v1.ListCategoriesRequest) (*v1.ListCategoriesResponse, error) {
-	categories, err := s.categoryUsecase.ListCategories(ctx, req.ParentId)
-	if err != nil {
-		return nil, err
-	}
+// DeleteCategory 负责删除商品分类的业务逻辑。
+func (s *CategoryService) DeleteCategory(ctx context.Context, id uint64) error {
+	// 此处可添加业务校验，例如检查该分类下是否有子分类或商品。
+	return s.repo.DeleteCategory(ctx, id)
+}
 
-	var categoryInfos []*v1.CategoryInfo
-	for _, c := range categories {
-		categoryInfos = append(categoryInfos, bizCategoryToProto(c))
-	}
+// GetCategory 负责获取单个分类的业务逻辑。
+func (s *CategoryService) GetCategory(ctx context.Context, id uint64) (*model.Category, error) {
+	return s.repo.GetCategory(ctx, id)
+}
 
-	return &v1.ListCategoriesResponse{
-		Categories: categoryInfos,
-	}, nil
+// ListCategories 负责获取分类列表的业务逻辑。
+func (s *CategoryService) ListCategories(ctx context.Context, parentID uint64) ([]*model.Category, error) {
+	return s.repo.ListCategories(ctx, parentID)
 }

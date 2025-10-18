@@ -1,85 +1,119 @@
 package main
 
 import (
-	"ecommerce/internal/cms/biz"
-	"ecommerce/internal/cms/data"
-	cmshandler "ecommerce/internal/cms/handler"
-	"ecommerce/internal/cms/service"
 	"fmt"
-	"log"
+	"time"
 
-	"github.com/BurntSushi/toml"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"ecommerce/internal/cms/handler"
+
+	"ecommerce/internal/cms/service"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	v1 "ecommerce/api/cms/v1"
 )
 
-// Config holds the application configuration.
+// Config 定义了 cms-service 的所有配置项。
 type Config struct {
-	Service  ServiceConfig  `toml:"service"`
-	Database DatabaseConfig `toml:"database"`
+	configpkg.Config
+	Data struct {
+		configpkg.DataConfig
+		Database struct {
+			configpkg.DatabaseConfig
+		} `toml:"database"`
+	} `toml:"data"`
+	JWT struct {
+		Secret string        `toml:"secret"`
+		Issuer string        `toml:"issuer"`
+		Expire time.Duration `toml:"expire"`
+	} `toml:"jwt"`
+	Tracing struct {
+		JaegerEndpoint string `toml:"jaeger_endpoint"`
+	} `toml:"tracing"`
 }
 
-type ServiceConfig struct {
-	Port string `toml:"port"`
-}
+const serviceName = "cms-service"
 
-type DatabaseConfig struct {
-	Host     string `toml:"host"`
-	Port     int    `toml:"port"`
-	User     string `toml:"user"`
-	Password string `toml:"password"`
-	DBName   string `toml:"dbname"`
-}
-
+// main 是应用程序的入口点。
 func main() {
-	// ======== 1. Initialize Dependencies (e.g., Config, Logger, DB) ========
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		// 注入 OpenTelemetry (Jaeger) 的拦截器和中间件
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9091"). // 为 metrics server 使用一个不同的端口
+		Build().
+		Run()
+}
 
-	// Load configuration from TOML file
-	var conf Config
-	if _, err := toml.DecodeFile("../../configs/cms.toml", &conf); err != nil {
-		log.Fatalf("failed to load config file: %v", err)
-	}
+// registerGRPC 将 gRPC 服务注册到服务器。
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	v1.RegisterCMSServer(s, srv.(v1.CMSServiceServer))
+}
 
-	// Construct MySQL DSN (Data Source Name)
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		conf.Database.User,
-		conf.Database.Password,
-		conf.Database.Host,
-		conf.Database.Port,
-		conf.Database.DBName,
-	)
+// registerGin 将 HTTP 路由注册到 Gin 引擎。
+func registerGin(e *gin.Engine, srv interface{}) {
+	handler.RegisterRoutes(e, srv.(*service.CMSService))
+}
 
-	// Connect to MySQL database
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+// initService 负责初始化服务所需的所有依赖项。
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+
+	// 1. 初始化 Jaeger Tracer
+	zap.S().Info("initializing Jaeger tracer...")
+	_, cleanupTracer, err := tracing.InitTracer(&tracing.Config{
+		ServiceName:    serviceName,
+		JaegerEndpoint: config.Tracing.JaegerEndpoint,
+	})
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		return nil, nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}
 
-	// Auto-migrate the schema
-	err = db.AutoMigrate(&data.ContentPage{}, &data.ContentBlock{})
+	// 2. 初始化数据库连接
+	zap.S().Info("initializing database connection...")
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
 	if err != nil {
-		log.Fatalf("failed to migrate schema: %v", err)
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	log.Println("Successfully connected to database and migrated schema.")
+	// 3. 初始化数据层
+	// data, cleanupData, err := repository.NewData(db)
+	// if err != nil {
+	//	cleanupDB()
+	//	cleanupTracer()
+	//	return nil, nil, fmt.Errorf("failed to initialize data layer: %w", err)
+	// }
 
-	// ======== 2. Wire up the application layers (Dependency Injection) ========
+	// 4. 初始化 Repositories
+	// cmsRepo := repository.NewCMSRepo(data)
 
-	dataRepo, cleanup, err := data.NewData(db)
-	if err != nil {
-		log.Fatalf("failed to create data layer: %v", err)
+	// 5. 初始化 Service
+	zap.S().Info("initializing cms service...")
+	// cmsService := service.NewCMSService(cmsRepo, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
+
+	// TODO: Replace with actual service initialization
+	cmsService := struct{}{
 	}
-	defer cleanup()
 
-	cmsRepo := data.NewCmsRepo(dataRepo)
-	cmsUsecase := biz.NewCmsUsecase(cmsRepo)
-	cmsService := service.NewCmsService(cmsUsecase)
+	// 定义一个总的清理函数，按初始化的相反顺序执行。
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		// cleanupData()
+		cleanupDB()
+		cleanupTracer()
+	}
 
-	log.Println("Application layers wired successfully.")
-
-	// ======== 3. Start the Server (e.g., HTTP, gRPC) ========
-
-	cmshandler.StartHTTPServer(cmsService, conf.Service.Port)
-
-	_ = cmsService
+	return cmsService, cleanup, nil
 }

@@ -1,53 +1,65 @@
-package adminhandler
+package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
 	"ecommerce/internal/admin/service"
-	"ecommerce/pkg/logging"
+	// 伪代码: 模拟认证中间件
+	// auth "ecommerce/internal/auth/handler"
 )
 
-// startGinServer 启动 Gin HTTP 服务器
-func StartGinServer(adminService *service.AdminService, addr string, port int) (*http.Server, chan error) {
-	errChan := make(chan error, 1)
-	r := gin.New()
-	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // 使用项目的 GinLogger
+// AdminHandler 负责处理管理后台的 HTTP 请求
+type AdminHandler struct {
+	svc    service.AdminService
+	logger *zap.Logger
+}
 
-	// 健康检查端点
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+// NewAdminHandler 创建一个新的 AdminHandler 实例
+func NewAdminHandler(svc service.AdminService, logger *zap.Logger) *AdminHandler {
+	return &AdminHandler{svc: svc, logger: logger}
+}
 
-	// --- 在此处注册服务特定的 HTTP 路由 ---
+// RegisterRoutes 在 Gin 引擎上注册所有管理后台相关的路由
+func (h *AdminHandler) RegisterRoutes(r *gin.Engine) {
+	// 所有管理后台接口都需要管理员权限
+	group := r.Group("/api/v1/admin")
+	// group.Use(auth.AuthMiddleware(...), auth.AdminMiddleware(...))
+	{
+		group.GET("/dashboard/statistics", h.GetDashboardStatistics)
+		// 此处可以添加更多路由，例如:
+		// group.GET("/users", h.ListUsers)
+		// group.GET("/orders", h.ListOrders)
+		// group.PUT("/orders/:id/status", h.UpdateOrderStatus)
+	}
+}
 
-	//
-	// --- 应用级降级 ---
-	// 降级逻辑高度依赖于具体的应用场景。
-	// 例如，如果下游服务不可用，您可以：
-	// - 返回缓存数据。
-	// - 返回默认响应。
-	// - 重定向到静态错误页面。
-	// - 使用功能的简化版本。
-	// 这通常涉及检查依赖项的健康/状态
-	// 或在您的处理程序中实现回退逻辑。
-	// --------------------------------------------------
-
-	httpEndpoint := fmt.Sprintf("%s:%d", addr, port)
-	server := &http.Server{
-		Addr:    httpEndpoint,
-		Handler: r,
+// GetDashboardStatistics 处理获取仪表盘统计数据的请求
+func (h *AdminHandler) GetDashboardStatistics(c *gin.Context) {
+	stats, err := h.svc.GetDashboardStatistics(c.Request.Context())
+	if err != nil {
+		h.logger.Error("Failed to get dashboard statistics", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取仪表盘数据失败: " + err.Error()})
+		return
 	}
 
-	zap.S().Infof("Gin HTTP server listening at %s", httpEndpoint)
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("failed to serve Gin HTTP: %w", err)
-		}
-		close(errChan)
-	}()
-	return server, errChan
+	c.JSON(http.StatusOK, stats)
 }
+
+/*
+// ListUsers 示例
+func (h *AdminHandler) ListUsers(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+
+	users, err := h.svc.ListUsers(c.Request.Context(), page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取用户列表失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+*/

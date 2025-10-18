@@ -1,23 +1,43 @@
-[server]
-  [server.grpc]
-    addr = "0.0.0.0"
-    port = 8009
-  [server.http]
-    addr = "0.0.0.0"
-    port = 8089
+# 支付服务基础配置
+[server.http]
+addr = "0.0.0.0"
+port = 8084  # 为支付服务选择一个不同的端口
+timeout = "1s"
 
+[server.grpc]
+addr = "0.0.0.0"
+port = 9094  # 为支付服务选择一个不同的端口
+timeout = "1s"
+
+# 数据库配置 (指向支付数据库)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_payment?charset=utf8mb4&parseTime=True&loc=Local"
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+
+# 日志配置
 [log]
-  level = "info"
-  format = "console"
-  output = "stdout"
+level = "debug"
+format = "json" # 可选: text 或 json
+output = "stdout" # 可选: stdout, stderr 或 文件路径
 
-[data]
-  [data.database]
-    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_payment?charset=utf8mb4&parseTime=True&loc=Local"
-    max_idle_conns = 10
-    max_open_conns = 100
-    conn_max_lifetime = "300s"
+# 支付网关配置 (示例)
+[payment_gateways.wechat_pay]
+app_id = "your_wechat_app_id"
+mch_id = "your_wechat_mch_id"
+api_key = "your_wechat_api_key"
+notify_url = "http://your-domain.com/api/v1/payment/callback/wechat"
 
-[services]
-  [services.order]
-    addr = "127.0.0.1:8000"
+[payment_gateways.alipay]
+app_id = "your_alipay_app_id"
+private_key = "your_alipay_private_key"
+public_key = "your_alipay_public_key"
+notify_url = "http://your-domain.com/api/v1/payment/callback/alipay"
+
+# 业务相关配置
+[business]
+default_page_size = 10 # 列表查询时的默认分页大小
+max_page_size = 100 # 列表查询时允许的最大分页大小

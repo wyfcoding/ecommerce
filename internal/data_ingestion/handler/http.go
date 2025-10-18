@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -12,11 +13,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	v1 "ecommerce/api/data_ingestion/v1"
+	"ecommerce/internal/data_ingestion/service"
 	"ecommerce/pkg/logging"
 )
 
 // StartHTTPServer 启动 HTTP Gateway
-func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int, dataIngestionService *service.DataIngestionService) (*http.Server, chan error) {
 	errChan := make(chan error, 1)
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -30,9 +32,12 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // Use project's GinLogger
+
 	// Add service-specific Gin routes here
-	// For example:
-	// r.POST("/data_ingestion/event", handler.IngestEvent)
+	api := r.Group("/api/v1/data-ingestion")
+	{
+		api.POST("/event", ingestEventHandler(dataIngestionService))
+	}
 
 	r.Any("/*any", gin.WrapH(mux))
 
@@ -50,4 +55,34 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		close(errChan)
 	}()
 	return server, errChan
+}
+
+func ingestEventHandler(s *service.DataIngestionService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			EventType  string            `json:"event_type"`
+			UserID     string            `json:"user_id"`
+			EntityID   string            `json:"entity_id"`
+			Properties map[string]string `json:"properties"`
+			Timestamp  time.Time         `json:"timestamp"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		if err := s.IngestEvent(
+			c.Request.Context(),
+			req.EventType,
+			req.UserID,
+			req.EntityID,
+			req.Properties,
+			req.Timestamp,
+		); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "event ingested successfully"})
+	}
 }

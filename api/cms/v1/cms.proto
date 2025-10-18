@@ -3,165 +3,65 @@ syntax = "proto3";
 package api.cms.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/cms/v1;v1";
 
-// CMS Service
+// CMS 内容管理服务定义了所有与内容管理相关的RPC接口。
 service CMS {
-    // Create a new content page
-    rpc CreateContentPage(CreateContentPageRequest) returns (CreateContentPageResponse);
+  // --- 核心CMS接口 ---
 
-    // Get a content page by slug or ID
-    rpc GetContentPage(GetContentPageRequest) returns (GetContentPageResponse);
-
-    // Update an existing content page
-    rpc UpdateContentPage(UpdateContentPageRequest) returns (UpdateContentPageResponse);
-
-    // Delete a content page
-    rpc DeleteContentPage(DeleteContentPageRequest) returns (DeleteContentPageResponse);
-
-    // List content pages
-    rpc ListContentPages(ListContentPagesRequest) returns (ListContentPagesResponse);
-
-    // Create a new content block
-    rpc CreateContentBlock(CreateContentBlockRequest) returns (CreateContentBlockResponse);
-
-    // Get a content block by slug or ID
-    rpc GetContentBlock(GetContentBlockRequest) returns (GetContentBlockResponse);
-
-    // Update an existing content block
-    rpc UpdateContentBlock(UpdateContentBlockRequest) returns (UpdateContentBlockResponse);
-
-    // Delete a content block
-    rpc DeleteContentBlock(DeleteContentBlockRequest) returns (DeleteContentBlockResponse);
+  // CreateContent 创建一个新内容。
+  rpc CreateContent(CreateContentRequest) returns (ContentResponse);
+  // GetContentByID 根据内容ID获取内容信息。
+  rpc GetContentByID(GetContentByIDRequest) returns (ContentResponse);
+  // UpdateContent 更新内容信息。
+  rpc UpdateContent(UpdateContentRequest) returns (ContentResponse);
+  // DeleteContent 删除内容。
+  rpc DeleteContent(DeleteContentRequest) returns (google.protobuf.Empty);
 }
 
-// Represents a content page
-message ContentPage {
-    string id = 1;
-    string title = 2;
-    string slug = 3; // URL-friendly identifier
-    string content_html = 4;
-    string status = 5; // e.g., DRAFT, PUBLISHED, ARCHIVED
-    google.protobuf.Timestamp created_at = 6;
-    google.protobuf.Timestamp updated_at = 7;
+// --- 消息定义 ---
+
+// ContentInfo 代表内容信息。
+message ContentInfo {
+  uint64 content_id = 1; // 内容ID
+  string title = 2; // 标题
+  string content_type = 3; // 内容类型 (e.g., article, page, product_description)
+  string content_body = 4; // 内容主体
+  string author = 5; // 作者
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
-// Represents a reusable content block
-message ContentBlock {
-    string id = 1;
-    string name = 2; // Internal name for the block
-    string content_html = 3;
-    string type = 4; // e.g., HTML, MARKDOWN, JSON
-    google.protobuf.Timestamp created_at = 5;
-    google.protobuf.Timestamp updated_at = 6;
+// CreateContentRequest 创建内容请求消息。
+message CreateContentRequest {
+  string title = 1;
+  string content_type = 2;
+  string content_body = 3;
+  string author = 4;
 }
 
-// Request to create a content page
-message CreateContentPageRequest {
-    string title = 1;
-    string slug = 2;
-    string content_html = 3;
-    string status = 4;
+// ContentResponse 内容响应消息。
+message ContentResponse {
+  ContentInfo content = 1;
 }
 
-// Response for creating a content page
-message CreateContentPageResponse {
-    ContentPage page = 1;
+// GetContentByIDRequest 获取内容信息请求。
+message GetContentByIDRequest {
+  uint64 content_id = 1;
 }
 
-// Request to get a content page
-message GetContentPageRequest {
-    string id = 1;
-    string slug = 2;
+// UpdateContentRequest 更新内容信息请求。
+message UpdateContentRequest {
+  uint64 content_id = 1;
+  optional string title = 2;
+  optional string content_type = 3;
+  optional string content_body = 4;
+  optional string author = 5;
 }
 
-// Response for getting a content page
-message GetContentPageResponse {
-    ContentPage page = 1;
-}
-
-// Request to update a content page
-message UpdateContentPageRequest {
-    string id = 1;
-    string title = 2;
-    string slug = 3;
-    string content_html = 4;
-    string status = 5;
-}
-
-// Response for updating a content page
-message UpdateContentPageResponse {
-    ContentPage page = 1;
-}
-
-// Request to delete a content page
-message DeleteContentPageRequest {
-    string id = 1;
-}
-
-// Response for deleting a content page
-message DeleteContentPageResponse {
-    bool success = 1;
-    string message = 2;
-}
-
-// Request to list content pages
-message ListContentPagesRequest {
-    int32 page_size = 1;
-    int32 page_token = 2;
-    string status_filter = 3;
-}
-
-// Response for listing content pages
-message ListContentPagesResponse {
-    repeated ContentPage pages = 1;
-    int32 total_count = 2;
-}
-
-// Request to create a content block
-message CreateContentBlockRequest {
-    string name = 1;
-    string content_html = 2;
-    string type = 3;
-}
-
-// Response for creating a content block
-message CreateContentBlockResponse {
-    ContentBlock block = 1;
-}
-
-// Request to get a content block
-message GetContentBlockRequest {
-    string id = 1;
-    string name = 2;
-}
-
-// Response for getting a content block
-message GetContentBlockResponse {
-    ContentBlock block = 1;
-}
-
-// Request to update a content block
-message UpdateContentBlockRequest {
-    string id = 1;
-    string name = 2;
-    string content_html = 3;
-    string type = 4;
-}
-
-// Response for updating a content block
-message UpdateContentBlockResponse {
-    ContentBlock block = 1;
-}
-
-// Request to delete a content block
-message DeleteContentBlockRequest {
-    string id = 1;
-}
-
-// Response for deleting a content block
-message DeleteContentBlockResponse {
-    bool success = 1;
-    string message = 2;
+// DeleteContentRequest 删除内容请求。
+message DeleteContentRequest {
+  uint64 content_id = 1;
 }

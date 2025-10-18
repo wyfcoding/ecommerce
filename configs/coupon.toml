@@ -1,15 +1,37 @@
-# Coupon Service Configuration
-[service]
-name = "coupon"
-version = "1.0.0"
-port = 8080
+# 优惠券服务基础配置
+[server.http]
+addr = "0.0.0.0"
+port = 8086
+timeout = "1s"
 
-[database]
-host = "localhost"
-port = 5432
-user = "user"
-password = "password"
-dbname = "coupon_db"
+[server.grpc]
+addr = "0.0.0.0"
+port = 9099
+timeout = "1s"
 
-[logging]
-level = "info"
+# 数据库配置 (用于存储优惠券定义和用户优惠券)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_coupon?charset=utf8mb4&parseTime=True&loc=Local"
+
+# Redis 配置 (用于缓存优惠券信息和快速校验)
+[data.redis]
+addr = "localhost:6379"
+password = ""
+db = 2 # 使用不同于其他服务的 DB
+
+# 依赖服务 gRPC 地址
+[dependencies]
+user_service_grpc_addr = "localhost:9090"
+product_service_grpc_addr = "localhost:9092"
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "coupon-service"
+
+# 日志配置
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

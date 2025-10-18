@@ -1,19 +1,43 @@
-[server]
-  [server.grpc]
-    addr = "0.0.0.0"
-    port = 8008
-  [server.http]
-    addr = "0.0.0.0"
-    port = 8088
+# 库存服务基础配置
+[server.grpc]
+# 库存服务主要通过 gRPC 和消息队列与其他服务交互
+addr = "0.0.0.0"
+port = 9096
+timeout = "1s"
 
+# 数据库配置 (用于存储库存信息)
+# 可以考虑使用支持高并发写入的数据库，如 ScyllaDB/Cassandra，或带有优化锁的 RDBMS
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_inventory?charset=utf8mb4&parseTime=True&loc=Local"
+
+# Redis 配置 (用于分布式锁和缓存)
+[data.redis]
+addr = "localhost:6379"
+password = ""
+db = 1 # 使用不同于其他服务的 DB
+
+# 消息队列 (RabbitMQ / Kafka) 配置
+# 监听订单创建、取消等事件以调整库存
+[mq]
+type = "rabbitmq"
+url = "amqp://guest:guest@localhost:5672/"
+consumer_queues = [
+  { queue_name = "inventory.deduct", exchange_name = "order_events", routing_key = "order.created" },
+  { queue_name = "inventory.rollback", exchange_name = "order_events", routing_key = "order.cancelled" }
+]
+
+# 依赖服务 gRPC 地址
+[dependencies]
+product_service_grpc_addr = "localhost:9092" # 用于获取商品基础信息
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "inventory-service"
+
+# 日志配置
 [log]
-  level = "info"
-  format = "console"
-  output = "stdout"
-
-[data]
-  [data.database]
-    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_inventory?charset=utf8mb4&parseTime=True&loc=Local"
-    max_idle_conns = 10
-    max_open_conns = 100
-    conn_max_lifetime = "300s"
+level = "debug"
+format = "json"
+output = "stdout"

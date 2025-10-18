@@ -3,36 +3,41 @@ syntax = "proto3";
 package api.cdc.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/cdc/v1;v1";
 
-// CdcService 定义了变更数据捕获服务接口
-service CdcService {
-  // 模拟捕获数据库变更事件
-  rpc CaptureChangeEvent(CaptureChangeEventRequest) returns (CaptureChangeEventResponse);
+// CDC 变更数据捕获服务定义了所有与数据变更捕获和分发相关的RPC接口。
+service CDC {
+  // --- 核心CDC接口 ---
+
+  // CaptureChange 捕获并记录数据变更。
+  rpc CaptureChange(CaptureChangeRequest) returns (google.protobuf.Empty);
+  // StreamChanges 流式传输数据变更。
+  rpc StreamChanges(StreamChangesRequest) returns (stream ChangeEvent);
 }
 
-// ChangeEvent 变更事件
+// --- 消息定义 ---
+
+// ChangeEvent 代表一个数据变更事件。
 message ChangeEvent {
-  string event_id = 1;
-  string table_name = 2;
-  string operation_type = 3; // INSERT, UPDATE, DELETE
-  string primary_key_value = 4; // 主键值
-  map<string, string> old_data = 5; // 旧数据 (JSON字符串)
-  map<string, string> new_data = 6; // 新数据 (JSON字符串)
-  google.protobuf.Timestamp event_timestamp = 7;
+  string table_name = 1;
+  string operation_type = 2; // INSERT, UPDATE, DELETE
+  map<string, string> old_data = 3; // 变更前的数据 (UPDATE 和 DELETE)
+  map<string, string> new_data = 4; // 变更后的数据 (INSERT 和 UPDATE)
+  google.protobuf.Timestamp change_timestamp = 5;
 }
 
-// CaptureChangeEventRequest 捕获变更事件请求
-message CaptureChangeEventRequest {
+// CaptureChangeRequest 捕获变更请求消息。
+message CaptureChangeRequest {
   string table_name = 1;
   string operation_type = 2;
-  string primary_key_value = 3;
-  map<string, string> old_data = 4;
-  map<string, string> new_data = 5;
+  map<string, string> old_data = 3;
+  map<string, string> new_data = 4;
 }
 
-// CaptureChangeEventResponse 捕获变更事件响应
-message CaptureChangeEventResponse {
-  string event_id = 1;
+// StreamChangesRequest 流式传输变更请求消息。
+message StreamChangesRequest {
+  repeated string table_names = 1;
+  optional google.protobuf.Timestamp since_timestamp = 2;
 }

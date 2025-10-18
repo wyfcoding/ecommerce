@@ -1,0 +1,79 @@
+# deployments/kubernetes/admin.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+  labels:
+    app: admin
+spec:
+  type: ClusterIP
+  selector:
+    app: admin
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8090
+      targetPort: 8090
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-deployment
+  labels:
+    app: admin
+spec:
+  replicas: 1 # 管理后台通常流量不大，从 1 个副本开始
+  selector:
+    matchLabels:
+      app: admin
+  template:
+    metadata:
+      labels:
+        app: admin
+    spec:
+      containers:
+        - name: admin-service
+          image: your-docker-registry/ecommerce-admin-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            # 定义所有下游服务的地址
+            - name: USER_SERVICE_GRPC_ADDR
+              value: "user-service:9090"
+            - name: PRODUCT_SERVICE_GRPC_ADDR
+              value: "product-service:9092"
+            - name: ORDER_SERVICE_GRPC_ADDR
+              value: "order-service:9093"
+            - name: PAYMENT_SERVICE_GRPC_ADDR
+              value: "payment-service:9094"
+            - name: REVIEW_SERVICE_GRPC_ADDR
+              value: "review-service:9100"
+            - name: COUPON_SERVICE_GRPC_ADDR
+              value: "coupon-service:9099"
+            # ... 其他服务
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20

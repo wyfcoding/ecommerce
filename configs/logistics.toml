@@ -1,19 +1,45 @@
-[server]
-  [server.grpc]
-    addr = "0.0.0.0"
-    port = 8007
-  [server.http]
-    addr = "0.0.0.0"
-    port = 8087
+# 物流服务基础配置
+[server.grpc]
+# 物流服务主要通过 gRPC 和消息队列与其他服务交互
+addr = "0.0.0.0"
+port = 9097
+timeout = "3s" # 与外部 API 交互可能耗时较长
 
+# 数据库配置 (用于存储货运单和追踪信息)
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_logistics?charset=utf8mb4&parseTime=True&loc=Local"
+
+# 消息队列 (RabbitMQ / Kafka) 配置
+# 监听订单已支付/准备发货的事件
+[mq]
+type = "rabbitmq"
+url = "amqp://guest:guest@localhost:5672/"
+consumer_queues = [
+  { queue_name = "logistics.create_shipment", exchange_name = "order_events", routing_key = "order.processing" } # 监听订单进入“处理中”状态的事件
+]
+
+# 第三方物流网关配置 (以 EasyPost 为例, 它可以集成多家承运商)
+[gateways.easypost]
+api_key = "your_easypost_api_key" # 应使用 secrets 管理
+
+# 默认发货地址配置 (仓库地址)
+[shipping.origin]
+name = "E-Commerce Warehouse"
+street1 = "123 Main St"
+city = "San Francisco"
+state = "CA"
+zip = "94105"
+country = "US"
+phone = "555-555-5555"
+
+# 链路追踪配置
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "logistics-service"
+
+# 日志配置
 [log]
-  level = "info"
-  format = "console"
-  output = "stdout"
-
-[data]
-  [data.database]
-    dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_logistics?charset=utf8mb4&parseTime=True&loc=Local"
-    max_idle_conns = 10
-    max_open_conns = 100
-    conn_max_lifetime = "300s"
+level = "debug"
+format = "json"
+output = "stdout"

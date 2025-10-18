@@ -1,130 +1,39 @@
-package biz
+package model
 
 import (
-	"context"
-	"errors"
-	"fmt"
+	"time"
 )
 
-var (
-	ErrCartItemNotFound = errors.New("cart item not found")
-	ErrInvalidQuantity  = errors.New("invalid quantity")
-)
+// Cart 代表一个用户的购物车。
+// 购物车本身可以是一个逻辑概念，也可以有对应的数据库记录。
+// 这里我们假设每个用户有一个唯一的购物车记录，其中包含多个购物车项。
+type Cart struct {
+	UserID         uint64     `gorm:"primarykey" json:"user_id"`                          // 用户ID，作为主键
+	TotalQuantity  int32      `gorm:"type:int;not null;default:0" json:"total_quantity"` // 购物车中商品总数量
+	TotalAmount    int64      `gorm:"type:bigint;not null;default:0" json:"total_amount"`   // 购物车中商品总金额 (原价，单位: 分)
+	DiscountAmount int64      `gorm:"type:bigint;not null;default:0" json:"discount_amount"` // 优惠金额 (单位: 分)
+	ActualAmount   int64      `gorm:"type:bigint;not null;default:0" json:"actual_amount"`  // 实际支付金额 (总金额 - 优惠金额，单位: 分)
+	AppliedCouponCode string    `gorm:"type:varchar(50)" json:"applied_coupon_code"`        // 已应用的优惠券码
+	CreatedAt      time.Time  `gorm:"autoCreateTime" json:"created_at"`                   // 购物车创建时间
+	UpdatedAt      time.Time  `gorm:"autoUpdateTime" json:"updated_at"`                   // 最后更新时间
+	DeletedAt      *time.Time `gorm:"index" json:"deleted_at,omitempty"`                  // 软删除时间
 
-// CartUsecase 封装了购物车相关的业务逻辑。
-type CartUsecase struct {
-	repo          CartRepo
-	productClient ProductClient // 用于获取商品信息，如价格、库存等
+	Items []CartItem `gorm:"foreignKey:UserID;references:UserID" json:"items"` // 购物车中的商品列表
 }
 
-// NewCartUsecase 是 CartUsecase 的构造函数。
-func NewCartUsecase(repo CartRepo, productClient ProductClient) *CartUsecase {
-	return &CartUsecase{
-		repo:          repo,
-		productClient: productClient,
-	}
-}
-
-// AddItem 添加商品到购物车。
-func (uc *CartUsecase) AddItem(ctx context.Context, item *UsecaseCartItem) error {
-	// 检查商品是否存在、库存是否充足、价格等
-	skuInfos, err := uc.productClient.GetSkuInfos(ctx, []uint64{item.SkuID})
-	if err != nil {
-		return fmt.Errorf("failed to get product information: %w", err)
-	}
-	if len(skuInfos) == 0 {
-		return errors.New("product not found")
-	}
-	targetSku := skuInfos[0]
-
-	if targetSku.Status != 1 { // Assuming 1 is the normal status.
-		return errors.New("product is not available")
-	}
-
-	if targetSku.Stock < item.Quantity {
-		return errors.New("insufficient stock")
-	}
-
-	return uc.repo.AddItem(ctx, item.UserID, item.SkuID, item.Quantity)
-}
-
-// UpdateItem updates the quantity of an item in the shopping cart.
-func (uc *CartUsecase) UpdateItem(ctx context.Context, item *UsecaseCartItem) error {
-	if item.Quantity <= 0 {
-		return ErrInvalidQuantity
-	}
-
-	// Check if the product exists, has enough stock, and get its price.
-	skuInfos, err := uc.productClient.GetSkuInfos(ctx, []uint64{item.SkuID})
-	if err != nil {
-		return fmt.Errorf("failed to get product information: %w", err)
-	}
-	if len(skuInfos) == 0 {
-		return errors.New("product not found")
-	}
-	targetSku := skuInfos[0]
-
-	if targetSku.Status != 1 { // Assuming 1 is the normal status.
-		return errors.New("product is not available")
-	}
-
-	if targetSku.Stock < item.Quantity {
-		return errors.New("insufficient stock")
-	}
-
-	return uc.repo.UpdateItem(ctx, item.UserID, item.SkuID, item.Quantity)
-}
-
-// DeleteItem removes an item from the shopping cart.
-func (uc *CartUsecase) DeleteItem(ctx context.Context, userID, productID, skuID uint64) error {
-	return uc.repo.RemoveItem(ctx, userID, skuID)
-}
-
-// GetCart gets all items in a user's shopping cart.
-func (uc *CartUsecase) GetCart(ctx context.Context, userID uint64) ([]*UsecaseCartItem, error) {
-	repoCartItems, err := uc.repo.GetCart(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cart items from repository: %w", err)
-	}
-
-	if len(repoCartItems) == 0 {
-		return []*UsecaseCartItem{}, nil
-	}
-
-	skuIDs := make([]uint64, 0, len(repoCartItems))
-	for _, item := range repoCartItems {
-		skuIDs = append(skuIDs, item.SkuID)
-	}
-
-	skuInfos, err := uc.productClient.GetSkuInfos(ctx, skuIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get SKU info from product service: %w", err)
-	}
-
-	skuInfoMap := make(map[uint64]*SkuInfo)
-	for _, info := range skuInfos {
-		skuInfoMap[info.SkuID] = info
-	}
-
-	usecaseCartItems := make([]*UsecaseCartItem, 0, len(repoCartItems))
-	for _, item := range repoCartItems {
-		skuInfo, ok := skuInfoMap[item.SkuID]
-		if !ok {
-			// If SKU info does not exist, the product may have been removed or is unavailable. Skip this item.
-			continue
-		}
-		usecaseCartItems = append(usecaseCartItems, &UsecaseCartItem{
-			SkuID:    item.SkuID,
-			Quantity: item.Quantity,
-			Checked:  item.Checked,
-			SkuInfo:  skuInfo,
-		})
-	}
-
-	return usecaseCartItems, nil
-}
-
-// ClearCart clears a user's shopping cart.
-func (uc *CartUsecase) ClearCart(ctx context.Context, userID uint64) error {
-	return uc.repo.ClearCart(ctx, userID)
+// CartItem 代表购物车中的一个商品项。
+type CartItem struct {
+	ID              uint64     `gorm:"primarykey" json:"id"`                               // 购物车项ID
+	UserID          uint64     `gorm:"index;not null" json:"user_id"`                      // 所属用户ID
+	ProductID       uint64     `gorm:"index;not null" json:"product_id"`                   // 商品SPU ID
+	SKUID           uint64     `gorm:"index;not null" json:"sku_id"`                       // 商品SKU ID
+	ProductName     string     `gorm:"type:varchar(255);not null" json:"product_name"`     // 商品名称
+	SKUName         string     `gorm:"type:varchar(255);not null" json:"sku_name"`         // SKU名称
+	ProductImageURL string     `gorm:"type:varchar(255)" json:"product_image_url"`         // 商品图片URL
+	Price           int64      `gorm:"type:bigint;not null" json:"price"`                  // 商品单价 (单位: 分)
+	Quantity        int32      `gorm:"type:int;not null" json:"quantity"`                  // 购买数量
+	TotalPrice      int64      `gorm:"type:bigint;not null" json:"total_price"`            // 该购物车项总价 (单位: 分)
+	CreatedAt       time.Time  `gorm:"autoCreateTime" json:"created_at"`                   // 添加到购物车时间
+	UpdatedAt       time.Time  `gorm:"autoUpdateTime" json:"updated_at"`                   // 最后更新时间
+	DeletedAt       *time.Time `gorm:"index" json:"deleted_at,omitempty"`                  // 软删除时间
 }

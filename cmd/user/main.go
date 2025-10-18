@@ -4,81 +4,110 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce/api/user/v1"
-	"ecommerce/internal/user/biz"
-	"ecommerce/internal/user/data"
 	"ecommerce/internal/user/handler"
+
 	"ecommerce/internal/user/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/redis"
+	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 	"go.uber.org/zap"
-	gormlogger "gorm.io/gorm/logger"
+	"google.golang.org/grpc"
 )
 
-// Config is the service-specific configuration structure.
+// Config 定义了 user-service 的所有配置项。
 type Config struct {
 	configpkg.Config
 	Data struct {
 		configpkg.DataConfig
 		Database struct {
 			configpkg.DatabaseConfig
-			LogLevel      gormlogger.LogLevel `toml:"log_level"`
-			SlowThreshold time.Duration     `toml:"slow_threshold"`
 		} `toml:"database"`
 	} `toml:"data"`
+	JWT struct {
+		Secret string        `toml:"secret"`
+		Issuer string        `toml:"issuer"`
+		Expire time.Duration `toml:"expire"`
+	} `toml:"jwt"`
+	Tracing struct {
+		JaegerEndpoint string `toml:"jaeger_endpoint"`
+	} `toml:"tracing"`
 }
 
+const serviceName = "user-service"
+
+// main 是应用程序的入口点。
 func main() {
-	app.NewBuilder("user").
+	app.NewBuilder(serviceName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithMetrics("9090").
+		// 注入 OpenTelemetry (Jaeger) 的拦截器和中间件
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9091"). // 为 metrics server 使用一个不同的端口
 		Build().
 		Run()
 }
 
+// registerGRPC 将 gRPC 服务注册到服务器。
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	v1.RegisterUserServer(s, srv.(v1.UserServer))
+	v1.RegisterUserServer(s, srv.(v1.UserServiceServer))
 }
 
+// registerGin 将 HTTP 路由注册到 Gin 引擎。
 func registerGin(e *gin.Engine, srv interface{}) {
-	userHandler := handler.NewUserHandler(srv.(*service.UserService))
-	// Define routes here, e.g.:
-	e.GET("/v1/users/:id", userHandler.GetUser)
+	handler.RegisterRoutes(e, srv.(*service.UserService))
 }
 
+// initService 负责初始化服务所需的所有依赖项。
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	dataInstance, cleanupData, err := data.NewData(config.Data.Database.DSN, zap.L(), config.Data.Database.LogLevel, config.Data.Database.SlowThreshold)
+	// 1. 初始化 Jaeger Tracer
+	zap.S().Info("initializing Jaeger tracer...")
+	_, cleanupTracer, err := tracing.InitTracer(&tracing.Config{
+		ServiceName:    serviceName,
+		JaegerEndpoint: config.Tracing.JaegerEndpoint,
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to new data: %w", err)
+		return nil, nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}
 
-	_, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis)
+	// 2. 初始化数据库连接
+	zap.S().Info("initializing database connection...")
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
 	if err != nil {
-		cleanupData()
-		return nil, nil, fmt.Errorf("failed to new redis client: %w", err)
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	userRepo := data.NewUserRepo(dataInstance)
-	addressRepo := data.NewAddressRepo(dataInstance)
+	// 3. 初始化数据层
+	data, cleanupData, err := repository.NewData(db)
+	if err != nil {
+		cleanupDB()
+		cleanupTracer()
+		return nil, nil, fmt.Errorf("failed to initialize data layer: %w", err)
+	}
 
-	userUsecase := biz.NewUserUsecase(userRepo)
-	addressUsecase := biz.NewAddressUsecase(addressRepo)
+	// 4. 初始化 Repositories
+	userRepo := repository.NewUserRepo(data)
+	addressRepo := repository.NewAddressRepo(data)
 
-	userService := service.NewUserService(userUsecase, addressUsecase, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
+	// 5. 初始化 Service
+	zap.S().Info("initializing user service...")
+	userService := service.NewUserService(userRepo, addressRepo, config.JWT.Secret, config.JWT.Issuer, config.JWT.Expire)
 
+	// 定义一个总的清理函数，按初始化的相反顺序执行。
 	cleanup := func() {
-		cleanupRedis()
+		zap.S().Info("cleaning up resources...")
 		cleanupData()
+		cleanupDB()
+		cleanupTracer()
 	}
 
 	return userService, cleanup, nil

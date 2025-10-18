@@ -12,11 +12,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	v1 "ecommerce/api/logistics/v1"
+	"ecommerce/internal/logistics/model"
+	"ecommerce/internal/logistics/service"
 	"ecommerce/pkg/logging"
 )
 
 // StartHTTPServer 启动 HTTP Gateway
-func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int) (*http.Server, chan error) {
+func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAddr string, httpPort int, logisticsService *service.LogisticsService) (*http.Server, chan error) {
 	errChan := make(chan error, 1)
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -30,9 +32,12 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 
 	r := gin.Default()
 	r.Use(logging.GinLogger(zap.L()), gin.Recovery()) // Use project's GinLogger
+
 	// Add service-specific Gin routes here
-	// For example:
-	// r.POST("/logistics/track", handler.TrackOrder)
+	api := r.Group("/api/v1/logistics")
+	{
+		api.POST("/shipping-cost", calculateShippingCostHandler(logisticsService))
+	}
 
 	r.Any("/*any", gin.WrapH(mux))
 
@@ -50,4 +55,26 @@ func StartHTTPServer(ctx context.Context, grpcAddr string, grpcPort int, httpAdd
 		close(errChan)
 	}()
 	return server, errChan
+}
+
+func calculateShippingCostHandler(s *service.LogisticsService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			OriginAddress      *model.AddressInfo `json:"origin_address"`
+			DestinationAddress *model.AddressInfo `json:"destination_address"`
+			Items              []*model.ItemInfo  `json:"items"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		cost, err := s.CalculateShippingCost(c.Request.Context(), req.OriginAddress, req.DestinationAddress, req.Items)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"shipping_cost": cost})
+	}
 }

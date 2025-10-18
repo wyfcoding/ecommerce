@@ -3,73 +3,91 @@ syntax = "proto3";
 package api.customer_service.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/customer_service/v1;v1";
 
-// CustomerService 定义了客户服务接口
+// CustomerService 客户服务服务定义了所有与客户服务相关的RPC接口。
 service CustomerService {
-  // 创建工单
-  rpc CreateTicket(CreateTicketRequest) returns (Ticket);
+  // --- 核心客户服务接口 ---
 
-  // 获取工单详情
-  rpc GetTicket(GetTicketRequest) returns (Ticket);
-
-  // 添加工单消息
-  rpc AddTicketMessage(AddTicketMessageRequest) returns (TicketMessage);
-
-  // 列出用户工单
-  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse);
+  // CreateTicket 创建一个新客户服务工单。
+  rpc CreateTicket(CreateTicketRequest) returns (TicketResponse);
+  // GetTicketByID 根据工单ID获取工单信息。
+  rpc GetTicketByID(GetTicketByIDRequest) returns (TicketResponse);
+  // UpdateTicketStatus 更新工单状态。
+  rpc UpdateTicketStatus(UpdateTicketStatusRequest) returns (TicketResponse);
+  // AddMessageToTicket 向工单添加消息。
+  rpc AddMessageToTicket(AddMessageToTicketRequest) returns (TicketMessageResponse);
+  // GetTicketMessages 获取工单的所有消息。
+  rpc GetTicketMessages(GetTicketMessagesRequest) returns (GetTicketMessagesResponse);
 }
 
-// Ticket 工单信息
-message Ticket {
-  uint64 ticket_id = 1;
-  uint64 user_id = 2;
-  string subject = 3;
-  string description = 4;
-  string status = 5; // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+// --- 消息定义 ---
+
+// TicketInfo 代表客户服务工单信息。
+message TicketInfo {
+  uint64 ticket_id = 1; // 工单ID
+  uint64 user_id = 2; // 用户ID
+  string subject = 3; // 主题
+  string description = 4; // 描述
+  string status = 5; // 状态 (e.g., OPEN, IN_PROGRESS, RESOLVED, CLOSED)
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
-  repeated TicketMessage messages = 8;
 }
 
-// TicketMessage 工单消息
+// TicketMessage 代表工单中的一条消息。
 message TicketMessage {
-  uint64 message_id = 1;
-  uint64 ticket_id = 2;
-  uint64 sender_id = 3; // 用户ID或客服ID
-  string sender_type = 4; // USER, AGENT
-  string content = 5;
-  google.protobuf.Timestamp created_at = 6;
+  uint64 message_id = 1; // 消息ID
+  uint64 ticket_id = 2; // 工单ID
+  uint64 sender_id = 3; // 发送者ID (用户或客服)
+  string sender_type = 4; // 发送者类型 (USER, AGENT)
+  string message_body = 5; // 消息内容
+  google.protobuf.Timestamp sent_at = 6;
 }
 
-// CreateTicketRequest 创建工单请求
+// CreateTicketRequest 创建工单请求消息。
 message CreateTicketRequest {
   uint64 user_id = 1;
   string subject = 2;
   string description = 3;
 }
 
-// GetTicketRequest 获取工单请求
-message GetTicketRequest {
+// TicketResponse 工单响应消息。
+message TicketResponse {
+  TicketInfo ticket = 1;
+}
+
+// GetTicketByIDRequest 获取工单信息请求。
+message GetTicketByIDRequest {
   uint64 ticket_id = 1;
 }
 
-// AddTicketMessageRequest 添加工单消息请求
-message AddTicketMessageRequest {
+// UpdateTicketStatusRequest 更新工单状态请求。
+message UpdateTicketStatusRequest {
+  uint64 ticket_id = 1;
+  string status = 2;
+}
+
+// AddMessageToTicketRequest 添加消息到工单请求。
+message AddMessageToTicketRequest {
   uint64 ticket_id = 1;
   uint64 sender_id = 2;
   string sender_type = 3;
-  string content = 4;
+  string message_body = 4;
 }
 
-// ListTicketsRequest 列出工单请求
-message ListTicketsRequest {
-  uint64 user_id = 1;
-  string status = 2; // Optional filter
+// TicketMessageResponse 消息响应消息。
+message TicketMessageResponse {
+  TicketMessage message = 1;
 }
 
-// ListTicketsResponse 列出工单响应
-message ListTicketsResponse {
-  repeated Ticket tickets = 1;
+// GetTicketMessagesRequest 获取工单消息请求。
+message GetTicketMessagesRequest {
+  uint64 ticket_id = 1;
+}
+
+// GetTicketMessagesResponse 获取工单消息响应。
+message GetTicketMessagesResponse {
+  repeated TicketMessage messages = 1;
 }

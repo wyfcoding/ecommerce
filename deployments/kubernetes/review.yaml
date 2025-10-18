@@ -1,0 +1,82 @@
+# deployments/kubernetes/review.yaml
+
+# --- Service --- #
+apiVersion: v1
+kind: Service
+metadata:
+  name: review-service
+  labels:
+    app: review
+spec:
+  type: ClusterIP
+  selector:
+    app: review
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8087
+      targetPort: 8087
+    - name: grpc
+      protocol: TCP
+      port: 9100
+      targetPort: 9100
+
+---
+
+# --- Deployment --- #
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: review-deployment
+  labels:
+    app: review
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: review
+  template:
+    metadata:
+      labels:
+        app: review
+    spec:
+      containers:
+        - name: review-service
+          image: your-docker-registry/ecommerce-review-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8087
+              name: http
+            - containerPort: 9100
+              name: grpc
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: review_dsn
+            - name: USER_SERVICE_GRPC_ADDR
+              value: "user-service:9090"
+            - name: PRODUCT_SERVICE_GRPC_ADDR
+              value: "product-service:9092"
+            - name: ORDER_SERVICE_GRPC_ADDR
+              value: "order-service:9093"
+            - name: JAEGER_ENDPOINT
+              value: "http://jaeger-collector:14268/api/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
