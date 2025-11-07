@@ -14,7 +14,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -97,9 +96,9 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *v1.CreateOrderReque
 
 		orderItems = append(orderItems, &model.OrderItem{
 			ProductID:       itemReq.ProductId,
-			SKUID:           itemReq.SkuId,
+			SkuID:           itemReq.SkuId,
 			ProductName:     productName,
-			SKUName:         skuName,
+			SkuName:         skuName,
 			ProductImageURL: "http://example.com/image.jpg", // 模拟图片URL
 			Price:           price,
 			Quantity:        itemReq.Quantity,
@@ -160,7 +159,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *v1.CreateOrderReque
 
 	// 6. 预扣库存 (此处仅为模拟，实际应调用 InventoryService)
 	// for _, item := range createdOrder.Items {
-	// 	_ = s.inventoryClient.PreDeductStock(ctx, item.SKUID, item.Quantity)
+	// 	_ = s.inventoryClient.PreDeductStock(ctx, item.SkuID, item.Quantity)
 	// }
 
 	zap.S().Infof("Order %d (OrderNo: %s) created successfully for user %d", createdOrder.ID, createdOrder.OrderNo, req.UserId)
@@ -238,11 +237,11 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, req *v1.UpdateOrde
 		existingOrder.PaidAt = &now
 	case model.Shipped:
 		now := time.Now()
-		existingOrder.ShippingStatus = model.Shipped
+		existingOrder.ShippingStatus = model.ShippingShipped
 		existingOrder.ShippedAt = &now
 	case model.Delivered:
 		now := time.Now()
-		existingOrder.ShippingStatus = model.Delivered
+		existingOrder.ShippingStatus = model.ShippingDelivered
 		existingOrder.DeliveredAt = &now
 	case model.Completed:
 		now := time.Now()
@@ -342,7 +341,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, req *v1.CancelOrderReque
 
 	// 8. 释放库存 (此处仅为模拟，实际应调用 InventoryService)
 	// for _, item := range updatedOrder.Items {
-	// 	_ = s.inventoryClient.ReleaseStock(ctx, item.SKUID, item.Quantity)
+	// 	_ = s.inventoryClient.ReleaseStock(ctx, item.SkuID, item.Quantity)
 	// }
 
 	zap.S().Infof("Order %d cancelled successfully by user %d", req.Id, req.UserId)
@@ -476,7 +475,7 @@ func (s *OrderService) ProcessPayment(ctx context.Context, req *v1.ProcessPaymen
 
 	// 9. 扣减库存 (此处仅为模拟，实际应调用 InventoryService)
 	// for _, item := range updatedOrder.Items {
-	// 	_ = s.inventoryClient.DeductStock(ctx, item.SKUID, item.Quantity)
+	// 	_ = s.inventoryClient.DeductStock(ctx, item.SkuID, item.Quantity)
 	// }
 
 	zap.S().Infof("Order %d payment processed successfully", req.OrderId)
@@ -528,7 +527,6 @@ func (s *OrderService) RequestRefund(ctx context.Context, req *v1.RequestRefundR
 	}
 
 	// 6. 更新订单支付状态为退款中，订单状态不变或根据业务逻辑调整
-	oldPaymentStatus := order.PaymentStatus
 	order.PaymentStatus = model.Refunding
 
 	// 7. 记录订单日志
@@ -618,10 +616,10 @@ func (s *OrderService) UpdateOrderShippingStatus(ctx context.Context, req *v1.Up
 	// 4. 更新订单配送状态和相关时间戳
 	order.ShippingStatus = newShippingStatus
 	switch newShippingStatus {
-	case model.Shipped:
+	case model.ShippingShipped:
 		now := time.Now()
 		order.ShippedAt = &now
-	case model.Delivered:
+	case model.ShippingDelivered:
 		now := time.Now()
 		order.DeliveredAt = &now
 		// 如果已送达，可以将订单主状态更新为已送达
@@ -664,12 +662,12 @@ func (s *OrderService) bizOrderToProto(o *model.Order) *v1.OrderInfo {
 
 	protoItems := make([]*v1.OrderItem, len(o.Items))
 	for i, item := range o.Items {
-		protoItems[i] = s.bizOrderItemToProto(&item)
+		protoItems[i] = s.bizOrderItemToProto(item)
 	}
 
 	protoLogs := make([]*v1.OrderLog, len(o.Logs))
 	for i, log := range o.Logs {
-		protoLogs[i] = s.bizOrderLogToProto(&log)
+		protoLogs[i] = s.bizOrderLogToProto(log)
 	}
 
 	return &v1.OrderInfo{
@@ -707,10 +705,10 @@ func (s *OrderService) bizOrderItemToProto(item *model.OrderItem) *v1.OrderItem 
 		Id:              item.ID,
 		OrderId:         item.OrderID,
 		ProductId:       item.ProductID,
-		SkuId:           item.SKUID,
+		SkuId:           item.SkuID,
 		ProductName:     item.ProductName,
-		SkuName:         item.SKUName,
-		ProductImageURL: item.ProductImageURL,
+		SkuName:         item.SkuName,
+		ProductImageUrl: item.ProductImageURL,
 		Price:           item.Price,
 		Quantity:        item.Quantity,
 		TotalPrice:      item.TotalPrice,
@@ -769,8 +767,6 @@ func isValidStatusTransition(oldStatus, newStatus model.OrderStatus) bool {
 		return false // 最终状态，不可再流转
 	case model.RefundRequested:
 		return newStatus == model.Refunded || newStatus == model.Paid // 退款申请后可能退款成功或驳回回到已支付
-	case model.Refunded:
-		return false
 	}
 	return false
 }
@@ -779,10 +775,10 @@ func isValidStatusTransition(oldStatus, newStatus model.OrderStatus) bool {
 func isValidShippingStatusTransition(oldStatus, newStatus model.ShippingStatus) bool {
 	switch oldStatus {
 	case model.PendingShipment:
-		return newStatus == model.Shipped
-	case model.Shipped, model.InTransit:
-		return newStatus == model.InTransit || newStatus == model.Delivered || newStatus == model.Exception
-	case model.Delivered, model.Exception:
+		return newStatus == model.ShippingShipped
+	case model.ShippingShipped, model.InTransit:
+		return newStatus == model.InTransit || newStatus == model.ShippingDelivered || newStatus == model.Exception
+	case model.ShippingDelivered, model.Exception:
 		return false // 最终状态
 	}
 	return false

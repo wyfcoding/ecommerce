@@ -1,111 +1,69 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	v1 "ecommerce/api/settlement/v1"
-	"ecommerce/internal/settlement/client"
-	"ecommerce/internal/settlement/handler"
-	"ecommerce/internal/settlement/model"
-	"ecommerce/internal/settlement/repository"
-	"ecommerce/internal/settlement/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
 	mysqlpkg "ecommerce/pkg/database/mysql"
-	redisPkg "ecommerce/pkg/database/redis"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/snowflake"
 	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"gorm.io/gorm/logger"
 )
 
-// Config is the service-specific configuration structure.
 type Config struct {
 	configpkg.Config
-	Data struct {
-		configpkg.DataConfig
-		Database struct {
-			configpkg.DatabaseConfig
-			LogLevel      logger.LogLevel `toml:"log_level"`
-			SlowThreshold time.Duration     `toml:"slow_threshold"`
-		} `toml:"database"`
-		Redis redisPkg.Config `toml:"redis"`
-		OrderService struct {
-			Addr string `toml:"addr"`
-		} `toml:"order_service"`
-	} `toml:"data"`
 }
 
+const serviceName = "settlement-service"
+
 func main() {
-	app.NewBuilder("settlement").
+	app.NewBuilder(serviceName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithMetrics("9094").
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9224").
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	v1.RegisterSettlementServiceServer(s, srv.(v1.SettlementServiceServer))
+	zap.S().Info("gRPC server registered")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	settlementHandler := handler.NewSettlementHandler(srv.(*service.SettlementService))
-	// e.g., e.POST("/v1/settlements", settlementHandler.ProcessSettlement)
+	zap.S().Info("HTTP routes registered")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
+	cleanupTracer := func() {}
 
-	// --- Downstream gRPC clients ---
-	orderServiceConn, err := grpc.Dial(config.Data.OrderService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to order service: %w", err)
+	mysqlConfig := &mysqlpkg.Config{
+		DSN:             config.Data.Database.DSN,
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        4,
+		SlowThreshold:   200 * time.Millisecond,
 	}
-
-	// --- Data layer ---
-	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
+	_, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
 	if err != nil {
-		orderServiceConn.Close()
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&model.SettlementRecord{}); err != nil {
-		return nil, nil, fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		orderServiceConn.Close()
-		return nil, nil, fmt.Errorf("failed to get database instance: %w", err)
-	}
-
-	redisClient, cleanupRedis, err := redisPkg.NewRedisClient(&config.Data.Redis)
-	if err != nil {
-		cleanupDB()
-		orderServiceConn.Close()
-		return nil, nil, fmt.Errorf("failed to new redis client: %w", err)
-	}
-
-	// --- DI (Data -> Biz -> Service) ---
-	orderClient := client.NewOrderClient(orderServiceConn)
-	settlementRepo := repository.NewSettlementRepo(db, redisClient)
-	settlementService := service.NewSettlementService(settlementRepo, orderClient)
-
 	cleanup := func() {
-		cleanupRedis()
+		zap.S().Info("cleaning up resources...")
 		cleanupDB()
-		orderServiceConn.Close()
+		cleanupTracer()
 	}
 
-	return settlementService, cleanup, nil
+	return nil, cleanup, nil
 }

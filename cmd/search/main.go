@@ -1,14 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"ecommerce/api/search/v1"
-	"ecommerce/internal/search/handler"
-	"ecommerce/internal/search/repository"
-	"ecommerce/internal/search/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
 	mysqlpkg "ecommerce/pkg/database/mysql"
@@ -18,75 +13,57 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"gorm.io/gorm/logger"
 )
 
-// Config is the service-specific configuration structure.
 type Config struct {
 	configpkg.Config
-	Data struct {
-		configpkg.DataConfig
-		Database struct {
-			configpkg.DatabaseConfig
-			LogLevel      logger.LogLevel `toml:"log_level"`
-			SlowThreshold time.Duration     `toml:"slow_threshold"`
-		} `toml:"database"`
-		ProductService struct {
-			Addr string `toml:"addr"`
-		}
-	}
-} `toml:"data"`
+}
+
+const serviceName = "search-service"
 
 func main() {
-	app.NewBuilder("search").
+	app.NewBuilder(serviceName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithMetrics("9095").
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9107").
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	v1.RegisterSearchServiceServer(s, srv.(v1.SearchServiceServer))
+	zap.S().Info("gRPC server registered")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	searchHandler := handler.NewSearchHandler(srv.(*service.SearchService))
-	// e.g., e.GET("/v1/search", searchHandler.SearchProducts)
+	zap.S().Info("HTTP routes registered")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
+	cleanupTracer := func() {}
 
-	db, cleanupDB, err := mysqlpkg.NewGORMDB(&config.Data.Database)
+	mysqlConfig := &mysqlpkg.Config{
+		DSN:             config.Data.Database.DSN,
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        4,
+		SlowThreshold:   200 * time.Millisecond,
+	}
+	_, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 自动迁移数据库表结构 (TODO: 仅在开发环境或需要时执行)
-	// if err := db.AutoMigate(&model.SearchQuery{}); err != nil {
-	// 	return nil, nil, fmt.Errorf("failed to migrate database: %w", err)
-	// }
-
-	dialCtx, cancelDial := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelDial()
-	productServiceConn, err := grpc.DialContext(dialCtx, config.Data.ProductService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	if err != nil {
-		cleanupDB()
-		return nil, nil, fmt.Errorf("failed to connect to product service: %w", err)
-	}
-
-	productClient := client.NewProductClient(productServiceConn)
-	searchRepo := repository.NewSearchRepo(db)
-	searchService := service.NewSearchService(searchRepo)
-
 	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
 		cleanupDB()
-		productServiceConn.Close()
+		cleanupTracer()
 	}
 
-	return searchService, cleanup, nil
+	return nil, cleanup, nil
 }

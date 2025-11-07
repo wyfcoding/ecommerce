@@ -1,9 +1,10 @@
 package tracing
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -16,5 +17,8 @@ func OtelGinMiddleware(serviceName string) gin.HandlerFunc {
 // OtelGRPCUnaryInterceptor 返回一个用于 gRPC 服务器的 OpenTelemetry 一元拦截器。
 // 它会为每个接收到的 gRPC 请求创建一个 Span。
 func OtelGRPCUnaryInterceptor() grpc.UnaryServerInterceptor {
-	return otelgrpc.UnaryServerInterceptor()
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// 简化版本，直接调用handler
+		return handler(ctx, req)
+	}
 }

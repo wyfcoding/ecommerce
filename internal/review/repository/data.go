@@ -1,7 +1,6 @@
-package data
+package repository
 
 import (
-	"ecommerce/internal/review/biz"
 	"log"
 
 	"github.com/google/wire"

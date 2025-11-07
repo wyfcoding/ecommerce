@@ -3,100 +3,95 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 
 	"ecommerce/internal/aftersales/handler"
 	"ecommerce/internal/aftersales/repository"
 	"ecommerce/internal/aftersales/service"
+	"ecommerce/pkg/config"
+	"ecommerce/pkg/database"
+	"ecommerce/pkg/logging"
 )
 
 func main() {
-	// 1. 初始化配置和日志
-	viper.SetConfigName("aftersales")
-	viper.SetConfigType("toml")
-	viper.AddConfigPath("./configs")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("读取配置文件失败: %s", err)
+	// 加载配置
+	cfg, err := config.Load()
+	if err != nil {
+		panic(fmt.Sprintf("加载配置失败: %v", err))
 	}
-	logger, _ := zap.NewProduction()
+
+	// 初始化日志
+	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Filename)
 	defer logger.Sync()
 
-	// 2. 初始化数据存储
-	dsn := viper.GetString("data.database.dsn")
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	// 初始化数据库
+	db, err := database.NewMySQL(cfg.MySQL)
 	if err != nil {
 		logger.Fatal("连接数据库失败", zap.Error(err))
 	}
 
-	// 3. 初始化 gRPC 客户端 (省略)
-	// ...
+	// 初始化Redis
+	redisClient, err := database.NewRedis(cfg.Redis)
+	if err != nil {
+		logger.Fatal("连接Redis失败", zap.Error(err))
+	}
 
-	// 4. 依赖注入
-	aftersalesRepo := repository.NewAftersalesRepository(db)
-	aftersalesService := service.NewAftersalesService(aftersalesRepo, logger)
+	// 初始化Repository
+	repo := repository.NewAfterSalesRepo(db)
 
-	var wg sync.WaitGroup
+	// 初始化Service
+	svc := service.NewAfterSalesService(repo, redisClient, logger)
 
-	// 5. 启动 HTTP 服务器
+	// 初始化Handler
+	h := handler.NewAfterSalesHandler(svc, logger)
+
+	// 初始化Gin
+	r := gin.Default()
+	
+	// 注册路由
+	api := r.Group("/api/v1")
+	h.RegisterRoutes(api)
+
+	// 健康检查
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// 启动HTTP服务器
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
+		Handler: r,
+	}
+
+	// 优雅关闭
 	go func() {
-		wg.Add(1)
-		defer wg.Done()
-		aftersalesHttpHandler := handler.NewAftersalesHandler(aftersalesService, logger)
-		router := gin.Default()
-		aftersalesHttpHandler.RegisterRoutes(router)
-
-		httpAddr := fmt.Sprintf("%s:%d", viper.GetString("server.http.addr"), viper.GetInt("server.http.port"))
-		srv := &http.Server{Addr: httpAddr, Handler: router}
-
-		go func() {
-			logger.Info("HTTP 服务器正在监听", zap.String("address", httpAddr))
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Fatal("HTTP 服务监听失败", zap.Error(err))
-			}
-		}()
-
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		srv.Shutdown(ctx)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("启动服务器失败", zap.Error(err))
+		}
 	}()
 
-	// 6. 启动 gRPC 服务器
-	go func() {
-		wg.Add(1)
-		defer wg.Done()
-		grpcAddr := fmt.Sprintf("%s:%d", viper.GetString("server.grpc.addr"), viper.GetInt("server.grpc.port"))
-		listener, _ := net.Listen("tcp", grpcAddr)
-		grpcServer := grpc.NewServer()
-		// 注册 gRPC 服务
+	logger.Info("售后服务启动成功", zap.Int("port", cfg.Server.Port))
 
-		go func() {
-			logger.Info("gRPC 服务器正在监听", zap.String("address", grpcAddr))
-			grpcServer.Serve(listener)
-		}()
+	// 等待中断信号
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-		grpcServer.GracefulStop()
-	}()
+	logger.Info("正在关闭服务器...")
 
-	wg.Wait()
-	logger.Info("所有服务已退出")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("服务器强制关闭", zap.Error(err))
+	}
+
+	logger.Info("服务器已关闭")
 }

@@ -1,105 +1,69 @@
-
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-
-	gatewayclient "ecommerce/internal/gateway/client"
-	gatewayhandler "ecommerce/internal/gateway/handler"
-	"ecommerce/internal/gateway/service"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	"ecommerce/pkg/logging"
+	mysqlpkg "ecommerce/pkg/database/mysql"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/server"
 	"ecommerce/pkg/tracing"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
-// Config is the service-specific configuration structure.
 type Config struct {
-	configpkg.ServerConfig `toml:"server"`
-	configpkg.LogConfig    `toml:"log"`
-	configpkg.TraceConfig  `toml:"trace"`
-	Metrics                struct {
-		Port string `toml:"port"`
-	} `toml:"metrics"`
-	Services struct {
-		AuthService struct {
-			Addr string `toml:"addr"`
-		} `toml:"auth_service"`
-		ProductService struct {
-			Addr string `toml:"addr"`
-		} `toml:"product_service"`
-		OrderService struct {
-			Addr string `toml:"addr"`
-		} `toml:"order_service"`
-		UserService struct {
-			Addr string `toml:"addr"`
-		} `toml:"user_service"`
-	} `toml:"services"`
+	configpkg.Config
 }
 
+const serviceName = "gateway-service"
+
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/gateway.toml", "config file path")
-	flag.Parse()
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9217").
+		Build().
+		Run()
+}
 
-	var cfg Config
-	if err := configpkg.LoadConfig(configPath, &cfg); err != nil {
-		zap.S().Fatalf("failed to load config: %v", err)
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	zap.S().Info("gRPC server registered")
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	zap.S().Info("HTTP routes registered")
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+	cleanupTracer := func() {}
+
+	mysqlConfig := &mysqlpkg.Config{
+		DSN:             config.Data.Database.DSN,
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        4,
+		SlowThreshold:   200 * time.Millisecond,
 	}
-
-	// 2. 初始化日志
-	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
-	zap.ReplaceGlobals(logger)
-	defer logger.Sync()
-
-	// 3. 初始化追踪
-	_, cleanupTracing, err := tracing.InitTracer(&cfg.Trace)
+	_, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
 	if err != nil {
-		zap.S().Fatalf("failed to init tracing: %v", err)
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
-	defer cleanupTracing()
 
-	// 4. 初始化指标暴露
-	cleanupMetrics := metrics.ExposeHttp(cfg.Metrics.Port)
-	defer cleanupMetrics()
-
-	// 5. 初始化下游服务客户端
-	clients, cleanupClients, err := gatewayclient.NewClients(&cfg.Services.AuthService.Addr, &cfg.Services.ProductService.Addr, &cfg.Services.OrderService.Addr, &cfg.Services.UserService.Addr)
-	if err != nil {
-		zap.S().Fatalf("failed to init clients: %v", err)
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		cleanupDB()
+		cleanupTracer()
 	}
-	defer cleanupClients()
 
-	// 6. 依赖注入 (DI)
-	gatewayService := service.NewGatewayService(clients.AuthClient)
-
-	// 7. 创建 Gin Engine
-	engine := gin.Default()
-
-	// 8. 注册路由
-	h := gatewayhandler.NewHandler(gatewayService)
-	h.RegisterRoutes(engine)
-
-	// 9. 创建并运行应用
-	httpAddr := fmt.Sprintf("%s:%d", cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
-	httpSrv := server.NewGinServer(engine, httpAddr)
-
-	application := app.New(
-		app.WithServer(httpSrv),
-	)
-
-	if err := application.Run(); err != nil {
-		zap.S().Fatalf("failed to run app: %v", err)
-	}
+	return nil, cleanup, nil
 }

@@ -17,7 +17,7 @@ import (
 
 // AdminUserRepo 定义了管理员用户数据访问接口。
 type AdminUserRepo interface {
-	// CreateAdminUser 创建一个新的管理员用户。
+	// CreateAdminUser 在数据库中创建一个新的管理员用户。
 	CreateAdminUser(ctx context.Context, user *model.AdminUser) (*model.AdminUser, error)
 	// GetAdminUserByID 根据ID获取管理员用户。
 	GetAdminUserByID(ctx context.Context, id uint64) (*model.AdminUser, error)
@@ -35,7 +35,7 @@ type AdminUserRepo interface {
 
 // RoleRepo 定义了角色数据访问接口。
 type RoleRepo interface {
-	// CreateRole 创建一个新的角色。
+	// CreateRole 在数据库中创建一个新的角色。
 	CreateRole(ctx context.Context, role *model.Role) (*model.Role, error)
 	// GetRoleByID 根据ID获取角色。
 	GetRoleByID(ctx context.Context, id uint64) (*model.Role, error)
@@ -55,7 +55,7 @@ type RoleRepo interface {
 
 // PermissionRepo 定义了权限数据访问接口。
 type PermissionRepo interface {
-	// CreatePermission 创建一个新的权限。
+	// CreatePermission 在数据库中创建一个新的权限。
 	CreatePermission(ctx context.Context, perm *model.Permission) (*model.Permission, error)
 	// GetPermissionByID 根据ID获取权限。
 	GetPermissionByID(ctx context.Context, id uint64) (*model.Permission, error)
@@ -87,6 +87,16 @@ type AuditLogRepo interface {
 	GetAuditLogByID(ctx context.Context, id uint64) (*model.AuditLog, error)
 }
 
+// SystemSettingRepo 定义了系统配置数据访问接口。
+type SystemSettingRepo interface {
+	// GetSetting 根据键获取系统配置。
+	GetSetting(ctx context.Context, key string) (*model.SystemSetting, error)
+	// SetSetting 设置或更新系统配置。
+	SetSetting(ctx context.Context, setting *model.SystemSetting) (*model.SystemSetting, error)
+	// ListSettings 获取所有系统配置列表。
+	ListSettings(ctx context.Context, keyKeyword string, pageSize, pageToken int32) ([]*model.SystemSetting, int32, error)
+}
+
 // --- 数据库模型 ---
 
 // DBAdminUser 对应数据库中的管理员用户表。
@@ -98,6 +108,7 @@ type DBAdminUser struct {
 	Email        string `gorm:"uniqueIndex;type:varchar(100);comment:邮箱"`
 	Phone        string `gorm:"uniqueIndex;type:varchar(20);comment:手机号"`
 	IsSuperAdmin bool   `gorm:"default:false;comment:是否是超级管理员"`
+	Status       int32  `gorm:"default:1;comment:用户状态 (0-禁用, 1-正常)"`
 }
 
 // TableName 返回 DBAdminUser 对应的表名。
@@ -170,6 +181,19 @@ func (DBAuditLog) TableName() string {
 	return "audit_logs"
 }
 
+// DBSystemSetting 对应数据库中的系统配置表。
+type DBSystemSetting struct {
+	gorm.Model
+	Key         string `gorm:"uniqueIndex;not null;type:varchar(128);comment:配置项键"`
+	Value       string `gorm:"type:text;comment:配置项值"`
+	Description string `gorm:"type:varchar(255);comment:配置项描述"`
+}
+
+// TableName 返回 DBSystemSetting 对应的表名。
+func (DBSystemSetting) TableName() string {
+	return "system_settings"
+}
+
 // --- 数据层核心 ---
 
 // Data 封装了所有数据库操作的 GORM 客户端。
@@ -182,7 +206,7 @@ func NewData(db *gorm.DB) (*Data, func(), error) {
 	d := &Data{
 		db: db,
 	}
-	zap.S().Info("running database migrations for admin service...")
+	zap.S().Info("Running database migrations for admin service...")
 	// 自动迁移所有相关的数据库表
 	if err := db.AutoMigrate(
 		&DBAdminUser{},
@@ -191,13 +215,14 @@ func NewData(db *gorm.DB) (*Data, func(), error) {
 		&DBAdminUserRole{},
 		&DBRolePermission{},
 		&DBAuditLog{},
+		&DBSystemSetting{},
 	); err != nil {
-		zap.S().Errorf("failed to migrate admin database: %v", err)
+		zap.S().Errorf("Failed to migrate admin database: %v", err)
 		return nil, nil, fmt.Errorf("failed to migrate admin database: %w", err)
 	}
 
 	cleanup := func() {
-		zap.S().Info("closing admin data layer...")
+		zap.S().Info("Closing admin data layer...")
 		// 可以在这里添加数据库连接关闭逻辑，如果 GORM 提供了的话
 	}
 
@@ -217,57 +242,61 @@ func NewAdminUserRepo(data *Data) AdminUserRepo {
 }
 
 // CreateAdminUser 在数据库中创建一个新的管理员用户。
+// 它接收一个业务领域模型 AdminUser，对其密码进行哈希处理，然后存储到数据库。
 func (r *adminUserRepository) CreateAdminUser(ctx context.Context, user *model.AdminUser) (*model.AdminUser, error) {
 	// 对密码进行哈希处理
 	hashedPassword, err := hash.HashPassword(user.Password)
 	if err != nil {
-		zap.S().Errorf("failed to hash password for admin user %s: %v", user.Username, err)
+		zap.S().Errorf("Failed to hash password for admin user %s: %v", user.Username, err)
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 	user.Password = hashedPassword
 
 	dbUser := fromBizAdminUser(user)
 	if err := r.db.WithContext(ctx).Create(dbUser).Error; err != nil {
-		zap.S().Errorf("failed to create admin user %s in db: %v", user.Username, err)
+		zap.S().Errorf("Failed to create admin user %s in db: %v", user.Username, err)
 		return nil, err
 	}
-	zap.S().Infof("admin user created in db: %d", dbUser.ID)
+	zap.S().Infof("Admin user created in db: %d", dbUser.ID)
 	return toBizAdminUser(dbUser), nil
 }
 
 // GetAdminUserByID 根据ID从数据库中获取管理员用户。
+// 如果未找到记录，则返回 nil 和 nil 错误。
 func (r *adminUserRepository) GetAdminUserByID(ctx context.Context, id uint64) (*model.AdminUser, error) {
 	var dbUser DBAdminUser
 	if err := r.db.WithContext(ctx).First(&dbUser, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // 未找到记录
+			return nil, nil // Record not found
 		}
-		zap.S().Errorf("failed to get admin user by id %d from db: %v", id, err)
+		zap.S().Errorf("Failed to get admin user by id %d from db: %v", id, err)
 		return nil, err
 	}
 	return toBizAdminUser(&dbUser), nil
 }
 
 // GetAdminUserByUsername 根据用户名从数据库中获取管理员用户。
+// 如果未找到记录，则返回 nil 和 nil 错误。
 func (r *adminUserRepository) GetAdminUserByUsername(ctx context.Context, username string) (*model.AdminUser, error) {
 	var dbUser DBAdminUser
 	if err := r.db.WithContext(ctx).Where("username = ?", username).First(&dbUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // 未找到记录
+			return nil, nil // Record not found
 		}
-		zap.S().Errorf("failed to get admin user by username %s from db: %v", username, err)
+		zap.S().Errorf("Failed to get admin user by username %s from db: %v", username, err)
 		return nil, err
 	}
 	return toBizAdminUser(&dbUser), nil
 }
 
 // UpdateAdminUser 更新数据库中的管理员用户信息。
+// 如果密码字段不为空，则会重新哈希密码。
 func (r *adminUserRepository) UpdateAdminUser(ctx context.Context, user *model.AdminUser) (*model.AdminUser, error) {
 	// 如果密码字段不为空，则重新哈希密码
 	if user.Password != "" {
 		hashedPassword, err := hash.HashPassword(user.Password)
 		if err != nil {
-			zap.S().Errorf("failed to hash new password for admin user %d: %v", user.ID, err)
+			zap.S().Errorf("Failed to hash new password for admin user %d: %v", user.ID, err)
 			return nil, fmt.Errorf("failed to hash new password: %w", err)
 		}
 		user.Password = hashedPassword
@@ -276,24 +305,25 @@ func (r *adminUserRepository) UpdateAdminUser(ctx context.Context, user *model.A
 	dbUser := fromBizAdminUser(user)
 	// 使用 Select 仅更新非零值字段，或者明确指定要更新的字段
 	if err := r.db.WithContext(ctx).Model(&DBAdminUser{}).Where("id = ?", user.ID).Updates(dbUser).Error; err != nil {
-		zap.S().Errorf("failed to update admin user %d in db: %v", user.ID, err)
+		zap.S().Errorf("Failed to update admin user %d in db: %v", user.ID, err)
 		return nil, err
 	}
-	zap.S().Infof("admin user updated in db: %d", user.ID)
+	zap.S().Infof("Admin user updated in db: %d", user.ID)
 	return r.GetAdminUserByID(ctx, user.ID) // 返回更新后的完整用户数据
 }
 
 // DeleteAdminUser 从数据库中删除管理员用户。
 func (r *adminUserRepository) DeleteAdminUser(ctx context.Context, id uint64) error {
 	if err := r.db.WithContext(ctx).Delete(&DBAdminUser{}, id).Error; err != nil {
-		zap.S().Errorf("failed to delete admin user %d from db: %v", id, err)
+		zap.S().Errorf("Failed to delete admin user %d from db: %v", id, err)
 		return err
 	}
-	zap.S().Infof("admin user deleted from db: %d", id)
+	zap.S().Infof("Admin user deleted from db: %d", id)
 	return nil
 }
 
 // ListAdminUsers 从数据库中获取管理员用户列表。
+// 支持按用户名和邮箱关键词搜索，并支持分页。
 func (r *adminUserRepository) ListAdminUsers(ctx context.Context, usernameKeyword, emailKeyword string, pageSize, pageToken int32) ([]*model.AdminUser, int32, error) {
 	var dbUsers []*DBAdminUser
 	var totalCount int64
@@ -309,7 +339,7 @@ func (r *adminUserRepository) ListAdminUsers(ctx context.Context, usernameKeywor
 
 	// 获取总数
 	if err := query.Count(&totalCount).Error; err != nil {
-		zap.S().Errorf("failed to count admin users: %v", err)
+		zap.S().Errorf("Failed to count admin users: %v", err)
 		return nil, 0, err
 	}
 
@@ -323,7 +353,7 @@ func (r *adminUserRepository) ListAdminUsers(ctx context.Context, usernameKeywor
 	offset := (pageToken - 1) * pageSize
 
 	if err := query.Limit(int(pageSize)).Offset(int(offset)).Find(&dbUsers).Error; err != nil {
-		zap.S().Errorf("failed to list admin users from db: %v", err)
+		zap.S().Errorf("Failed to list admin users from db: %v", err)
 		return nil, 0, err
 	}
 
@@ -336,6 +366,7 @@ func (r *adminUserRepository) ListAdminUsers(ctx context.Context, usernameKeywor
 }
 
 // VerifyAdminPassword 验证管理员用户的用户名和密码。
+// 它会从数据库获取用户，并使用哈希函数验证密码。
 func (r *adminUserRepository) VerifyAdminPassword(ctx context.Context, username, password string) (*model.AdminUser, error) {
 	user, err := r.GetAdminUserByUsername(ctx, username)
 	if err != nil {
@@ -350,7 +381,7 @@ func (r *adminUserRepository) VerifyAdminPassword(ctx context.Context, username,
 	if !hash.CheckPasswordHash(password, user.Password) {
 		return nil, errors.New("invalid password")
 	}
-	zap.S().Infof("admin user %s password verified successfully", username)
+	zap.S().Infof("Admin user %s password verified successfully", username)
 	return user, nil
 }
 
@@ -370,21 +401,22 @@ func NewRoleRepo(data *Data) RoleRepo {
 func (r *roleRepository) CreateRole(ctx context.Context, role *model.Role) (*model.Role, error) {
 	dbRole := fromBizRole(role)
 	if err := r.db.WithContext(ctx).Create(dbRole).Error; err != nil {
-		zap.S().Errorf("failed to create role %s in db: %v", role.Name, err)
+		zap.S().Errorf("Failed to create role %s in db: %v", role.Name, err)
 		return nil, err
 	}
-	zap.S().Infof("role created in db: %d", dbRole.ID)
+	zap.S().Infof("Role created in db: %d", dbRole.ID)
 	return toBizRole(dbRole), nil
 }
 
 // GetRoleByID 根据ID从数据库中获取角色。
+// 如果未找到记录，则返回 nil 和 nil 错误。
 func (r *roleRepository) GetRoleByID(ctx context.Context, id uint64) (*model.Role, error) {
 	var dbRole DBRole
 	if err := r.db.WithContext(ctx).First(&dbRole, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		zap.S().Errorf("failed to get role by id %d from db: %v", id, err)
+		zap.S().Errorf("Failed to get role by id %d from db: %v", id, err)
 		return nil, err
 	}
 	return toBizRole(&dbRole), nil
@@ -394,38 +426,40 @@ func (r *roleRepository) GetRoleByID(ctx context.Context, id uint64) (*model.Rol
 func (r *roleRepository) UpdateRole(ctx context.Context, role *model.Role) (*model.Role, error) {
 	dbRole := fromBizRole(role)
 	if err := r.db.WithContext(ctx).Model(&DBRole{}).Where("id = ?", role.ID).Updates(dbRole).Error; err != nil {
-		zap.S().Errorf("failed to update role %d in db: %v", role.ID, err)
+		zap.S().Errorf("Failed to update role %d in db: %v", role.ID, err)
 		return nil, err
 	}
-	zap.S().Infof("role updated in db: %d", role.ID)
+	zap.S().Infof("Role updated in db: %d", role.ID)
 	return r.GetRoleByID(ctx, role.ID) // 返回更新后的完整角色数据
 }
 
 // DeleteRole 从数据库中删除角色。
+// 这是一个事务性操作，会先删除关联表中的记录，再删除角色本身。
 func (r *roleRepository) DeleteRole(ctx context.Context, id uint64) error {
 	// 事务性删除：先删除关联表中的记录，再删除角色本身
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 删除 admin_user_roles 中与此角色相关的记录
 		if err := tx.Where("role_id = ?", id).Delete(&DBAdminUserRole{}).Error; err != nil {
-			zap.S().Errorf("failed to delete admin_user_roles for role %d: %v", id, err)
+			zap.S().Errorf("Failed to delete admin_user_roles for role %d: %v", id, err)
 			return err
 		}
 		// 删除 role_permissions 中与此角色相关的记录
 		if err := tx.Where("role_id = ?", id).Delete(&DBRolePermission{}).Error; err != nil {
-			zap.S().Errorf("failed to delete role_permissions for role %d: %v", id, err)
+			zap.S().Errorf("Failed to delete role_permissions for role %d: %v", id, err)
 			return err
 		}
 		// 删除角色本身
 		if err := tx.Delete(&DBRole{}, id).Error; err != nil {
-			zap.S().Errorf("failed to delete role %d from db: %v", id, err)
+			zap.S().Errorf("Failed to delete role %d from db: %v", id, err)
 			return err
 		}
-		zap.S().Infof("role deleted from db: %d", id)
+		zap.S().Infof("Role deleted from db: %d", id)
 		return nil
 	})
 }
 
 // ListRoles 从数据库中获取角色列表。
+// 支持按名称关键词搜索，并支持分页。
 func (r *roleRepository) ListRoles(ctx context.Context, nameKeyword string, pageSize, pageToken int32) ([]*model.Role, int32, error) {
 	var dbRoles []*DBRole
 	var totalCount int64
@@ -438,21 +472,21 @@ func (r *roleRepository) ListRoles(ctx context.Context, nameKeyword string, page
 
 	// 获取总数
 	if err := query.Count(&totalCount).Error; err != nil {
-		zap.S().Errorf("failed to count roles: %v", err)
+		zap.S().Errorf("Failed to count roles: %v", err)
 		return nil, 0, err
 	}
 
 	// 分页查询
 	if pageSize <= 0 {
-		pageSize = 10
+		pageSize = 10 // 默认每页大小
 	}
 	if pageToken <= 0 {
-		pageToken = 1
+		pageToken = 1 // 默认页码
 	}
 	offset := (pageToken - 1) * pageSize
 
 	if err := query.Limit(int(pageSize)).Offset(int(offset)).Find(&dbRoles).Error; err != nil {
-		zap.S().Errorf("failed to list roles from db: %v", err)
+		zap.S().Errorf("Failed to list roles from db: %v", err)
 		return nil, 0, err
 	}
 
@@ -465,35 +499,38 @@ func (r *roleRepository) ListRoles(ctx context.Context, nameKeyword string, page
 }
 
 // AssignRoleToAdminUser 为管理员用户分配角色。
+// 它会创建或更新管理员用户与角色的关联记录。
 func (r *roleRepository) AssignRoleToAdminUser(ctx context.Context, adminUserID, roleID uint64) error {
 	adminUserRole := &DBAdminUserRole{AdminUserID: adminUserID, RoleID: roleID}
 	// 使用 FirstOrCreate 避免重复插入
 	if err := r.db.WithContext(ctx).FirstOrCreate(adminUserRole, adminUserRole).Error; err != nil {
-		zap.S().Errorf("failed to assign role %d to admin user %d: %v", roleID, adminUserID, err)
+		zap.S().Errorf("Failed to assign role %d to admin user %d: %v", roleID, adminUserID, err)
 		return err
 	}
-	zap.S().Infof("role %d assigned to admin user %d", roleID, adminUserID)
+	zap.S().Infof("Role %d assigned to admin user %d", roleID, adminUserID)
 	return nil
 }
 
 // RemoveRoleFromAdminUser 从管理员用户移除角色。
+// 它会删除管理员用户与角色的关联记录。
 func (r *roleRepository) RemoveRoleFromAdminUser(ctx context.Context, adminUserID, roleID uint64) error {
 	if err := r.db.WithContext(ctx).Where("admin_user_id = ? AND role_id = ?", adminUserID, roleID).Delete(&DBAdminUserRole{}).Error; err != nil {
-		zap.S().Errorf("failed to remove role %d from admin user %d: %v", roleID, adminUserID, err)
+		zap.S().Errorf("Failed to remove role %d from admin user %d: %v", roleID, adminUserID, err)
 		return err
 	}
-	zap.S().Infof("role %d removed from admin user %d", roleID, adminUserID)
+	zap.S().Infof("Role %d removed from admin user %d", roleID, adminUserID)
 	return nil
 }
 
 // GetAdminUserRoles 获取管理员用户的所有角色。
+// 它通过关联表查询指定管理员用户拥有的所有角色。
 func (r *roleRepository) GetAdminUserRoles(ctx context.Context, adminUserID uint64) ([]*model.Role, error) {
 	var dbRoles []*DBRole
 	// 通过 admin_user_roles 关联表查询角色
 	if err := r.db.WithContext(ctx).Table("roles").
 		Joins("JOIN admin_user_roles ON roles.id = admin_user_roles.role_id").
 		Where("admin_user_roles.admin_user_id = ?", adminUserID).Find(&dbRoles).Error; err != nil {
-		zap.S().Errorf("failed to get roles for admin user %d: %v", adminUserID, err)
+		zap.S().Errorf("Failed to get roles for admin user %d: %v", adminUserID, err)
 		return nil, err
 	}
 
@@ -520,34 +557,36 @@ func NewPermissionRepo(data *Data) PermissionRepo {
 func (r *permissionRepository) CreatePermission(ctx context.Context, perm *model.Permission) (*model.Permission, error) {
 	dbPerm := fromBizPermission(perm)
 	if err := r.db.WithContext(ctx).Create(dbPerm).Error; err != nil {
-		zap.S().Errorf("failed to create permission %s in db: %v", perm.Name, err)
+		zap.S().Errorf("Failed to create permission %s in db: %v", perm.Name, err)
 		return nil, err
 	}
-	zap.S().Infof("permission created in db: %d", dbPerm.ID)
+	zap.S().Infof("Permission created in db: %d", dbPerm.ID)
 	return toBizPermission(dbPerm), nil
 }
 
 // GetPermissionByID 根据ID从数据库中获取权限。
+// 如果未找到记录，则返回 nil 和 nil 错误。
 func (r *permissionRepository) GetPermissionByID(ctx context.Context, id uint64) (*model.Permission, error) {
 	var dbPerm DBPermission
 	if err := r.db.WithContext(ctx).First(&dbPerm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		zap.S().Errorf("failed to get permission by id %d from db: %v", id, err)
+		zap.S().Errorf("Failed to get permission by id %d from db: %v", id, err)
 		return nil, err
 	}
 	return toBizPermission(&dbPerm), nil
 }
 
 // GetPermissionByName 根据名称从数据库中获取权限。
+// 如果未找到记录，则返回 nil 和 nil 错误。
 func (r *permissionRepository) GetPermissionByName(ctx context.Context, name string) (*model.Permission, error) {
 	var dbPerm DBPermission
 	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&dbPerm).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		zap.S().Errorf("failed to get permission by name %s from db: %v", name, err)
+		zap.S().Errorf("Failed to get permission by name %s from db: %v", name, err)
 		return nil, err
 	}
 	return toBizPermission(&dbPerm), nil
@@ -557,33 +596,35 @@ func (r *permissionRepository) GetPermissionByName(ctx context.Context, name str
 func (r *permissionRepository) UpdatePermission(ctx context.Context, perm *model.Permission) (*model.Permission, error) {
 	dbPerm := fromBizPermission(perm)
 	if err := r.db.WithContext(ctx).Model(&DBPermission{}).Where("id = ?", perm.ID).Updates(dbPerm).Error; err != nil {
-		zap.S().Errorf("failed to update permission %d in db: %v", perm.ID, err)
+		zap.S().Errorf("Failed to update permission %d in db: %v", perm.ID, err)
 		return nil, err
 	}
-	zap.S().Infof("permission updated in db: %d", perm.ID)
+	zap.S().Infof("Permission updated in db: %d", perm.ID)
 	return r.GetPermissionByID(ctx, perm.ID) // 返回更新后的完整权限数据
 }
 
 // DeletePermission 从数据库中删除权限。
+// 这是一个事务性操作，会先删除关联表中的记录，再删除权限本身。
 func (r *permissionRepository) DeletePermission(ctx context.Context, id uint64) error {
 	// 事务性删除：先删除关联表中的记录，再删除权限本身
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 删除 role_permissions 中与此权限相关的记录
 		if err := tx.Where("permission_id = ?", id).Delete(&DBRolePermission{}).Error; err != nil {
-			zap.S().Errorf("failed to delete role_permissions for permission %d: %v", id, err)
+			zap.S().Errorf("Failed to delete role_permissions for permission %d: %v", id, err)
 			return err
 		}
 		// 删除权限本身
 		if err := tx.Delete(&DBPermission{}, id).Error; err != nil {
-			zap.S().Errorf("failed to delete permission %d from db: %v", id, err)
+			zap.S().Errorf("Failed to delete permission %d from db: %v", id, err)
 			return err
 		}
-		zap.S().Infof("permission deleted from db: %d", id)
+		zap.S().Infof("Permission deleted from db: %d", id)
 		return nil
 	})
 }
 
 // ListPermissions 从数据库中获取权限列表。
+// 支持按名称关键词搜索，并支持分页。
 func (r *permissionRepository) ListPermissions(ctx context.Context, nameKeyword string, pageSize, pageToken int32) ([]*model.Permission, int32, error) {
 	var dbPerms []*DBPermission
 	var totalCount int64
@@ -596,7 +637,7 @@ func (r *permissionRepository) ListPermissions(ctx context.Context, nameKeyword 
 
 	// 获取总数
 	if err := query.Count(&totalCount).Error; err != nil {
-		zap.S().Errorf("failed to count permissions: %v", err)
+		zap.S().Errorf("Failed to count permissions: %v", err)
 		return nil, 0, err
 	}
 
@@ -610,7 +651,7 @@ func (r *permissionRepository) ListPermissions(ctx context.Context, nameKeyword 
 	offset := (pageToken - 1) * pageSize
 
 	if err := query.Limit(int(pageSize)).Offset(int(offset)).Find(&dbPerms).Error; err != nil {
-		zap.S().Errorf("failed to list permissions from db: %v", err)
+		zap.S().Errorf("Failed to list permissions from db: %v", err)
 		return nil, 0, err
 	}
 
@@ -623,35 +664,38 @@ func (r *permissionRepository) ListPermissions(ctx context.Context, nameKeyword 
 }
 
 // AssignPermissionToRole 为角色分配权限。
+// 它会创建或更新角色与权限的关联记录。
 func (r *permissionRepository) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint64) error {
 	rolePermission := &DBRolePermission{RoleID: roleID, PermissionID: permissionID}
 	// 使用 FirstOrCreate 避免重复插入
 	if err := r.db.WithContext(ctx).FirstOrCreate(rolePermission, rolePermission).Error; err != nil {
-		zap.S().Errorf("failed to assign permission %d to role %d: %v", permissionID, roleID, err)
+		zap.S().Errorf("Failed to assign permission %d to role %d: %v", permissionID, roleID, err)
 		return err
 	}
-	zap.S().Infof("permission %d assigned to role %d", permissionID, roleID)
+	zap.S().Infof("Permission %d assigned to role %d", permissionID, roleID)
 	return nil
 }
 
 // RemovePermissionFromRole 从角色移除权限。
+// 它会删除角色与权限的关联记录。
 func (r *permissionRepository) RemovePermissionFromRole(ctx context.Context, roleID, permissionID uint64) error {
 	if err := r.db.WithContext(ctx).Where("role_id = ? AND permission_id = ?", roleID, permissionID).Delete(&DBRolePermission{}).Error; err != nil {
-		zap.S().Errorf("failed to remove permission %d from role %d: %v", permissionID, roleID, err)
+		zap.S().Errorf("Failed to remove permission %d from role %d: %v", permissionID, roleID, err)
 		return err
 	}
-	zap.S().Infof("permission %d removed from role %d", permissionID, roleID)
+	zap.S().Infof("Permission %d removed from role %d", permissionID, roleID)
 	return nil
 }
 
 // GetRolePermissions 获取角色的所有权限。
+// 它通过关联表查询指定角色拥有的所有权限。
 func (r *permissionRepository) GetRolePermissions(ctx context.Context, roleID uint64) ([]*model.Permission, error) {
 	var dbPerms []*DBPermission
 	// 通过 role_permissions 关联表查询权限
 	if err := r.db.WithContext(ctx).Table("permissions").
 		Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
 		Where("role_permissions.role_id = ?", roleID).Find(&dbPerms).Error; err != nil {
-		zap.S().Errorf("failed to get permissions for role %d: %v", roleID, err)
+		zap.S().Errorf("Failed to get permissions for role %d: %v", roleID, err)
 		return nil, err
 	}
 
@@ -673,7 +717,7 @@ func (r *permissionRepository) CheckAdminUserPermission(ctx context.Context, adm
 		Joins("JOIN permissions ON role_permissions.permission_id = permissions.id").
 		Where("admin_user_roles.admin_user_id = ? AND permissions.name = ?", adminUserID, permissionName).
 		Count(&count).Error; err != nil {
-		zap.S().Errorf("failed to check permission %s for admin user %d: %v", permissionName, adminUserID, err)
+		zap.S().Errorf("Failed to check permission %s for admin user %d: %v", permissionName, adminUserID, err)
 		return false, err
 	}
 
@@ -696,14 +740,15 @@ func NewAuditLogRepo(data *Data) AuditLogRepo {
 func (r *auditLogRepository) CreateAuditLog(ctx context.Context, log *model.AuditLog) error {
 	dbLog := fromBizAuditLog(log)
 	if err := r.db.WithContext(ctx).Create(dbLog).Error; err != nil {
-		zap.S().Errorf("failed to create audit log for admin user %d, action %s: %v", log.AdminUserID, log.Action, err)
+		zap.S().Errorf("Failed to create audit log for admin user %d, action %s: %v", log.AdminUserID, log.Action, err)
 		return err
 	}
-	zap.S().Infof("audit log created: %s by admin user %d", log.Action, log.AdminUserID)
+	zap.S().Infof("Audit log created: %s by admin user %d", log.Action, log.AdminUserID)
 	return nil
 }
 
 // ListAuditLogs 从数据库中获取审计日志列表。
+// 支持按管理员用户ID、操作关键词、实体类型、时间范围搜索，并支持分页。
 func (r *auditLogRepository) ListAuditLogs(ctx context.Context, adminUserID uint64, actionKeyword, entityType string, startTime, endTime *time.Time, pageSize, pageToken int32) ([]*model.AuditLog, int32, error) {
 	var dbLogs []*DBAuditLog
 	var totalCount int64
@@ -728,7 +773,7 @@ func (r *auditLogRepository) ListAuditLogs(ctx context.Context, adminUserID uint
 
 	// 获取总数
 	if err := query.Count(&totalCount).Error; err != nil {
-		zap.S().Errorf("failed to count audit logs: %v", err)
+		zap.S().Errorf("Failed to count audit logs: %v", err)
 		return nil, 0, err
 	}
 
@@ -742,7 +787,7 @@ func (r *auditLogRepository) ListAuditLogs(ctx context.Context, adminUserID uint
 	offset := (pageToken - 1) * pageSize
 
 	if err := query.Order("created_at DESC").Limit(int(pageSize)).Offset(int(offset)).Find(&dbLogs).Error; err != nil {
-		zap.S().Errorf("failed to list audit logs from db: %v", err)
+		zap.S().Errorf("Failed to list audit logs from db: %v", err)
 		return nil, 0, err
 	}
 
@@ -755,16 +800,95 @@ func (r *auditLogRepository) ListAuditLogs(ctx context.Context, adminUserID uint
 }
 
 // GetAuditLogByID 根据ID从数据库中获取审计日志。
+// 如果未找到记录，则返回 nil 和 nil 错误。
 func (r *auditLogRepository) GetAuditLogByID(ctx context.Context, id uint64) (*model.AuditLog, error) {
 	var dbLog DBAuditLog
 	if err := r.db.WithContext(ctx).First(&dbLog, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		zap.S().Errorf("failed to get audit log by id %d from db: %v", id, err)
+		zap.S().Errorf("Failed to get audit log by id %d from db: %v", id, err)
 		return nil, err
 	}
 	return toBizAuditLog(&dbLog), nil
+}
+
+// --- SystemSettingRepo 实现 ---
+
+// systemSettingRepository 是 SystemSettingRepo 接口的 GORM 实现。
+type systemSettingRepository struct {
+	*Data
+}
+
+// NewSystemSettingRepo 创建一个新的 SystemSettingRepo 实例。
+func NewSystemSettingRepo(data *Data) SystemSettingRepo {
+	return &systemSettingRepository{data}
+}
+
+// GetSetting 根据键从数据库中获取系统配置。
+// 如果未找到记录，则返回 nil 和 nil 错误。
+func (r *systemSettingRepository) GetSetting(ctx context.Context, key string) (*model.SystemSetting, error) {
+	var dbSetting DBSystemSetting
+	if err := r.db.WithContext(ctx).Where("key = ?", key).First(&dbSetting).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		zap.S().Errorf("Failed to get system setting by key %s from db: %v", key, err)
+		return nil, err
+	}
+	return toBizSystemSetting(&dbSetting), nil
+}
+
+// SetSetting 设置或更新数据库中的系统配置。
+// 如果配置项不存在则创建，否则更新。
+func (r *systemSettingRepository) SetSetting(ctx context.Context, setting *model.SystemSetting) (*model.SystemSetting, error) {
+	dbSetting := fromBizSystemSetting(setting)
+	if err := r.db.WithContext(ctx).Where("key = ?", setting.Key).Assign(dbSetting).FirstOrCreate(dbSetting).Error; err != nil {
+		zap.S().Errorf("Failed to set system setting %s in db: %v", setting.Key, err)
+		return nil, err
+	}
+	zap.S().Infof("System setting %s set in db", setting.Key)
+	return toBizSystemSetting(dbSetting), nil
+}
+
+// ListSettings 从数据库中获取所有系统配置列表。
+// 支持按键关键词搜索，并支持分页。
+func (r *systemSettingRepository) ListSettings(ctx context.Context, keyKeyword string, pageSize, pageToken int32) ([]*model.SystemSetting, int32, error) {
+	var dbSettings []*DBSystemSetting
+	var totalCount int64
+
+	query := r.db.WithContext(ctx).Model(&DBSystemSetting{})
+
+	if keyKeyword != "" {
+		query = query.Where("key LIKE ?", "%"+keyKeyword+"%")
+	}
+
+	// 获取总数
+	if err := query.Count(&totalCount).Error; err != nil {
+		zap.S().Errorf("Failed to count system settings: %v", err)
+		return nil, 0, err
+	}
+
+	// 分页查询
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	if pageToken <= 0 {
+		pageToken = 1
+	}
+	offset := (pageToken - 1) * pageSize
+
+	if err := query.Limit(int(pageSize)).Offset(int(offset)).Find(&dbSettings).Error; err != nil {
+		zap.S().Errorf("Failed to list system settings from db: %v", err)
+		return nil, 0, err
+	}
+
+	bizSettings := make([]*model.SystemSetting, len(dbSettings))
+	for i, dbSetting := range dbSettings {
+		bizSettings[i] = toBizSystemSetting(dbSetting)
+	}
+
+	return bizSettings, int32(totalCount), nil
 }
 
 // --- 模型转换辅助函数 ---
@@ -782,6 +906,7 @@ func toBizAdminUser(dbUser *DBAdminUser) *model.AdminUser {
 		Email:        dbUser.Email,
 		Phone:        dbUser.Phone,
 		IsSuperAdmin: dbUser.IsSuperAdmin,
+		Status:       dbUser.Status,
 		CreatedAt:    dbUser.CreatedAt,
 		UpdatedAt:    dbUser.UpdatedAt,
 	}
@@ -800,6 +925,7 @@ func fromBizAdminUser(bizUser *model.AdminUser) *DBAdminUser {
 		Email:        bizUser.Email,
 		Phone:        bizUser.Phone,
 		IsSuperAdmin: bizUser.IsSuperAdmin,
+		Status:       bizUser.Status,
 	}
 }
 
@@ -887,5 +1013,32 @@ func fromBizAuditLog(bizLog *model.AuditLog) *DBAuditLog {
 		EntityID:      bizLog.EntityID,
 		Details:       bizLog.Details,
 		IPAddress:     bizLog.IPAddress,
+	}
+}
+
+// toBizSystemSetting 将 DBSystemSetting 数据库模型转换为 model.SystemSetting 业务领域模型。
+func toBizSystemSetting(dbSetting *DBSystemSetting) *model.SystemSetting {
+	if dbSetting == nil {
+		return nil
+	}
+	return &model.SystemSetting{
+		Key:         dbSetting.Key,
+		Value:       dbSetting.Value,
+		Description: dbSetting.Description,
+		CreatedAt:   dbSetting.CreatedAt,
+		UpdatedAt:   dbSetting.UpdatedAt,
+	}
+}
+
+// fromBizSystemSetting 将 model.SystemSetting 业务领域模型转换为 DBSystemSetting 数据库模型。
+func fromBizSystemSetting(bizSetting *model.SystemSetting) *DBSystemSetting {
+	if bizSetting == nil {
+		return nil
+	}
+	return &DBSystemSetting{
+		Model:       gorm.Model{ID: 0, CreatedAt: time.Time{}, UpdatedAt: bizSetting.UpdatedAt},
+		Key:         bizSetting.Key,
+		Value:       bizSetting.Value,
+		Description: bizSetting.Description,
 	}
 }

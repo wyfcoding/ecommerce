@@ -1,0 +1,39 @@
+{{- if .Values.autoscaling.enabled }}
+# Horizontal Pod Autoscaler (HPA) 定义
+# HPA 能够根据 CPU 利用率或自定义指标自动调整 Pod 的副本数量，以应对流量波动。
+# 这对于电商系统应对高峰流量，保证服务可用性和弹性伸缩至关重要。
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "chart.fullname" . }} # HPA 资源的名称，通常与 Deployment 名称一致
+  labels:
+    {{- include "chart.labels" . | nindent 4 }} # 继承 Chart 的标签
+spec:
+  # scaleTargetRef 指向 HPA 监控和伸缩的目标资源，这里是 Deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "chart.fullname" . }} # 目标 Deployment 的名称
+  minReplicas: {{ .Values.autoscaling.minReplicas }} # 最小副本数，确保在低负载时也有足够的冗余
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }} # 最大副本数，防止无限扩容导致资源耗尽
+  metrics:
+    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
+    # CPU 利用率指标：当 Pod 的平均 CPU 利用率达到目标值时，HPA 将触发扩容。
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }} # 目标 CPU 利用率百分比
+    {{- end }}
+    {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    # 内存利用率指标 (可选)：当 Pod 的平均内存利用率达到目标值时，HPA 将触发扩容。
+    # 注意：内存通常不作为扩缩容的主要指标，因为内存使用量通常与请求量不直接相关，且扩容/缩容可能导致内存抖动。
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }} # 目标内存利用率百分比
+    {{- end }}
+{{- end }}

@@ -1,4 +1,4 @@
-package paymenthandler
+package handler
 
 import (
 	"fmt"

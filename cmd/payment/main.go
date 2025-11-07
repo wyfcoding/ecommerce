@@ -1,93 +1,81 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-
-	"ecommerce/internal/payment/handler"
 	"ecommerce/internal/payment/repository"
 	"ecommerce/internal/payment/service"
-	// 伪代码: "ecommerce/pkg/middleware"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
+type Config struct {
+	configpkg.Config
+}
+
+const serviceName = "payment-service"
+
 func main() {
-	// 1. 初始化配置
-	vm := viper.New()
-	vm.SetConfigName("payment")
-	vm.SetConfigType("toml")
-	vm.AddConfigPath("./configs")
-	if err := vm.ReadInConfig(); err != nil {
-		log.Fatalf("读取配置文件失败: %s \n", err)
-	}
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9095").
+		Build().
+		Run()
+}
 
-	// 2. 初始化日志
-	logger, err := zap.NewProduction()
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	// TODO: 注册gRPC服务
+	zap.S().Info("gRPC server registered")
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	// TODO: 注册HTTP路由
+	zap.S().Info("HTTP routes registered")
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+
+	cleanupTracer := func() {}
+
+	// 初始化MySQL
+	mysqlConfig := &mysqlpkg.Config{
+		DSN:             config.Data.Database.DSN,
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        4,
+		SlowThreshold:   200 * time.Millisecond,
+	}
+	db, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
 	if err != nil {
-		log.Fatalf("初始化 Zap logger 失败: %v", err)
-	}
-	defer logger.Sync()
-
-	// 3. 初始化数据存储
-	dsn := vm.GetString("data.database.dsn")
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		logger.Fatal("连接数据库失败", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 4. 初始化第三方 SDK、gRPC 客户端、消息队列等 (此处省略)
-	// ...
-
-	// 5. 依赖注入
+	// 初始化Repository
 	paymentRepo := repository.NewPaymentRepository(db)
-	// 实际应传入支付网关客户端和 MQ 生产者
-	paymentService := service.NewPaymentService(paymentRepo, logger)
-	paymentHandler := handler.NewPaymentHandler(paymentService, logger)
 
-	// 6. 初始化 HTTP 引擎 (Gin)
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.New()
-	router.Use(gin.Recovery())
+	// 初始化Service
+	paymentService := service.NewPaymentService(paymentRepo, zap.L())
 
-	// 注册路由
-	// 注意：部分路由需要认证中间件，部分（webhook）则不需要
-	paymentHandler.RegisterRoutes(router)
-
-	// 7. 启动 HTTP 服务器
-	httpAddr := fmt.Sprintf("%s:%d", vm.GetString("server.http.addr"), vm.GetInt("server.http.port"))
-	srv := &http.Server{
-		Addr:    httpAddr,
-		Handler: router,
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		cleanupDB()
+		cleanupTracer()
 	}
 
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("HTTP 服务监听失败", zap.Error(err))
-		}
-	}()
-
-	// 8. 优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-
-	logger.Info("准备关闭服务器 ...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("服务器强制关闭: ", zap.Error(err))
-	}
-
-	logger.Info("服务器已退出")
+	return paymentService, cleanup, nil
 }

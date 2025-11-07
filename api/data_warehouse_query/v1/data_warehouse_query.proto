@@ -39,10 +39,15 @@ message GetQueryResultRequest {
   optional int32 page_number = 3;
 }
 
+// QueryRow 查询结果行
+message QueryRow {
+  map<string, string> columns = 1;
+}
+
 // GetQueryResultResponse 获取查询结果响应消息。
 message GetQueryResultResponse {
   string query_id = 1;
   string status = 2;
-  repeated map<string, string> rows = 3;
+  repeated QueryRow rows = 3;
   bool has_more = 4;
 }

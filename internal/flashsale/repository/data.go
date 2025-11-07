@@ -1,8 +1,7 @@
-package data
+package repository
 
 import (
 	"context"
-	"ecommerce/internal/flashsale/biz"
 	"fmt"
 	"log"
 	"time"

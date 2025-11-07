@@ -2,115 +2,373 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"ecommerce/internal/inventory/model"
 	"ecommerce/internal/inventory/repository"
 )
 
-// InventoryService 定义了库存服务的业务逻辑接口
-type InventoryService interface {
-	// gRPC 接口方法
-	GetStockLevel(ctx context.Context, sku string, warehouseID uint) (*model.Inventory, error)
-	AdjustStock(ctx context.Context, sku string, warehouseID uint, quantityChange int, movementType model.MovementType, reference, reason string) error
+var (
+	ErrInsufficientStock = errors.New("库存不足")
+	ErrStockNotFound     = errors.New("库存记录不存在")
+	ErrInvalidQuantity   = errors.New("无效的数量")
+)
 
-	// 消息队列消费者处理方法
-	HandleOrderCreated(ctx context.Context, payload []byte) error
-	HandleOrderCancelled(ctx context.Context, payload []byte) error
+// InventoryService 库存服务接口
+type InventoryService interface {
+	// 库存查询
+	GetStock(ctx context.Context, skuID uint64) (*model.Stock, error)
+	BatchGetStock(ctx context.Context, skuIDs []uint64) (map[uint64]*model.Stock, error)
+	
+	// 库存操作
+	LockStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error
+	UnlockStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error
+	DeductStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error
+	RestoreStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error
+	
+	// 库存调整
+	AdjustStock(ctx context.Context, skuID uint64, quantity int32, reason string, operatorID uint64) error
+	
+	// 库存预警
+	GetLowStockProducts(ctx context.Context, threshold uint32) ([]*model.Stock, error)
+	
+	// 库存日志
+	GetStockLogs(ctx context.Context, skuID uint64, pageSize, pageNum int32) ([]*model.StockLog, int64, error)
 }
 
-// inventoryService 是接口的具体实现
 type inventoryService struct {
-	repo   repository.InventoryRepository
+	repo   repository.InventoryRepo
 	logger *zap.Logger
 }
 
-// NewInventoryService 创建一个新的 inventoryService 实例
-func NewInventoryService(repo repository.InventoryRepository, logger *zap.Logger) InventoryService {
-	return &inventoryService{repo: repo, logger: logger}
+// NewInventoryService 创建库存服务实例
+func NewInventoryService(repo repository.InventoryRepo, logger *zap.Logger) InventoryService {
+	return &inventoryService{
+		repo:   repo,
+		logger: logger,
+	}
 }
 
-// GetStockLevel 获取库存水平
-func (s *inventoryService) GetStockLevel(ctx context.Context, sku string, warehouseID uint) (*model.Inventory, error) {
-	s.logger.Info("GetStockLevel called", zap.String("sku", sku), zap.Uint("warehouseID", warehouseID))
-	inventory, err := s.repo.GetInventory(ctx, sku, warehouseID)
+// GetStock 获取SKU库存信息
+func (s *inventoryService) GetStock(ctx context.Context, skuID uint64) (*model.Stock, error) {
+	stock, err := s.repo.GetStockBySKUID(ctx, skuID)
 	if err != nil {
-		s.logger.Error("Failed to get inventory", zap.Error(err))
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStockNotFound
+		}
+		s.logger.Error("获取库存失败", zap.Error(err), zap.Uint64("skuID", skuID))
 		return nil, err
 	}
-	if inventory == nil {
-		return nil, fmt.Errorf("库存记录不存在")
-	}
-	return inventory, nil
+	return stock, nil
 }
 
-// AdjustStock 手动调整库存
-func (s *inventoryService) AdjustStock(ctx context.Context, sku string, warehouseID uint, quantityChange int, movementType model.MovementType, reference, reason string) error {
-	s.logger.Info("AdjustStock called", zap.String("sku", sku), zap.Int("quantityChange", quantityChange))
-	return s.repo.AdjustStock(ctx, sku, warehouseID, quantityChange, movementType, reference, reason)
+// BatchGetStock 批量获取库存信息
+func (s *inventoryService) BatchGetStock(ctx context.Context, skuIDs []uint64) (map[uint64]*model.Stock, error) {
+	stocks, err := s.repo.BatchGetStock(ctx, skuIDs)
+	if err != nil {
+		s.logger.Error("批量获取库存失败", zap.Error(err))
+		return nil, err
+	}
+	
+	result := make(map[uint64]*model.Stock)
+	for _, stock := range stocks {
+		result[stock.SKUID] = stock
+	}
+	return result, nil
 }
 
-// OrderEventPayload 是从订单服务接收到的事件消息体结构
-type OrderEventPayload struct {
-	OrderSN string `json:"order_sn"`
-	Items   []struct {
-		SKU      string `json:"sku"`
-		Quantity int    `json:"quantity"`
-	} `json:"items"`
-}
-
-// HandleOrderCreated 处理订单创建事件，进行库存预留
-func (s *inventoryService) HandleOrderCreated(ctx context.Context, payload []byte) error {
-	var event OrderEventPayload
-	if err := json.Unmarshal(payload, &event); err != nil {
-		s.logger.Error("Failed to unmarshal order created event", zap.Error(err))
-		return err
+// LockStock 锁定库存（下单时）
+func (s *inventoryService) LockStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error {
+	if quantity == 0 {
+		return ErrInvalidQuantity
 	}
 
-	s.logger.Info("Handling order created event", zap.String("orderSN", event.OrderSN))
-
-	// 伪代码: 假设所有商品都在同一个仓库
-	const defaultWarehouseID = 1
-
-	// TODO: 此处需要实现分布式事务（SAGA 模式）
-	// 1. 遍历所有商品项，逐个预留库存
-	for _, item := range event.Items {
-		if err := s.repo.ReserveStock(ctx, item.SKU, defaultWarehouseID, item.Quantity); err != nil {
-			s.logger.Error("Failed to reserve stock for item", zap.String("sku", item.SKU), zap.Error(err))
-			// **补偿逻辑**: 如果某个商品预留失败，需要回滚已预留成功的商品库存
-			// s.rollbackReservations(ctx, event.Items[:i])
-			return fmt.Errorf("为 SKU %s 预留库存失败: %w", item.SKU, err)
-		}
-	}
-
-	return nil
-}
-
-// HandleOrderCancelled 处理订单取消事件，回滚库存
-func (s *inventoryService) HandleOrderCancelled(ctx context.Context, payload []byte) error {
-	var event OrderEventPayload
-	if err := json.Unmarshal(payload, &event); err != nil {
-		return err
-	}
-
-	s.logger.Info("Handling order cancelled event", zap.String("orderSN", event.OrderSN))
-
-	const defaultWarehouseID = 1
-
-	// 1. 释放预留库存
-	for _, item := range event.Items {
-		if err := s.repo.ReleaseStock(ctx, item.SKU, defaultWarehouseID, item.Quantity); err != nil {
-			s.logger.Error("Failed to release stock for item", zap.String("sku", item.SKU), zap.Error(err))
-			// 补偿/告警逻辑
+	// 使用事务确保原子性
+	err := s.repo.InTx(ctx, func(ctx context.Context) error {
+		// 获取当前库存
+		stock, err := s.repo.GetStockBySKUID(ctx, skuID)
+		if err != nil {
 			return err
 		}
+
+		// 检查可用库存
+		if stock.AvailableStock < quantity {
+			return ErrInsufficientStock
+		}
+
+		// 更新库存
+		stock.AvailableStock -= quantity
+		stock.LockedStock += quantity
+		stock.UpdatedAt = time.Now()
+
+		if err := s.repo.UpdateStock(ctx, stock); err != nil {
+			return err
+		}
+
+		// 记录库存日志
+		log := &model.StockLog{
+			SKUID:      skuID,
+			Type:       model.StockLogTypeLock,
+			Quantity:   int32(quantity),
+			BeforeQty:  stock.AvailableStock + quantity,
+			AfterQty:   stock.AvailableStock,
+			OrderID:    orderID,
+			OperatorID: 0, // 系统操作
+			Reason:     "订单锁定库存",
+			CreatedAt:  time.Now(),
+		}
+		return s.repo.CreateStockLog(ctx, log)
+	})
+
+	if err != nil {
+		s.logger.Error("锁定库存失败",
+			zap.Error(err),
+			zap.Uint64("skuID", skuID),
+			zap.Uint32("quantity", quantity),
+			zap.String("orderID", orderID))
+		return err
 	}
 
-	// 2. 增加物理库存 (如果出库时是直接扣减物理库存)
-	// 在我们的模型中，发货时才会扣减物理库存，所以取消时只需释放预留库存即可
-
+	s.logger.Info("锁定库存成功",
+		zap.Uint64("skuID", skuID),
+		zap.Uint32("quantity", quantity),
+		zap.String("orderID", orderID))
 	return nil
+}
+
+// UnlockStock 解锁库存（取消订单时）
+func (s *inventoryService) UnlockStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error {
+	if quantity == 0 {
+		return ErrInvalidQuantity
+	}
+
+	err := s.repo.InTx(ctx, func(ctx context.Context) error {
+		stock, err := s.repo.GetStockBySKUID(ctx, skuID)
+		if err != nil {
+			return err
+		}
+
+		if stock.LockedStock < quantity {
+			return fmt.Errorf("锁定库存不足: 需要 %d, 实际 %d", quantity, stock.LockedStock)
+		}
+
+		stock.AvailableStock += quantity
+		stock.LockedStock -= quantity
+		stock.UpdatedAt = time.Now()
+
+		if err := s.repo.UpdateStock(ctx, stock); err != nil {
+			return err
+		}
+
+		log := &model.StockLog{
+			SKUID:      skuID,
+			Type:       model.StockLogTypeUnlock,
+			Quantity:   int32(quantity),
+			BeforeQty:  stock.AvailableStock - quantity,
+			AfterQty:   stock.AvailableStock,
+			OrderID:    orderID,
+			OperatorID: 0,
+			Reason:     "订单取消，解锁库存",
+			CreatedAt:  time.Now(),
+		}
+		return s.repo.CreateStockLog(ctx, log)
+	})
+
+	if err != nil {
+		s.logger.Error("解锁库存失败",
+			zap.Error(err),
+			zap.Uint64("skuID", skuID),
+			zap.Uint32("quantity", quantity))
+		return err
+	}
+
+	s.logger.Info("解锁库存成功",
+		zap.Uint64("skuID", skuID),
+		zap.Uint32("quantity", quantity))
+	return nil
+}
+
+// DeductStock 扣减库存（支付成功后）
+func (s *inventoryService) DeductStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error {
+	if quantity == 0 {
+		return ErrInvalidQuantity
+	}
+
+	err := s.repo.InTx(ctx, func(ctx context.Context) error {
+		stock, err := s.repo.GetStockBySKUID(ctx, skuID)
+		if err != nil {
+			return err
+		}
+
+		if stock.LockedStock < quantity {
+			return fmt.Errorf("锁定库存不足")
+		}
+
+		stock.LockedStock -= quantity
+		stock.TotalStock -= quantity
+		stock.UpdatedAt = time.Now()
+
+		if err := s.repo.UpdateStock(ctx, stock); err != nil {
+			return err
+		}
+
+		log := &model.StockLog{
+			SKUID:      skuID,
+			Type:       model.StockLogTypeDeduct,
+			Quantity:   -int32(quantity),
+			BeforeQty:  stock.TotalStock + quantity,
+			AfterQty:   stock.TotalStock,
+			OrderID:    orderID,
+			OperatorID: 0,
+			Reason:     "订单支付成功，扣减库存",
+			CreatedAt:  time.Now(),
+		}
+		return s.repo.CreateStockLog(ctx, log)
+	})
+
+	if err != nil {
+		s.logger.Error("扣减库存失败",
+			zap.Error(err),
+			zap.Uint64("skuID", skuID),
+			zap.Uint32("quantity", quantity))
+		return err
+	}
+
+	s.logger.Info("扣减库存成功",
+		zap.Uint64("skuID", skuID),
+		zap.Uint32("quantity", quantity))
+	return nil
+}
+
+// RestoreStock 恢复库存（退款时）
+func (s *inventoryService) RestoreStock(ctx context.Context, skuID uint64, quantity uint32, orderID string) error {
+	if quantity == 0 {
+		return ErrInvalidQuantity
+	}
+
+	err := s.repo.InTx(ctx, func(ctx context.Context) error {
+		stock, err := s.repo.GetStockBySKUID(ctx, skuID)
+		if err != nil {
+			return err
+		}
+
+		stock.TotalStock += quantity
+		stock.AvailableStock += quantity
+		stock.UpdatedAt = time.Now()
+
+		if err := s.repo.UpdateStock(ctx, stock); err != nil {
+			return err
+		}
+
+		log := &model.StockLog{
+			SKUID:      skuID,
+			Type:       model.StockLogTypeRestore,
+			Quantity:   int32(quantity),
+			BeforeQty:  stock.TotalStock - quantity,
+			AfterQty:   stock.TotalStock,
+			OrderID:    orderID,
+			OperatorID: 0,
+			Reason:     "订单退款，恢复库存",
+			CreatedAt:  time.Now(),
+		}
+		return s.repo.CreateStockLog(ctx, log)
+	})
+
+	if err != nil {
+		s.logger.Error("恢复库存失败",
+			zap.Error(err),
+			zap.Uint64("skuID", skuID),
+			zap.Uint32("quantity", quantity))
+		return err
+	}
+
+	s.logger.Info("恢复库存成功",
+		zap.Uint64("skuID", skuID),
+		zap.Uint32("quantity", quantity))
+	return nil
+}
+
+// AdjustStock 调整库存（人工操作）
+func (s *inventoryService) AdjustStock(ctx context.Context, skuID uint64, quantity int32, reason string, operatorID uint64) error {
+	if quantity == 0 {
+		return ErrInvalidQuantity
+	}
+
+	err := s.repo.InTx(ctx, func(ctx context.Context) error {
+		stock, err := s.repo.GetStockBySKUID(ctx, skuID)
+		if err != nil {
+			return err
+		}
+
+		beforeQty := stock.TotalStock
+		
+		// 调整总库存和可用库存
+		if quantity > 0 {
+			stock.TotalStock += uint32(quantity)
+			stock.AvailableStock += uint32(quantity)
+		} else {
+			absQty := uint32(-quantity)
+			if stock.AvailableStock < absQty {
+				return ErrInsufficientStock
+			}
+			stock.TotalStock -= absQty
+			stock.AvailableStock -= absQty
+		}
+		stock.UpdatedAt = time.Now()
+
+		if err := s.repo.UpdateStock(ctx, stock); err != nil {
+			return err
+		}
+
+		log := &model.StockLog{
+			SKUID:      skuID,
+			Type:       model.StockLogTypeAdjust,
+			Quantity:   quantity,
+			BeforeQty:  beforeQty,
+			AfterQty:   stock.TotalStock,
+			OperatorID: operatorID,
+			Reason:     reason,
+			CreatedAt:  time.Now(),
+		}
+		return s.repo.CreateStockLog(ctx, log)
+	})
+
+	if err != nil {
+		s.logger.Error("调整库存失败",
+			zap.Error(err),
+			zap.Uint64("skuID", skuID),
+			zap.Int32("quantity", quantity))
+		return err
+	}
+
+	s.logger.Info("调整库存成功",
+		zap.Uint64("skuID", skuID),
+		zap.Int32("quantity", quantity),
+		zap.Uint64("operatorID", operatorID))
+	return nil
+}
+
+// GetLowStockProducts 获取低库存商品
+func (s *inventoryService) GetLowStockProducts(ctx context.Context, threshold uint32) ([]*model.Stock, error) {
+	stocks, err := s.repo.GetLowStockProducts(ctx, threshold)
+	if err != nil {
+		s.logger.Error("获取低库存商品失败", zap.Error(err))
+		return nil, err
+	}
+	return stocks, nil
+}
+
+// GetStockLogs 获取库存日志
+func (s *inventoryService) GetStockLogs(ctx context.Context, skuID uint64, pageSize, pageNum int32) ([]*model.StockLog, int64, error) {
+	logs, total, err := s.repo.GetStockLogs(ctx, skuID, pageSize, pageNum)
+	if err != nil {
+		s.logger.Error("获取库存日志失败", zap.Error(err), zap.Uint64("skuID", skuID))
+		return nil, 0, err
+	}
+	return logs, total, nil
 }

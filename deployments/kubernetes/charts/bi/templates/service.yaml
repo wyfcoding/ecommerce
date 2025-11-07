@@ -1,15 +1,26 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "chart.fullname" . }}
+  name: {{ include "chart.fullname" . }} # Service 的名称，通常与 Chart 的全名一致
   labels:
-    {{- include "chart.labels" . | nindent 4 }}
+    {{- include "chart.labels" . | nindent 4 }} # 继承 Chart 的标签
 spec:
+  # Service 的类型：
+  # - ClusterIP: 默认类型，Service 仅在集群内部可访问。适用于内部微服务通信。
+  # - NodePort: 通过每个节点上的 IP 和静态端口（NodePort）暴露 Service。适用于需要从集群外部访问的测试或小型应用。
+  # - LoadBalancer: 使用云提供商的负载均衡器暴露 Service。适用于生产环境，提供外部可访问的 IP。
+  # - ExternalName: 通过返回 CNAME 记录，将 Service 映射到外部服务。
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
+    # HTTP 端口定义，用于处理 HTTP/RESTful 请求
+    - port: {{ .Values.service.httpPort }} # Service 暴露的端口
+      targetPort: http # 容器内部 HTTP 端口的名称，对应 Deployment 中的 port name
       protocol: TCP
-      name: http
+      name: http # 端口名称
+    # gRPC 端口定义，用于处理高性能的 gRPC 请求
+    - port: {{ .Values.service.grpcPort }} # Service 暴露的端口
+      targetPort: grpc # 容器内部 gRPC 端口的名称，对应 Deployment 中的 port name
+      protocol: TCP
+      name: grpc # 端口名称
   selector:
-    {{- include "chart.selectorLabels" . | nindent 4 }}
+    {{- include "chart.selectorLabels" . | nindent 4 }} # 选择器，用于匹配具有相同标签的 Pod，将流量路由到这些 Pod

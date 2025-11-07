@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	v1 "ecommerce/api/settlement/v1"
-	"ecommerce/internal/settlement/biz"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

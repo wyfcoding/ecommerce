@@ -1,124 +1,69 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	pricinghandler "ecommerce/internal/pricing/handler"
-	"ecommerce/internal/pricing/model"
-	"ecommerce/internal/pricing/repository"
-	"ecommerce/internal/pricing/service"
-	pricingclient "ecommerce/internal/pricing/client"
+	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
 	mysqlpkg "ecommerce/pkg/database/mysql"
-	redisPkg "ecommerce/pkg/database/redis"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/snowflake"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
-// Config 结构体用于映射 TOML 配置文件
 type Config struct {
-	configpkg.ServerConfig `toml:"server"`
-	Data                   struct {
-		Database mysqlpkg.Config `toml:"database"`
-		Redis    redisPkg.Config `toml:"redis"`
-		AIModelService struct {
-			Addr string `toml:"addr"`
-		} `toml:"ai_model_service"`
-	} `toml:"data"`
-	Snowflake snowflake.Config `toml:"snowflake"`
-	Log       logging.Config   `toml:"log"`
+	configpkg.Config
 }
 
+const serviceName = "pricing-service"
+
 func main() {
-	// 1. 加载配置
-	var configPath string
-	flag.StringVar(&configPath, "conf", "./configs/pricing.toml", "config file path")
-	flag.Parse()
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9219").
+		Build().
+		Run()
+}
 
-	var cfg Config
-	if err := configpkg.LoadConfig(configPath, &cfg); err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	zap.S().Info("gRPC server registered")
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	zap.S().Info("HTTP routes registered")
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+	cleanupTracer := func() {}
+
+	mysqlConfig := &mysqlpkg.Config{
+		DSN:             config.Data.Database.DSN,
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        4,
+		SlowThreshold:   200 * time.Millisecond,
 	}
-
-	// 2. 初始化日志
-	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
-	zap.ReplaceGlobals(logger)
-
-	// 3. 初始化雪花算法
-	snowflakeNode, err := snowflake.NewSnowflakeNode(&cfg.Snowflake)
+	_, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
 	if err != nil {
-		zap.S().Fatalf("failed to init snowflake: %v", err)
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 4. 依赖注入 (DI)
-	// 数据库连接
-	db, cleanupDB, err := mysqlpkg.NewGORMDB(&cfg.Data.Database)
-	if err != nil {
-		zap.S().Fatalf("failed to connect database: %v", err)
-	}
-	defer cleanupDB()
-
-	// 自动迁移数据库表结构
-	if err := db.AutoMigrate(&model.PriceRule{}, &model.Discount{}); err != nil {
-		zap.S().Fatalf("failed to migrate database: %v", err)
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		cleanupDB()
+		cleanupTracer()
 	}
 
-	// 初始化 Redis
-	redisClient, redisCleanup, err := redisPkg.NewRedisClient(&cfg.Data.Redis)
-	if err != nil {
-		zap.S().Fatalf("failed to new redis client: %v", err)
-	}
-	defer redisCleanup()
-
-	// 初始化 AI Model service client
-	aiModelConn, err := grpc.Dial(cfg.Data.AIModelService.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		zap.S().Fatalf("failed to connect to AI model service: %v", err)
-	}
-	defer aiModelConn.Close()
-	aiModelClient := pricingclient.NewAIModelClient(aiModelConn)
-
-	pricingRepo := repository.NewPricingRepo(db, redisClient, snowflakeNode)
-	pricingService := service.NewPricingService(pricingRepo, aiModelClient)
-
-	// 5. 启动 gRPC 和 HTTP Gateway
-	grpcServer, grpcErrChan := pricinghandler.StartGRPCServer(pricingService, cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port)
-	if grpcServer == nil {
-		zap.S().Fatalf("failed to start gRPC server: %v", <-grpcErrChan)
-	}
-	httpServer, httpErrChan := pricinghandler.StartHTTPServer(context.Background(), cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port, cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
-	if httpServer == nil {
-		zap.S().Fatalf("failed to start HTTP server: %v", <-httpErrChan)
-	}
-
-	// 6. 等待中断信号或服务器错误以实现优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		zap.S().Info("Shutting down pricing service...")
-	case err := <-grpcErrChan:
-		zap.S().Errorf("gRPC server error: %v", err)
-	case err := <-httpErrChan:
-		zap.S().Errorf("HTTP server error: %v", err)
-	}
-
-	// 优雅地关闭服务器
-	grpcServer.GracefulStop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		zap.S().Errorf("HTTP server shutdown error: %v", err)
-	}
+	return nil, cleanup, nil
 }

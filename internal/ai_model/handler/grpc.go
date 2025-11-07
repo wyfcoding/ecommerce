@@ -13,7 +13,7 @@ import (
 
 // StartGRPCServer 启动 gRPC 服务器。
 // 它监听指定的地址和端口，并注册 AIModelServiceServer。
-func StartGRPCServer(svc *service.AIModelService, addr string, port int) (*grpc.Server, chan error) {
+func StartGRPCServer(svc service.AIModelService, addr string, port int) (*grpc.Server, chan error) {
 	errChan := make(chan error, 1)
 	// 监听 TCP 地址
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))

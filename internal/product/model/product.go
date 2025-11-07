@@ -75,15 +75,6 @@ type Category struct {
 }
 
 // Brand 商品品牌信息。
-type Brand struct {
-	ID          uint64     `gorm:"primarykey" json:"id"`                               // 品牌ID
-	Name        string     `gorm:"type:varchar(255);uniqueIndex;not null" json:"name"` // 品牌名称
-	LogoURL     string     `gorm:"type:varchar(255)" json:"logo_url"`                  // 品牌Logo URL
-	Description string     `gorm:"type:text" json:"description"`                       // 品牌故事/描述
-	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`                   // 创建时间
-	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`                   // 最后更新时间
-	DeletedAt   *time.Time `gorm:"index" json:"deleted_at,omitempty"`                  // 软删除时间
-}
 
 // ProductAttribute 商品的通用属性。
 // 例如: {"材质": "纯棉"}, {"产地": "中国"}

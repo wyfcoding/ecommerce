@@ -24,6 +24,11 @@ type MyCustomClaims struct {
 
 // GenerateToken 生成一个JWT
 func GenerateToken(userID uint64, username, secretKey, issuer string, expires time.Duration, method jwt.SigningMethod) (string, error) {
+	// 如果没有指定签名方法，使用默认的HS256
+	if method == nil {
+		method = jwt.SigningMethodHS256
+	}
+
 	// 创建 Claims
 	expireTime := time.Now().Add(expires)
 	claims := MyCustomClaims{

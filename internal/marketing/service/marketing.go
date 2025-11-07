@@ -6,7 +6,6 @@ import (
 	"time"    // 用于 bizUserCouponToProto
 
 	v1 "ecommerce/api/marketing/v1"    // 修正路径
-	"ecommerce/internal/marketing/biz" // 修正路径
 
 	"google.golang.org/grpc/codes"    // 添加
 	"google.golang.org/grpc/metadata" // 添加

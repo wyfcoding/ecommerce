@@ -1,31 +1,204 @@
+# ========================================
+# 电商平台微服务配置文件 
+# ========================================
+
 # 服务基础配置
+[server]
+name = "ecommerce"
+environment = "development" # development, staging, production
+
 [server.http]
 addr = "0.0.0.0"
 port = 8080
-timeout = "1s"
+timeout = "30s"
+read_timeout = "30s"
+write_timeout = "30s"
+idle_timeout = "120s"
 
 [server.grpc]
 addr = "0.0.0.0"
 port = 9090
-timeout = "1s"
+timeout = "30s"
+max_recv_msg_size = 4194304 # 4MB
+max_send_msg_size = 4194304 # 4MB
 
 # 数据库配置
 [data.database]
 driver = "mysql"
-dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_config?charset=utf8mb4&parseTime=True&loc=Local"
+dsn = "root:123456@tcp(127.0.0.1:3306)/ecommerce?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+log_level = 4 # 1:Silent 2:Error 3:Warn 4:Info
+slow_threshold = "200ms"
 
-# JWT 配置
+# Redis配置
+[data.redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 0
+read_timeout = "3s"
+write_timeout = "3s"
+pool_size = 10
+min_idle_conns = 5
+
+# MongoDB配置
+[data.mongodb]
+uri = "mongodb://localhost:27017"
+database = "ecommerce"
+connect_timeout = "10s"
+min_pool_size = 10
+max_pool_size = 100
+
+# ClickHouse配置
+[data.clickhouse]
+dsn = "tcp://127.0.0.1:9000"
+database = "ecommerce"
+username = "default"
+password = ""
+dial_timeout = "10s"
+max_open_conns = 10
+max_idle_conns = 5
+conn_max_lifetime = "1h"
+
+# Neo4j配置
+[data.neo4j]
+uri = "bolt://localhost:7687"
+username = "neo4j"
+password = "password"
+
+# Elasticsearch配置
+[data.elasticsearch]
+addresses = ["http://localhost:9200"]
+username = ""
+password = ""
+max_retries = 3
+
+# JWT配置
 [jwt]
-secret = "your-secret-key" # 请在生产环境中修改为更复杂的密钥
-issuer = "ecommerce-config-service"
+secret = "ecommerce-jwt-secret-key-change-in-production"
+issuer = "ecommerce-platform"
 expire_duration = "24h"
+
+# 雪花算法配置
+[snowflake]
+start_time = "2024-01-01 00:00:00"
+machine_id = 1
+
+# Kafka配置
+[messagequeue.kafka]
+brokers = ["localhost:9092"]
+topic = "ecommerce-events"
+group_id = "ecommerce-consumer-group"
+dial_timeout = "10s"
+read_timeout = "10s"
+write_timeout = "10s"
+min_bytes = 1
+max_bytes = 10485760 # 10MB
+max_wait = "500ms"
+max_attempts = 3
+commit_interval = "1s"
+required_acks = 1
+async = false
+
+# MinIO配置
+[minio]
+endpoint = "localhost:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+use_ssl = false
+
+# HDFS配置
+[hadoop.hdfs]
+addresses = ["localhost:9000"]
+user = "hadoop"
 
 # 链路追踪配置
 [tracing]
+service_name = "ecommerce"
 jaeger_endpoint = "http://localhost:14268/api/traces"
 
 # 日志配置
 [log]
-level = "debug"
-format = "json" # text 或 json
-output = "stdout" # stdout 或 stderr 或 文件路径
+level = "info" # debug, info, warn, error
+format = "json" # json, console
+output = "stdout" # stdout, stderr, 或文件路径
+
+# 指标监控配置
+[metrics]
+enabled = true
+port = "9091"
+path = "/metrics"
+
+# 限流配置
+[ratelimit]
+enabled = true
+rate = 100 # 每秒请求数
+burst = 200 # 突发容量
+
+# 熔断器配置
+[circuitbreaker]
+enabled = true
+max_requests = 3 # 半开状态最大请求数
+interval = "10s" # 统计周期
+timeout = "60s" # 熔断超时时间
+
+# 缓存配置
+[cache]
+prefix = "ecommerce:"
+default_expiration = "1h"
+cleanup_interval = "10m"
+
+# 分布式锁配置
+[lock]
+prefix = "lock:"
+default_expiration = "30s"
+max_retries = 3
+retry_delay = "100ms"
+
+# 微服务地址配置
+[services]
+
+[services.user]
+grpc_addr = "localhost:9001"
+http_addr = "localhost:8001"
+
+[services.product]
+grpc_addr = "localhost:9002"
+http_addr = "localhost:8002"
+
+[services.order]
+grpc_addr = "localhost:9003"
+http_addr = "localhost:8003"
+
+[services.cart]
+grpc_addr = "localhost:9004"
+http_addr = "localhost:8004"
+
+[services.payment]
+grpc_addr = "localhost:9005"
+http_addr = "localhost:8005"
+
+[services.inventory]
+grpc_addr = "localhost:9006"
+http_addr = "localhost:8006"
+
+[services.marketing]
+grpc_addr = "localhost:9007"
+http_addr = "localhost:8007"
+
+[services.notification]
+grpc_addr = "localhost:9008"
+http_addr = "localhost:8008"
+
+[services.search]
+grpc_addr = "localhost:9009"
+http_addr = "localhost:8009"
+
+[services.recommendation]
+grpc_addr = "localhost:9010"
+http_addr = "localhost:8010"
+
+[services.gateway]
+grpc_addr = "localhost:9000"
+http_addr = "localhost:8000"

@@ -27,37 +27,86 @@ import (
 
 // --- 错误定义 ---
 var (
-	ErrModelNotFound        = errors.New("AI model not found")
+	// ErrModelNotFound 表示未找到AI模型。
+	ErrModelNotFound = errors.New("AI model not found")
+	// ErrModelDeploymentFailed 表示AI模型部署失败。
 	ErrModelDeploymentFailed = errors.New("AI model deployment failed")
-	ErrModelRetrainFailed   = errors.New("AI model retraining failed")
-	ErrExternalAIPlatform   = errors.New("external AI platform error")
-	ErrUnauthorized         = errors.New("unauthorized access")
-	ErrPermissionDenied     = errors.New("permission denied")
+	// ErrModelRetrainFailed 表示AI模型重新训练失败。
+	ErrModelRetrainFailed = errors.New("AI model retraining failed")
+	// ErrExternalAIPlatform 表示外部AI平台发生错误。
+	ErrExternalAIPlatform = errors.New("external AI platform error")
+	// ErrUnauthorized 表示未授权访问。
+	ErrUnauthorized = errors.New("unauthorized access")
+	// ErrPermissionDenied 表示权限不足。
+	ErrPermissionDenied = errors.New("permission denied")
 )
 
 // ProductServiceClient 定义了与 Product 服务交互的接口。
+// 用于获取商品详情和列表。
 type ProductServiceClient interface {
 	GetSpuDetail(ctx context.Context, in *productV1.GetSpuDetailRequest, opts ...grpc.CallOption) (*productV1.SpuDetailResponse, error)
 	ListProducts(ctx context.Context, in *productV1.ListProductsRequest, opts ...grpc.CallOption) (*productV1.ListProductsResponse, error)
 }
 
 // UserServiceClient 定义了与 User 服务交互的接口。
+// 用于获取用户详情。
 type UserServiceClient interface {
 	GetUserByID(ctx context.Context, in *userV1.GetUserByIDRequest, opts ...grpc.CallOption) (*userV1.UserResponse, error)
 }
 
 // OrderServiceClient 定义了与 Order 服务交互的接口。
+// 用于获取订单列表。
 type OrderServiceClient interface {
 	ListOrders(ctx context.Context, in *orderV1.ListOrdersRequest, opts ...grpc.CallOption) (*orderV1.ListOrdersResponse, error)
 }
 
 // ReviewServiceClient 定义了与 Review 服务交互的接口。
+// 用于获取评论列表。
 type ReviewServiceClient interface {
 	ListReviews(ctx context.Context, in *reviewV1.ListReviewsRequest, opts ...grpc.CallOption) (*reviewV1.ListReviewsResponse, error)
 }
 
-// AIModelService 封装了AI模型推理和管理相关的业务逻辑。
-type AIModelService struct {
+// AIModelService 定义了AI模型推理和管理相关的业务逻辑接口。
+// 包含了推荐系统、图像识别、自然语言处理和模型管理等功能。
+type AIModelService interface {
+	// --- 推荐系统 ---
+	// GetProductRecommendations 获取个性化商品推荐。
+	GetProductRecommendations(ctx context.Context, req *v1.GetProductRecommendationsRequest) (*v1.GetProductRecommendationsResponse, error)
+	// GetRelatedProducts 获取相关商品。
+	GetRelatedProducts(ctx context.Context, req *v1.GetRelatedProductsRequest) (*v1.GetRelatedProductsResponse, error)
+	// GetPersonalizedFeed 获取个性化内容流。
+	GetPersonalizedFeed(ctx context.Context, req *v1.GetPersonalizedFeedRequest) (*v1.GetPersonalizedFeedResponse, error)
+
+	// --- 图像识别 ---
+	// RecognizeImageContent 识别图片内容，例如商品分类、品牌、属性。
+	RecognizeImageContent(ctx context.Context, req *v1.RecognizeImageContentRequest) (*v1.RecognizeImageContentResponse, error)
+	// SearchImageByImage 通过图片搜索相似商品。
+	SearchImageByImage(ctx context.Context, req *v1.SearchImageByImageRequest) (*v1.SearchImageByImageResponse, error)
+
+	// --- 自然语言处理 (NLP) ---
+	// AnalyzeReviewSentiment 分析用户评论情感。
+	AnalyzeReviewSentiment(ctx context.Context, req *v1.AnalyzeReviewSentimentRequest) (*v1.AnalyzeReviewSentimentResponse, error)
+	// ExtractKeywordsFromText 从文本中提取关键词。
+	ExtractKeywordsFromText(ctx context.Context, req *v1.ExtractKeywordsFromTextRequest) (*v1.ExtractKeywordsFromTextResponse, error)
+	// SummarizeText 总结长文本内容。
+	SummarizeText(ctx context.Context, req *v1.SummarizeTextRequest) (*v1.SummarizeTextResponse, error)
+
+	// --- 欺诈检测 ---
+	// GetFraudScore 获取交易或用户行为的欺诈评分。
+	GetFraudScore(ctx context.Context, req *v1.GetFraudScoreRequest) (*v1.GetFraudScoreResponse, error)
+
+	// --- 模型管理 (内部/管理员接口) ---
+	// DeployModel 部署一个新的AI模型版本。
+	DeployModel(ctx context.Context, req *v1.DeployModelRequest) (*v1.DeployModelResponse, error)
+	// GetModelStatus 获取已部署AI模型的运行状态。
+	GetModelStatus(ctx context.Context, req *v1.GetModelStatusRequest) (*v1.GetModelStatusResponse, error)
+	// RetrainModel 触发AI模型重新训练。
+	RetrainModel(ctx context.Context, req *v1.RetrainModelRequest) (*v1.RetrainModelResponse, error)
+}
+
+// aiModelServiceConcrete 是 AIModelService 接口的具体实现。
+// 它嵌入了 v1.UnimplementedAIModelServiceServer 以确保向前兼容性，并持有对模型元数据仓库和下游 gRPC 客户端的引用。
+type aiModelServiceConcrete struct {
 	v1.UnimplementedAIModelServiceServer
 	modelMetadataRepo repository.ModelMetadataRepo
 	productServiceClient ProductServiceClient
@@ -68,8 +117,9 @@ type AIModelService struct {
 	aiPlatformApiKey     string // 外部AI平台API Key
 }
 
-// NewAIModelService 是 AIModelService 的构造函数。
-func NewAIModelService(
+// NewAIModelServiceConcrete 是 aiModelServiceConcrete 的构造函数。
+// 它接收模型元数据仓库、所有必要的下游 gRPC 客户端、外部AI平台地址和API Key，并返回 AIModelService 接口。
+func NewAIModelServiceConcrete(
 	modelMetadataRepo repository.ModelMetadataRepo,
 	productServiceClient ProductServiceClient,
 	userServiceClient UserServiceClient,
@@ -77,8 +127,8 @@ func NewAIModelService(
 	reviewServiceClient ReviewServiceClient,
 	aiPlatformEndpoint string,
 	aiPlatformApiKey string,
-) *AIModelService {
-	return &AIModelService{
+) AIModelService {
+	return &aiModelServiceConcrete{
 		modelMetadataRepo: modelMetadataRepo,
 		productServiceClient: productServiceClient,
 		userServiceClient:    userServiceClient,
@@ -93,19 +143,20 @@ func NewAIModelService(
 
 // GetProductRecommendations 获取个性化商品推荐。
 // 这是一个复杂的业务逻辑，可能涉及用户行为分析、协同过滤、内容推荐等多种算法。
-func (s *AIModelService) GetProductRecommendations(ctx context.Context, req *v1.GetProductRecommendationsRequest) (*v1.GetProductRecommendationsResponse, error) {
+// 它会根据用户ID和上下文信息，调用内部或外部AI模型生成推荐列表。
+func (s *aiModelServiceConcrete) GetProductRecommendations(ctx context.Context, req *v1.GetProductRecommendationsRequest) (*v1.GetProductRecommendationsResponse, error) {
 	// 权限检查：用户只能获取自己的推荐，管理员可以获取任意用户的推荐
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Unauthenticated, "Authentication failed: %v", err)
 	}
 
 	isAdminUser := isAdmin(ctx)
 	if !isAdminUser && req.UserId != userID {
-		return nil, status.Errorf(codes.PermissionDenied, "permission denied to get recommendations for another user")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied to get recommendations for another user")
 	}
 
-	zap.S().Infof("getting product recommendations for user %d, count %d, context: %s", req.UserId, req.Count, req.GetContextPage())
+	zap.S().Infof("Getting product recommendations for user %d, count %d, context: %s", req.UserId, req.Count, req.GetContextPage())
 
 	// TODO: 调用实际的推荐算法模型进行推理
 	// 这里暂时返回模拟数据
@@ -138,9 +189,9 @@ func (s *AIModelService) GetProductRecommendations(ctx context.Context, req *v1.
 }
 
 // GetRelatedProducts 获取相关商品。
-// 通常基于商品属性、共同购买行为等。
-func (s *AIModelService) GetRelatedProducts(ctx context.Context, req *v1.GetRelatedProductsRequest) (*v1.GetRelatedProductsResponse, error) {
-	zap.S().Infof("getting related products for product %d, count %d", req.ProductId, req.Count)
+// 通常基于商品属性、共同购买行为等，调用内部或外部AI模型生成相关商品列表。
+func (s *aiModelServiceConcrete) GetRelatedProducts(ctx context.Context, req *v1.GetRelatedProductsRequest) (*v1.GetRelatedProductsResponse, error) {
+	zap.S().Infof("Getting related products for product %d, count %d", req.ProductId, req.Count)
 
 	// TODO: 调用实际的相关商品模型进行推理
 	// 这里暂时返回模拟数据
@@ -148,7 +199,7 @@ func (s *AIModelService) GetRelatedProducts(ctx context.Context, req *v1.GetRela
 	for i := 0; i < int(req.Count); i++ {
 		relatedProducts = append(relatedProducts, &v1.ProductRecommendation{
 			ProductId: uint64(rand.Intn(1000) + 1),
-			Score:     rand.Float66(),
+			SimilarityScore: rand.Float66(),
 			Reason:    "Customers who bought this also bought...",
 		})
 	}
@@ -159,20 +210,20 @@ func (s *AIModelService) GetRelatedProducts(ctx context.Context, req *v1.GetRela
 }
 
 // GetPersonalizedFeed 获取个性化内容流。
-// 可能包含商品、文章、广告等多种内容。
-func (s *AIModelService) GetPersonalizedFeed(ctx context.Context, req *v1.GetPersonalizedFeedRequest) (*v1.GetPersonalizedFeedResponse, error) {
+// 可能包含商品、文章、广告等多种内容，根据用户行为和偏好生成。
+func (s *aiModelServiceConcrete) GetPersonalizedFeed(ctx context.Context, req *v1.GetPersonalizedFeedRequest) (*v1.GetPersonalizedFeedResponse, error) {
 	// 权限检查：用户只能获取自己的内容流，管理员可以获取任意用户的
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Unauthenticated, "Authentication failed: %v", err)
 	}
 
 	isAdminUser := isAdmin(ctx)
 	if !isAdminUser && req.UserId != userID {
-		return nil, status.Errorf(codes.PermissionDenied, "permission denied to get personalized feed for another user")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied to get personalized feed for another user")
 	}
 
-	zap.S().Infof("getting personalized feed for user %d, page %d, size %d", req.UserId, req.PageToken, req.PageSize)
+	zap.S().Infof("Getting personalized feed for user %d, page %d, size %d", req.UserId, req.PageToken, req.PageSize)
 
 	// TODO: 调用实际的个性化内容流模型进行推理
 	// 这里暂时返回模拟数据
@@ -198,8 +249,9 @@ func (s *AIModelService) GetPersonalizedFeed(ctx context.Context, req *v1.GetPer
 // --- 图像识别 ---
 
 // RecognizeImageContent 识别图片内容，例如商品分类、品牌、属性。
-func (s *AIModelService) RecognizeImageContent(ctx context.Context, req *v1.RecognizeImageContentRequest) (*v1.RecognizeImageContentResponse, error) {
-	zap.S().Infof("recognizing image content for URL: %s", req.ImageUrl)
+// 它调用内部或外部的图像识别模型对提供的图片进行分析。
+func (s *aiModelServiceConcrete) RecognizeImageContent(ctx context.Context, req *v1.RecognizeImageContentRequest) (*v1.RecognizeImageContentResponse, error) {
+	zap.S().Infof("Recognizing image content for URL: %s", req.ImageUrl)
 
 	// TODO: 调用外部图像识别服务或内部模型
 	// 这里暂时返回模拟数据
@@ -216,8 +268,9 @@ func (s *AIModelService) RecognizeImageContent(ctx context.Context, req *v1.Reco
 }
 
 // SearchImageByImage 通过图片搜索相似商品。
-func (s *AIModelService) SearchImageByImage(ctx context.Context, req *v1.SearchImageByImageRequest) (*v1.SearchImageByImageResponse, error) {
-	zap.S().Infof("searching image by image for URL: %s", req.ImageUrl)
+// 它调用内部或外部的图像搜索模型，根据提供的图片查找相似商品。
+func (s *aiModelServiceConcrete) SearchImageByImage(ctx context.Context, req *v1.SearchImageByImageRequest) (*v1.SearchImageByImageResponse, error) {
+	zap.S().Infof("Searching image by image for URL: %s", req.ImageUrl)
 
 	// TODO: 调用外部图像搜索服务或内部模型
 	// 这里暂时返回模拟数据
@@ -237,8 +290,9 @@ func (s *AIModelService) SearchImageByImage(ctx context.Context, req *v1.SearchI
 // --- 自然语言处理 (NLP) ---
 
 // AnalyzeReviewSentiment 分析用户评论情感。
-func (s *AIModelService) AnalyzeReviewSentiment(ctx context.Context, req *v1.AnalyzeReviewSentimentRequest) (*v1.AnalyzeReviewSentimentResponse, error) {
-	zap.S().Infof("analyzing sentiment for review: %s", req.ReviewText)
+// 它调用内部或外部的NLP模型对评论文本进行情感分析。
+func (s *aiModelServiceConcrete) AnalyzeReviewSentiment(ctx context.Context, req *v1.AnalyzeReviewSentimentRequest) (*v1.AnalyzeReviewSentimentResponse, error) {
+	zap.S().Infof("Analyzing sentiment for review: %s", req.ReviewText)
 
 	// TODO: 调用外部NLP服务或内部情感分析模型
 	// 这里暂时返回模拟数据
@@ -260,8 +314,9 @@ func (s *AIModelService) AnalyzeReviewSentiment(ctx context.Context, req *v1.Ana
 }
 
 // ExtractKeywordsFromText 从文本中提取关键词。
-func (s *AIModelService) ExtractKeywordsFromText(ctx context.Context, req *v1.ExtractKeywordsFromTextRequest) (*v1.ExtractKeywordsFromTextResponse, error) {
-	zap.S().Infof("extracting keywords from text: %s", req.Text)
+// 它调用内部或外部的NLP模型从文本中识别并提取关键信息。
+func (s *aiModelServiceConcrete) ExtractKeywordsFromText(ctx context.Context, req *v1.ExtractKeywordsFromTextRequest) (*v1.ExtractKeywordsFromTextResponse, error) {
+	zap.S().Infof("Extracting keywords from text: %s", req.Text)
 
 	// TODO: 调用外部NLP服务或内部关键词提取模型
 	// 这里暂时返回模拟数据
@@ -272,8 +327,9 @@ func (s *AIModelService) ExtractKeywordsFromText(ctx context.Context, req *v1.Ex
 }
 
 // SummarizeText 总结长文本内容。
-func (s *AIModelService) SummarizeText(ctx context.Context, req *v1.SummarizeTextRequest) (*v1.SummarizeTextResponse, error) {
-	zap.S().Infof("summarizing text with length %d to %d", len(req.Text), req.SummaryLength)
+// 它调用内部或外部的NLP模型对长文本进行摘要。
+func (s *aiModelServiceConcrete) SummarizeText(ctx context.Context, req *v1.SummarizeTextRequest) (*v1.SummarizeTextResponse, error) {
+	zap.S().Infof("Summarizing text with length %d to %d", len(req.Text), req.SummaryLength)
 
 	// TODO: 调用外部NLP服务或内部文本摘要模型
 	// 这里暂时返回模拟数据
@@ -286,8 +342,9 @@ func (s *AIModelService) SummarizeText(ctx context.Context, req *v1.SummarizeTex
 // --- 欺诈检测 ---
 
 // GetFraudScore 获取交易或用户行为的欺诈评分。
-func (s *AIModelService) GetFraudScore(ctx context.Context, req *v1.GetFraudScoreRequest) (*v1.GetFraudScoreResponse, error) {
-	zap.S().Infof("getting fraud score for user %d, order %d, amount %.2f", req.UserId, req.OrderId, req.TransactionAmount)
+// 它调用内部或外部的欺诈检测模型，评估潜在的欺诈风险。
+func (s *aiModelServiceConcrete) GetFraudScore(ctx context.Context, req *v1.GetFraudScoreRequest) (*v1.GetFraudScoreResponse, error) {
+	zap.S().Infof("Getting fraud score for user %d, order %d, amount %.2f", req.UserId, req.OrderId, req.TransactionAmount)
 
 	// TODO: 调用外部欺诈检测服务或内部模型
 	// 这里暂时返回模拟数据
@@ -308,14 +365,14 @@ func (s *AIModelService) GetFraudScore(ctx context.Context, req *v1.GetFraudScor
 // --- 模型管理 (内部/管理员接口) ---
 
 // DeployModel 部署一个新的AI模型版本。
-// 此方法通常由管理员或CI/CD系统调用。
-func (s *AIModelService) DeployModel(ctx context.Context, req *v1.DeployModelRequest) (*v1.DeployModelResponse, error) {
+// 此方法通常由管理员或CI/CD系统调用，用于将训练好的模型上线。
+func (s *aiModelServiceConcrete) DeployModel(ctx context.Context, req *v1.DeployModelRequest) (*v1.DeployModelResponse, error) {
 	// 权限检查：只有管理员可以部署模型
 	if !isAdmin(ctx) {
-		return nil, status.Errorf(codes.PermissionDenied, "permission denied to deploy AI model")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied to deploy AI model")
 	}
 
-	zap.S().Infof("deploying AI model %s version %s from URI %s", req.ModelName, req.ModelVersion, req.ModelUri)
+	zap.S().Infof("Deploying AI model %s version %s from URI %s", req.ModelName, req.ModelVersion, req.ModelUri)
 
 	// TODO: 调用外部AI平台API进行模型部署
 	// 模拟部署过程
@@ -334,7 +391,7 @@ func (s *AIModelService) DeployModel(ctx context.Context, req *v1.DeployModelReq
 	}
 	_, err := s.modelMetadataRepo.CreateModelMetadata(ctx, metadata)
 	if err != nil {
-		zap.S().Errorf("failed to save model metadata for deployment %s: %v", deploymentID, err)
+		zap.S().Errorf("Failed to save model metadata for deployment %s: %v", deploymentID, err)
 		// 部署可能已经开始，但元数据保存失败，需要人工介入
 	}
 
@@ -345,21 +402,22 @@ func (s *AIModelService) DeployModel(ctx context.Context, req *v1.DeployModelReq
 }
 
 // GetModelStatus 获取已部署AI模型的运行状态。
-func (s *AIModelService) GetModelStatus(ctx context.Context, req *v1.GetModelStatusRequest) (*v1.GetModelStatusResponse, error) {
+// 它查询模型元数据仓库和外部AI平台，返回模型的当前状态。
+func (s *aiModelServiceConcrete) GetModelStatus(ctx context.Context, req *v1.GetModelStatusRequest) (*v1.GetModelStatusResponse, error) {
 	// 权限检查：只有管理员可以查看模型状态
 	if !isAdmin(ctx) {
-		return nil, status.Errorf(codes.PermissionDenied, "permission denied to get AI model status")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied to get AI model status")
 	}
 
-	zap.S().Infof("getting status for deployment ID: %s", req.DeploymentId)
+	zap.S().Infof("Getting status for deployment ID: %s", req.DeploymentId)
 
 	// 从数据库获取模型元数据
 	// TODO: 仓库需要 GetModelMetadataByDeploymentID 方法
 	// 暂时通过 List 模拟
 	metadatas, _, err := s.modelMetadataRepo.ListModelMetadata(ctx, "", 100, 1)
 	if err != nil {
-		zap.S().Errorf("failed to list model metadatas for status check: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to get model status")
+		zap.S().Errorf("Failed to list model metadatas for status check: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to get model status")
 	}
 
 	var targetMetadata *model.ModelMetadata
@@ -371,7 +429,7 @@ func (s *AIModelService) GetModelStatus(ctx context.Context, req *v1.GetModelSta
 	}
 
 	if targetMetadata == nil {
-		return nil, status.Errorf(codes.NotFound, "model deployment with ID %s not found", req.DeploymentId)
+		return nil, status.Errorf(codes.NotFound, "Model deployment with ID %s not found", req.DeploymentId)
 	}
 
 	// TODO: 调用外部AI平台API获取实时状态
@@ -387,13 +445,14 @@ func (s *AIModelService) GetModelStatus(ctx context.Context, req *v1.GetModelSta
 }
 
 // RetrainModel 触发AI模型重新训练。
-func (s *AIModelService) RetrainModel(ctx context.Context, req *v1.RetrainModelRequest) (*v1.RetrainModelResponse, error) {
+// 此方法通常由管理员或CI/CD系统调用，用于更新模型。
+func (s *aiModelServiceConcrete) RetrainModel(ctx context.Context, req *v1.RetrainModelRequest) (*v1.RetrainModelResponse, error) {
 	// 权限检查：只有管理员可以触发模型训练
 	if !isAdmin(ctx) {
-		return nil, status.Errorf(codes.PermissionDenied, "permission denied to retrain AI model")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied to retrain AI model")
 	}
 
-	zap.S().Infof("triggering retraining for model %s with dataset URI %s", req.ModelName, req.GetDatasetUri())
+	zap.S().Infof("Triggering retraining for model %s with dataset URI %s", req.ModelName, req.GetDatasetUri())
 
 	// TODO: 调用外部AI平台API触发模型训练
 	// 模拟训练过程
@@ -412,10 +471,11 @@ func (s *AIModelService) RetrainModel(ctx context.Context, req *v1.RetrainModelR
 // --- 辅助函数 ---
 
 // getUserIDFromContext 从 gRPC 上下文的 metadata 中提取用户ID。
+// 用于权限校验和个性化服务。
 func getUserIDFromContext(ctx context.Context) (uint64, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return 0, status.Errorf(codes.Unauthenticated, "cannot get metadata from context")
+		return 0, status.Errorf(codes.Unauthenticated, "Cannot get metadata from context")
 	}
 	values := md.Get("x-user-id")
 	if len(values) == 0 {
@@ -424,20 +484,21 @@ func getUserIDFromContext(ctx context.Context) (uint64, error) {
 		if len(adminValues) > 0 {
 			adminUserID, err := strconv.ParseUint(adminValues[0], 10, 64)
 			if err != nil {
-				return 0, status.Errorf(codes.Unauthenticated, "invalid x-admin-user-id format")
+				return 0, status.Errorf(codes.Unauthenticated, "Invalid x-admin-user-id format")
 			}
 			return adminUserID, nil
 		}
-		return 0, status.Errorf(codes.Unauthenticated, "missing user ID in request header")
+		return 0, status.Errorf(codes.Unauthenticated, "Missing user ID in request header")
 	}
 	userID, err := strconv.ParseUint(values[0], 10, 64)
 	if err != nil {
-		return 0, status.Errorf(codes.Unauthenticated, "invalid x-user-id format")
+		return 0, status.Errorf(codes.Unauthenticated, "Invalid x-user-id format")
 	}
 	return userID, nil
 }
 
 // isAdmin 从 gRPC 上下文的 metadata 中判断当前请求是否由管理员发起。
+// 用于权限校验。
 func isAdmin(ctx context.Context) bool {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -449,7 +510,7 @@ func isAdmin(ctx context.Context) bool {
 	return len(adminIDValues) > 0 && len(isAdminValues) > 0 && isAdminValues[0] == "true"
 }
 
-// bizModelMetadataToProto 将 model.ModelMetadata 业务领域模型转换为 v1.ModelMetadata API 模型。
+// bizModelMetadataToProto 将 model.ModelMetadata 业务领域模型转换为 v1.GetModelStatusResponse API 模型。
 func bizModelMetadataToProto(metadata *model.ModelMetadata) *v1.GetModelStatusResponse {
 	if metadata == nil {
 		return nil
@@ -461,5 +522,5 @@ func bizModelMetadataToProto(metadata *model.ModelMetadata) *v1.GetModelStatusRe
 		Status:       metadata.Status,
 		DeployedAt:   timestamppb.New(metadata.DeployedAt),
 		ErrorMessage: metadata.ErrorMessage,
-	}
+	}, nil
 }

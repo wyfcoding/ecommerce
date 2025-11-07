@@ -1,40 +1,83 @@
 # replicaCount 定义了 Deployment 的副本数量
 replicaCount: 1
 
+# terminationGracePeriodSeconds 定义了 Pod 在被强制终止前，可以继续运行的时间。
+# 这允许容器在接收到 SIGTERM 信号后，有足够的时间完成正在处理的请求并优雅地关闭。
+# 建议根据服务的实际关闭时间进行调整。
+terminationGracePeriodSeconds: 30
+
 # image 定义了要部署的容器镜像
 image:
-  # repository 是镜像仓库的地址
+  # repository 是镜像仓库的地址，例如：your-docker-registry/bi
   repository: your-docker-registry/bi
-  # pullPolicy 定义了镜像拉取策略
+  # pullPolicy 定义了镜像拉取策略：
+  # - IfNotPresent: 仅当本地不存在时才拉取镜像。
+  # - Always: 每次启动 Pod 时都拉取镜像。
+  # - Never: 永不拉取镜像，只使用本地镜像。
   pullPolicy: IfNotPresent
-  # tag 是镜像的标签，建议使用不可变标签，而不是 'latest'。
-  # 此值通常由 CI/CD 管道在部署时通过 --set 覆盖。
+  # tag 是镜像的标签，建议使用不可变标签（如 Git SHA 或构建号），而不是 'latest'。
+  # 此值通常由 CI/CD 管道在部署时通过 --set 覆盖，以确保部署的可追溯性。
   # tag: "BUILD_ID" # 示例：使用构建ID作为标签
 
 # service 定义了 Kubernetes Service 的配置
 service:
-  # type 是 Service 的类型
+  # type 是 Service 的类型：
+  # - ClusterIP: 默认类型，Service 仅在集群内部可访问。适用于内部微服务通信。
+  # - NodePort: 通过每个节点上的 IP 和静态端口（NodePort）暴露 Service。适用于需要从集群外部访问的测试或小型应用。
+  # - LoadBalancer: 使用云提供商的负载均衡器暴露 Service。适用于生产环境，提供外部可访问的 IP。
+  # - ExternalName: 通过返回 CNAME 记录，将 Service 映射到外部服务。
   type: ClusterIP
-  # grpcPort 是 gRPC 服务暴露的端口
+  # grpcPort 是 gRPC 服务暴露的端口，用于集群内部通信。
   grpcPort: 9000
-  # httpPort 是 HTTP 服务暴露的端口
+  # httpPort 是 HTTP 服务暴露的端口，用于集群内部通信。
   httpPort: 8000
 
-# resources 定义了容器的资源请求和限制
-# 对于生产环境，强烈建议根据实际负载进行调整
+# resources 定义了容器的资源请求和限制 (CPU 和内存)。
+# 请求 (requests) 保证了 Pod 获得其运行所需的最小资源，用于调度。
+# 限制 (limits) 防止 Pod 消耗过多资源，影响同一节点上的其他 Pod，用于资源管理。
+# 对于电商系统，精确的资源管理是稳定性和成本效益的关键。
 resources:
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 100m   # 请求 0.1 个 CPU 核心
+    memory: 128Mi # 请求 128 MiB 内存
   limits:
-    cpu: 500m
-    memory: 256Mi
+    cpu: 500m   # 限制为 0.5 个 CPU 核心
+    memory: 256Mi # 限制为 256 MiB 内存
 
-# autoscaling 定义了水平自动伸缩的配置 (HPA)
-# 默认禁用，可以根据需要启用
+# autoscaling 定义了水平自动伸缩的配置 (Horizontal Pod Autoscaler - HPA)。
+# HPA 能够根据 CPU 利用率或自定义指标自动调整 Pod 的副本数量，以应对流量波动。
+# 默认禁用，可以根据需要启用，并根据实际负载情况调整 minReplicas、maxReplicas 和 targetCPUUtilizationPercentage。
 autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  enabled: false # 是否启用 HPA
+  minReplicas: 1 # 最小副本数
+  maxReplicas: 10 # 最大副本数
+  targetCPUUtilizationPercentage: 80 # 目标 CPU 利用率百分比，当超过此值时触发扩容
+  # targetMemoryUtilizationPercentage: 80 # 目标内存利用率百分比 (可选) 
+
+# pdb (Pod Disruption Budget) 定义了 Pod 中断预算的配置。
+# PDB 确保在自愿中断（例如节点维护、升级）期间，至少有最小数量的 Pod 可用。
+# 这对于电商系统的高可用性至关重要，可以防止服务因同时中断过多 Pod 而导致性能下降或不可用。
+pdb:
+  enabled: false # 是否启用 PDB
+  minAvailable: 1 # 最小可用 Pod 数量或百分比 (例如: 1 或 50%)
+
+# serviceAccount 定义了 ServiceAccount 的配置。
+# ServiceAccount 为 Pod 提供了一个身份，用于在 Kubernetes API 中进行认证和授权。
+# 建议为每个微服务使用专用的 ServiceAccount，并为其配置最小权限的 RBAC 策略。
+serviceAccount:
+  create: true # 是否创建 ServiceAccount。如果设置为 false，则使用现有的 ServiceAccount。
+  name: ""    # ServiceAccount 的名称。如果为空，则使用 Chart 的全名作为名称。
+
+# networkPolicy 定义了网络策略的配置。
+# 网络策略用于控制 Pod 之间的网络流量，实现网络隔离和安全。
+# 在大型电商系统中，严格的网络策略是防止未经授权访问和横向攻击的关键安全措施。
+networkPolicy:
+  enabled: false # 是否启用网络策略。在生产环境中强烈建议启用。
+  # ingressRules: [] # 自定义入站规则，例如：允许来自特定 IP 段的流量
+  # egressRules: []  # 自定义出站规则，例如：允许访问外部数据库
+
+# rbac (Role-Based Access Control) 定义了 RBAC 资源的配置。
+# RBAC 策略与 ServiceAccount 配合使用，定义了 Pod 在集群内部操作 Kubernetes 资源的权限。
+# 遵循最小权限原则，只授予微服务运行所需的最低权限，以增强安全性。
+rabc:
+  create: true # 是否创建 Role 和 RoleBinding。如果设置为 false，则假定已存在相应的 RBAC 资源。

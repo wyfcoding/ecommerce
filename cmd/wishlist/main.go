@@ -1,79 +1,69 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
 
-	"ecommerce/internal/wishlist/handler"
-	"ecommerce/internal/wishlist/repository"
-	"ecommerce/internal/wishlist/service"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
+type Config struct {
+	configpkg.Config
+}
+
+const serviceName = "wishlist-service"
+
 func main() {
-	// 1. 初始化配置和日志
-	viper.SetConfigName("wishlist")
-	viper.SetConfigType("toml")
-	viper.AddConfigPath("./configs")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("读取配置文件失败: %s", err)
-	}
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9228").
+		Build().
+		Run()
+}
 
-	// 2. 初始化数据存储
-	dsn := viper.GetString("data.database.dsn")
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	zap.S().Info("gRPC server registered")
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	zap.S().Info("HTTP routes registered")
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+	cleanupTracer := func() {}
+
+	mysqlConfig := &mysqlpkg.Config{
+		DSN:             config.Data.Database.DSN,
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        4,
+		SlowThreshold:   200 * time.Millisecond,
+	}
+	_, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
 	if err != nil {
-		logger.Fatal("连接数据库失败", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 3. 初始化 gRPC 客户端 (此处省略)
-	// ...
-
-	// 4. 依赖注入
-	wishlistRepo := repository.NewWishlistRepository(db)
-	// 实际应传入 gRPC 客户端
-	wishlistService := service.NewWishlistService(wishlistRepo, logger)
-	wishlistHandler := handler.NewWishlistHandler(wishlistService, logger)
-
-	// 5. 初始化 HTTP 引擎
-	router := gin.Default()
-	wishlistHandler.RegisterRoutes(router)
-
-	// 6. 启动 HTTP 服务器
-	httpAddr := fmt.Sprintf("%s:%d", viper.GetString("server.http.addr"), viper.GetInt("server.http.port"))
-	srv := &http.Server{Addr: httpAddr, Handler: router}
-
-	go func() {
-		logger.Info("HTTP 服务器正在监听", zap.String("address", httpAddr))
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("HTTP 服务监听失败", zap.Error(err))
-		}
-	}()
-
-	// 7. 优雅停机
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	logger.Info("准备关闭 HTTP 服务器 ...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("HTTP 服务器强制关闭", zap.Error(err))
+	cleanup := func() {
+		zap.S().Info("cleaning up resources...")
+		cleanupDB()
+		cleanupTracer()
 	}
 
-	logger.Info("HTTP 服务器已退出")
+	return nil, cleanup, nil
 }

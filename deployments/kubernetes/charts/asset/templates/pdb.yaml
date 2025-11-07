@@ -1,0 +1,20 @@
+{{- if .Values.pdb.enabled }}
+# Pod Disruption Budget (PDB) 定义
+# PDB 确保在自愿中断（例如节点维护、升级）期间，至少有最小数量的 Pod 可用。
+# 这对于电商系统的高可用性至关重要，可以防止服务因同时中断过多 Pod 而导致性能下降或不可用。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "chart.fullname" . }} # PDB 资源的名称，通常与 Deployment 名称一致
+  labels:
+    {{- include "chart.labels" . | nindent 4 }} # 继承 Chart 的标签
+spec:
+  # minAvailable 定义了在自愿中断期间，必须保持可用的 Pod 的最小数量或百分比。
+  # 例如，如果设置为 1，则至少有一个 Pod 必须保持运行。
+  # 如果设置为 "50%"，则至少有一半的 Pod 必须保持运行。
+  minAvailable: {{ .Values.pdb.minAvailable }} # 最小可用 Pod 数量或百分比
+  # selector 用于选择 PDB 作用的 Pod 集合。它必须与 Deployment 的 selector 匹配。
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }} # 匹配 Deployment 的标签选择器
+{{- end }}

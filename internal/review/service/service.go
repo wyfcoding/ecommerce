@@ -1,7 +1,6 @@
 package service
 
 import (
-	"ecommerce/internal/review/biz"
 	// Assuming the generated pb.go file will be in this path
 	// v1 "ecommerce/api/review/v1"
 )

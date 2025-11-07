@@ -3,7 +3,6 @@ package model
 import (
 	"time"
 
-	"gorm.io/gorm"
 )
 
 // MovementType 定义了库存流动的类型

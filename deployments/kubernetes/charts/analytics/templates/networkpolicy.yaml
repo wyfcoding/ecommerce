@@ -1,0 +1,57 @@
+{{- if .Values.networkPolicy.enabled }}
+# NetworkPolicy 定义
+# NetworkPolicy 用于控制 Pod 之间的网络流量，实现网络隔离和安全。
+# 在大型电商系统中，严格的网络策略是防止未经授权访问和横向攻击的关键安全措施。
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "chart.fullname" . }} # NetworkPolicy 的名称，通常与 Chart 的全名一致
+  labels:
+    {{- include "chart.labels" . | nindent 4 }} # 继承 Chart 的标签
+spec:
+  # podSelector 选择此网络策略将应用于哪些 Pod。
+  # 这里的选择器与 Deployment 的选择器匹配，意味着此策略应用于当前微服务的所有 Pod。
+  podSelector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  # policyTypes 定义了此网络策略将强制执行的类型：Ingress (入站) 和 Egress (出站)。
+  # 明确指定这两种类型可以确保策略的全面性。
+  policyTypes:
+    - Ingress # 入站流量策略
+    - Egress  # 出站流量策略
+  # Ingress 规则定义了允许进入 Pod 的流量。
+  ingress:
+    # 示例: 允许来自 Istio Ingress Gateway 的流量。
+    # 这通常是外部流量进入微服务网格的入口点。
+    - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: istio-ingressgateway # 匹配 Istio Ingress Gateway 的 Pod
+        namespaceSelector:
+          matchLabels:
+            istio-injection: enabled # 匹配启用了 Istio 注入的命名空间
+      # 示例: 允许来自同一微服务内部其他 Pod 的流量（如果需要）。
+      # 这对于服务内部的 Pod 间通信（例如，多个副本之间的通信）是必要的。
+      - podSelector:
+          matchLabels:
+            {{- include "chart.selectorLabels" . | nindent 12 }}
+      # 允许进入的端口。
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.httpPort }} # 允许 HTTP 端口的入站流量
+        - protocol: TCP
+          port: {{ .Values.service.grpcPort }} # 允许 gRPC 端口的入站流量
+  # Egress 规则定义了允许从 Pod 发出的流量。
+  egress:
+    # 示例: 允许出站到 DNS 服务。
+    # 几乎所有应用都需要访问 DNS 进行服务发现。
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0 # 允许所有出站流量，生产环境需收紧此规则。
+                            # 在生产环境中，应将此规则限制为仅允许访问必要的外部服务和内部集群服务 IP 范围。
+      ports:
+        - protocol: TCP
+          port: 53 # 允许 TCP 53 端口（DNS）的出站流量
+        - protocol: UDP
+          port: 53 # 允许 UDP 53 端口（DNS）的出站流量
+{{- end }}

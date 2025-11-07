@@ -5,6 +5,12 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 spec:
+  # 部署策略：RollingUpdate 允许平滑地更新 Pod，而不会造成服务中断。
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25% # 在更新过程中，最多允许 25% 的 Pod 不可用
+      maxSurge: 25%       # 在更新过程中，最多允许比期望多 25% 的 Pod
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
@@ -14,6 +20,14 @@ spec:
       labels:
         {{- include "chart.selectorLabels" . | nindent 8 }}
     spec:
+      # serviceAccountName 指定了 Pod 应该使用的 ServiceAccount。
+      # ServiceAccount 为 Pod 提供了身份，用于在 Kubernetes API 中进行认证和授权。
+      # 建议为每个微服务使用专用的 ServiceAccount，并为其配置最小权限的 RBAC 策略。
+      serviceAccountName: {{ include "chart.serviceAccountName" . }}
+      # terminationGracePeriodSeconds 定义了 Pod 在被强制终止前，可以继续运行的时间。
+      # 这允许容器在接收到 SIGTERM 信号后，有足够的时间完成正在处理的请求并优雅地关闭。
+      # 建议根据服务的实际关闭时间进行调整。
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       # Pod 安全上下文，定义了 Pod 级别的安全设置
       securityContext:
         runAsUser: 1000 # 运行容器的用户ID，与 Dockerfile 中的 appuser 对应
@@ -43,21 +57,30 @@ spec:
             - name: http
               containerPort: {{ .Values.service.httpPort }}
               protocol: TCP
-          # 存活探针: 检查容器是否仍在运行。如果失败，kubelet将杀死并重启容器。
+          # 存活探针 (Liveness Probe): 检查容器是否仍在运行。如果失败，kubelet 将杀死并重启容器。
+          # 对于电商系统，确保服务持续可用至关重要。
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          # 就绪探针: 检查容器是否准备好接受流量。如果失败，端点控制器将从所有服务的端点中移除Pod的IP地址。
+            initialDelaySeconds: 15 # 容器启动后延迟 15 秒开始执行存活探针
+            periodSeconds: 20     # 每 20 秒执行一次探针
+            timeoutSeconds: 5     # 探针超时时间为 5 秒
+            failureThreshold: 3   # 连续 3 次失败后，Pod 将被重启
+          # 就绪探针 (Readiness Probe): 检查容器是否准备好接受流量。如果失败，端点控制器将从所有服务的端点中移除 Pod 的 IP 地址。
+          # 这确保了流量只发送到完全准备好的 Pod，避免了请求失败。
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          # 资源请求和限制
+            initialDelaySeconds: 5  # 容器启动后延迟 5 秒开始执行就绪探针
+            periodSeconds: 10       # 每 10 秒执行一次探针
+            timeoutSeconds: 3       # 探针超时时间为 3 秒
+            failureThreshold: 3     # 连续 3 次失败后，Pod 将被标记为未就绪
+          # 资源请求和限制 (Resource Requests and Limits):
+          # 请求 (requests) 保证了 Pod 获得其运行所需的最小资源。
+          # 限制 (limits) 防止 Pod 消耗过多资源，影响同一节点上的其他 Pod，用于资源管理。
+          # 对于电商系统，精确的资源管理是稳定性和成本效益的关键。
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           # 挂载配置文件

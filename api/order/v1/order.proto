@@ -38,9 +38,9 @@ enum PaymentStatus {
 enum ShippingStatus {
   SHIPPING_STATUS_UNSPECIFIED = 0; // 未指定
   PENDING_SHIPMENT = 1;            // 待发货
-  SHIPPED = 2;                     // 已发货
+  SHIPPING_SHIPPED = 2;            // 已发货
   IN_TRANSIT = 3;                  // 运输中
-  DELIVERED = 4;                   // 已送达
+  SHIPPING_DELIVERED = 4;          // 已送达
   EXCEPTION = 5;                   // 配送异常
 }
 

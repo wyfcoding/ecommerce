@@ -1,4 +1,4 @@
-package data
+package repository
 
 import (
 	"database/sql/driver"

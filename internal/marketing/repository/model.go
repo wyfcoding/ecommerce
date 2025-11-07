@@ -1,8 +1,7 @@
-package data
+package repository
 
 import (
 	"database/sql/driver"
-	"ecommerce/internal/marketing/biz"
 	"encoding/json"
 	"time"
 

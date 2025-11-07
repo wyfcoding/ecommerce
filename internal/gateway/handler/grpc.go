@@ -1,4 +1,4 @@
-package gatewayhandler
+package handler
 
 import (
 	"context"

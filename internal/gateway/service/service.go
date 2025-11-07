@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	v1 "ecommerce/api/gateway/v1"
-	"ecommerce/internal/gateway/biz"
 	"errors"
 
 	"google.golang.org/grpc/codes"

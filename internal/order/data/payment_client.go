@@ -5,7 +5,6 @@ import (
 	"context"
 
 	paymentv1 "ecommerce/api/payment/v1"
-	"ecommerce/internal/order/biz"
 
 	"google.golang.org/grpc"
 )

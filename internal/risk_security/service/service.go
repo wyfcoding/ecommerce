@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	v1 "ecommerce/api/risk_security/v1"
-	"ecommerce/internal/risk_security/biz"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

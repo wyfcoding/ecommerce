@@ -1,4 +1,4 @@
-package wishlisthandler
+package handler
 
 import (
 	"fmt"

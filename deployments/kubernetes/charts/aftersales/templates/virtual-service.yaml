@@ -1,20 +1,33 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: {{ include "chart.fullname" . }} # VirtualService 的名称，使用 Helm 辅助函数生成
+  name: {{ include "chart.fullname" . }} # VirtualService 的名称，使用 Helm 辅助函数生成，确保唯一性
   labels:
-    {{- include "chart.labels" . | nindent 4 }} # VirtualService 的标签，使用 Helm 辅助函数生成
+    {{- include "chart.labels" . | nindent 4 }} # VirtualService 的标签，继承 Chart 的标签，便于管理和查询
 spec:
+  # hosts 定义了此 VirtualService 适用的主机名列表。
+  # 在大型电商系统中，通常会根据环境（开发、测试、生产）和域名策略配置具体的主机名。
+  # "*" 表示匹配所有主机名，在某些内部或测试场景下可以使用，但生产环境通常会更具体。
   hosts:
-  - "*" # 匹配所有主机名，通常用于内部服务或单个网关
+  - "*" 
+  # gateways 定义了此 VirtualService 绑定到的 Istio Gateway 列表。
+  # Gateway 是 Istio 流量进入网格的入口点，通常用于暴露服务到外部网络。
+  # ecommerce-gateway 应该是一个预先部署好的 Istio Gateway 资源。
   gateways:
   - ecommerce-gateway # 绑定到名为 ecommerce-gateway 的 Istio Gateway
+  # http 规则定义了如何路由 HTTP 流量。
   http:
   - match:
+    # match 规则定义了请求需要满足的条件。
     - uri:
-        prefix: "/api/aftersales" # 匹配以 "/api/aftersales" 为前缀的 URI
+        # prefix 匹配以指定路径前缀开头的 URI。
+        # 对于微服务，通常会有一个统一的 API 网关，然后根据路径前缀将请求路由到不同的后端服务。
+        prefix: "/api/aftersales" # 匹配以 "/api/aftersales" 为前缀的 URI，例如：/api/aftersales/orders
     route:
+    # route 规则定义了匹配到的请求应该被路由到哪个目标服务。
     - destination:
+        # host 指向目标 Kubernetes Service 的名称。Istio 会自动解析为集群内部的服务地址。
         host: {{ include "chart.fullname" . }} # 目标服务的主机名，指向 Kubernetes Service
         port:
+          # number 指定了目标服务暴露的端口号。这应该与 Kubernetes Service 中定义的端口匹配。
           number: {{ .Values.service.httpPort }} # 目标服务的 HTTP 端口，应与 Service 定义匹配

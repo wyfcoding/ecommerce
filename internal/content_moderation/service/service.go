@@ -5,7 +5,6 @@ import (
 	"time"
 
 	v1 "ecommerce/api/content_moderation/v1"
-	"ecommerce/internal/content_moderation/biz"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
