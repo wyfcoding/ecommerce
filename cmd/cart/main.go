@@ -1,25 +1,25 @@
 package main
 
 import (
+	"log/slog"
 	"fmt"
-	"time"
 
-	"ecommerce/internal/cart/repository"
-	"ecommerce/internal/cart/service"
+	"ecommerce/internal/cart/application"
+	"ecommerce/internal/cart/infrastructure/persistence"
+	carthttp "ecommerce/internal/cart/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	mysqlpkg "ecommerce/pkg/database/mysql"
-	redispkg "ecommerce/pkg/database/redis"
+	"ecommerce/pkg/databases"
+	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
 	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Config struct {
-	configpkg.Config
+	configpkg.Config `mapstructure:",squash"`
 }
 
 const serviceName = "cart-service"
@@ -32,70 +32,52 @@ func main() {
 		WithGin(registerGin).
 		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
 		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9094").
+		WithMetrics("9101").
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	// TODO: 注册gRPC服务
-	// v1.RegisterCartServer(s, srv.(*service.CartService))
-	zap.S().Info("gRPC server registered")
+	slog.Default().Info("gRPC server registered for cart service (DDD)")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	// TODO: 注册HTTP路由
-	zap.S().Info("HTTP routes registered")
+	service := srv.(*application.CartService)
+	handler := carthttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for cart service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	cleanupTracer := func() {}
+	// Initialize Logger
+	logger := logging.NewLogger("serviceName", "app")
 
-	// 初始化MySQL
-	mysqlConfig := &mysqlpkg.Config{
-		DSN:             config.Data.Database.DSN,
-		MaxIdleConns:    10,
-		MaxOpenConns:    100,
-		ConnMaxLifetime: time.Hour,
-		LogLevel:        4,
-		SlowThreshold:   200 * time.Millisecond,
-	}
-	db, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
+	// Initialize Database
+	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 初始化Redis
-	redisConfig := &redispkg.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		ReadTimeout:  config.Data.Redis.ReadTimeout,
-		WriteTimeout: config.Data.Redis.WriteTimeout,
-		PoolSize:     config.Data.Redis.PoolSize,
-		MinIdleConns: config.Data.Redis.MinIdleConns,
-	}
-	redisClient, cleanupRedis, err := redispkg.NewRedisClient(redisConfig)
+	sqlDB, err := db.DB()
 	if err != nil {
-		cleanupDB()
-		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
+		return nil, nil, err
 	}
 
-	// 初始化Repositories
-	cartRepo := repository.NewCartRepo(db)
-	cartItemRepo := repository.NewCartItemRepo(db)
+	// Infrastructure Layer
+	repo := persistence.NewCartRepository(db)
 
-	// 初始化Service
-	cartService := service.NewCartService(cartRepo, cartItemRepo, 99, 24)
+	// Application Layer
+	service := application.NewCartService(repo, slog.Default())
 
 	cleanup := func() {
-		zap.S().Info("cleaning up resources...")
-		cleanupRedis()
-		cleanupDB()
-		cleanupTracer()
+		slog.Default().Info("cleaning up cart service resources (DDD)...")
+		sqlDB.Close()
 	}
 
-	return cartService, cleanup, nil
+	return service, cleanup, nil
 }

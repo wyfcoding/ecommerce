@@ -1,76 +1,83 @@
 package main
 
 import (
-	"context"
+	"log/slog"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+
+	"ecommerce/internal/warehouse/application"
+	"ecommerce/internal/warehouse/infrastructure/persistence"
+	warehousehttp "ecommerce/internal/warehouse/interfaces/http"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	"ecommerce/pkg/databases"
+	"ecommerce/pkg/logging"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
-	"ecommerce/internal/warehouse/handler"
-	"ecommerce/internal/warehouse/repository"
-	"ecommerce/internal/warehouse/service"
-	"ecommerce/pkg/config"
-	"ecommerce/pkg/database"
-	"ecommerce/pkg/logging"
+	"google.golang.org/grpc"
 )
 
+type Config struct {
+	configpkg.Config `mapstructure:",squash"`
+}
+
+const serviceName = "warehouse-service"
+
 func main() {
-	cfg, err := config.Load()
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9158").
+		Build().
+		Run()
+}
+
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	slog.Default().Info("gRPC server registered for warehouse service (DDD)")
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	service := srv.(*application.WarehouseService)
+	handler := warehousehttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for warehouse service (DDD)")
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+
+	// Initialize Logger
+	logger := logging.NewLogger("serviceName", "app")
+
+	// Initialize Database
+	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
-		panic(fmt.Sprintf("加载配置失败: %v", err))
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Filename)
-	defer logger.Sync()
-
-	db, err := database.NewMySQL(cfg.MySQL)
+	sqlDB, err := db.DB()
 	if err != nil {
-		logger.Fatal("连接数据库失败", zap.Error(err))
+		return nil, nil, err
 	}
 
-	redisClient, err := database.NewRedis(cfg.Redis)
-	if err != nil {
-		logger.Fatal("连接Redis失败", zap.Error(err))
+	// Infrastructure Layer
+	repo := persistence.NewWarehouseRepository(db)
+
+	// Application Layer
+	service := application.NewWarehouseService(repo, slog.Default())
+
+	cleanup := func() {
+		slog.Default().Info("cleaning up warehouse service resources (DDD)...")
+		sqlDB.Close()
 	}
 
-	repo := repository.NewWarehouseRepo(db)
-	svc := service.NewWarehouseService(repo, redisClient, logger)
-	h := handler.NewWarehouseHandler(svc, logger)
-
-	r := gin.Default()
-	api := r.Group("/api/v1")
-	h.RegisterRoutes(api)
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	srv := &http.Server{Addr: ":8009", Handler: r}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("启动服务器失败", zap.Error(err))
-		}
-	}()
-
-	logger.Info("仓库管理服务启动成功", zap.Int("port", 8009))
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("正在关闭服务器...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("服务器强制关闭", zap.Error(err))
-	}
-
-	logger.Info("服务器已关闭")
+	return service, cleanup, nil
 }

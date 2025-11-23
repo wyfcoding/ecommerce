@@ -2,12 +2,12 @@ package metrics
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
 )
 
 // Metrics holds a custom Prometheus registry and provides methods to create metrics.
@@ -18,10 +18,10 @@ type Metrics struct {
 // NewMetrics creates a new Metrics instance with its own registry.
 func NewMetrics(serviceName string) *Metrics {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewGoCollector())      // Collect default Go metrics
+	registry.MustRegister(prometheus.NewGoCollector())                                       // Collect default Go metrics
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})) // Collect process metrics
 
-	zap.S().Infof("Metrics registry created for service: %s", serviceName)
+	slog.Info("Metrics registry created for service", "service", serviceName)
 
 	return &Metrics{registry: registry}
 }
@@ -56,18 +56,18 @@ func (m *Metrics) ExposeHttp(port string) func() {
 	}
 
 	go func() {
-		zap.S().Infof("Metrics server listening on :%s", port)
+		slog.Info("Metrics server listening", "port", port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			zap.S().Fatalf("failed to start metrics server: %v", err)
+			slog.Error("failed to start metrics server", "error", err)
 		}
 	}()
 
 	cleanup := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		zap.S().Info("shutting down metrics server...")
+		slog.Info("shutting down metrics server...")
 		if err := httpServer.Shutdown(ctx); err != nil {
-			zap.S().Errorf("failed to gracefully shutdown metrics server: %v", err)
+			slog.Error("failed to gracefully shutdown metrics server", "error", err)
 		}
 	}
 

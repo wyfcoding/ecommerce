@@ -1,0 +1,34 @@
+# Payment Service Configuration
+
+[server]
+name = "payment-service"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8004
+timeout = "5s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9004
+timeout = "5s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:password@tcp(127.0.0.1:3306)/payment_db?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[data.redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 3
+read_timeout = "0.2s"
+write_timeout = "0.2s"
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"

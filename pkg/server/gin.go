@@ -2,38 +2,53 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
-// GinServer 是一个 Gin HTTP 服务器实现。
 type GinServer struct {
-	srv *http.Server
+	server *http.Server
+	addr   string
+	logger *slog.Logger
 }
 
-// NewGinServer 创建一个新的 Gin HTTP 服务器。
-func NewGinServer(engine *gin.Engine, addr string) *GinServer {
+func NewGinServer(engine *gin.Engine, addr string, logger *slog.Logger) *GinServer {
 	return &GinServer{
-		srv: &http.Server{
+		server: &http.Server{
 			Addr:    addr,
 			Handler: engine,
 		},
+		addr:   addr,
+		logger: logger,
 	}
 }
 
-// Start 启动 Gin HTTP 服务器。
 func (s *GinServer) Start(ctx context.Context) error {
-	zap.S().Infof("HTTP server listening at %s", s.srv.Addr) // 日志信息保持英文
-	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	s.logger.Info("Starting Gin server", "addr", s.addr)
+
+	errChan := make(chan error, 1)
+	go func() {
+		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- err
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return s.server.Shutdown(shutdownCtx)
+	case err := <-errChan:
 		return err
 	}
-	return nil
 }
 
-// Stop 停止 Gin HTTP 服务器。
 func (s *GinServer) Stop(ctx context.Context) error {
-	zap.S().Info("Stopping HTTP server...") // 日志信息保持英文
-	return s.srv.Shutdown(ctx)
+	s.logger.Info("Stopping Gin server")
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return s.server.Shutdown(ctx)
 }

@@ -1,97 +1,115 @@
 package kafka
 
 import (
+	"context"
 	"time"
 
+	"ecommerce/pkg/config"
+	"ecommerce/pkg/logging"
+
 	"github.com/segmentio/kafka-go"
-	"go.uber.org/zap"
 )
 
-// Config 结构体用于 Kafka 客户端配置, 增加了详细的生产者和消费者参数。
-type Config struct {
-	Brokers      []string      `toml:"brokers"`
-	Topic        string        `toml:"topic"`
-	GroupID      string        `toml:"group_id"`
-	DialTimeout  time.Duration `toml:"dial_timeout"`
-	ReadTimeout  time.Duration `toml:"read_timeout"`
-	WriteTimeout time.Duration `toml:"write_timeout"`
-
-	// Producer-specific options
-	RequiredAcks int  `toml:"required_acks"`
-	Async        bool `toml:"async"`
-
-	// Consumer-specific options
-	MinBytes       int           `toml:"min_bytes"`
-	MaxBytes       int           `toml:"max_bytes"`
-	MaxWait        time.Duration `toml:"max_wait"`
-	MaxAttempts    int           `toml:"max_attempts"`
-	CommitInterval time.Duration `toml:"commit_interval"`
+// Producer wraps kafka.Writer
+type Producer struct {
+	writer *kafka.Writer
+	logger *logging.Logger
 }
 
-// NewKafkaProducer 创建一个新的 Kafka 生产者实例。
-// 增加了对 RequiredAcks 和 Async 的支持，并为Acks提供了安全默认值。
-func NewKafkaProducer(conf *Config) (*kafka.Writer, func(), error) {
-	// 如果未在配置中指定，默认为 kafka.RequireAll，确保最高的数据一致性。
-	if conf.RequiredAcks == 0 {
-		conf.RequiredAcks = int(kafka.RequireAll)
-	}
-
-	writer := &kafka.Writer{
-		Addr:         kafka.TCP(conf.Brokers...),
-		Topic:        conf.Topic,
+// NewProducer creates a new Kafka producer.
+func NewProducer(cfg config.KafkaConfig, logger *logging.Logger) *Producer {
+	w := &kafka.Writer{
+		Addr:         kafka.TCP(cfg.Brokers...),
+		Topic:        cfg.Topic,
 		Balancer:     &kafka.LeastBytes{},
-		RequiredAcks: kafka.RequiredAcks(conf.RequiredAcks),
-		Async:        conf.Async,
-		ReadTimeout:  conf.ReadTimeout,
-		WriteTimeout: conf.WriteTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		BatchSize:    cfg.MaxBytes, // Using MaxBytes as batch size approximation or use dedicated config
+		BatchTimeout: 10 * time.Millisecond,
+		Async:        cfg.Async,
+		RequiredAcks: kafka.RequiredAcks(cfg.RequiredAcks),
 	}
 
-	cleanup := func() {
-		if err := writer.Close(); err != nil {
-			zap.S().Errorf("failed to close kafka writer: %v", err)
-		}
+	return &Producer{
+		writer: w,
+		logger: logger,
 	}
-
-	zap.S().Infof("Kafka producer created for brokers: %v, topic: %s, acks: %d, async: %t", conf.Brokers, conf.Topic, conf.RequiredAcks, conf.Async)
-
-	return writer, cleanup, nil
 }
 
-// NewKafkaConsumer 创建一个新的 Kafka 消费者实例。
-// 使用配置驱动的参数替换了硬编码值，并为关键参数提供了合理的默认值。
-func NewKafkaConsumer(conf *Config) (*kafka.Reader, func(), error) {
-	// 如果未配置，则提供合理的默认值。
-	if conf.MinBytes == 0 {
-		conf.MinBytes = 10e3 // 10KB
+// Publish sends a message to Kafka.
+func (p *Producer) Publish(ctx context.Context, key, value []byte) error {
+	err := p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   key,
+		Value: value,
+		Time:  time.Now(),
+	})
+	if err != nil {
+		p.logger.ErrorContext(ctx, "failed to publish message", "error", err)
+		return err
 	}
-	if conf.MaxBytes == 0 {
-		conf.MaxBytes = 10e6 // 10MB
-	}
-	if conf.MaxAttempts == 0 {
-		conf.MaxAttempts = 3
-	}
+	return nil
+}
 
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:        conf.Brokers,
-		GroupID:        conf.GroupID,
-		Topic:          conf.Topic,
-		MinBytes:       conf.MinBytes,
-		MaxBytes:       conf.MaxBytes,
-		MaxWait:        conf.MaxWait,
-		MaxAttempts:    conf.MaxAttempts,
-		CommitInterval: conf.CommitInterval, // 值为 0 表示同步提交, > 0 表示异步提交的间隔。
-		Dialer: &kafka.Dialer{
-			Timeout: conf.DialTimeout,
-		},
+// Close closes the producer.
+func (p *Producer) Close() error {
+	return p.writer.Close()
+}
+
+// Consumer wraps kafka.Reader
+type Consumer struct {
+	reader *kafka.Reader
+	logger *logging.Logger
+}
+
+// NewConsumer creates a new Kafka consumer.
+func NewConsumer(cfg config.KafkaConfig, logger *logging.Logger) *Consumer {
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:         cfg.Brokers,
+		GroupID:         cfg.GroupID,
+		Topic:           cfg.Topic,
+		MinBytes:        cfg.MinBytes,
+		MaxBytes:        cfg.MaxBytes,
+		MaxWait:         cfg.MaxWait,
+		ReadLagInterval: -1,
+		CommitInterval:  cfg.CommitInterval,
+		StartOffset:     kafka.LastOffset,
 	})
 
-	cleanup := func() {
-		if err := reader.Close(); err != nil {
-			zap.S().Errorf("failed to close kafka reader: %v", err)
+	return &Consumer{
+		reader: r,
+		logger: logger,
+	}
+}
+
+// Consume reads messages from Kafka.
+func (c *Consumer) Consume(ctx context.Context, handler func(ctx context.Context, msg kafka.Message) error) error {
+	for {
+		m, err := c.reader.FetchMessage(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			c.logger.Error("failed to fetch message", "error", err)
+			continue
+		}
+
+		// Process message
+		if err := handler(ctx, m); err != nil {
+			c.logger.Error("handler failed", "error", err)
+			// Decide whether to commit or not based on error type
+			// For now, we assume manual commit is needed if auto-commit is disabled,
+			// but kafka-go Reader with CommitInterval > 0 does auto-commit.
+			// If we used FetchMessage, we need to CommitMessages manually.
+			continue
+		}
+
+		if err := c.reader.CommitMessages(ctx, m); err != nil {
+			c.logger.Error("failed to commit message", "error", err)
 		}
 	}
+}
 
-	zap.S().Infof("Kafka consumer connected to brokers: %v, topic: %s, group: %s", conf.Brokers, conf.Topic, conf.GroupID)
-
-	return reader, cleanup, nil
+// Close closes the consumer.
+func (c *Consumer) Close() error {
+	return c.reader.Close()
 }

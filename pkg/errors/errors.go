@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 
 	"google.golang.org/grpc/codes"
@@ -189,3 +190,32 @@ var (
 	ErrAddressNotFound = New(ErrCodeAddressNotFound, "address not found")
 	ErrInvalidAddress  = New(ErrCodeInvalidAddress, "invalid address")
 )
+
+// WrapError wraps an error with a message.
+func WrapError(err error, message string) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", message, err)
+}
+
+// Cause returns the root cause of the error.
+func Cause(err error) error {
+	for {
+		unwrapped := errors.Unwrap(err)
+		if unwrapped == nil {
+			return err
+		}
+		err = unwrapped
+	}
+}
+
+// Is checks if the error chain contains a specific error.
+func Is(err, target error) bool {
+	return errors.Is(err, target)
+}
+
+// As checks if the error chain contains an error that matches the target type.
+func As(err error, target interface{}) bool {
+	return errors.As(err, target)
+}

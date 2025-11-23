@@ -1,15 +1,15 @@
-# 购物车服务基础配置
+# 购物车服务配置
 [server.http]
 addr = "0.0.0.0"
-port = 8083  # 为购物车服务选择一个不同的端口
+port = 8084
 timeout = "1s"
 
 [server.grpc]
 addr = "0.0.0.0"
-port = 9093  # 为购物车服务选择一个不同的端口
+port = 9094
 timeout = "1s"
 
-# 数据库配置 (指向购物车数据库)
+# 数据库配置
 [data.database]
 driver = "mysql"
 dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_cart?charset=utf8mb4&parseTime=True&loc=Local"
@@ -21,10 +21,9 @@ jaeger_endpoint = "http://localhost:14268/api/traces"
 # 日志配置
 [log]
 level = "debug"
-format = "json" # 可选: text 或 json
-output = "stdout" # 可选: stdout, stderr 或 文件路径
+format = "json"
+output = "stdout"
 
-# 业务相关配置
-[business]
-max_cart_item_quantity = 99 # 单个商品在购物车中的最大数量
-cart_expiration_hours = 72 # 购物车数据保留时间 (小时)
+# Snowflake ID生成器配置
+[snowflake]
+machine_id = 3

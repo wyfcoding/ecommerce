@@ -8,21 +8,21 @@ import (
 type CouponType int
 
 const (
-	CouponTypeDiscount CouponType = iota + 1 // 折扣券
-	CouponTypeReduction                      // 满减券
-	CouponTypeCash                           // 立减券
+	CouponTypeDiscount  CouponType = iota + 1 // 折扣券
+	CouponTypeReduction                       // 满减券
+	CouponTypeCash                            // 立减券
 )
 
 // Coupon 优惠券
 type Coupon struct {
-	ID            uint64
-	Type          CouponType
-	Threshold     int64   // 门槛金额（分）
-	DiscountRate  float64 // 折扣率（0.8表示8折）
-	ReductionAmount int64 // 减免金额（分）
-	MaxDiscount   int64   // 最大优惠金额（分）
-	CanStack      bool    // 是否可叠加
-	Priority      int     // 优先级
+	ID              uint64
+	Type            CouponType
+	Threshold       int64   // 门槛金额（分）
+	DiscountRate    float64 // 折扣率（0.8表示8折）
+	ReductionAmount int64   // 减免金额（分）
+	MaxDiscount     int64   // 最大优惠金额（分）
+	CanStack        bool    // 是否可叠加
+	Priority        int     // 优先级
 }
 
 // CouponOptimizer 优惠券优化器
@@ -39,7 +39,7 @@ func (co *CouponOptimizer) OptimalCombination(
 	originalPrice int64,
 	coupons []Coupon,
 ) ([]uint64, int64, int64) {
-	
+
 	if len(coupons) == 0 {
 		return nil, originalPrice, 0
 	}
@@ -70,7 +70,7 @@ func (co *CouponOptimizer) OptimalCombination(
 	// 枚举所有子集
 	for mask := 1; mask < (1 << n); mask++ {
 		combination := make([]Coupon, 0)
-		
+
 		for i := 0; i < n; i++ {
 			if mask&(1<<i) != 0 {
 				combination = append(combination, available[i])
@@ -104,7 +104,7 @@ func (co *CouponOptimizer) GreedyOptimization(
 	originalPrice int64,
 	coupons []Coupon,
 ) ([]uint64, int64, int64) {
-	
+
 	// 过滤可用优惠券
 	available := make([]Coupon, 0)
 	for _, c := range coupons {
@@ -140,7 +140,7 @@ func (co *CouponOptimizer) GreedyOptimization(
 	for _, cd := range discounts {
 		// 尝试添加这个优惠券
 		testCombination := append(selected, cd.coupon)
-		
+
 		if co.isValidCombination(testCombination) {
 			newPrice := co.calculatePrice(originalPrice, testCombination)
 			if newPrice < currentPrice {
@@ -188,7 +188,7 @@ func (co *CouponOptimizer) calculatePrice(originalPrice int64, coupons []Coupon)
 	// 按优先级排序（折扣券 -> 满减券 -> 立减券）
 	sorted := make([]Coupon, len(coupons))
 	copy(sorted, coupons)
-	
+
 	sort.Slice(sorted, func(i, j int) bool {
 		if sorted[i].Type != sorted[j].Type {
 			return sorted[i].Type < sorted[j].Type
@@ -256,7 +256,7 @@ func (co *CouponOptimizer) DynamicProgramming(
 	originalPrice int64,
 	coupons []Coupon,
 ) ([]uint64, int64, int64) {
-	
+
 	// 过滤可用优惠券
 	available := make([]Coupon, 0)
 	for _, c := range coupons {
@@ -270,7 +270,7 @@ func (co *CouponOptimizer) DynamicProgramming(
 	}
 
 	n := len(available)
-	
+
 	// dp[i][j] 表示使用前i个优惠券，是否选择第i个（j=0不选，j=1选）的最低价格
 	dp := make([][]int64, n+1)
 	for i := range dp {

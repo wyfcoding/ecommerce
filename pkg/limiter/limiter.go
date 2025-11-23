@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
 )
 
@@ -35,9 +35,9 @@ func (l *LocalLimiter) Allow(ctx context.Context, key string) (bool, error) {
 
 // RedisLimiter 分布式限流器（基于Redis）
 type RedisLimiter struct {
-	client   *redis.Client
-	limit    int           // 时间窗口内的最大请求数
-	window   time.Duration // 时间窗口
+	client *redis.Client
+	limit  int           // 时间窗口内的最大请求数
+	window time.Duration // 时间窗口
 }
 
 // NewRedisLimiter 创建Redis限流器
@@ -53,31 +53,31 @@ func NewRedisLimiter(client *redis.Client, limit int, window time.Duration) *Red
 func (l *RedisLimiter) Allow(ctx context.Context, key string) (bool, error) {
 	now := time.Now().UnixNano()
 	windowStart := now - l.window.Nanoseconds()
-	
+
 	pipe := l.client.Pipeline()
-	
+
 	// 删除窗口外的记录
 	pipe.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%d", windowStart))
-	
+
 	// 统计当前窗口内的请求数
 	pipe.ZCard(ctx, key)
-	
+
 	// 添加当前请求
-	pipe.ZAdd(ctx, key, &redis.Z{
+	pipe.ZAdd(ctx, key, redis.Z{
 		Score:  float64(now),
 		Member: now,
 	})
-	
+
 	// 设置过期时间
 	pipe.Expire(ctx, key, l.window)
-	
+
 	cmds, err := pipe.Exec(ctx)
 	if err != nil {
 		return false, err
 	}
-	
+
 	// 获取当前窗口内的请求数
 	count := cmds[1].(*redis.IntCmd).Val()
-	
+
 	return count < int64(l.limit), nil
 }

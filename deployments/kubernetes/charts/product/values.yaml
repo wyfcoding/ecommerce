@@ -7,5 +7,20 @@ image:
 
 service:
   type: ClusterIP
-  port: 80
-  targetPort: 8080
+  grpcPort: 9093
+  httpPort: 8083
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+

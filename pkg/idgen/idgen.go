@@ -5,66 +5,97 @@ import (
 	"sync"
 	"time"
 
+	"ecommerce/pkg/config"
+
 	"github.com/bwmarrin/snowflake"
 )
 
-var (
+// Generator defines the ID generator interface.
+type Generator interface {
+	Generate() int64
+}
+
+// SnowflakeGenerator implements Generator using Snowflake algorithm.
+type SnowflakeGenerator struct {
 	node *snowflake.Node
-	once sync.Once
+}
+
+// NewSnowflakeGenerator creates a new SnowflakeGenerator.
+func NewSnowflakeGenerator(cfg config.SnowflakeConfig) (*SnowflakeGenerator, error) {
+	// Set start time if provided
+	if cfg.StartTime != "" {
+		st, err := time.Parse("2006-01-02", cfg.StartTime)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse start time: %w", err)
+		}
+		snowflake.Epoch = st.UnixNano() / 1000000
+	}
+
+	node, err := snowflake.NewNode(cfg.MachineID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create snowflake node: %w", err)
+	}
+
+	return &SnowflakeGenerator{
+		node: node,
+	}, nil
+}
+
+// Generate generates a new ID.
+func (g *SnowflakeGenerator) Generate() int64 {
+	return g.node.Generate().Int64()
+}
+
+// Global default generator
+var (
+	defaultGenerator *SnowflakeGenerator
+	once             sync.Once
 )
 
-// Init 初始化ID生成器
-func Init(machineID int64) error {
+// Init initializes the global default generator.
+func Init(cfg config.SnowflakeConfig) error {
 	var err error
 	once.Do(func() {
-		// 设置起始时间为2024-01-01
-		snowflake.Epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano() / 1000000
-		node, err = snowflake.NewNode(machineID)
+		defaultGenerator, err = NewSnowflakeGenerator(cfg)
 	})
 	return err
 }
 
-// GenID 生成唯一ID
+// GenID generates a unique ID using the default generator.
 func GenID() uint64 {
-	if node == nil {
-		// 如果未初始化，使用默认机器ID 1
-		_ = Init(1)
+	if defaultGenerator == nil {
+		// Fallback initialization with default values if not initialized
+		_ = Init(config.SnowflakeConfig{MachineID: 1})
 	}
-	return uint64(node.Generate().Int64())
+	return uint64(defaultGenerator.Generate())
 }
 
-// GenOrderNo 生成订单号
-// 格式：O + 时间戳 + 随机数
+// GenOrderNo generates an order number.
 func GenOrderNo() string {
 	return fmt.Sprintf("O%d", GenID())
 }
 
-// GenPaymentNo 生成支付单号
-// 格式：P + 时间戳 + 随机数
+// GenPaymentNo generates a payment number.
 func GenPaymentNo() string {
 	return fmt.Sprintf("P%d", GenID())
 }
 
-// GenRefundNo 生成退款单号
-// 格式：R + 时间戳 + 随机数
+// GenRefundNo generates a refund number.
 func GenRefundNo() string {
 	return fmt.Sprintf("R%d", GenID())
 }
 
-// GenSPUNo 生成SPU编号
-// 格式：SPU + ID
+// GenSPUNo generates a SPU number.
 func GenSPUNo() string {
 	return fmt.Sprintf("SPU%d", GenID())
 }
 
-// GenSKUNo 生成SKU编号
-// 格式：SKU + ID
+// GenSKUNo generates a SKU number.
 func GenSKUNo() string {
 	return fmt.Sprintf("SKU%d", GenID())
 }
 
-// GenCouponCode 生成优惠券码
-// 格式：C + ID
+// GenCouponCode generates a coupon code.
 func GenCouponCode() string {
 	return fmt.Sprintf("C%d", GenID())
 }

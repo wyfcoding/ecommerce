@@ -1,25 +1,25 @@
 package main
 
 import (
+	"log/slog"
 	"fmt"
-	"time"
 
-	"ecommerce/internal/inventory/repository"
+	"ecommerce/internal/inventory/application"
+	"ecommerce/internal/inventory/infrastructure/persistence"
+	inventoryhttp "ecommerce/internal/inventory/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	mysqlpkg "ecommerce/pkg/database/mysql"
-	redispkg "ecommerce/pkg/database/redis"
-	"ecommerce/pkg/lock"
+	"ecommerce/pkg/databases"
+	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
 	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Config struct {
-	configpkg.Config
+	configpkg.Config `mapstructure:",squash"`
 }
 
 const serviceName = "inventory-service"
@@ -32,71 +32,52 @@ func main() {
 		WithGin(registerGin).
 		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
 		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9096").
+		WithMetrics("9112").
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	zap.S().Info("gRPC server registered for inventory service")
+	slog.Default().Info("gRPC server registered for inventory service (DDD)")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	api := e.Group("/api/v1/inventory")
-	{
-		api.GET("/:sku_id", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "get inventory"})
-		})
-		api.POST("/deduct", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "deduct stock"})
-		})
-		api.POST("/lock", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "lock stock"})
-		})
-	}
-	zap.S().Info("HTTP routes registered for inventory service")
+	service := srv.(*application.InventoryService)
+	handler := inventoryhttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for inventory service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
-	cleanupTracer := func() {}
 
-	mysqlConfig := &mysqlpkg.Config{
-		DSN:             config.Data.Database.DSN,
-		MaxIdleConns:    10,
-		MaxOpenConns:    100,
-		ConnMaxLifetime: time.Hour,
-		LogLevel:        4,
-		SlowThreshold:   200 * time.Millisecond,
-	}
-	db, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
+	// Initialize Logger
+	logger := logging.NewLogger("serviceName", "app")
+
+	// Initialize Database
+	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	redisConfig := &redispkg.Config{
-		Addr:         config.Data.Redis.Addr,
-		Password:     config.Data.Redis.Password,
-		DB:           config.Data.Redis.DB,
-		PoolSize:     10,
-		MinIdleConns: 5,
-	}
-	redisClient, cleanupRedis, err := redispkg.NewRedisClient(redisConfig)
+	sqlDB, err := db.DB()
 	if err != nil {
-		cleanupDB()
-		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
+		return nil, nil, err
 	}
 
-	distributedLock := lock.NewRedisLock(redisClient)
-	inventoryRepo := repository.NewInventoryRepository(db, redisClient, distributedLock)
-	_ = inventoryRepo
+	// Infrastructure Layer
+	repo := persistence.NewInventoryRepository(db)
+
+	// Application Layer
+	service := application.NewInventoryService(repo, slog.Default())
 
 	cleanup := func() {
-		zap.S().Info("cleaning up inventory service resources...")
-		cleanupRedis()
-		cleanupDB()
-		cleanupTracer()
+		slog.Default().Info("cleaning up inventory service resources (DDD)...")
+		sqlDB.Close()
 	}
 
-	return nil, cleanup, nil
+	return service, cleanup, nil
 }

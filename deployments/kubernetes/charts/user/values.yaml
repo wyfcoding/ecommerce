@@ -16,9 +16,9 @@ service:
   # type 是 Service 的类型
   type: ClusterIP
   # grpcPort 是 gRPC 服务暴露的端口
-  grpcPort: 9000
+  grpcPort: 9090
   # httpPort 是 HTTP 服务暴露的端口
-  httpPort: 8000
+  httpPort: 8080
 
 # resources 定义了容器的资源请求和限制
 # 对于生产环境，强烈建议根据实际负载进行调整

@@ -3,10 +3,10 @@ package minio
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"go.uber.org/zap"
 )
 
 // Config 结构体用于 MinIO 客户端配置。
@@ -33,7 +33,7 @@ func NewMinioClient(conf *Config) (*minio.Client, func(), error) {
 		return nil, nil, fmt.Errorf("failed to list minio buckets: %w", err)
 	}
 
-	zap.S().Infof("Successfully connected to MinIO at %s", conf.Endpoint)
+	slog.Info("Successfully connected to MinIO", "endpoint", conf.Endpoint)
 
 	// 返回一个空的清理函数以保持接口一致性
 	cleanup := func() {}

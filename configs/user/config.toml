@@ -1,0 +1,40 @@
+# User Service Configuration
+
+[server]
+name = "user-service"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8001
+timeout = "5s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9001
+timeout = "5s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:password@tcp(127.0.0.1:3306)/user_db?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[data.redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 0
+read_timeout = "0.2s"
+write_timeout = "0.2s"
+
+[jwt]
+secret = "your-secret-key"
+issuer = "ecommerce-user-service"
+expire_duration = "24h"
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"
+

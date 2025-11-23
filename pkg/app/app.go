@@ -2,23 +2,25 @@ package app
 
 import (
 	"context"
+	"ecommerce/pkg/server"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 // App 是应用程序容器。
 type App struct {
+	name   string
+	logger *slog.Logger
 	opts   options
 	ctx    context.Context
 	cancel func()
 }
 
 // New 创建一个新的应用程序实例。
-func New(opts ...Option) *App {
+func New(name string, logger *slog.Logger, opts ...Option) *App {
 	o := options{}
 	for _, opt := range opts {
 		opt(&o)
@@ -26,6 +28,8 @@ func New(opts ...Option) *App {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &App{
+		name:   name,
+		logger: logger,
 		opts:   o,
 		ctx:    ctx,
 		cancel: cancel,
@@ -36,18 +40,20 @@ func New(opts ...Option) *App {
 func (a *App) Run() error {
 	// 启动所有服务器
 	for _, srv := range a.opts.servers {
-		go func() {
-			if err := srv.Start(a.ctx); err != nil {
-				zap.S().Fatalf("Server failed to start: %v", err)
+		go func(s server.Server) {
+			if err := s.Start(a.ctx); err != nil {
+				a.logger.Error("Server failed to start", "error", err)
+				// Optionally, signal shutdown if a critical server fails to start
+				a.cancel()
 			}
-		}()
+		}(srv)
 	}
 
 	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	zap.S().Info("Shutting down application...")
+	a.logger.Info("Shutting down application", "name", a.name)
 
 	// 优雅地停止所有服务器
 	if a.cancel != nil {
@@ -60,7 +66,7 @@ func (a *App) Run() error {
 
 	for _, srv := range a.opts.servers {
 		if err := srv.Stop(shutdownCtx); err != nil {
-			zap.S().Errorf("Server failed to stop: %v", err)
+			a.logger.Error("Server failed to stop", "error", err)
 			return err
 		}
 	}
@@ -70,6 +76,6 @@ func (a *App) Run() error {
 		cleanup()
 	}
 
-	zap.S().Info("Application shut down gracefully.")
+	a.logger.Info("Application shut down gracefully.")
 	return nil
 }

@@ -1,15 +1,15 @@
-# 支付服务基础配置
+# 支付服务配置
 [server.http]
 addr = "0.0.0.0"
-port = 8084  # 为支付服务选择一个不同的端口
+port = 8086
 timeout = "1s"
 
 [server.grpc]
 addr = "0.0.0.0"
-port = 9094  # 为支付服务选择一个不同的端口
+port = 9096
 timeout = "1s"
 
-# 数据库配置 (指向支付数据库)
+# 数据库配置
 [data.database]
 driver = "mysql"
 dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_payment?charset=utf8mb4&parseTime=True&loc=Local"
@@ -21,23 +21,9 @@ jaeger_endpoint = "http://localhost:14268/api/traces"
 # 日志配置
 [log]
 level = "debug"
-format = "json" # 可选: text 或 json
-output = "stdout" # 可选: stdout, stderr 或 文件路径
+format = "json"
+output = "stdout"
 
-# 支付网关配置 (示例)
-[payment_gateways.wechat_pay]
-app_id = "your_wechat_app_id"
-mch_id = "your_wechat_mch_id"
-api_key = "your_wechat_api_key"
-notify_url = "http://your-domain.com/api/v1/payment/callback/wechat"
-
-[payment_gateways.alipay]
-app_id = "your_alipay_app_id"
-private_key = "your_alipay_private_key"
-public_key = "your_alipay_public_key"
-notify_url = "http://your-domain.com/api/v1/payment/callback/alipay"
-
-# 业务相关配置
-[business]
-default_page_size = 10 # 列表查询时的默认分页大小
-max_page_size = 100 # 列表查询时允许的最大分页大小
+# Snowflake ID生成器配置
+[snowflake]
+machine_id = 5

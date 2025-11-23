@@ -1,22 +1,25 @@
 package main
 
 import (
+	"log/slog"
 	"fmt"
-	"time"
 
+	"ecommerce/internal/logistics/application"
+	"ecommerce/internal/logistics/infrastructure/persistence"
+	logisticshttp "ecommerce/internal/logistics/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/databases"
+	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
 	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Config struct {
-	configpkg.Config
+	configpkg.Config `mapstructure:",squash"`
 }
 
 const serviceName = "logistics-service"
@@ -29,41 +32,52 @@ func main() {
 		WithGin(registerGin).
 		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
 		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9110").
+		WithMetrics("9113").
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	zap.S().Info("gRPC server registered")
+	slog.Default().Info("gRPC server registered for logistics service (DDD)")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	zap.S().Info("HTTP routes registered")
+	service := srv.(*application.LogisticsService)
+	handler := logisticshttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for logistics service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
-	cleanupTracer := func() {}
 
-	mysqlConfig := &mysqlpkg.Config{
-		DSN:             config.Data.Database.DSN,
-		MaxIdleConns:    10,
-		MaxOpenConns:    100,
-		ConnMaxLifetime: time.Hour,
-		LogLevel:        4,
-		SlowThreshold:   200 * time.Millisecond,
-	}
-	_, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
+	// Initialize Logger
+	logger := logging.NewLogger("serviceName", "app")
+
+	// Initialize Database
+	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	cleanup := func() {
-		zap.S().Info("cleaning up resources...")
-		cleanupDB()
-		cleanupTracer()
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return nil, cleanup, nil
+	// Infrastructure Layer
+	repo := persistence.NewLogisticsRepository(db)
+
+	// Application Layer
+	service := application.NewLogisticsService(repo, slog.Default())
+
+	cleanup := func() {
+		slog.Default().Info("cleaning up logistics service resources (DDD)...")
+		sqlDB.Close()
+	}
+
+	return service, cleanup, nil
 }

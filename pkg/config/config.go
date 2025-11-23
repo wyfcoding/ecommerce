@@ -2,263 +2,280 @@ package config
 
 import (
 	"fmt"
-	"os"
+	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 	"gorm.io/gorm/logger"
 )
 
-// Config 是顶层配置结构体，可被服务嵌入
+// Config is the top-level configuration struct.
 type Config struct {
-	Server         ServerConfig         `toml:"server"`
-	Data           DataConfig           `toml:"data"`
-	Log            LogConfig            `toml:"log"`
-	JWT            JWTConfig            `toml:"jwt"`
-	Snowflake      SnowflakeConfig      `toml:"snowflake"`
-	MessageQueue   MessageQueueConfig   `toml:"messagequeue"`
-	Minio          MinioConfig          `toml:"minio"`
-	Hadoop         HadoopConfig         `toml:"hadoop"`
-	Tracing        TracingConfig        `toml:"tracing"`
-	Metrics        MetricsConfig        `toml:"metrics"`
-	RateLimit      RateLimitConfig      `toml:"ratelimit"`
-	CircuitBreaker CircuitBreakerConfig `toml:"circuitbreaker"`
-	Cache          CacheConfig          `toml:"cache"`
-	Lock           LockConfig           `toml:"lock"`
-	Services       ServicesConfig       `toml:"services"`
+	Server         ServerConfig         `mapstructure:"server" toml:"server"`
+	Data           DataConfig           `mapstructure:"data" toml:"data"`
+	Log            LogConfig            `mapstructure:"log" toml:"log"`
+	JWT            JWTConfig            `mapstructure:"jwt" toml:"jwt"`
+	Snowflake      SnowflakeConfig      `mapstructure:"snowflake" toml:"snowflake"`
+	MessageQueue   MessageQueueConfig   `mapstructure:"messagequeue" toml:"messagequeue"`
+	Minio          MinioConfig          `mapstructure:"minio" toml:"minio"`
+	Hadoop         HadoopConfig         `mapstructure:"hadoop" toml:"hadoop"`
+	Tracing        TracingConfig        `mapstructure:"tracing" toml:"tracing"`
+	Metrics        MetricsConfig        `mapstructure:"metrics" toml:"metrics"`
+	RateLimit      RateLimitConfig      `mapstructure:"ratelimit" toml:"ratelimit"`
+	CircuitBreaker CircuitBreakerConfig `mapstructure:"circuitbreaker" toml:"circuitbreaker"`
+	Cache          CacheConfig          `mapstructure:"cache" toml:"cache"`
+	Lock           LockConfig           `mapstructure:"lock" toml:"lock"`
+	Services       ServicesConfig       `mapstructure:"services" toml:"services"`
 }
 
-// ServerConfig 定义了服务器配置
+// ServerConfig defines server configuration.
 type ServerConfig struct {
-	Name        string `toml:"name"`
-	Environment string `toml:"environment"`
+	Name        string `mapstructure:"name" toml:"name"`
+	Environment string `mapstructure:"environment" toml:"environment"`
 	HTTP        struct {
-		Addr         string        `toml:"addr"`
-		Port         int           `toml:"port"`
-		Timeout      time.Duration `toml:"timeout"`
-		ReadTimeout  time.Duration `toml:"read_timeout"`
-		WriteTimeout time.Duration `toml:"write_timeout"`
-		IdleTimeout  time.Duration `toml:"idle_timeout"`
-	} `toml:"http"`
+		Addr         string        `mapstructure:"addr" toml:"addr"`
+		Port         int           `mapstructure:"port" toml:"port"`
+		Timeout      time.Duration `mapstructure:"timeout" toml:"timeout"`
+		ReadTimeout  time.Duration `mapstructure:"read_timeout" toml:"read_timeout"`
+		WriteTimeout time.Duration `mapstructure:"write_timeout" toml:"write_timeout"`
+		IdleTimeout  time.Duration `mapstructure:"idle_timeout" toml:"idle_timeout"`
+	} `mapstructure:"http" toml:"http"`
 	GRPC struct {
-		Addr           string        `toml:"addr"`
-		Port           int           `toml:"port"`
-		Timeout        time.Duration `toml:"timeout"`
-		MaxRecvMsgSize int           `toml:"max_recv_msg_size"`
-		MaxSendMsgSize int           `toml:"max_send_msg_size"`
-	} `toml:"grpc"`
+		Addr           string        `mapstructure:"addr" toml:"addr"`
+		Port           int           `mapstructure:"port" toml:"port"`
+		Timeout        time.Duration `mapstructure:"timeout" toml:"timeout"`
+		MaxRecvMsgSize int           `mapstructure:"max_recv_msg_size" toml:"max_recv_msg_size"`
+		MaxSendMsgSize int           `mapstructure:"max_send_msg_size" toml:"max_send_msg_size"`
+	} `mapstructure:"grpc" toml:"grpc"`
 }
 
-// DataConfig 定义了数据相关的配置
+// DataConfig defines data related configuration.
 type DataConfig struct {
-	Database      DatabaseConfig      `toml:"database"`
-	Redis         RedisConfig         `toml:"redis"`
-	MongoDB       MongoDBConfig       `toml:"mongodb"`
-	ClickHouse    ClickHouseConfig    `toml:"clickhouse"`
-	Neo4j         Neo4jConfig         `toml:"neo4j"`
-	Elasticsearch ElasticsearchConfig `toml:"elasticsearch"`
+	Database      DatabaseConfig      `mapstructure:"database" toml:"database"`
+	Redis         RedisConfig         `mapstructure:"redis" toml:"redis"`
+	MongoDB       MongoDBConfig       `mapstructure:"mongodb" toml:"mongodb"`
+	ClickHouse    ClickHouseConfig    `mapstructure:"clickhouse" toml:"clickhouse"`
+	Neo4j         Neo4jConfig         `mapstructure:"neo4j" toml:"neo4j"`
+	Elasticsearch ElasticsearchConfig `mapstructure:"elasticsearch" toml:"elasticsearch"`
 }
 
-// DatabaseConfig 定义了MySQL数据库配置
+// DatabaseConfig defines MySQL configuration.
 type DatabaseConfig struct {
-	Driver          string          `toml:"driver"`
-	DSN             string          `toml:"dsn"`
-	MaxIdleConns    int             `toml:"max_idle_conns"`
-	MaxOpenConns    int             `toml:"max_open_conns"`
-	ConnMaxLifetime time.Duration   `toml:"conn_max_lifetime"`
-	LogLevel        logger.LogLevel `toml:"log_level"`
-	SlowThreshold   time.Duration   `toml:"slow_threshold"`
+	Driver          string          `mapstructure:"driver" toml:"driver"`
+	DSN             string          `mapstructure:"dsn" toml:"dsn"`
+	MaxIdleConns    int             `mapstructure:"max_idle_conns" toml:"max_idle_conns"`
+	MaxOpenConns    int             `mapstructure:"max_open_conns" toml:"max_open_conns"`
+	ConnMaxLifetime time.Duration   `mapstructure:"conn_max_lifetime" toml:"conn_max_lifetime"`
+	LogLevel        logger.LogLevel `mapstructure:"log_level" toml:"log_level"`
+	SlowThreshold   time.Duration   `mapstructure:"slow_threshold" toml:"slow_threshold"`
 }
 
-// RedisConfig 定义了Redis配置
+// RedisConfig defines Redis configuration.
 type RedisConfig struct {
-	Addr         string        `toml:"addr"`
-	Password     string        `toml:"password"`
-	DB           int           `toml:"db"`
-	ReadTimeout  time.Duration `toml:"read_timeout"`
-	WriteTimeout time.Duration `toml:"write_timeout"`
-	PoolSize     int           `toml:"pool_size"`
-	MinIdleConns int           `toml:"min_idle_conns"`
+	Addr         string        `mapstructure:"addr" toml:"addr"`
+	Password     string        `mapstructure:"password" toml:"password"`
+	DB           int           `mapstructure:"db" toml:"db"`
+	ReadTimeout  time.Duration `mapstructure:"read_timeout" toml:"read_timeout"`
+	WriteTimeout time.Duration `mapstructure:"write_timeout" toml:"write_timeout"`
+	PoolSize     int           `mapstructure:"pool_size" toml:"pool_size"`
+	MinIdleConns int           `mapstructure:"min_idle_conns" toml:"min_idle_conns"`
 }
 
-// MongoDBConfig 定义了MongoDB配置
+// MongoDBConfig defines MongoDB configuration.
 type MongoDBConfig struct {
-	URI            string        `toml:"uri"`
-	Database       string        `toml:"database"`
-	ConnectTimeout time.Duration `toml:"connect_timeout"`
-	MinPoolSize    uint64        `toml:"min_pool_size"`
-	MaxPoolSize    uint64        `toml:"max_pool_size"`
+	URI            string        `mapstructure:"uri" toml:"uri"`
+	Database       string        `mapstructure:"database" toml:"database"`
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout" toml:"connect_timeout"`
+	MinPoolSize    uint64        `mapstructure:"min_pool_size" toml:"min_pool_size"`
+	MaxPoolSize    uint64        `mapstructure:"max_pool_size" toml:"max_pool_size"`
 }
 
-// ClickHouseConfig 定义了ClickHouse配置
+// ClickHouseConfig defines ClickHouse configuration.
 type ClickHouseConfig struct {
-	DSN             string        `toml:"dsn"`
-	Database        string        `toml:"database"`
-	Username        string        `toml:"username"`
-	Password        string        `toml:"password"`
-	DialTimeout     time.Duration `toml:"dial_timeout"`
-	MaxOpenConns    int           `toml:"max_open_conns"`
-	MaxIdleConns    int           `toml:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `toml:"conn_max_lifetime"`
+	DSN             string        `mapstructure:"dsn" toml:"dsn"`
+	Database        string        `mapstructure:"database" toml:"database"`
+	Username        string        `mapstructure:"username" toml:"username"`
+	Password        string        `mapstructure:"password" toml:"password"`
+	DialTimeout     time.Duration `mapstructure:"dial_timeout" toml:"dial_timeout"`
+	MaxOpenConns    int           `mapstructure:"max_open_conns" toml:"max_open_conns"`
+	MaxIdleConns    int           `mapstructure:"max_idle_conns" toml:"max_idle_conns"`
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime" toml:"conn_max_lifetime"`
 }
 
-// Neo4jConfig 定义了Neo4j配置
+// Neo4jConfig defines Neo4j configuration.
 type Neo4jConfig struct {
-	URI      string `toml:"uri"`
-	Username string `toml:"username"`
-	Password string `toml:"password"`
+	URI      string `mapstructure:"uri" toml:"uri"`
+	Username string `mapstructure:"username" toml:"username"`
+	Password string `mapstructure:"password" toml:"password"`
 }
 
-// ElasticsearchConfig 定义了Elasticsearch配置
+// ElasticsearchConfig defines Elasticsearch configuration.
 type ElasticsearchConfig struct {
-	Addresses  []string `toml:"addresses"`
-	Username   string   `toml:"username"`
-	Password   string   `toml:"password"`
-	MaxRetries int      `toml:"max_retries"`
+	Addresses  []string `mapstructure:"addresses" toml:"addresses"`
+	Username   string   `mapstructure:"username" toml:"username"`
+	Password   string   `mapstructure:"password" toml:"password"`
+	MaxRetries int      `mapstructure:"max_retries" toml:"max_retries"`
 }
 
-// LogConfig 定义了日志配置
+// LogConfig defines logging configuration.
 type LogConfig struct {
-	Level  string `toml:"level"`
-	Format string `toml:"format"`
-	Output string `toml:"output"`
+	Level      string `mapstructure:"level" toml:"level"`
+	Format     string `mapstructure:"format" toml:"format"`
+	Output     string `mapstructure:"output" toml:"output"`
+	MaxSize    int    `mapstructure:"max_size" toml:"max_size"`
+	MaxBackups int    `mapstructure:"max_backups" toml:"max_backups"`
+	MaxAge     int    `mapstructure:"max_age" toml:"max_age"`
+	Compress   bool   `mapstructure:"compress" toml:"compress"`
 }
 
-// JWTConfig 定义了JWT配置
+// JWTConfig defines JWT configuration.
 type JWTConfig struct {
-	Secret string        `toml:"secret"`
-	Issuer string        `toml:"issuer"`
-	Expire time.Duration `toml:"expire_duration"`
+	Secret string        `mapstructure:"secret" toml:"secret"`
+	Issuer string        `mapstructure:"issuer" toml:"issuer"`
+	Expire time.Duration `mapstructure:"expire_duration" toml:"expire_duration"`
 }
 
-// SnowflakeConfig 定义了Snowflake配置
+// SnowflakeConfig defines Snowflake configuration.
 type SnowflakeConfig struct {
-	StartTime string `toml:"start_time"`
-	MachineID int64  `toml:"machine_id"`
+	StartTime string `mapstructure:"start_time" toml:"start_time"`
+	MachineID int64  `mapstructure:"machine_id" toml:"machine_id"`
 }
 
-// MessageQueueConfig 定义了消息队列配置
+// MessageQueueConfig defines message queue configuration.
 type MessageQueueConfig struct {
-	Kafka KafkaConfig `toml:"kafka"`
+	Kafka KafkaConfig `mapstructure:"kafka" toml:"kafka"`
 }
 
-// KafkaConfig 定义了Kafka配置
+// KafkaConfig defines Kafka configuration.
 type KafkaConfig struct {
-	Brokers        []string      `toml:"brokers"`
-	Topic          string        `toml:"topic"`
-	GroupID        string        `toml:"group_id"`
-	DialTimeout    time.Duration `toml:"dial_timeout"`
-	ReadTimeout    time.Duration `toml:"read_timeout"`
-	WriteTimeout   time.Duration `toml:"write_timeout"`
-	MinBytes       int           `toml:"min_bytes"`
-	MaxBytes       int           `toml:"max_bytes"`
-	MaxWait        time.Duration `toml:"max_wait"`
-	MaxAttempts    int           `toml:"max_attempts"`
-	CommitInterval time.Duration `toml:"commit_interval"`
-	RequiredAcks   int           `toml:"required_acks"`
-	Async          bool          `toml:"async"`
+	Brokers        []string      `mapstructure:"brokers" toml:"brokers"`
+	Topic          string        `mapstructure:"topic" toml:"topic"`
+	GroupID        string        `mapstructure:"group_id" toml:"group_id"`
+	DialTimeout    time.Duration `mapstructure:"dial_timeout" toml:"dial_timeout"`
+	ReadTimeout    time.Duration `mapstructure:"read_timeout" toml:"read_timeout"`
+	WriteTimeout   time.Duration `mapstructure:"write_timeout" toml:"write_timeout"`
+	MinBytes       int           `mapstructure:"min_bytes" toml:"min_bytes"`
+	MaxBytes       int           `mapstructure:"max_bytes" toml:"max_bytes"`
+	MaxWait        time.Duration `mapstructure:"max_wait" toml:"max_wait"`
+	MaxAttempts    int           `mapstructure:"max_attempts" toml:"max_attempts"`
+	CommitInterval time.Duration `mapstructure:"commit_interval" toml:"commit_interval"`
+	RequiredAcks   int           `mapstructure:"required_acks" toml:"required_acks"`
+	Async          bool          `mapstructure:"async" toml:"async"`
 }
 
-// MinioConfig 定义了MinIO配置
+// MinioConfig defines MinIO configuration.
 type MinioConfig struct {
-	Endpoint        string `toml:"endpoint"`
-	AccessKeyID     string `toml:"access_key_id"`
-	SecretAccessKey string `toml:"secret_access_key"`
-	UseSSL          bool   `toml:"use_ssl"`
+	Endpoint        string `mapstructure:"endpoint" toml:"endpoint"`
+	AccessKeyID     string `mapstructure:"access_key_id" toml:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key" toml:"secret_access_key"`
+	UseSSL          bool   `mapstructure:"use_ssl" toml:"use_ssl"`
 }
 
-// HadoopConfig 定义了Hadoop配置
+// HadoopConfig defines Hadoop configuration.
 type HadoopConfig struct {
-	HDFS HDFSConfig `toml:"hdfs"`
+	HDFS HDFSConfig `mapstructure:"hdfs" toml:"hdfs"`
 }
 
-// HDFSConfig 定义了HDFS配置
+// HDFSConfig defines HDFS configuration.
 type HDFSConfig struct {
-	Addresses []string `toml:"addresses"`
-	User      string   `toml:"user"`
+	Addresses []string `mapstructure:"addresses" toml:"addresses"`
+	User      string   `mapstructure:"user" toml:"user"`
 }
 
-// TracingConfig 定义了链路追踪配置
+// TracingConfig defines tracing configuration.
 type TracingConfig struct {
-	ServiceName    string `toml:"service_name"`
-	JaegerEndpoint string `toml:"jaeger_endpoint"`
+	ServiceName  string `mapstructure:"service_name" toml:"service_name"`
+	OTLPEndpoint string `mapstructure:"otlp_endpoint" toml:"otlp_endpoint"`
 }
 
-// MetricsConfig 定义了指标监控配置
+// MetricsConfig defines metrics configuration.
 type MetricsConfig struct {
-	Enabled bool   `toml:"enabled"`
-	Port    string `toml:"port"`
-	Path    string `toml:"path"`
+	Enabled bool   `mapstructure:"enabled" toml:"enabled"`
+	Port    string `mapstructure:"port" toml:"port"`
+	Path    string `mapstructure:"path" toml:"path"`
 }
 
-// RateLimitConfig 定义了限流配置
+// RateLimitConfig defines rate limiting configuration.
 type RateLimitConfig struct {
-	Enabled bool `toml:"enabled"`
-	Rate    int  `toml:"rate"`
-	Burst   int  `toml:"burst"`
+	Enabled bool `mapstructure:"enabled" toml:"enabled"`
+	Rate    int  `mapstructure:"rate" toml:"rate"`
+	Burst   int  `mapstructure:"burst" toml:"burst"`
 }
 
-// CircuitBreakerConfig 定义了熔断器配置
+// CircuitBreakerConfig defines circuit breaker configuration.
 type CircuitBreakerConfig struct {
-	Enabled     bool          `toml:"enabled"`
-	MaxRequests uint32        `toml:"max_requests"`
-	Interval    time.Duration `toml:"interval"`
-	Timeout     time.Duration `toml:"timeout"`
+	Enabled     bool          `mapstructure:"enabled" toml:"enabled"`
+	MaxRequests uint32        `mapstructure:"max_requests" toml:"max_requests"`
+	Interval    time.Duration `mapstructure:"interval" toml:"interval"`
+	Timeout     time.Duration `mapstructure:"timeout" toml:"timeout"`
 }
 
-// CacheConfig 定义了缓存配置
+// CacheConfig defines cache configuration.
 type CacheConfig struct {
-	Prefix            string        `toml:"prefix"`
-	DefaultExpiration time.Duration `toml:"default_expiration"`
-	CleanupInterval   time.Duration `toml:"cleanup_interval"`
+	Prefix            string        `mapstructure:"prefix" toml:"prefix"`
+	DefaultExpiration time.Duration `mapstructure:"default_expiration" toml:"default_expiration"`
+	CleanupInterval   time.Duration `mapstructure:"cleanup_interval" toml:"cleanup_interval"`
 }
 
-// LockConfig 定义了分布式锁配置
+// LockConfig defines distributed lock configuration.
 type LockConfig struct {
-	Prefix            string        `toml:"prefix"`
-	DefaultExpiration time.Duration `toml:"default_expiration"`
-	MaxRetries        int           `toml:"max_retries"`
-	RetryDelay        time.Duration `toml:"retry_delay"`
+	Prefix            string        `mapstructure:"prefix" toml:"prefix"`
+	DefaultExpiration time.Duration `mapstructure:"default_expiration" toml:"default_expiration"`
+	MaxRetries        int           `mapstructure:"max_retries" toml:"max_retries"`
+	RetryDelay        time.Duration `mapstructure:"retry_delay" toml:"retry_delay"`
 }
 
-// ServicesConfig 定义了微服务地址配置
+// ServicesConfig defines service addresses.
 type ServicesConfig struct {
-	User           ServiceAddr `toml:"user"`
-	Product        ServiceAddr `toml:"product"`
-	Order          ServiceAddr `toml:"order"`
-	Cart           ServiceAddr `toml:"cart"`
-	Payment        ServiceAddr `toml:"payment"`
-	Inventory      ServiceAddr `toml:"inventory"`
-	Marketing      ServiceAddr `toml:"marketing"`
-	Notification   ServiceAddr `toml:"notification"`
-	Search         ServiceAddr `toml:"search"`
-	Recommendation ServiceAddr `toml:"recommendation"`
-	Gateway        ServiceAddr `toml:"gateway"`
+	User           ServiceAddr `mapstructure:"user" toml:"user"`
+	Product        ServiceAddr `mapstructure:"product" toml:"product"`
+	Order          ServiceAddr `mapstructure:"order" toml:"order"`
+	Cart           ServiceAddr `mapstructure:"cart" toml:"cart"`
+	Payment        ServiceAddr `mapstructure:"payment" toml:"payment"`
+	Inventory      ServiceAddr `mapstructure:"inventory" toml:"inventory"`
+	Marketing      ServiceAddr `mapstructure:"marketing" toml:"marketing"`
+	Notification   ServiceAddr `mapstructure:"notification" toml:"notification"`
+	Search         ServiceAddr `mapstructure:"search" toml:"search"`
+	Recommendation ServiceAddr `mapstructure:"recommendation" toml:"recommendation"`
+	Gateway        ServiceAddr `mapstructure:"gateway" toml:"gateway"`
 }
 
-// ServiceAddr 定义了单个服务的地址
+// ServiceAddr defines a single service address.
 type ServiceAddr struct {
-	GRPCAddr string `toml:"grpc_addr"`
-	HTTPAddr string `toml:"http_addr"`
+	GRPCAddr string `mapstructure:"grpc_addr" toml:"grpc_addr"`
+	HTTPAddr string `mapstructure:"http_addr" toml:"http_addr"`
 }
 
-// Load 从 TOML 文件加载配置
+// Load loads configuration from file and environment variables.
 func Load(path string, v interface{}) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
+	viper.SetConfigFile(path)
+	viper.SetConfigType("toml")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
-	if err := toml.Unmarshal(data, v); err != nil {
+
+	if err := viper.Unmarshal(v); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
+
 	return nil
 }
 
-// LoadFromEnv 从环境变量指定的路径加载配置
-func LoadFromEnv(envKey string, v interface{}) error {
-	path := os.Getenv(envKey)
-	if path == "" {
-		path = "configs/config.toml" // 默认路径
-	}
-	return Load(path, v)
+// WatchConfig watches for config changes and reloads them.
+func WatchConfig(v interface{}, onChange func()) {
+	viper.WatchConfig()
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Printf("Config file changed: %s\n", e.Name)
+		if err := viper.Unmarshal(v); err != nil {
+			fmt.Printf("Failed to unmarshal config after change: %v\n", err)
+			return
+		}
+		if onChange != nil {
+			onChange()
+		}
+	})
 }

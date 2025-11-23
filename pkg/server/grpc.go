@@ -2,44 +2,59 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"net"
 
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
-// GRPCServer 是一个 gRPC 服务器实现。
 type GRPCServer struct {
-	srv  *grpc.Server
-	addr string
+	server *grpc.Server
+	addr   string
+	logger *slog.Logger
 }
 
-// NewGRPCServer 创建一个新的 gRPC 服务器。
-// 它现在可以接收一个或多个一元拦截器。
-func NewGRPCServer(addr string, register func(*grpc.Server), interceptors ...grpc.UnaryServerInterceptor) *GRPCServer {
-	// 使用 grpc.ChainUnaryInterceptor 将所有传入的拦截器链接起来
-	s := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
+func NewGRPCServer(addr string, logger *slog.Logger, register func(*grpc.Server), interceptors ...grpc.UnaryServerInterceptor) *GRPCServer {
+	opts := []grpc.ServerOption{}
+	if len(interceptors) > 0 {
+		opts = append(opts, grpc.ChainUnaryInterceptor(interceptors...))
+	}
+
+	s := grpc.NewServer(opts...)
 	register(s)
+	reflection.Register(s)
+
 	return &GRPCServer{
-		srv:  s,
-		addr: addr,
+		server: s,
+		addr:   addr,
+		logger: logger,
 	}
 }
 
-// Start 启动 gRPC 服务器。
 func (s *GRPCServer) Start(ctx context.Context) error {
 	lis, err := net.Listen("tcp", s.addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		return err
 	}
-	zap.S().Infof("gRPC server listening at %v", lis.Addr())
-	return s.srv.Serve(lis)
+	s.logger.Info("Starting gRPC server", "addr", s.addr)
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- s.server.Serve(lis)
+	}()
+
+	select {
+	case <-ctx.Done():
+		s.server.Stop()
+		return ctx.Err()
+	case err := <-errChan:
+		return err
+	}
 }
 
-// Stop 停止 gRPC 服务器。
 func (s *GRPCServer) Stop(ctx context.Context) error {
-	zap.S().Info("Stopping gRPC server...")
-	s.srv.GracefulStop()
+	s.logger.Info("Stopping gRPC server")
+	s.server.GracefulStop()
 	return nil
 }

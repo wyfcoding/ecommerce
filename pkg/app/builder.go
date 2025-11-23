@@ -11,7 +11,6 @@ import (
 	"ecommerce/pkg/server"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -92,15 +91,9 @@ func (b *Builder) Build() *App {
 	}
 
 	// 2. 初始化日志
-	val := reflect.ValueOf(b.configInstance).Elem()
-	cfgField := val.FieldByName("Config")
-	if !cfgField.IsValid() {
-		panic("config instance must embed config.Config")
-	}
-	cfg := cfgField.Interface().(config.Config)
-
-	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Format, cfg.Log.Output)
-	zap.ReplaceGlobals(logger)
+	// Assuming config struct has Log field, but we don't use it for options anymore in NewLogger
+	// We just use service name and module name
+	logger := logging.NewLogger(b.serviceName, "app")
 
 	// 3. (可选) 初始化 Metrics
 	var metricsInstance *metrics.Metrics
@@ -113,16 +106,24 @@ func (b *Builder) Build() *App {
 	// 4. 依赖注入
 	serviceInstance, cleanup, err := b.initService.(func(interface{}, *metrics.Metrics) (interface{}, func(), error))(b.configInstance, metricsInstance)
 	if err != nil {
-		zap.S().Fatalf("failed to init service: %v", err)
+		logger.Logger.Error("failed to init service", "error", err)
+		panic(err)
 	}
 	b.appOpts = append(b.appOpts, WithCleanup(cleanup))
 
 	// 5. 创建服务器
+	val := reflect.ValueOf(b.configInstance).Elem()
+	cfgField := val.FieldByName("Config")
+	if !cfgField.IsValid() {
+		panic("config instance must embed config.Config")
+	}
+	cfg := cfgField.Interface().(config.Config)
+
 	var servers []server.Server
 	if b.registerGRPC != nil {
 		grpcAddr := fmt.Sprintf("%s:%d", cfg.Server.GRPC.Addr, cfg.Server.GRPC.Port)
 		// 将收集到的拦截器传递给 gRPC 服务器构造函数
-		grpcSrv := server.NewGRPCServer(grpcAddr, func(s *grpc.Server) {
+		grpcSrv := server.NewGRPCServer(grpcAddr, logger.Logger, func(s *grpc.Server) {
 			b.registerGRPC.(func(*grpc.Server, interface{}))(s, serviceInstance)
 		}, b.grpcInterceptors...)
 		servers = append(servers, grpcSrv)
@@ -130,13 +131,13 @@ func (b *Builder) Build() *App {
 	if b.registerGin != nil {
 		httpAddr := fmt.Sprintf("%s:%d", cfg.Server.HTTP.Addr, cfg.Server.HTTP.Port)
 		// 将收集到的中间件传递给 Gin 引擎构造函数
-		ginEngine := server.NewDefaultGinEngine(b.ginMiddleware...)
+		ginEngine := server.NewDefaultGinEngine(logger.Logger, b.ginMiddleware...)
 		b.registerGin.(func(*gin.Engine, interface{}))(ginEngine, serviceInstance)
-		ginSrv := server.NewGinServer(ginEngine, httpAddr)
+		ginSrv := server.NewGinServer(ginEngine, httpAddr, logger.Logger)
 		servers = append(servers, ginSrv)
 	}
 	b.appOpts = append(b.appOpts, WithServer(servers...))
 
 	// 6. 创建应用
-	return New(b.appOpts...)
+	return New(b.serviceName, logger.Logger, b.appOpts...)
 }

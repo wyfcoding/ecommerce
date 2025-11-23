@@ -7,7 +7,7 @@
 bin/
 *.test
 *.out
-user
+
 *.log
 
 # IDE

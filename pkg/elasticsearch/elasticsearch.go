@@ -2,9 +2,9 @@ package elasticsearch
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/elastic/go-elasticsearch/v8"
-	"go.uber.org/zap"
 )
 
 // Config 结构体用于 Elasticsearch 客户端配置。
@@ -50,7 +50,7 @@ func NewElasticsearchClient(conf *Config) (*elasticsearch.Client, func(), error)
 		return nil, nil, fmt.Errorf("elasticsearch client info error: %s", res.String())
 	}
 
-	zap.S().Info("Successfully connected to Elasticsearch: ", res.String())
+	slog.Info("Successfully connected to Elasticsearch", "info", res.String())
 
 	// 返回一个空的清理函数以保持接口一致性
 	cleanup := func() {}

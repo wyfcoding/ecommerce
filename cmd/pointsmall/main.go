@@ -1,76 +1,92 @@
 package main
 
 import (
-	"context"
+	"log/slog"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+
+	"ecommerce/internal/pointsmall/application"
+	"ecommerce/internal/pointsmall/infrastructure/persistence"
+	pointshttp "ecommerce/internal/pointsmall/interfaces/http"
+	"ecommerce/pkg/app"
+	configpkg "ecommerce/pkg/config"
+	"ecommerce/pkg/databases"
+	"ecommerce/pkg/idgen"
+	"ecommerce/pkg/logging"
+	"ecommerce/pkg/metrics"
+	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
-	"ecommerce/internal/pointsmall/handler"
-	"ecommerce/internal/pointsmall/repository"
-	"ecommerce/internal/pointsmall/service"
-	"ecommerce/pkg/config"
-	"ecommerce/pkg/database"
-	"ecommerce/pkg/logging"
+	"google.golang.org/grpc"
 )
 
+type Config struct {
+	configpkg.Config `mapstructure:",squash"`
+}
+
+const serviceName = "pointsmall-service"
+
 func main() {
-	cfg, err := config.Load()
+	app.NewBuilder(serviceName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
+		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
+		WithMetrics("9123").
+		Build().
+		Run()
+}
+
+func registerGRPC(s *grpc.Server, srv interface{}) {
+	slog.Default().Info("gRPC server registered for pointsmall service (DDD)")
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	service := srv.(*application.PointsService)
+	handler := pointshttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for pointsmall service (DDD)")
+}
+
+func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+	config := cfg.(*Config)
+
+	// Initialize Logger
+	logger := logging.NewLogger("serviceName", "app")
+
+	// Initialize Database
+	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
-		panic(fmt.Sprintf("加载配置失败: %v", err))
+		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	logger := logging.NewLogger(cfg.Log.Level, cfg.Log.Filename)
-	defer logger.Sync()
-
-	db, err := database.NewMySQL(cfg.MySQL)
+	sqlDB, err := db.DB()
 	if err != nil {
-		logger.Fatal("连接数据库失败", zap.Error(err))
+		return nil, nil, err
 	}
 
-	redisClient, err := database.NewRedis(cfg.Redis)
+	// Initialize ID Generator
+	idGen, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{
+		MachineID: 1,
+	}) // You might want to configure workerID/datacenterID
 	if err != nil {
-		logger.Fatal("连接Redis失败", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
-	repo := repository.NewPointsMallRepo(db)
-	svc := service.NewPointsMallService(repo, redisClient, logger)
-	h := handler.NewPointsMallHandler(svc, logger)
+	// Infrastructure Layer
+	repo := persistence.NewPointsRepository(db)
 
-	r := gin.Default()
-	api := r.Group("/api/v1")
-	h.RegisterRoutes(api)
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	// Application Layer
+	service := application.NewPointsService(repo, idGen, slog.Default())
 
-	srv := &http.Server{Addr: ":8105", Handler: r}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("启动服务器失败", zap.Error(err))
-		}
-	}()
-
-	logger.Info("积分商城服务启动成功", zap.Int("port", 8105))
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("正在关闭服务器...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("服务器强制关闭", zap.Error(err))
+	cleanup := func() {
+		slog.Default().Info("cleaning up pointsmall service resources (DDD)...")
+		sqlDB.Close()
 	}
 
-	logger.Info("服务器已关闭")
+	return service, cleanup, nil
 }

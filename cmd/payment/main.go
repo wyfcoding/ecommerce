@@ -1,81 +1,72 @@
 package main
 
 import (
-	"fmt"
-	"time"
-
-	"ecommerce/internal/payment/repository"
-	"ecommerce/internal/payment/service"
+	v1 "ecommerce/api/payment/v1"
+	"ecommerce/internal/payment/application"
+	mysqlRepo "ecommerce/internal/payment/infrastructure/persistence/mysql"
+	grpcServer "ecommerce/internal/payment/interfaces/grpc"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
-	mysqlpkg "ecommerce/pkg/database/mysql"
+	"ecommerce/pkg/idgen"
+	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/tracing"
+	"ecommerce/pkg/databases"
 
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Config struct {
-	configpkg.Config
+	configpkg.Config `mapstructure:",squash"`
 }
-
-const serviceName = "payment-service"
 
 func main() {
-	app.NewBuilder(serviceName).
+	app.NewBuilder("payment").
 		WithConfig(&Config{}).
-		WithService(initService).
-		WithGRPC(registerGRPC).
-		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9095").
+		WithService(func(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+			c := cfg.(*Config)
+
+			// Database
+			logger := logging.NewLogger("payment-service", "app")
+			db, err := databases.NewDB(c.Data.Database, logger)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			sqlDB, err := db.DB()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			cleanupDB := func() {
+				sqlDB.Close()
+			}
+
+			// Repositories
+			paymentRepo := mysqlRepo.NewPaymentRepository(db)
+
+			// ID Generator
+			idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
+			if err != nil {
+				cleanupDB()
+				return nil, nil, err
+			}
+
+			// Application Service
+			appService := application.NewPaymentApplicationService(
+				paymentRepo,
+				idGenerator,
+			)
+
+			// gRPC Server
+			srv := grpcServer.NewServer(appService)
+
+			return srv, func() {
+				cleanupDB()
+			}, nil
+		}).
+		WithGRPC(func(s *grpc.Server, svc interface{}) {
+			v1.RegisterPaymentServer(s, svc.(v1.PaymentServer))
+		}).
 		Build().
 		Run()
-}
-
-func registerGRPC(s *grpc.Server, srv interface{}) {
-	// TODO: 注册gRPC服务
-	zap.S().Info("gRPC server registered")
-}
-
-func registerGin(e *gin.Engine, srv interface{}) {
-	// TODO: 注册HTTP路由
-	zap.S().Info("HTTP routes registered")
-}
-
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
-
-	cleanupTracer := func() {}
-
-	// 初始化MySQL
-	mysqlConfig := &mysqlpkg.Config{
-		DSN:             config.Data.Database.DSN,
-		MaxIdleConns:    10,
-		MaxOpenConns:    100,
-		ConnMaxLifetime: time.Hour,
-		LogLevel:        4,
-		SlowThreshold:   200 * time.Millisecond,
-	}
-	db, cleanupDB, err := mysqlpkg.NewGORMDB(mysqlConfig, zap.L())
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
-	}
-
-	// 初始化Repository
-	paymentRepo := repository.NewPaymentRepository(db)
-
-	// 初始化Service
-	paymentService := service.NewPaymentService(paymentRepo, zap.L())
-
-	cleanup := func() {
-		zap.S().Info("cleaning up resources...")
-		cleanupDB()
-		cleanupTracer()
-	}
-
-	return paymentService, cleanup, nil
 }
