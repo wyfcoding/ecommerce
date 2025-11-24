@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log/slog"
 	"ecommerce/pkg/app"
 	"ecommerce/pkg/metrics"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"log/slog"
 )
 
 const serviceName = "permission-service"

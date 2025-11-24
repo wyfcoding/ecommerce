@@ -7,10 +7,10 @@ import (
 	grpcServer "ecommerce/internal/payment/interfaces/grpc"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
+	"ecommerce/pkg/databases"
 	"ecommerce/pkg/idgen"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/databases"
 
 	"google.golang.org/grpc"
 )

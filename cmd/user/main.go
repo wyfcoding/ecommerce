@@ -7,9 +7,9 @@ import (
 	usergrpc "ecommerce/internal/user/interfaces/grpc"
 	"ecommerce/pkg/app"
 	"ecommerce/pkg/config"
+	"ecommerce/pkg/databases"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/databases"
 
 	"google.golang.org/grpc"
 )

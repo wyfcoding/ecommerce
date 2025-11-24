@@ -1,8 +1,8 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
 	"ecommerce/internal/multi_channel/application"
 	"ecommerce/internal/multi_channel/infrastructure/persistence"

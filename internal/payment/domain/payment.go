@@ -31,25 +31,25 @@ func (s PaymentStatus) String() string {
 
 // Payment 支付聚合根
 type Payment struct {
-	ID              uint64
-	PaymentNo       string
-	OrderID         uint64
-	OrderNo         string
-	UserID          uint64
-	Amount          int64
-	PaymentMethod   string
-	Status          PaymentStatus
-	TransactionID   string
-	ThirdPartyNo    string
-	CallbackData    string
-	FailureReason   string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	PaidAt          *time.Time
-	CancelledAt     *time.Time
-	RefundedAt      *time.Time
-	Logs            []*PaymentLog
-	Refunds         []*Refund
+	ID            uint64
+	PaymentNo     string
+	OrderID       uint64
+	OrderNo       string
+	UserID        uint64
+	Amount        int64
+	PaymentMethod string
+	Status        PaymentStatus
+	TransactionID string
+	ThirdPartyNo  string
+	CallbackData  string
+	FailureReason string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	PaidAt        *time.Time
+	CancelledAt   *time.Time
+	RefundedAt    *time.Time
+	Logs          []*PaymentLog
+	Refunds       []*Refund
 }
 
 // Refund 退款实体
