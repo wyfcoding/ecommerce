@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package api.file.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/file/v1;v1";
+
+// FileService 定义了文件服务接口
+service FileService {
+  // 上传文件
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
+
+  // 获取文件信息
+  rpc GetFile(GetFileRequest) returns (GetFileResponse);
+
+  // 删除文件
+  rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty);
+
+  // 获取文件列表
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+}
+
+// FileMetadata 文件元数据
+message FileMetadata {
+  uint64 id = 1;
+  string name = 2;
+  int64 size = 3;
+  string type = 4; // IMAGE, VIDEO, DOCUMENT, OTHER
+  string url = 5;
+  string bucket = 6;
+  string checksum = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// UploadFileRequest 上传文件请求
+message UploadFileRequest {
+  string name = 1;
+  int64 size = 2;
+  string type = 3;
+  bytes content = 4;
+}
+
+// UploadFileResponse 上传文件响应
+message UploadFileResponse {
+  FileMetadata file = 1;
+}
+
+// GetFileRequest 获取文件信息请求
+message GetFileRequest {
+  uint64 id = 1;
+}
+
+// GetFileResponse 获取文件信息响应
+message GetFileResponse {
+  FileMetadata file = 1;
+}
+
+// DeleteFileRequest 删除文件请求
+message DeleteFileRequest {
+  uint64 id = 1;
+}
+
+// ListFilesRequest 获取文件列表请求
+message ListFilesRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+// ListFilesResponse 获取文件列表响应
+message ListFilesResponse {
+  repeated FileMetadata files = 1;
+  uint64 total_count = 2;
+}

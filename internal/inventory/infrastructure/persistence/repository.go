@@ -45,6 +45,14 @@ func (r *inventoryRepository) GetBySkuID(ctx context.Context, skuID uint64) (*en
 	return &inventory, nil
 }
 
+func (r *inventoryRepository) GetBySkuIDs(ctx context.Context, skuIDs []uint64) ([]*entity.Inventory, error) {
+	var list []*entity.Inventory
+	if err := r.db.WithContext(ctx).Where("sku_id IN ?", skuIDs).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
 func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*entity.Inventory, int64, error) {
 	var list []*entity.Inventory
 	var total int64

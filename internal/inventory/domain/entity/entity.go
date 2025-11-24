@@ -25,8 +25,9 @@ const (
 // Inventory 库存聚合根
 type Inventory struct {
 	gorm.Model
-	SkuID            uint64          `gorm:"not null;uniqueIndex;comment:SKU ID" json:"sku_id"`
+	SkuID            uint64          `gorm:"not null;index;comment:SKU ID" json:"sku_id"`
 	ProductID        uint64          `gorm:"not null;index;comment:商品ID" json:"product_id"`
+	WarehouseID      uint64          `gorm:"not null;index;comment:仓库ID" json:"warehouse_id"`
 	AvailableStock   int32           `gorm:"not null;default:0;comment:可用库存" json:"available_stock"`
 	LockedStock      int32           `gorm:"not null;default:0;comment:锁定库存" json:"locked_stock"`
 	TotalStock       int32           `gorm:"not null;default:0;comment:总库存" json:"total_stock"`
@@ -49,7 +50,7 @@ type InventoryLog struct {
 }
 
 // NewInventory 创建库存
-func NewInventory(skuID, productID uint64, totalStock, warningThreshold int32) *Inventory {
+func NewInventory(skuID, productID, warehouseID uint64, totalStock, warningThreshold int32) *Inventory {
 	status := InventoryStatusNormal
 	if totalStock == 0 {
 		status = InventoryStatusOutOfStock
@@ -60,6 +61,7 @@ func NewInventory(skuID, productID uint64, totalStock, warningThreshold int32) *
 	return &Inventory{
 		SkuID:            skuID,
 		ProductID:        productID,
+		WarehouseID:      warehouseID,
 		AvailableStock:   totalStock,
 		LockedStock:      0,
 		TotalStock:       totalStock,

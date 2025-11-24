@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package api.message.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "ecommerce/api/message/v1;v1";
+
+// MessageService 定义了消息服务接口
+service MessageService {
+  // 发送消息
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+
+  // 获取消息列表
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+
+  // 标记消息为已读
+  rpc MarkMessageAsRead(MarkMessageAsReadRequest) returns (MarkMessageAsReadResponse);
+
+  // 获取未读消息数
+  rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse);
+}
+
+// Message 消息信息
+message Message {
+  uint64 id = 1;
+  uint64 sender_id = 2;
+  uint64 receiver_id = 3;
+  string type = 4; // SYSTEM, ORDER, PROMO, SERVICE
+  string title = 5;
+  string content = 6;
+  string link = 7;
+  bool is_read = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// SendMessageRequest 发送消息请求
+message SendMessageRequest {
+  uint64 sender_id = 1;
+  uint64 receiver_id = 2;
+  string type = 3;
+  string title = 4;
+  string content = 5;
+  string link = 6;
+}
+
+// SendMessageResponse 发送消息响应
+message SendMessageResponse {
+  uint64 message_id = 1;
+}
+
+// ListMessagesRequest 获取消息列表请求
+message ListMessagesRequest {
+  uint64 user_id = 1;
+  bool include_read = 2; // 是否包含已读消息
+  uint32 page_size = 3;
+  uint32 page_num = 4;
+}
+
+// ListMessagesResponse 获取消息列表响应
+message ListMessagesResponse {
+  repeated Message messages = 1;
+  uint64 total_count = 2;
+}
+
+// MarkMessageAsReadRequest 标记消息为已读请求
+message MarkMessageAsReadRequest {
+  uint64 message_id = 1;
+  uint64 user_id = 2; // 用于权限校验
+}
+
+// MarkMessageAsReadResponse 标记消息为已读响应
+message MarkMessageAsReadResponse {}
+
+// GetUnreadCountRequest 获取未读消息数请求
+message GetUnreadCountRequest {
+  uint64 user_id = 1;
+}
+
+// GetUnreadCountResponse 获取未读消息数响应
+message GetUnreadCountResponse {
+  int64 count = 1;
+}

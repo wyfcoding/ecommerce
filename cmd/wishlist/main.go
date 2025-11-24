@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/wishlist/v1"
 	"ecommerce/internal/wishlist/application"
 	"ecommerce/internal/wishlist/infrastructure/persistence"
+	wishlistgrpc "ecommerce/internal/wishlist/interfaces/grpc"
 	wishlisthttp "ecommerce/internal/wishlist/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.WishlistService)
+	pb.RegisterWishlistServer(s, wishlistgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for wishlist service (DDD)")
 }
 

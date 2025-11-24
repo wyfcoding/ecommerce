@@ -1,17 +1,20 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/order/v1"
 	"ecommerce/internal/order/application"
 	"ecommerce/internal/order/infrastructure/persistence"
+	ordergrpc "ecommerce/internal/order/interfaces/grpc"
 	orderhttp "ecommerce/internal/order/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
 	"ecommerce/pkg/databases"
 	"ecommerce/pkg/idgen"
 	"ecommerce/pkg/logging"
+	"ecommerce/pkg/messagequeue/kafka"
 	"ecommerce/pkg/metrics"
 	"ecommerce/pkg/tracing"
 
@@ -39,6 +42,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.OrderService)
+	pb.RegisterOrderServer(s, ordergrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for order service (DDD)")
 }
 
@@ -78,14 +83,18 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
+	// Initialize Kafka Producer
+	producer := kafka.NewProducer(config.MessageQueue.Kafka, logger)
+
 	// Infrastructure Layer
 	repo := persistence.NewOrderRepository(db)
 
 	// Application Layer
-	service := application.NewOrderService(repo, idGen, slog.Default())
+	service := application.NewOrderService(repo, idGen, producer, slog.Default())
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up order service resources (DDD)...")
+		producer.Close()
 		sqlDB.Close()
 	}
 

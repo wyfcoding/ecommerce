@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/flashsale/v1"
 	"ecommerce/internal/flashsale/application"
 	"ecommerce/internal/flashsale/infrastructure/persistence"
+	flashsalegrpc "ecommerce/internal/flashsale/interfaces/grpc"
 	flashsalehttp "ecommerce/internal/flashsale/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.FlashSaleService)
+	pb.RegisterFlashSaleServer(s, flashsalegrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for flashsale service (DDD)")
 }
 

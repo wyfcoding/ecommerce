@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/inventory/v1"
 	"ecommerce/internal/inventory/application"
 	"ecommerce/internal/inventory/infrastructure/persistence"
+	inventorygrpc "ecommerce/internal/inventory/interfaces/grpc"
 	inventoryhttp "ecommerce/internal/inventory/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.InventoryService)
+	pb.RegisterInventoryServiceServer(s, inventorygrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for inventory service (DDD)")
 }
 
@@ -70,9 +74,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// Infrastructure Layer
 	repo := persistence.NewInventoryRepository(db)
+	warehouseRepo := persistence.NewWarehouseRepository(db)
 
 	// Application Layer
-	service := application.NewInventoryService(repo, slog.Default())
+	service := application.NewInventoryService(repo, warehouseRepo, slog.Default())
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up inventory service resources (DDD)...")

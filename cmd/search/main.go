@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/search/v1"
 	"ecommerce/internal/search/application"
 	"ecommerce/internal/search/infrastructure/persistence"
+	searchgrpc "ecommerce/internal/search/interfaces/grpc"
 	searchhttp "ecommerce/internal/search/interfaces/http"
 	"ecommerce/pkg/app"
 	"ecommerce/pkg/cache"
@@ -39,6 +41,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.SearchService)
+	pb.RegisterSearchServiceServer(s, searchgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for search service (DDD)")
 }
 

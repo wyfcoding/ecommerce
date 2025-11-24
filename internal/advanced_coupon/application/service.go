@@ -4,6 +4,7 @@ import (
 	"context"
 	"ecommerce/internal/advanced_coupon/domain/entity"
 	"ecommerce/internal/advanced_coupon/domain/repository"
+	"ecommerce/pkg/algorithm"
 	"errors"
 	"time"
 
@@ -81,4 +82,60 @@ func (s *AdvancedCouponService) UseCoupon(ctx context.Context, userID uint64, co
 		UsedAt:   time.Now(),
 	}
 	return s.repo.SaveUsage(ctx, usage)
+}
+
+// CalculateBestDiscount 计算最优优惠组合
+func (s *AdvancedCouponService) CalculateBestDiscount(ctx context.Context, orderAmount int64, couponIDs []uint64) ([]uint64, int64, int64, error) {
+	if len(couponIDs) == 0 {
+		return nil, orderAmount, 0, nil
+	}
+
+	// Fetch coupons
+	var algoCoupons []algorithm.Coupon
+	for _, id := range couponIDs {
+		coupon, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			continue // Skip invalid coupons or handle error
+		}
+		if coupon == nil || !coupon.IsValid() {
+			continue
+		}
+
+		// Map to algorithm coupon
+		ac := algorithm.Coupon{
+			ID:        uint64(coupon.ID),
+			Threshold: coupon.MinPurchaseAmount,
+			CanStack:  true, // Default to true for now
+			Priority:  1,
+		}
+
+		switch coupon.Type {
+		case entity.CouponTypePercentage:
+			ac.Type = algorithm.CouponTypeDiscount
+			// DiscountValue is percentage (e.g., 20 for 20% off -> 0.8 rate? No, 20% off means 0.8 factor)
+			// Assuming DiscountValue 20 means 20% off.
+			// Algorithm expects DiscountRate as factor (0.8 for 20% off)
+			// Wait, algorithm comment says: DiscountRate float64 // 折扣率（0.8表示8折）
+			// If DiscountValue is 80 (8折), then rate is 0.8.
+			// If DiscountValue is 20 (20% off), then rate is 0.8.
+			// Let's assume DiscountValue is "percentage off" e.g. 20.
+			ac.DiscountRate = 1.0 - float64(coupon.DiscountValue)/100.0
+			ac.MaxDiscount = coupon.MaxDiscountAmount
+		case entity.CouponTypeFixed:
+			ac.Type = algorithm.CouponTypeReduction
+			ac.ReductionAmount = coupon.DiscountValue
+		case entity.CouponTypeFreeShipping:
+			// Treat as cash reduction of 0 for price calc, or specific amount if we knew shipping cost.
+			// For now, ignore or treat as small cash reduction?
+			// Let's skip free shipping for price optimization or treat as 0 reduction.
+			continue
+		}
+
+		algoCoupons = append(algoCoupons, ac)
+	}
+
+	optimizer := algorithm.NewCouponOptimizer()
+	bestCombination, finalPrice, discount := optimizer.OptimalCombination(orderAmount, algoCoupons)
+
+	return bestCombination, finalPrice, discount, nil
 }

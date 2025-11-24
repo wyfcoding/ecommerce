@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/coupon/v1"
 	"ecommerce/internal/coupon/application"
 	"ecommerce/internal/coupon/infrastructure/persistence"
+	coupongrpc "ecommerce/internal/coupon/interfaces/grpc"
 	couponhttp "ecommerce/internal/coupon/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.CouponService)
+	pb.RegisterCouponServer(s, coupongrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for coupon service (DDD)")
 }
 

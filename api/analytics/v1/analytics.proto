@@ -193,10 +193,14 @@ message GetCustomReportRequest {
 
 // CustomReportResponse 自定义报告响应。
 message CustomReportResponse {
-  repeated map<string, string> rows = 1; // 报告数据行
+  repeated Row rows = 1; // 报告数据行
   int32 total_count = 2;
   int32 next_page_token = 3;
   repeated string columns = 4; // 报告列名
+}
+
+message Row {
+  map<string, string> values = 1;
 }
 
 // GetUserBehaviorPathRequest 获取用户行为路径请求。

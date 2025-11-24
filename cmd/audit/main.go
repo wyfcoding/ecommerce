@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/audit/v1"
 	"ecommerce/internal/audit/application"
 	"ecommerce/internal/audit/infrastructure/persistence"
+	auditgrpc "ecommerce/internal/audit/interfaces/grpc"
 	audithttp "ecommerce/internal/audit/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -39,6 +41,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.AuditService)
+	pb.RegisterAuditServiceServer(s, auditgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for audit service (DDD)")
 }
 

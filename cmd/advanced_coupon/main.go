@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "ecommerce/api/advanced_coupon/v1"
 	"ecommerce/internal/advanced_coupon/application"
 	"ecommerce/internal/advanced_coupon/infrastructure/persistence"
+	coupongrpc "ecommerce/internal/advanced_coupon/interfaces/grpc"
 	couponhttp "ecommerce/internal/advanced_coupon/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
+	"ecommerce/pkg/databases"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/databases"
 	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.AdvancedCouponService)
+	pb.RegisterAdvancedCouponServiceServer(s, coupongrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for advanced_coupon service (DDD)")
 }
 

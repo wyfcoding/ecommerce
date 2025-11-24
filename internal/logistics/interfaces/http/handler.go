@@ -9,8 +9,9 @@ import (
 	"ecommerce/internal/logistics/domain/entity"
 	"ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -28,17 +29,21 @@ func NewHandler(service *application.LogisticsService, logger *slog.Logger) *Han
 // CreateLogistics 创建物流单
 func (h *Handler) CreateLogistics(c *gin.Context) {
 	var req struct {
-		OrderID         uint64 `json:"order_id" binding:"required"`
-		OrderNo         string `json:"order_no" binding:"required"`
-		TrackingNo      string `json:"tracking_no" binding:"required"`
-		Carrier         string `json:"carrier" binding:"required"`
-		CarrierCode     string `json:"carrier_code"`
-		SenderName      string `json:"sender_name" binding:"required"`
-		SenderPhone     string `json:"sender_phone" binding:"required"`
-		SenderAddress   string `json:"sender_address" binding:"required"`
-		ReceiverName    string `json:"receiver_name" binding:"required"`
-		ReceiverPhone   string `json:"receiver_phone" binding:"required"`
-		ReceiverAddress string `json:"receiver_address" binding:"required"`
+		OrderID         uint64  `json:"order_id" binding:"required"`
+		OrderNo         string  `json:"order_no" binding:"required"`
+		TrackingNo      string  `json:"tracking_no" binding:"required"`
+		Carrier         string  `json:"carrier" binding:"required"`
+		CarrierCode     string  `json:"carrier_code"`
+		SenderName      string  `json:"sender_name" binding:"required"`
+		SenderPhone     string  `json:"sender_phone" binding:"required"`
+		SenderAddress   string  `json:"sender_address" binding:"required"`
+		SenderLat       float64 `json:"sender_lat" binding:"required"`
+		SenderLon       float64 `json:"sender_lon" binding:"required"`
+		ReceiverName    string  `json:"receiver_name" binding:"required"`
+		ReceiverPhone   string  `json:"receiver_phone" binding:"required"`
+		ReceiverAddress string  `json:"receiver_address" binding:"required"`
+		ReceiverLat     float64 `json:"receiver_lat" binding:"required"`
+		ReceiverLon     float64 `json:"receiver_lon" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,8 +52,8 @@ func (h *Handler) CreateLogistics(c *gin.Context) {
 	}
 
 	logistics, err := h.service.CreateLogistics(c.Request.Context(), req.OrderID, req.OrderNo, req.TrackingNo, req.Carrier, req.CarrierCode,
-		req.SenderName, req.SenderPhone, req.SenderAddress,
-		req.ReceiverName, req.ReceiverPhone, req.ReceiverAddress)
+		req.SenderName, req.SenderPhone, req.SenderAddress, req.SenderLat, req.SenderLon,
+		req.ReceiverName, req.ReceiverPhone, req.ReceiverAddress, req.ReceiverLat, req.ReceiverLon)
 	if err != nil {
 		h.logger.Error("Failed to create logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create logistics", err.Error())

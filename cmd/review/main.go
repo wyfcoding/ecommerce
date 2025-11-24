@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/review/v1"
 	"ecommerce/internal/review/application"
 	"ecommerce/internal/review/infrastructure/persistence"
+	reviewgrpc "ecommerce/internal/review/interfaces/grpc"
 	reviewhttp "ecommerce/internal/review/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.ReviewService)
+	pb.RegisterReviewServer(s, reviewgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for review service (DDD)")
 }
 

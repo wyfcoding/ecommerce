@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/file/v1"
 	"ecommerce/internal/file/application"
 	"ecommerce/internal/file/infrastructure/persistence"
+	filegrpc "ecommerce/internal/file/interfaces/grpc"
 	filehttp "ecommerce/internal/file/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.FileService)
+	pb.RegisterFileServiceServer(s, filegrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for file service (DDD)")
 }
 

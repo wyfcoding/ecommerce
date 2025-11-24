@@ -3,8 +3,11 @@ package application
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
+	"time"
 
 	"ecommerce/internal/product/domain"
+	"ecommerce/pkg/algorithm"
 )
 
 // ProductApplicationService 商品应用服务
@@ -278,4 +281,45 @@ func (s *ProductApplicationService) DeleteBrand(ctx context.Context, id uint64) 
 // ListBrands 列出品牌
 func (s *ProductApplicationService) ListBrands(ctx context.Context) ([]*domain.Brand, error) {
 	return s.brandRepo.List(ctx)
+}
+
+// CalculateProductPrice 计算商品动态价格
+func (s *ProductApplicationService) CalculateProductPrice(ctx context.Context, productID uint64, userID uint64) (int64, error) {
+	product, err := s.productRepo.FindByID(ctx, uint(productID))
+	if err != nil {
+		return 0, err
+	}
+	if product == nil {
+		return 0, errors.New("product not found")
+	}
+
+	// 初始化定价引擎
+	// 假设最低价为原价的80%，最高价为原价的150%，弹性系数为1.2
+	minPrice := int64(float64(product.Price) * 0.8)
+	maxPrice := int64(float64(product.Price) * 1.5)
+	pe := algorithm.NewPricingEngine(product.Price, minPrice, maxPrice, 1.2)
+
+	// 构建定价因素
+	// 这里使用模拟数据，实际应从各服务获取
+	factors := algorithm.PricingFactors{
+		Stock:           product.Stock,
+		TotalStock:      1000, // 假设总库存
+		DemandLevel:     0.6,  // 模拟需求水平
+		CompetitorPrice: 0,    // 无竞品数据
+		TimeOfDay:       time.Now().Hour(),
+		DayOfWeek:       int(time.Now().Weekday()),
+		IsHoliday:       false,
+		UserLevel:       1, // 默认用户等级
+		SeasonFactor:    1.0,
+	}
+
+	// 如果有用户ID，可以获取用户等级（这里简化处理）
+	if userID > 0 {
+		factors.UserLevel = 5 // 假设登录用户等级为5
+	}
+
+	// 模拟随机需求波动
+	factors.DemandLevel += (rand.Float64() - 0.5) * 0.2
+
+	return pe.CalculatePrice(factors), nil
 }

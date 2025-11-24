@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/ai_model/v1"
 	"ecommerce/internal/ai_model/application"
 	"ecommerce/internal/ai_model/infrastructure/persistence"
+	aimodelgrpc "ecommerce/internal/ai_model/interfaces/grpc"
 	aimodelhttp "ecommerce/internal/ai_model/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -39,6 +41,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.AIModelService)
+	pb.RegisterAIModelServiceServer(s, aimodelgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for ai_model service (DDD)")
 }
 

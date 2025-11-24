@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ecommerce/internal/user/domain"
+	"ecommerce/pkg/algorithm"
 	"ecommerce/pkg/hash"
 	"ecommerce/pkg/idgen"
 	"ecommerce/pkg/jwt"
@@ -18,6 +19,7 @@ type UserApplicationService struct {
 	jwtSecret   string
 	jwtIssuer   string
 	jwtExpiry   time.Duration
+	antiBot     *algorithm.AntiBotDetector
 }
 
 // NewUserApplicationService creates a new UserApplicationService.
@@ -34,6 +36,7 @@ func NewUserApplicationService(
 		jwtSecret:   jwtSecret,
 		jwtIssuer:   jwtIssuer,
 		jwtExpiry:   jwtExpiry,
+		antiBot:     algorithm.NewAntiBotDetector(),
 	}
 }
 
@@ -73,7 +76,17 @@ func (s *UserApplicationService) Register(ctx context.Context, username, passwor
 }
 
 // Login logs in a user and returns a JWT token.
-func (s *UserApplicationService) Login(ctx context.Context, username, password string) (string, int64, error) {
+func (s *UserApplicationService) Login(ctx context.Context, username, password, ip string) (string, int64, error) {
+	// Check for bot behavior
+	behavior := algorithm.UserBehavior{
+		UserID:    0, // Unknown user ID at this point
+		IP:        ip,
+		Timestamp: time.Now(),
+		Action:    "login",
+	}
+	if isBot, _ := s.antiBot.IsBot(behavior); isBot {
+		return "", 0, errors.New("bot detected")
+	}
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
 		return "", 0, err
@@ -92,6 +105,18 @@ func (s *UserApplicationService) Login(ctx context.Context, username, password s
 	}
 
 	return token, time.Now().Add(s.jwtExpiry).Unix(), nil
+}
+
+// CheckBot checks if the request is from a bot.
+func (s *UserApplicationService) CheckBot(ctx context.Context, userID uint64, ip string) bool {
+	behavior := algorithm.UserBehavior{
+		UserID:    userID,
+		IP:        ip,
+		Timestamp: time.Now(),
+		Action:    "check",
+	}
+	isBot, _ := s.antiBot.IsBot(behavior)
+	return isBot
 }
 
 // GetUser gets a user by ID.

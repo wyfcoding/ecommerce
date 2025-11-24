@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/recommendation/v1"
 	"ecommerce/internal/recommendation/application"
 	"ecommerce/internal/recommendation/infrastructure/persistence"
+	recommgrpc "ecommerce/internal/recommendation/interfaces/grpc"
 	recommhttp "ecommerce/internal/recommendation/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.RecommendationService)
+	pb.RegisterRecommendationServiceServer(s, recommgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for recommendation service (DDD)")
 }
 

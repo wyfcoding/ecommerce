@@ -12,6 +12,7 @@ type OrderStatus int
 
 const (
 	PendingPayment  OrderStatus = 1
+	Allocating      OrderStatus = 10 // New state for Saga
 	Paid            OrderStatus = 2
 	Shipped         OrderStatus = 3
 	Delivered       OrderStatus = 4
@@ -25,6 +26,7 @@ const (
 func (s OrderStatus) String() string {
 	names := map[OrderStatus]string{
 		PendingPayment:  "PendingPayment",
+		Allocating:      "Allocating",
 		Paid:            "Paid",
 		Shipped:         "Shipped",
 		Delivered:       "Delivered",

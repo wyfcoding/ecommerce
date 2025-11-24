@@ -40,11 +40,16 @@ type Logistics struct {
 	ReceiverName    string            `gorm:"type:varchar(64);comment:收件人姓名" json:"receiver_name"`
 	ReceiverPhone   string            `gorm:"type:varchar(20);comment:收件人电话" json:"receiver_phone"`
 	ReceiverAddress string            `gorm:"type:varchar(255);comment:收件人地址" json:"receiver_address"`
+	SenderLat       float64           `gorm:"type:decimal(10,6);comment:发件人纬度" json:"sender_lat"`
+	SenderLon       float64           `gorm:"type:decimal(10,6);comment:发件人经度" json:"sender_lon"`
+	ReceiverLat     float64           `gorm:"type:decimal(10,6);comment:收件人纬度" json:"receiver_lat"`
+	ReceiverLon     float64           `gorm:"type:decimal(10,6);comment:收件人经度" json:"receiver_lon"`
 	Status          LogisticsStatus   `gorm:"default:0;comment:状态" json:"status"`
 	CurrentLocation string            `gorm:"type:varchar(255);comment:当前位置" json:"current_location"`
 	EstimatedTime   *time.Time        `gorm:"comment:预计送达时间" json:"estimated_time"`
 	DeliveredAt     *time.Time        `gorm:"comment:签收时间" json:"delivered_at"`
 	Traces          []*LogisticsTrace `gorm:"foreignKey:LogisticsID" json:"traces"`
+	Route           *DeliveryRoute    `gorm:"foreignKey:LogisticsID" json:"route"`
 }
 
 // LogisticsTrace 物流轨迹实体
@@ -57,10 +62,18 @@ type LogisticsTrace struct {
 	Status      string `gorm:"type:varchar(32);comment:状态描述" json:"status"`
 }
 
+// DeliveryRoute 配送路线实体
+type DeliveryRoute struct {
+	gorm.Model
+	LogisticsID uint64  `gorm:"not null;uniqueIndex;comment:物流ID" json:"logistics_id"`
+	RouteData   string  `gorm:"type:text;comment:路线数据(JSON)" json:"route_data"` // Simplified storage
+	Distance    float64 `gorm:"type:decimal(10,2);comment:总距离(米)" json:"distance"`
+}
+
 // NewLogistics 创建物流
 func NewLogistics(orderID uint64, orderNo, trackingNo, carrier, carrierCode string,
-	senderName, senderPhone, senderAddress string,
-	receiverName, receiverPhone, receiverAddress string) *Logistics {
+	senderName, senderPhone, senderAddress string, senderLat, senderLon float64,
+	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64) *Logistics {
 	return &Logistics{
 		OrderID:         orderID,
 		OrderNo:         orderNo,
@@ -70,9 +83,13 @@ func NewLogistics(orderID uint64, orderNo, trackingNo, carrier, carrierCode stri
 		SenderName:      senderName,
 		SenderPhone:     senderPhone,
 		SenderAddress:   senderAddress,
+		SenderLat:       senderLat,
+		SenderLon:       senderLon,
 		ReceiverName:    receiverName,
 		ReceiverPhone:   receiverPhone,
 		ReceiverAddress: receiverAddress,
+		ReceiverLat:     receiverLat,
+		ReceiverLon:     receiverLon,
 		Status:          LogisticsStatusPending,
 	}
 }

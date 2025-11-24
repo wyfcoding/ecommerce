@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/analytics/v1"
 	"ecommerce/internal/analytics/application"
 	"ecommerce/internal/analytics/infrastructure/persistence"
+	analyticsgrpc "ecommerce/internal/analytics/interfaces/grpc"
 	analyticshttp "ecommerce/internal/analytics/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -39,6 +41,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.AnalyticsService)
+	pb.RegisterAnalyticsServiceServer(s, analyticsgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for analytics service (DDD)")
 }
 

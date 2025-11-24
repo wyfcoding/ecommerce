@@ -42,7 +42,7 @@ func (s *Server) RegisterByPassword(ctx context.Context, req *pb.RegisterByPassw
 
 // LoginByPassword logs in a user.
 func (s *Server) LoginByPassword(ctx context.Context, req *pb.LoginByPasswordRequest) (*pb.LoginByPasswordResponse, error) {
-	token, expiresAt, err := s.app.Login(ctx, req.Username, req.Password)
+	token, expiresAt, err := s.app.Login(ctx, req.Username, req.Password, "127.0.0.1")
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (s *Server) ListAddresses(ctx context.Context, req *pb.ListAddressesRequest
 // VerifyPassword verifies password (internal).
 func (s *Server) VerifyPassword(ctx context.Context, req *pb.VerifyPasswordRequest) (*pb.VerifyPasswordResponse, error) {
 	// Reuse Login logic but return boolean
-	_, _, err := s.app.Login(ctx, req.Username, req.Password)
+	_, _, err := s.app.Login(ctx, req.Username, req.Password, "127.0.0.1")
 	if err != nil {
 		return &pb.VerifyPasswordResponse{Success: false}, nil
 	}

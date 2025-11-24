@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "ecommerce/api/admin/v1"
 	"ecommerce/internal/admin/application"
 	"ecommerce/internal/admin/infrastructure/persistence"
+	admingrpc "ecommerce/internal/admin/interfaces/grpc"
 	adminhttp "ecommerce/internal/admin/interfaces/http"
 	"ecommerce/pkg/app"
 	"ecommerce/pkg/cache"
 	configpkg "ecommerce/pkg/config"
+	"ecommerce/pkg/databases"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/databases"
 	"ecommerce/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +45,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.AdminService)
+	pb.RegisterAdminServiceServer(s, admingrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for admin service (DDD)")
 }
 

@@ -7,8 +7,9 @@ import (
 	"ecommerce/internal/inventory/application"
 	"ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -28,6 +29,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 	var req struct {
 		SkuID            uint64 `json:"sku_id" binding:"required"`
 		ProductID        uint64 `json:"product_id" binding:"required"`
+		WarehouseID      uint64 `json:"warehouse_id" binding:"required"`
 		TotalStock       int32  `json:"total_stock" binding:"required"`
 		WarningThreshold int32  `json:"warning_threshold"`
 	}
@@ -37,7 +39,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		return
 	}
 
-	inventory, err := h.service.CreateInventory(c.Request.Context(), req.SkuID, req.ProductID, req.TotalStock, req.WarningThreshold)
+	inventory, err := h.service.CreateInventory(c.Request.Context(), req.SkuID, req.ProductID, req.WarehouseID, req.TotalStock, req.WarningThreshold)
 	if err != nil {
 		h.logger.Error("Failed to create inventory", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create inventory", err.Error())

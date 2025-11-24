@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/cart/v1"
 	"ecommerce/internal/cart/application"
 	"ecommerce/internal/cart/infrastructure/persistence"
+	cartgrpc "ecommerce/internal/cart/interfaces/grpc"
 	carthttp "ecommerce/internal/cart/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.CartService)
+	pb.RegisterCartServer(s, cartgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for cart service (DDD)")
 }
 

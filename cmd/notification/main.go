@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/notification/v1"
 	"ecommerce/internal/notification/application"
 	"ecommerce/internal/notification/infrastructure/persistence"
+	notifgrpc "ecommerce/internal/notification/interfaces/grpc"
 	notifhttp "ecommerce/internal/notification/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.NotificationService)
+	pb.RegisterNotificationServiceServer(s, notifgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for notification service (DDD)")
 }
 

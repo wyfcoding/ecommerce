@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/aftersales/v1"
 	"ecommerce/internal/aftersales/application"
 	"ecommerce/internal/aftersales/infrastructure/persistence"
+	aftersalesgrpc "ecommerce/internal/aftersales/interfaces/grpc"
 	aftersaleshttp "ecommerce/internal/aftersales/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -39,6 +41,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.AfterSalesService)
+	pb.RegisterAftersalesServiceServer(s, aftersalesgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for aftersales service (DDD)")
 }
 

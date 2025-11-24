@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/logistics/v1"
 	"ecommerce/internal/logistics/application"
 	"ecommerce/internal/logistics/infrastructure/persistence"
+	logisticsgrpc "ecommerce/internal/logistics/interfaces/grpc"
 	logisticshttp "ecommerce/internal/logistics/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.LogisticsService)
+	pb.RegisterLogisticsServiceServer(s, logisticsgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for logistics service (DDD)")
 }
 

@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/content_moderation/v1"
 	"ecommerce/internal/content_moderation/application"
 	"ecommerce/internal/content_moderation/infrastructure/persistence"
+	moderationgrpc "ecommerce/internal/content_moderation/interfaces/grpc"
 	moderationhttp "ecommerce/internal/content_moderation/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.ModerationService)
+	pb.RegisterContentModerationServer(s, moderationgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for content_moderation service (DDD)")
 }
 

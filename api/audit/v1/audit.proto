@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package api.audit.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/audit/v1;v1";
+
+// AuditService 定义了审计服务接口
+service AuditService {
+  // 记录审计事件
+  rpc LogEvent(LogEventRequest) returns (google.protobuf.Empty);
+
+  // 查询审计日志
+  rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
+
+  // --- 策略管理 ---
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (google.protobuf.Empty);
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+
+  // --- 报告管理 ---
+  rpc CreateReport(CreateReportRequest) returns (CreateReportResponse);
+  rpc GenerateReport(GenerateReportRequest) returns (google.protobuf.Empty);
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
+}
+
+// AuditLog 审计日志
+message AuditLog {
+  uint64 id = 1;
+  string audit_no = 2;
+  uint64 user_id = 3;
+  string username = 4;
+  string event_type = 5;
+  string level = 6;
+  string module = 7;
+  string action = 8;
+  string resource_type = 9;
+  string resource_id = 10;
+  string old_value = 11;
+  string new_value = 12;
+  string ip = 13;
+  string user_agent = 14;
+  string status = 15;
+  string error_msg = 16;
+  int64 duration = 17;
+  google.protobuf.Timestamp timestamp = 18;
+}
+
+// LogEventRequest 记录审计事件请求
+message LogEventRequest {
+  uint64 user_id = 1;
+  string username = 2;
+  string event_type = 3;
+  string module = 4;
+  string action = 5;
+  // Optional fields
+  string resource_type = 6;
+  string resource_id = 7;
+  string old_value = 8;
+  string new_value = 9;
+  string ip = 10;
+  string user_agent = 11;
+  int64 duration = 12;
+  string error_msg = 13;
+}
+
+// QueryLogsRequest 查询审计日志请求
+message QueryLogsRequest {
+  uint64 user_id = 1;
+  string module = 2;
+  string event_type = 3;
+  google.protobuf.Timestamp start_time = 4;
+  google.protobuf.Timestamp end_time = 5;
+  string status = 6;
+  uint32 page_size = 7;
+  uint32 page_num = 8;
+}
+
+// QueryLogsResponse 查询审计日志响应
+message QueryLogsResponse {
+  repeated AuditLog logs = 1;
+  uint64 total_count = 2;
+}
+
+// AuditPolicy 审计策略
+message AuditPolicy {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string event_types = 4;
+  repeated string modules = 5;
+  bool enabled = 6;
+  int32 retention_days = 7;
+}
+
+// CreatePolicyRequest 创建审计策略请求
+message CreatePolicyRequest {
+  string name = 1;
+  string description = 2;
+}
+
+// CreatePolicyResponse 创建审计策略响应
+message CreatePolicyResponse {
+  AuditPolicy policy = 1;
+}
+
+// UpdatePolicyRequest 更新审计策略请求
+message UpdatePolicyRequest {
+  uint64 id = 1;
+  repeated string event_types = 2;
+  repeated string modules = 3;
+  bool enabled = 4;
+}
+
+// ListPoliciesRequest 获取审计策略列表请求
+message ListPoliciesRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+// ListPoliciesResponse 获取审计策略列表响应
+message ListPoliciesResponse {
+  repeated AuditPolicy policies = 1;
+  uint64 total_count = 2;
+}
+
+// AuditReport 审计报告
+message AuditReport {
+  uint64 id = 1;
+  string report_no = 2;
+  string title = 3;
+  string description = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp generated_at = 7;
+}
+
+// CreateReportRequest 创建审计报告请求
+message CreateReportRequest {
+  string title = 1;
+  string description = 2;
+}
+
+// CreateReportResponse 创建审计报告响应
+message CreateReportResponse {
+  AuditReport report = 1;
+}
+
+// GenerateReportRequest 生成报告内容请求
+message GenerateReportRequest {
+  uint64 id = 1;
+}
+
+// ListReportsRequest 获取审计报告列表请求
+message ListReportsRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+// ListReportsResponse 获取审计报告列表响应
+message ListReportsResponse {
+  repeated AuditReport reports = 1;
+  uint64 total_count = 2;
+}
