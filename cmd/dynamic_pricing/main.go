@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/dynamic_pricing/v1"
 	"ecommerce/internal/dynamic_pricing/application"
 	"ecommerce/internal/dynamic_pricing/infrastructure/persistence"
+	pricinggrpc "ecommerce/internal/dynamic_pricing/interfaces/grpc"
 	pricinghttp "ecommerce/internal/dynamic_pricing/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.DynamicPricingService)
+	pb.RegisterDynamicPricingServiceServer(s, pricinggrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for dynamic_pricing service (DDD)")
 }
 

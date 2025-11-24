@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package api.financial_settlement.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/financial_settlement/v1;v1";
+
+// FinancialSettlementService 财务结算服务定义了所有与财务结算相关的RPC接口。
+service FinancialSettlementService {
+  // CreateSettlement 创建结算单
+  rpc CreateSettlement(CreateSettlementRequest) returns (CreateSettlementResponse);
+  
+  // ApproveSettlement 审核结算单
+  rpc ApproveSettlement(ApproveSettlementRequest) returns (google.protobuf.Empty);
+  
+  // RejectSettlement 拒绝结算单
+  rpc RejectSettlement(RejectSettlementRequest) returns (google.protobuf.Empty);
+  
+  // GetSettlement 获取结算单详情
+  rpc GetSettlement(GetSettlementRequest) returns (GetSettlementResponse);
+  
+  // ListSettlements 获取结算单列表
+  rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
+  
+  // ProcessPayment 处理支付
+  rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
+}
+
+// Settlement 结算单
+message Settlement {
+  uint64 id = 1;
+  uint64 seller_id = 2;
+  string period = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+  int64 total_sales_amount = 6;
+  int64 commission_amount = 7;
+  int64 rebate_amount = 8;
+  int64 other_fees = 9;
+  int64 final_amount = 10;
+  string status = 11;
+  string approved_by = 12;
+  google.protobuf.Timestamp approved_at = 13;
+  string rejection_reason = 14;
+  google.protobuf.Timestamp created_at = 15;
+}
+
+message CreateSettlementRequest {
+  uint64 seller_id = 1;
+  string period = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+}
+
+message CreateSettlementResponse {
+  Settlement settlement = 1;
+}
+
+message ApproveSettlementRequest {
+  uint64 id = 1;
+  string approved_by = 2;
+}
+
+message RejectSettlementRequest {
+  uint64 id = 1;
+  string reason = 2;
+}
+
+message GetSettlementRequest {
+  uint64 id = 1;
+}
+
+message GetSettlementResponse {
+  Settlement settlement = 1;
+}
+
+message ListSettlementsRequest {
+  uint64 seller_id = 1;
+  uint32 page_size = 2;
+  uint32 page_num = 3;
+}
+
+message ListSettlementsResponse {
+  repeated Settlement settlements = 1;
+  uint64 total_count = 2;
+}
+
+// SettlementPayment 结算支付
+message SettlementPayment {
+  uint64 id = 1;
+  uint64 settlement_id = 2;
+  uint64 seller_id = 3;
+  int64 amount = 4;
+  string status = 5;
+  string transaction_id = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ProcessPaymentRequest {
+  uint64 settlement_id = 1;
+}
+
+message ProcessPaymentResponse {
+  SettlementPayment payment = 1;
+}

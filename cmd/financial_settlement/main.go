@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/financial_settlement/v1"
 	"ecommerce/internal/financial_settlement/application"
 	"ecommerce/internal/financial_settlement/infrastructure/persistence"
+	settlementgrpc "ecommerce/internal/financial_settlement/interfaces/grpc"
 	settlementhttp "ecommerce/internal/financial_settlement/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.FinancialSettlementService)
+	pb.RegisterFinancialSettlementServiceServer(s, settlementgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for financial_settlement service (DDD)")
 }
 

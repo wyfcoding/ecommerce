@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "ecommerce/api/data_processing/v1"
-	"ecommerce/internal/data_processing/application"
-	"ecommerce/internal/data_processing/infrastructure/persistence"
-	processinggrpc "ecommerce/internal/data_processing/interfaces/grpc"
-	processinghttp "ecommerce/internal/data_processing/interfaces/http"
+	pb "ecommerce/api/groupbuy/v1"
+	"ecommerce/internal/groupbuy/application"
+	"ecommerce/internal/groupbuy/infrastructure/persistence"
+	groupbuygrpc "ecommerce/internal/groupbuy/interfaces/grpc"
+	groupbuyhttp "ecommerce/internal/groupbuy/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
 	"ecommerce/pkg/databases"
+	"ecommerce/pkg/idgen"
 	"ecommerce/pkg/logging"
 	"ecommerce/pkg/metrics"
 	"ecommerce/pkg/tracing"
@@ -24,7 +25,7 @@ type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-const serviceName = "data_processing-service"
+const serviceName = "groupbuy-service"
 
 func main() {
 	app.NewBuilder(serviceName).
@@ -34,25 +35,25 @@ func main() {
 		WithGin(registerGin).
 		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
 		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9106").
+		WithMetrics("9110").
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.DataProcessingService)
-	pb.RegisterDataProcessingServer(s, processinggrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for data_processing service (DDD)")
+	service := srv.(*application.GroupbuyService)
+	pb.RegisterGroupbuyServiceServer(s, groupbuygrpc.NewServer(service))
+	slog.Default().Info("gRPC server registered for groupbuy service (DDD)")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.DataProcessingService)
-	handler := processinghttp.NewHandler(service, slog.Default())
+	service := srv.(*application.GroupbuyService)
+	handler := groupbuyhttp.NewHandler(service, slog.Default())
 
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for data_processing service (DDD)")
+	slog.Default().Info("HTTP routes registered for groupbuy service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
@@ -73,13 +74,19 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// Infrastructure Layer
-	repo := persistence.NewDataProcessingRepository(db)
+	repo := persistence.NewGroupbuyRepository(db)
+
+	// ID Generator
+	idGenerator, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{MachineID: 1}) // Node ID 1 for now
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create id generator: %w", err)
+	}
 
 	// Application Layer
-	service := application.NewDataProcessingService(repo, slog.Default())
+	service := application.NewGroupbuyService(repo, idGenerator, slog.Default())
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up data_processing service resources (DDD)...")
+		slog.Default().Info("cleaning up groupbuy service resources (DDD)...")
 		sqlDB.Close()
 	}
 

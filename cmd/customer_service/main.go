@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/customer_service/v1"
 	"ecommerce/internal/customer_service/application"
 	"ecommerce/internal/customer_service/infrastructure/persistence"
+	csgrpc "ecommerce/internal/customer_service/interfaces/grpc"
 	cshttp "ecommerce/internal/customer_service/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.CustomerService)
+	pb.RegisterCustomerServiceServer(s, csgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for customer_service service (DDD)")
 }
 

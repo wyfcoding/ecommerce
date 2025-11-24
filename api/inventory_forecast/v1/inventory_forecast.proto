@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package api.inventory_forecast.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/inventory_forecast/v1;v1";
+
+// InventoryForecastService 定义了库存预测服务接口
+service InventoryForecastService {
+  // GenerateForecast 生成销售预测
+  rpc GenerateForecast(GenerateForecastRequest) returns (GenerateForecastResponse);
+
+  // GetForecast 获取预测
+  rpc GetForecast(GetForecastRequest) returns (GetForecastResponse);
+
+  // ListWarnings 获取预警列表
+  rpc ListWarnings(ListWarningsRequest) returns (ListWarningsResponse);
+
+  // ListSlowMovingItems 获取滞销品列表
+  rpc ListSlowMovingItems(ListSlowMovingItemsRequest) returns (ListSlowMovingItemsResponse);
+
+  // ListReplenishmentSuggestions 获取补货建议
+  rpc ListReplenishmentSuggestions(ListReplenishmentSuggestionsRequest) returns (ListReplenishmentSuggestionsResponse);
+
+  // ListStockoutRisks 获取缺货风险
+  rpc ListStockoutRisks(ListStockoutRisksRequest) returns (ListStockoutRisksResponse);
+}
+
+// DailyForecast 日预测
+message DailyForecast {
+  google.protobuf.Timestamp date = 1;
+  int32 quantity = 2;
+  double confidence = 3;
+}
+
+// SalesForecast 销售预测
+message SalesForecast {
+  uint64 id = 1;
+  uint64 sku_id = 2;
+  int32 average_daily_sales = 3;
+  double trend_rate = 4;
+  repeated DailyForecast predictions = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message GenerateForecastRequest {
+  uint64 sku_id = 1;
+}
+
+message GenerateForecastResponse {
+  SalesForecast forecast = 1;
+}
+
+message GetForecastRequest {
+  uint64 sku_id = 1;
+}
+
+message GetForecastResponse {
+  SalesForecast forecast = 1;
+}
+
+// InventoryWarning 库存预警
+message InventoryWarning {
+  uint64 id = 1;
+  uint64 sku_id = 2;
+  int32 current_stock = 3;
+  int32 warning_threshold = 4;
+  int32 days_until_empty = 5;
+  google.protobuf.Timestamp estimated_empty_date = 6;
+  bool need_replenishment = 7;
+  int32 recommended_replenishment_qty = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message ListWarningsRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+message ListWarningsResponse {
+  repeated InventoryWarning warnings = 1;
+  uint64 total_count = 2;
+}
+
+// SlowMovingItem 滞销品
+message SlowMovingItem {
+  uint64 id = 1;
+  uint64 sku_id = 2;
+  string product_name = 3;
+  int32 current_stock = 4;
+  double daily_sales_rate = 5;
+  int32 days_in_stock = 6;
+  double turnover_rate = 7;
+  string recommend_action = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message ListSlowMovingItemsRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+message ListSlowMovingItemsResponse {
+  repeated SlowMovingItem items = 1;
+  uint64 total_count = 2;
+}
+
+// ReplenishmentSuggestion 补货建议
+message ReplenishmentSuggestion {
+  uint64 id = 1;
+  uint64 sku_id = 2;
+  string product_name = 3;
+  int32 current_stock = 4;
+  int32 suggested_qty = 5;
+  string priority = 6;
+  string reason = 7;
+  int64 estimated_cost = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message ListReplenishmentSuggestionsRequest {
+  string priority = 1;
+  uint32 page_size = 2;
+  uint32 page_num = 3;
+}
+
+message ListReplenishmentSuggestionsResponse {
+  repeated ReplenishmentSuggestion suggestions = 1;
+  uint64 total_count = 2;
+}
+
+// StockoutRisk 缺货风险
+message StockoutRisk {
+  uint64 id = 1;
+  uint64 sku_id = 2;
+  int32 current_stock = 3;
+  int32 days_until_stockout = 4;
+  google.protobuf.Timestamp estimated_stockout_date = 5;
+  string risk_level = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message ListStockoutRisksRequest {
+  string level = 1;
+  uint32 page_size = 2;
+  uint32 page_num = 3;
+}
+
+message ListStockoutRisksResponse {
+  repeated StockoutRisk risks = 1;
+  uint64 total_count = 2;
+}

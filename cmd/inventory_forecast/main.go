@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/inventory_forecast/v1"
 	"ecommerce/internal/inventory_forecast/application"
 	"ecommerce/internal/inventory_forecast/infrastructure/persistence"
+	forecastgrpc "ecommerce/internal/inventory_forecast/interfaces/grpc"
 	forecasthttp "ecommerce/internal/inventory_forecast/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.InventoryForecastService)
+	pb.RegisterInventoryForecastServiceServer(s, forecastgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for inventory_forecast service (DDD)")
 }
 

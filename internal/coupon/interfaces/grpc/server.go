@@ -146,7 +146,7 @@ func (s *Server) toProto(c *entity.Coupon) *pb.CouponInfo {
 		Code:         c.CouponNo,
 		Name:         c.Name,
 		Description:  c.Description,
-		DiscountType: string(c.Type), // Type is int, need conversion logic or proto change. Proto expects string.
+		DiscountType: strconv.Itoa(int(c.Type)),
 		// Wait, entity.CouponType is int. Proto DiscountType is string.
 		// We should map int to string or change proto.
 		// For now, let's just cast to string (which will be garbage char) or use Sprintf.

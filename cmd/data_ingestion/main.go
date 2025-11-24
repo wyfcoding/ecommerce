@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log/slog"
 	"fmt"
+	"log/slog"
 
+	pb "ecommerce/api/data_ingestion/v1"
 	"ecommerce/internal/data_ingestion/application"
 	"ecommerce/internal/data_ingestion/infrastructure/persistence"
+	ingestiongrpc "ecommerce/internal/data_ingestion/interfaces/grpc"
 	ingestionhttp "ecommerce/internal/data_ingestion/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.DataIngestionService)
+	pb.RegisterDataIngestionServer(s, ingestiongrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for data_ingestion service (DDD)")
 }
 

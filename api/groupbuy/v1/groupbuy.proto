@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package api.groupbuy.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/groupbuy/v1;v1";
+
+// GroupbuyService 拼团服务定义了所有与拼团相关的RPC接口。
+service GroupbuyService {
+  // CreateGroupbuy 创建拼团活动
+  rpc CreateGroupbuy(CreateGroupbuyRequest) returns (CreateGroupbuyResponse);
+  
+  // ListGroupbuys 获取拼团活动列表
+  rpc ListGroupbuys(ListGroupbuysRequest) returns (ListGroupbuysResponse);
+  
+  // InitiateTeam 发起拼团
+  rpc InitiateTeam(InitiateTeamRequest) returns (InitiateTeamResponse);
+  
+  // JoinTeam 加入拼团
+  rpc JoinTeam(JoinTeamRequest) returns (JoinTeamResponse);
+  
+  // GetTeamDetails 获取团队详情
+  rpc GetTeamDetails(GetTeamDetailsRequest) returns (GetTeamDetailsResponse);
+}
+
+// Groupbuy 拼团活动
+message Groupbuy {
+  uint64 id = 1;
+  string name = 2;
+  uint64 product_id = 3;
+  uint64 sku_id = 4;
+  uint64 original_price = 5;
+  uint64 group_price = 6;
+  int32 min_people = 7;
+  int32 max_people = 8;
+  int32 total_stock = 9;
+  int32 sold_count = 10;
+  google.protobuf.Timestamp start_time = 11;
+  google.protobuf.Timestamp end_time = 12;
+  int32 status = 13;
+  string description = 14;
+}
+
+message CreateGroupbuyRequest {
+  string name = 1;
+  uint64 product_id = 2;
+  uint64 sku_id = 3;
+  uint64 original_price = 4;
+  uint64 group_price = 5;
+  int32 min_people = 6;
+  int32 max_people = 7;
+  int32 total_stock = 8;
+  google.protobuf.Timestamp start_time = 9;
+  google.protobuf.Timestamp end_time = 10;
+}
+
+message CreateGroupbuyResponse {
+  Groupbuy groupbuy = 1;
+}
+
+message ListGroupbuysRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+message ListGroupbuysResponse {
+  repeated Groupbuy groupbuys = 1;
+  uint64 total_count = 2;
+}
+
+// GroupbuyTeam 拼团团队
+message GroupbuyTeam {
+  uint64 id = 1;
+  uint64 groupbuy_id = 2;
+  string team_no = 3;
+  uint64 leader_id = 4;
+  int32 current_people = 5;
+  int32 max_people = 6;
+  int32 status = 7;
+  google.protobuf.Timestamp expire_at = 8;
+  google.protobuf.Timestamp success_at = 9;
+}
+
+// GroupbuyOrder 拼团订单
+message GroupbuyOrder {
+  uint64 id = 1;
+  uint64 groupbuy_id = 2;
+  uint64 team_id = 3;
+  string team_no = 4;
+  uint64 user_id = 5;
+  uint64 product_id = 6;
+  uint64 sku_id = 7;
+  uint64 price = 8;
+  int32 quantity = 9;
+  uint64 total_amount = 10;
+  bool is_leader = 11;
+  int32 status = 12;
+  google.protobuf.Timestamp paid_at = 13;
+  google.protobuf.Timestamp refunded_at = 14;
+}
+
+message InitiateTeamRequest {
+  uint64 groupbuy_id = 1;
+  uint64 user_id = 2;
+}
+
+message InitiateTeamResponse {
+  GroupbuyTeam team = 1;
+  GroupbuyOrder order = 2;
+}
+
+message JoinTeamRequest {
+  string team_no = 1;
+  uint64 user_id = 2;
+}
+
+message JoinTeamResponse {
+  GroupbuyOrder order = 1;
+}
+
+message GetTeamDetailsRequest {
+  uint64 team_id = 1;
+}
+
+message GetTeamDetailsResponse {
+  GroupbuyTeam team = 1;
+  repeated GroupbuyOrder orders = 2;
+}

@@ -2,57 +2,136 @@ syntax = "proto3";
 
 package api.inventory.v1;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 option go_package = "ecommerce/api/inventory/v1;v1";
 
 // InventoryService 定义了库存服务接口
 service InventoryService {
-  // 扣减库存
-  rpc DeductStock(DeductStockRequest) returns (DeductStockResponse);
+  // CreateInventory 创建库存
+  rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
 
-  // 释放库存 (例如，订单取消或支付超时)
-  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
+  // GetInventory 获取库存
+  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
 
-  // 获取库存数量
-  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+  // AddStock 增加库存
+  rpc AddStock(AddStockRequest) returns (google.protobuf.Empty);
+
+  // DeductStock 扣减库存
+  rpc DeductStock(DeductStockRequest) returns (google.protobuf.Empty);
+
+  // LockStock 锁定库存
+  rpc LockStock(LockStockRequest) returns (google.protobuf.Empty);
+
+  // UnlockStock 解锁库存
+  rpc UnlockStock(UnlockStockRequest) returns (google.protobuf.Empty);
+
+  // ConfirmDeduction 确认扣减
+  rpc ConfirmDeduction(ConfirmDeductionRequest) returns (google.protobuf.Empty);
+
+  // ListInventories 获取库存列表
+  rpc ListInventories(ListInventoriesRequest) returns (ListInventoriesResponse);
+
+  // GetInventoryLogs 获取库存日志
+  rpc GetInventoryLogs(GetInventoryLogsRequest) returns (GetInventoryLogsResponse);
 }
 
-// StockItem 库存项
-message StockItem {
+// Inventory 库存信息
+message Inventory {
+  uint64 id = 1;
+  uint64 sku_id = 2;
+  uint64 product_id = 3;
+  uint64 warehouse_id = 4;
+  int32 available_stock = 5;
+  int32 locked_stock = 6;
+  int32 total_stock = 7;
+  int32 status = 8;
+  int32 warning_threshold = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateInventoryRequest {
   uint64 sku_id = 1;
-  uint32 quantity = 2;
-  // ... 其他库存属性，如仓库ID
+  uint64 product_id = 2;
+  uint64 warehouse_id = 3;
+  int32 total_stock = 4;
+  int32 warning_threshold = 5;
 }
 
-// DeductStockRequest 扣减库存请求
+message CreateInventoryResponse {
+  Inventory inventory = 1;
+}
+
+message GetInventoryRequest {
+  uint64 sku_id = 1;
+}
+
+message GetInventoryResponse {
+  Inventory inventory = 1;
+}
+
+message AddStockRequest {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+  string reason = 3;
+}
+
 message DeductStockRequest {
-  repeated StockItem items = 1;
-  string order_id = 2; // 关联的订单ID，用于幂等性或日志
-}
-
-// DeductStockResponse 扣减库存响应
-message DeductStockResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-// ReleaseStockRequest 释放库存请求
-message ReleaseStockRequest {
-  repeated StockItem items = 1;
-  string order_id = 2; // 关联的订单ID
-}
-
-// ReleaseStockResponse 释放库存响应
-message ReleaseStockResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-// GetStockRequest 获取库存请求
-message GetStockRequest {
   uint64 sku_id = 1;
+  int32 quantity = 2;
+  string reason = 3;
 }
 
-// GetStockResponse 获取库存响应
-message GetStockResponse {
-  uint32 quantity = 1;
+message LockStockRequest {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+  string reason = 3;
+}
+
+message UnlockStockRequest {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+  string reason = 3;
+}
+
+message ConfirmDeductionRequest {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+  string reason = 3;
+}
+
+message ListInventoriesRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+message ListInventoriesResponse {
+  repeated Inventory inventories = 1;
+  uint64 total_count = 2;
+}
+
+message GetInventoryLogsRequest {
+  uint64 inventory_id = 1;
+  uint32 page_size = 2;
+  uint32 page_num = 3;
+}
+
+message InventoryLog {
+  uint64 id = 1;
+  uint64 inventory_id = 2;
+  string action = 3;
+  int32 change_quantity = 4;
+  int32 old_available = 5;
+  int32 new_available = 6;
+  int32 old_locked = 7;
+  int32 new_locked = 8;
+  string reason = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message GetInventoryLogsResponse {
+  repeated InventoryLog logs = 1;
+  uint64 total_count = 2;
 }

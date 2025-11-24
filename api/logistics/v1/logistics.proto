@@ -2,40 +2,159 @@ syntax = "proto3";
 
 package api.logistics.v1;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 option go_package = "ecommerce/api/logistics/v1;v1";
 
 // LogisticsService 定义了物流服务接口
 service LogisticsService {
-  // 计算运费
-  rpc CalculateShippingCost(CalculateShippingCostRequest) returns (CalculateShippingCostResponse);
+  // CreateLogistics 创建物流单
+  rpc CreateLogistics(CreateLogisticsRequest) returns (CreateLogisticsResponse);
+
+  // GetLogistics 获取物流信息
+  rpc GetLogistics(GetLogisticsRequest) returns (GetLogisticsResponse);
+
+  // GetLogisticsByTrackingNo 根据运单号获取物流信息
+  rpc GetLogisticsByTrackingNo(GetLogisticsByTrackingNoRequest) returns (GetLogisticsResponse);
+
+  // UpdateStatus 更新物流状态
+  rpc UpdateStatus(UpdateStatusRequest) returns (google.protobuf.Empty);
+
+  // AddTrace 添加物流轨迹
+  rpc AddTrace(AddTraceRequest) returns (google.protobuf.Empty);
+
+  // SetEstimatedTime 设置预计送达时间
+  rpc SetEstimatedTime(SetEstimatedTimeRequest) returns (google.protobuf.Empty);
+
+  // ListLogistics 获取物流列表
+  rpc ListLogistics(ListLogisticsRequest) returns (ListLogisticsResponse);
+
+  // OptimizeDeliveryRoute 优化配送路线
+  rpc OptimizeDeliveryRoute(OptimizeDeliveryRouteRequest) returns (OptimizeDeliveryRouteResponse);
 }
 
-// ItemInfo 商品信息
-message ItemInfo {
-  uint64 product_id = 1;
-  uint32 quantity = 2;
-  // ... 其他可能影响运费的商品属性，如重量、体积
+// Logistics 物流信息
+message Logistics {
+  uint64 id = 1;
+  uint64 order_id = 2;
+  string order_no = 3;
+  string tracking_no = 4;
+  string carrier = 5;
+  string carrier_code = 6;
+  string sender_name = 7;
+  string sender_phone = 8;
+  string sender_address = 9;
+  string receiver_name = 10;
+  string receiver_phone = 11;
+  string receiver_address = 12;
+  double sender_lat = 13;
+  double sender_lon = 14;
+  double receiver_lat = 15;
+  double receiver_lon = 16;
+  int32 status = 17;
+  string current_location = 18;
+  google.protobuf.Timestamp estimated_time = 19;
+  google.protobuf.Timestamp delivered_at = 20;
+  repeated LogisticsTrace traces = 21;
+  DeliveryRoute route = 22;
+  google.protobuf.Timestamp created_at = 23;
+  google.protobuf.Timestamp updated_at = 24;
 }
 
-// AddressInfo 地址信息
-message AddressInfo {
-  string province = 1;
-  string city = 2;
-  string district = 3;
-  // ... 其他地址信息
+// LogisticsTrace 物流轨迹
+message LogisticsTrace {
+  uint64 id = 1;
+  uint64 logistics_id = 2;
+  string tracking_no = 3;
+  string location = 4;
+  string description = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
 }
 
-// CalculateShippingCostRequest 计算运费请求
-message CalculateShippingCostRequest {
-  AddressInfo origin_address = 1; // 发货地址
-  AddressInfo destination_address = 2; // 收货地址
-  repeated ItemInfo items = 3; // 订单商品列表
-  // ... 其他可能影响运费的因素，如配送方式、是否保价
+// DeliveryRoute 配送路线
+message DeliveryRoute {
+  uint64 id = 1;
+  uint64 logistics_id = 2;
+  string route_data = 3;
+  double distance = 4;
 }
 
-// CalculateShippingCostResponse 计算运费响应
-message CalculateShippingCostResponse {
-  uint64 shipping_cost = 1; // 运费 (分)
-  string currency = 2; // 货币单位，如 CNY
-  // ... 其他运费明细
+message CreateLogisticsRequest {
+  uint64 order_id = 1;
+  string order_no = 2;
+  string tracking_no = 3;
+  string carrier = 4;
+  string carrier_code = 5;
+  string sender_name = 6;
+  string sender_phone = 7;
+  string sender_address = 8;
+  double sender_lat = 9;
+  double sender_lon = 10;
+  string receiver_name = 11;
+  string receiver_phone = 12;
+  string receiver_address = 13;
+  double receiver_lat = 14;
+  double receiver_lon = 15;
+}
+
+message CreateLogisticsResponse {
+  Logistics logistics = 1;
+}
+
+message GetLogisticsRequest {
+  uint64 id = 1;
+}
+
+message GetLogisticsResponse {
+  Logistics logistics = 1;
+}
+
+message GetLogisticsByTrackingNoRequest {
+  string tracking_no = 1;
+}
+
+message UpdateStatusRequest {
+  uint64 id = 1;
+  int32 status = 2;
+  string location = 3;
+  string description = 4;
+}
+
+message AddTraceRequest {
+  uint64 id = 1;
+  string location = 2;
+  string description = 3;
+  string status = 4;
+}
+
+message SetEstimatedTimeRequest {
+  uint64 id = 1;
+  google.protobuf.Timestamp estimated_time = 2;
+}
+
+message ListLogisticsRequest {
+  uint32 page_size = 1;
+  uint32 page_num = 2;
+}
+
+message ListLogisticsResponse {
+  repeated Logistics logistics = 1;
+  uint64 total_count = 2;
+}
+
+message Location {
+  uint64 id = 1;
+  double lat = 2;
+  double lon = 3;
+}
+
+message OptimizeDeliveryRouteRequest {
+  uint64 logistics_id = 1;
+  repeated Location destinations = 2;
+}
+
+message OptimizeDeliveryRouteResponse {
+  DeliveryRoute route = 1;
 }
