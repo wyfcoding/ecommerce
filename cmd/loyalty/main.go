@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "ecommerce/api/loyalty/v1"
 	"ecommerce/internal/loyalty/application"
 	"ecommerce/internal/loyalty/infrastructure/persistence"
+	loyaltygrpc "ecommerce/internal/loyalty/interfaces/grpc"
 	loyaltyhttp "ecommerce/internal/loyalty/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.LoyaltyService)
+	pb.RegisterLoyaltyServiceServer(s, loyaltygrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for loyalty service (DDD)")
 }
 

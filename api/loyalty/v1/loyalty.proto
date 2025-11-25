@@ -3,104 +3,136 @@ syntax = "proto3";
 package api.loyalty.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "ecommerce/api/loyalty/v1;v1";
 
-// Loyalty Service
-service Loyalty {
-    // Get a user's loyalty profile (points, level)
-    rpc GetUserLoyaltyProfile(GetUserLoyaltyProfileRequest) returns (GetUserLoyaltyProfileResponse);
+// LoyaltyService 定义了会员服务接口
+service LoyaltyService {
+  // GetMemberAccount 获取会员账户
+  rpc GetMemberAccount(GetMemberAccountRequest) returns (GetMemberAccountResponse);
 
-    // Add points to a user's balance
-    rpc AddPoints(AddPointsRequest) returns (AddPointsResponse);
+  // AddPoints 增加积分
+  rpc AddPoints(AddPointsRequest) returns (google.protobuf.Empty);
 
-    // Deduct points from a user's balance
-    rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse);
+  // DeductPoints 扣减积分
+  rpc DeductPoints(DeductPointsRequest) returns (google.protobuf.Empty);
 
-    // Get a user's points transaction history
-    rpc GetPointsHistory(GetPointsHistoryRequest) returns (GetPointsHistoryResponse);
+  // AddSpent 增加消费金额
+  rpc AddSpent(AddSpentRequest) returns (google.protobuf.Empty);
 
-    // Update a user's loyalty level (e.g., based on points or spending)
-    rpc UpdateUserLevel(UpdateUserLevelRequest) returns (UpdateUserLevelResponse);
+  // ListPointsTransactions 获取积分交易记录
+  rpc ListPointsTransactions(ListPointsTransactionsRequest) returns (ListPointsTransactionsResponse);
+
+  // AddBenefit 添加会员权益
+  rpc AddBenefit(AddBenefitRequest) returns (AddBenefitResponse);
+
+  // ListBenefits 获取会员权益列表
+  rpc ListBenefits(ListBenefitsRequest) returns (ListBenefitsResponse);
+
+  // DeleteBenefit 删除会员权益
+  rpc DeleteBenefit(DeleteBenefitRequest) returns (google.protobuf.Empty);
 }
 
-// Represents a user's loyalty profile
-message UserLoyaltyProfile {
-    string user_id = 1;
-    int64 current_points = 2;
-    string loyalty_level = 3;
-    google.protobuf.Timestamp last_level_update = 4;
+// MemberAccount 会员账户
+message MemberAccount {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  string level = 3;
+  int64 total_points = 4;
+  int64 available_points = 5;
+  int64 frozen_points = 6;
+  uint64 total_spent = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// Represents a points transaction
+// PointsTransaction 积分交易
 message PointsTransaction {
-    string id = 1;
-    string user_id = 2;
-    int64 points_change = 3;
-    string reason = 4;
-    string order_id = 5;
-    google.protobuf.Timestamp created_at = 6;
+  uint64 id = 1;
+  uint64 user_id = 2;
+  string transaction_type = 3;
+  int64 points = 4;
+  int64 balance = 5;
+  uint64 order_id = 6;
+  string description = 7;
+  google.protobuf.Timestamp expire_at = 8;
+  google.protobuf.Timestamp created_at = 9;
 }
 
-// Request to get user loyalty profile
-message GetUserLoyaltyProfileRequest {
-    string user_id = 1;
+// MemberBenefit 会员权益
+message MemberBenefit {
+  uint64 id = 1;
+  string level = 2;
+  string name = 3;
+  string description = 4;
+  double discount_rate = 5;
+  double points_rate = 6;
+  bool enabled = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// Response for getting user loyalty profile
-message GetUserLoyaltyProfileResponse {
-    UserLoyaltyProfile profile = 1;
+message GetMemberAccountRequest {
+  uint64 user_id = 1;
 }
 
-// Request to add points
+message GetMemberAccountResponse {
+  MemberAccount account = 1;
+}
+
 message AddPointsRequest {
-    string user_id = 1;
-    int64 points = 2;
-    string reason = 3;
-    string order_id = 4;
+  uint64 user_id = 1;
+  int64 points = 2;
+  string transaction_type = 3;
+  string description = 4;
+  uint64 order_id = 5;
 }
 
-// Response for adding points
-message AddPointsResponse {
-    UserLoyaltyProfile profile = 1;
-    PointsTransaction transaction = 2;
-}
-
-// Request to deduct points
 message DeductPointsRequest {
-    string user_id = 1;
-    int64 points = 2;
-    string reason = 3;
-    string order_id = 4;
+  uint64 user_id = 1;
+  int64 points = 2;
+  string transaction_type = 3;
+  string description = 4;
+  uint64 order_id = 5;
 }
 
-// Response for deducting points
-message DeductPointsResponse {
-    UserLoyaltyProfile profile = 1;
-    PointsTransaction transaction = 2;
+message AddSpentRequest {
+  uint64 user_id = 1;
+  uint64 amount = 2;
 }
 
-// Request to get points history
-message GetPointsHistoryRequest {
-    string user_id = 1;
-    int32 page_size = 2;
-    int32 page_token = 3;
+message ListPointsTransactionsRequest {
+  uint64 user_id = 1;
+  uint32 page_size = 2;
+  uint32 page_num = 3;
 }
 
-// Response for getting points history
-message GetPointsHistoryResponse {
-    repeated PointsTransaction transactions = 1;
-    int32 total_count = 2;
+message ListPointsTransactionsResponse {
+  repeated PointsTransaction transactions = 1;
+  uint64 total_count = 2;
 }
 
-// Request to update user level
-message UpdateUserLevelRequest {
-    string user_id = 1;
-    string new_level = 2;
-    string reason = 3;
+message AddBenefitRequest {
+  string level = 1;
+  string name = 2;
+  string description = 3;
+  double discount_rate = 4;
+  double points_rate = 5;
 }
 
-// Response for updating user level
-message UpdateUserLevelResponse {
-    UserLoyaltyProfile profile = 1;
+message AddBenefitResponse {
+  MemberBenefit benefit = 1;
+}
+
+message ListBenefitsRequest {
+  string level = 1;
+}
+
+message ListBenefitsResponse {
+  repeated MemberBenefit benefits = 1;
+}
+
+message DeleteBenefitRequest {
+  uint64 id = 1;
 }

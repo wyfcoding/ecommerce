@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "ecommerce/api/logistics_routing/v1"
 	"ecommerce/internal/logistics_routing/application"
 	"ecommerce/internal/logistics_routing/infrastructure/persistence"
+	routinggrpc "ecommerce/internal/logistics_routing/interfaces/grpc"
 	routinghttp "ecommerce/internal/logistics_routing/interfaces/http"
 	"ecommerce/pkg/app"
 	configpkg "ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.LogisticsRoutingService)
+	pb.RegisterLogisticsRoutingServiceServer(s, routinggrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for logistics_routing service (DDD)")
 }
 

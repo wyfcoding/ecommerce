@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package api.logistics_routing.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "ecommerce/api/logistics_routing/v1;v1";
+
+// LogisticsRoutingService 定义了物流路由服务接口
+service LogisticsRoutingService {
+  // RegisterCarrier 注册配送商
+  rpc RegisterCarrier(RegisterCarrierRequest) returns (google.protobuf.Empty);
+
+  // OptimizeRoute 优化路由
+  rpc OptimizeRoute(OptimizeRouteRequest) returns (OptimizeRouteResponse);
+
+  // GetRoute 获取路由
+  rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
+
+  // ListCarriers 获取配送商列表
+  rpc ListCarriers(google.protobuf.Empty) returns (ListCarriersResponse);
+}
+
+// Carrier 配送商
+message Carrier {
+  uint64 id = 1;
+  string name = 2;
+  string type = 3;
+  int64 base_cost = 4;
+  double weight_rate = 5;
+  double distance_rate = 6;
+  int32 base_delivery_time = 7;
+  repeated string supported_regions = 8;
+  int32 available_capacity = 9;
+  double rating = 10;
+  bool is_active = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+// RouteOrder 路由订单
+message RouteOrder {
+  uint64 order_id = 1;
+  uint64 carrier_id = 2;
+  string carrier_name = 3;
+  int64 estimated_cost = 4;
+  int32 estimated_time = 5;
+}
+
+// OptimizedRoute 优化路由
+message OptimizedRoute {
+  uint64 id = 1;
+  repeated RouteOrder orders = 2;
+  int32 order_count = 3;
+  int64 total_cost = 4;
+  int64 average_cost = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message RegisterCarrierRequest {
+  string name = 1;
+  string type = 2;
+  int64 base_cost = 3;
+  double weight_rate = 4;
+  double distance_rate = 5;
+  int32 base_delivery_time = 6;
+  repeated string supported_regions = 7;
+  int32 available_capacity = 8;
+}
+
+message OptimizeRouteRequest {
+  repeated uint64 order_ids = 1;
+}
+
+message OptimizeRouteResponse {
+  OptimizedRoute route = 1;
+}
+
+message GetRouteRequest {
+  uint64 id = 1;
+}
+
+message GetRouteResponse {
+  OptimizedRoute route = 1;
+}
+
+message ListCarriersResponse {
+  repeated Carrier carriers = 1;
+}
