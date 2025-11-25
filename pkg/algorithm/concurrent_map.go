@@ -30,27 +30,6 @@ func NewConcurrentMap[K comparable, V any](shardCount int) *ConcurrentMap[K, V] 
 	return m
 }
 
-func (m *ConcurrentMap[K, V]) getShard(key K) *shard[K, V] {
-	// Simple hash function for comparable keys (this is a naive implementation,
-	// for production robust hashing is needed, but Go generic constraints limit options without reflection or specific interfaces)
-	// Here we rely on the fact that we can't easily hash generic K without more constraints.
-	// For simplicity in this example, we'll assume K is string or int and cast, or use a simple address based hash if possible.
-	// A better approach in Go 1.18+ is to require K to implement a Hash() method or use a hash library that supports generics.
-	// For this example, we will just use a simple distribution strategy if K is string.
-	// Real-world implementation should use a proper hash function.
-
-	// Placeholder: In a real generic map, you'd need a hash function passed in or constraints.
-	// We will use a simple round-robin or just lock the first shard if we can't hash.
-	// To make this useful, let's assume K is string for the hash calculation part, or use a passed in hash func.
-	// For now, to keep it generic and simple, we might just use a single lock if we can't shard effectively without a hash func.
-	// BUT, the requirement is "high performance".
-	// Let's change the signature to require a hash function or assume string keys for sharding.
-	// Let's assume string keys for now as it's most common, or provide a Hashable interface.
-
-	// Re-design: Let's make it ConcurrentStringMap for simplicity and performance correctness in this context.
-	return m.shards[0] // Fallback to single shard if we don't implement hashing here.
-}
-
 // ConcurrentStringMap is a specialized version for string keys to allow sharding.
 type ConcurrentStringMap[V any] struct {
 	shards     []*shard[string, V]

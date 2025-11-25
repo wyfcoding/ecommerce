@@ -88,7 +88,7 @@ func (f *ClientFactory) NewClient(ctx context.Context, target string, opts ...gr
 
 	opts = append(defaultOpts, opts...)
 
-	conn, err := grpc.DialContext(ctx, target, opts...)
+	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
 		f.logger.ErrorContext(ctx, "failed to dial grpc target", "target", target, "error", err)
 		return nil, err

@@ -39,10 +39,8 @@ func (bg *BipartiteGraph) MaxMatching() map[string]string {
 	defer bg.mu.Unlock()
 
 	result := make(map[string]string)
-	visited := make(map[string]bool)
-
 	for deliveryMan := range bg.edges {
-		visited = make(map[string]bool) // 重置visited
+		visited := make(map[string]bool) // 重置visited
 		bg.dfs(deliveryMan, visited, result)
 	}
 

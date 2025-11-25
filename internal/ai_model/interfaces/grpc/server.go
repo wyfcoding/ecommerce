@@ -4,7 +4,6 @@ import (
 	"context"
 	pb "ecommerce/api/ai_model/v1"
 	"ecommerce/internal/ai_model/application"
-	"ecommerce/internal/ai_model/domain/entity"
 	"strconv"
 
 	"google.golang.org/grpc/codes"
@@ -134,9 +133,4 @@ func (s *Server) SummarizeText(ctx context.Context, req *pb.SummarizeTextRequest
 
 func (s *Server) GetFraudScore(ctx context.Context, req *pb.GetFraudScoreRequest) (*pb.GetFraudScoreResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "GetFraudScore not implemented")
-}
-
-func (s *Server) toProto(m *entity.AIModel) *pb.GetModelStatusResponse {
-	// Helper if needed
-	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -18,8 +19,8 @@ type Metrics struct {
 // NewMetrics creates a new Metrics instance with its own registry.
 func NewMetrics(serviceName string) *Metrics {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewGoCollector())                                       // Collect default Go metrics
-	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})) // Collect process metrics
+	registry.MustRegister(collectors.NewGoCollector())                                       // Collect default Go metrics
+	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})) // Collect process metrics
 
 	slog.Info("Metrics registry created for service", "service", serviceName)
 

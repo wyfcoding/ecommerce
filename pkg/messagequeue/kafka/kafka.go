@@ -66,10 +66,9 @@ func NewProducer(cfg config.KafkaConfig, logger *logging.Logger) *Producer {
 		RequiredAcks: kafka.RequiredAcks(cfg.RequiredAcks),
 	}
 
-	var dlqWriter *kafka.Writer
 	// Simple convention: DLQ topic is original topic + "-dlq"
 	// In a real system, this might be configurable
-	dlqWriter = &kafka.Writer{
+	dlqWriter := &kafka.Writer{
 		Addr:         kafka.TCP(cfg.Brokers...),
 		Topic:        cfg.Topic + "-dlq",
 		Balancer:     &kafka.LeastBytes{},

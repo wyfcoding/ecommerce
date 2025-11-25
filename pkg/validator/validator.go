@@ -10,7 +10,7 @@ var (
 	phoneRegex    = regexp.MustCompile(`^1[3-9]\d{9}$`)
 	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{4,20}$`)
-	passwordRegex = regexp.MustCompile(`^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$`)
+	passwordRegex = regexp.MustCompile(`^[A-Za-z\d@$!%*#?&]{8,}$`)
 )
 
 // IsValidPhone 验证手机号
@@ -30,7 +30,24 @@ func IsValidUsername(username string) bool {
 
 // IsValidPassword 验证密码强度
 func IsValidPassword(password string) bool {
-	return passwordRegex.MatchString(password)
+	if !passwordRegex.MatchString(password) {
+		return false
+	}
+	// Check for at least one letter and one digit manually since Go regex doesn't support lookarounds
+	hasLetter := false
+	hasDigit := false
+	for _, c := range password {
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+			hasLetter = true
+		}
+		if c >= '0' && c <= '9' {
+			hasDigit = true
+		}
+		if hasLetter && hasDigit {
+			return true
+		}
+	}
+	return false
 }
 
 // IsEmpty 检查字符串是否为空
