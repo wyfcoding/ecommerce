@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/coupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity"
 	"time"
 )
 

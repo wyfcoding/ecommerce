@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/subscription/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/subscription/domain/entity"
 )
 
 // SubscriptionRepository 订阅仓储接口

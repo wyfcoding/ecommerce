@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/recommendation/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/recommendation/domain/entity"
 )
 
 // RecommendationRepository 推荐仓储接口

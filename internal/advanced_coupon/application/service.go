@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/advanced_coupon/domain/entity"
-	"ecommerce/internal/advanced_coupon/domain/repository"
-	"ecommerce/pkg/algorithm"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/algorithm"
 	"errors"
 	"time"
 

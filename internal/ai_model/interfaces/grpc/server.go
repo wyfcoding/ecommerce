@@ -2,8 +2,8 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/ai_model/v1"
-	"ecommerce/internal/ai_model/application"
+	pb "github.com/wyfcoding/ecommerce/api/ai_model/v1"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/application"
 	"strconv"
 
 	"google.golang.org/grpc/codes"

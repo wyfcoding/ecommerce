@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ecommerce/pkg/app"
-	"ecommerce/pkg/metrics"
+	"github.com/wyfcoding/ecommerce/pkg/app"
+	"github.com/wyfcoding/ecommerce/pkg/metrics"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 	"log/slog"

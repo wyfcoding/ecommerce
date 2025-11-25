@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce/internal/inventory/application"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/inventory/application"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"log/slog"
 

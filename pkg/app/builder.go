@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"reflect"
 
-	"ecommerce/pkg/config"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/metrics"
-	"ecommerce/pkg/server"
+	"github.com/wyfcoding/ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/metrics"
+	"github.com/wyfcoding/ecommerce/pkg/server"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"

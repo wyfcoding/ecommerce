@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/message/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/message/domain/entity"
 )
 
 // MessageRepository 消息仓储接口

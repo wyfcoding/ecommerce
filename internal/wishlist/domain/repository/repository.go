@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/wishlist/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/entity"
 )
 
 // WishlistRepository 收藏仓储接口

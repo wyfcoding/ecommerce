@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/loyalty/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/loyalty/domain/entity"
 )
 
 // LoyaltyRepository 会员仓储接口

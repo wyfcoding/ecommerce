@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce/internal/review/application"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/review/application"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/flashsale/v1"
-	"ecommerce/internal/flashsale/application"
-	"ecommerce/internal/flashsale/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/flashsale/v1"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
 	"strconv"
 
 	"google.golang.org/grpc/codes"

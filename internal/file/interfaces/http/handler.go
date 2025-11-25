@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce/internal/file/application"
-	"ecommerce/internal/file/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/file/application"
+	"github.com/wyfcoding/ecommerce/internal/file/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

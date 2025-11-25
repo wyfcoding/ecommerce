@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/inventory/v1"
-	"ecommerce/internal/inventory/application"
-	"ecommerce/internal/inventory/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/inventory/v1"
+	"github.com/wyfcoding/ecommerce/internal/inventory/application"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/notification/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/notification/domain/entity"
 )
 
 // NotificationRepository 通知仓储接口

@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/order_optimization/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/order_optimization/domain/entity"
 )
 
 // OrderOptimizationRepository 订单优化仓储接口

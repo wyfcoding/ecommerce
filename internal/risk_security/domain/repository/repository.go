@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/risk_security/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/risk_security/domain/entity"
 )
 
 // RiskRepository 风险控制仓储接口

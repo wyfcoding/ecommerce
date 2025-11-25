@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/config"
 
 	"github.com/bwmarrin/snowflake"
 )

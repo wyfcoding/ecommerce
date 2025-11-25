@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/cart/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/cart/domain/entity"
 )
 
 // CartRepository 购物车仓储接口

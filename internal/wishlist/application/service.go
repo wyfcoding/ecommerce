@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/wishlist/domain/entity"
-	"ecommerce/internal/wishlist/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/repository"
 
 	"log/slog"
 )

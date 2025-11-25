@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"ecommerce/internal/admin/domain/entity"
-	"ecommerce/internal/admin/domain/repository"
-	"ecommerce/pkg/jwt"
+	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/admin/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/jwt"
 
 	"log/slog"
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/config"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"

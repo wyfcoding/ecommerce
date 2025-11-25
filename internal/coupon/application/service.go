@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/coupon/domain/entity"
-	"ecommerce/internal/coupon/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/coupon/domain/repository"
 	"fmt"
 	"time"
 

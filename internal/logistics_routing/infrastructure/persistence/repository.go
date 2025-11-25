@@ -2,8 +2,8 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/logistics_routing/domain/entity"
-	"ecommerce/internal/logistics_routing/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain/repository"
 	"errors"
 
 	"gorm.io/gorm"

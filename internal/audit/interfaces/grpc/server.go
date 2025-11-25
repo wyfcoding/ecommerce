@@ -2,10 +2,10 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/audit/v1"
-	"ecommerce/internal/audit/application"
-	"ecommerce/internal/audit/domain/entity"
-	"ecommerce/internal/audit/domain/repository"
+	pb "github.com/wyfcoding/ecommerce/api/audit/v1"
+	"github.com/wyfcoding/ecommerce/internal/audit/application"
+	"github.com/wyfcoding/ecommerce/internal/audit/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/audit/domain/repository"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

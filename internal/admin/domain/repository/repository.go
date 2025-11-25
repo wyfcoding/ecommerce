@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/admin/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity"
 )
 
 // AdminRepository 管理员仓储接口

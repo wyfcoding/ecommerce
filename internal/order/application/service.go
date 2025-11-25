@@ -2,15 +2,15 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/order/domain/entity"
-	"ecommerce/internal/order/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/order/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/order/domain/repository"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
-	"ecommerce/pkg/idgen"
-	"ecommerce/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
 
 	"log/slog"
 )

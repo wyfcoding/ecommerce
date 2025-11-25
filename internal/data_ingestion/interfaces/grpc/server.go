@@ -2,8 +2,8 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/data_ingestion/v1"
-	"ecommerce/internal/data_ingestion/application"
+	pb "github.com/wyfcoding/ecommerce/api/data_ingestion/v1"
+	"github.com/wyfcoding/ecommerce/internal/data_ingestion/application"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 )

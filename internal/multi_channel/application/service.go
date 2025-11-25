@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/multi_channel/domain/entity"
-	"ecommerce/internal/multi_channel/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/multi_channel/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/multi_channel/domain/repository"
 	"time"
 
 	"log/slog"

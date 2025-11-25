@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/subscription/domain/entity"
-	"ecommerce/internal/subscription/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/subscription/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/subscription/domain/repository"
 	"errors"
 	"time"
 

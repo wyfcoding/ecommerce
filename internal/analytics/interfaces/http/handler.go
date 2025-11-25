@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	"ecommerce/internal/analytics/application"
-	"ecommerce/internal/analytics/domain/entity"
-	"ecommerce/internal/analytics/domain/repository"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/analytics/application"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"ecommerce/internal/user/domain"
-	"ecommerce/pkg/algorithm"
-	"ecommerce/pkg/hash"
-	"ecommerce/pkg/idgen"
-	"ecommerce/pkg/jwt"
+	"github.com/wyfcoding/ecommerce/internal/user/domain"
+	"github.com/wyfcoding/ecommerce/pkg/algorithm"
+	"github.com/wyfcoding/ecommerce/pkg/hash"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/pkg/jwt"
 )
 
 // UserApplicationService defines the application service for user operations.

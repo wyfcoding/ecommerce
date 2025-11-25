@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"ecommerce/pkg/config"
-	"ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/logging"
 
 	"github.com/redis/go-redis/v9"
 )

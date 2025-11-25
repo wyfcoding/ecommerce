@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/aftersales/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"
 )
 
 // AfterSalesRepository 售后仓储接口

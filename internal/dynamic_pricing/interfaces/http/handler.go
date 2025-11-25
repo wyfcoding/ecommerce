@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce/internal/dynamic_pricing/application"
-	"ecommerce/internal/dynamic_pricing/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/application"
+	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

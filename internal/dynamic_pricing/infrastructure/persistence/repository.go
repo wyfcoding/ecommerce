@@ -2,8 +2,8 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/dynamic_pricing/domain/entity"
-	"ecommerce/internal/dynamic_pricing/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/repository"
 	"time"
 
 	"gorm.io/gorm"

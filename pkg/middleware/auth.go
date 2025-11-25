@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"ecommerce/pkg/jwt"
+	"github.com/wyfcoding/ecommerce/pkg/jwt"
 
 	"github.com/gin-gonic/gin"
 )

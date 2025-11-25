@@ -1,15 +1,15 @@
 package main
 
 import (
-	v1 "ecommerce/api/product/v1"
-	"ecommerce/internal/product/application"
-	mysqlRepo "ecommerce/internal/product/infrastructure/persistence/mysql"
-	grpcServer "ecommerce/internal/product/interfaces/grpc"
-	"ecommerce/pkg/app"
-	configpkg "ecommerce/pkg/config"
-	"ecommerce/pkg/databases"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/metrics"
+	v1 "github.com/wyfcoding/ecommerce/api/product/v1"
+	"github.com/wyfcoding/ecommerce/internal/product/application"
+	mysqlRepo "github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence/mysql"
+	grpcServer "github.com/wyfcoding/ecommerce/internal/product/interfaces/grpc"
+	"github.com/wyfcoding/ecommerce/pkg/app"
+	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/databases"
+	"github.com/wyfcoding/ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/metrics"
 
 	"google.golang.org/grpc"
 )

@@ -3,9 +3,9 @@ package grpc
 import (
 	"context"
 
-	pb "ecommerce/api/product/v1"
-	"ecommerce/internal/product/application"
-	"ecommerce/internal/product/domain"
+	pb "github.com/wyfcoding/ecommerce/api/product/v1"
+	"github.com/wyfcoding/ecommerce/internal/product/application"
+	"github.com/wyfcoding/ecommerce/internal/product/domain"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"

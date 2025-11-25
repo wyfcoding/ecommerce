@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"ecommerce/internal/settlement/application"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/settlement/application"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

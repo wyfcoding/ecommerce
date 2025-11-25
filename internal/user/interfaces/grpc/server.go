@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	pb "ecommerce/api/user/v1"
-	"ecommerce/internal/user/application"
-	"ecommerce/internal/user/domain"
+	pb "github.com/wyfcoding/ecommerce/api/user/v1"
+	"github.com/wyfcoding/ecommerce/internal/user/application"
+	"github.com/wyfcoding/ecommerce/internal/user/domain"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"

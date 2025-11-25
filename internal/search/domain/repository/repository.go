@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/search/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/search/domain/entity"
 )
 
 // SearchRepository 搜索仓储接口

@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/content_moderation/v1"
-	"ecommerce/internal/content_moderation/application"
-	"ecommerce/internal/content_moderation/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/content_moderation/v1"
+	"github.com/wyfcoding/ecommerce/internal/content_moderation/application"
+	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

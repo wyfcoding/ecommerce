@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"ecommerce/internal/flashsale/application"
-	"ecommerce/internal/flashsale/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

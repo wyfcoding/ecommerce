@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce/pkg/config"
-	"ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/logging"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"

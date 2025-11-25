@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/review/v1"
-	"ecommerce/internal/review/application"
-	"ecommerce/internal/review/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/review/v1"
+	"github.com/wyfcoding/ecommerce/internal/review/application"
+	"github.com/wyfcoding/ecommerce/internal/review/domain/entity"
 	"strconv"
 
 	"google.golang.org/grpc/codes"

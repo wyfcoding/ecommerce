@@ -2,8 +2,8 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/recommendation/v1"
-	"ecommerce/internal/recommendation/application"
+	pb "github.com/wyfcoding/ecommerce/api/recommendation/v1"
+	"github.com/wyfcoding/ecommerce/internal/recommendation/application"
 	"strconv"
 
 	"google.golang.org/grpc/codes"

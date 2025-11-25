@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"ecommerce/internal/analytics/domain/entity"
-	"ecommerce/internal/analytics/domain/repository"
-	"ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
 
 	"log/slog"
 )

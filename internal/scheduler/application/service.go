@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/scheduler/domain/entity"
-	"ecommerce/internal/scheduler/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/scheduler/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/scheduler/domain/repository"
 	"errors"
 	"time"
 

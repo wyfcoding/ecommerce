@@ -2,10 +2,10 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/analytics/v1"
-	"ecommerce/internal/analytics/application"
-	"ecommerce/internal/analytics/domain/entity"
-	"ecommerce/internal/analytics/domain/repository"
+	pb "github.com/wyfcoding/ecommerce/api/analytics/v1"
+	"github.com/wyfcoding/ecommerce/internal/analytics/application"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository"
 	"strconv"
 
 	"google.golang.org/grpc/codes"

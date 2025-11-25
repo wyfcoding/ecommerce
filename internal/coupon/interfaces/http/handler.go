@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"ecommerce/internal/coupon/application"
-	"ecommerce/internal/coupon/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/coupon/application"
+	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

@@ -2,8 +2,8 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/inventory_forecast/domain/entity"
-	"ecommerce/internal/inventory_forecast/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/repository"
 	"errors"
 
 	"gorm.io/gorm"

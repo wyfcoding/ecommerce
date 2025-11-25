@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/user_tier/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/user_tier/domain/entity"
 )
 
 // UserTierRepository 用户等级仓储接口

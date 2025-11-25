@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/advanced_coupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
 )
 
 // AdvancedCouponRepository 优惠券仓储接口

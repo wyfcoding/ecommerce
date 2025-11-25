@@ -2,10 +2,10 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/aftersales/v1"
-	"ecommerce/internal/aftersales/application"
-	"ecommerce/internal/aftersales/domain/entity"
-	"ecommerce/internal/aftersales/domain/repository"
+	pb "github.com/wyfcoding/ecommerce/api/aftersales/v1"
+	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
+	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

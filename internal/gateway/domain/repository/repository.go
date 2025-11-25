@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/gateway/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/gateway/domain/entity"
 )
 
 // GatewayRepository 网关仓储接口

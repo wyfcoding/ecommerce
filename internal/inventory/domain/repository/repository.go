@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/inventory/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain/entity"
 )
 
 // InventoryRepository 库存仓储接口

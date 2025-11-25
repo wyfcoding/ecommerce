@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/analytics/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"
 	"time"
 )
 

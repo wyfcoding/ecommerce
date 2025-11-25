@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/groupbuy/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain/entity"
 )
 
 // GroupbuyRepository 拼团仓储接口

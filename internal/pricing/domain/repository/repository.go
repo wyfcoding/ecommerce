@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/pricing/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/pricing/domain/entity"
 )
 
 // PricingRepository 定价仓储接口

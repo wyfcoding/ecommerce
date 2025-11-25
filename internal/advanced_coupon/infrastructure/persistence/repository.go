@@ -2,8 +2,8 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/advanced_coupon/domain/entity"
-	"ecommerce/internal/advanced_coupon/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/repository"
 	"errors"
 
 	"gorm.io/gorm"

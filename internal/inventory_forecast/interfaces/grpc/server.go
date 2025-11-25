@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/inventory_forecast/v1"
-	"ecommerce/internal/inventory_forecast/application"
-	"ecommerce/internal/inventory_forecast/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/inventory_forecast/v1"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/application"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce/internal/inventory_forecast/application"
-	"ecommerce/internal/inventory_forecast/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/application"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

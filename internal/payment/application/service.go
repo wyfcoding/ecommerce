@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"ecommerce/internal/payment/domain"
-	"ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/internal/payment/domain"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
 )
 
 type PaymentApplicationService struct {

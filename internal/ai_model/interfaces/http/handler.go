@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce/internal/ai_model/application"
-	"ecommerce/internal/ai_model/domain/entity"
-	"ecommerce/internal/ai_model/domain/repository"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/application"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

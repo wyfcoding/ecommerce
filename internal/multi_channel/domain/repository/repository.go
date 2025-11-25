@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/multi_channel/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/multi_channel/domain/entity"
 )
 
 // MultiChannelRepository 多渠道仓储接口

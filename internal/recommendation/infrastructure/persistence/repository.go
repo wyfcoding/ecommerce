@@ -2,8 +2,8 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/recommendation/domain/entity"
-	"ecommerce/internal/recommendation/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/recommendation/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/recommendation/domain/repository"
 	"errors"
 
 	"gorm.io/gorm"

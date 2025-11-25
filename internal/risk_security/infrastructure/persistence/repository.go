@@ -2,8 +2,8 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/risk_security/domain/entity"
-	"ecommerce/internal/risk_security/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/risk_security/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/risk_security/domain/repository"
 	"errors"
 	"time"
 

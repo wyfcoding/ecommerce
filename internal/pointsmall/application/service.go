@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/pointsmall/domain/entity"
-	"ecommerce/internal/pointsmall/domain/repository"
-	"ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
 	"errors"
 	"fmt"
 	"time"

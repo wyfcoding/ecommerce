@@ -3,9 +3,9 @@ package http
 import (
 	"net/http"
 
-	"ecommerce/internal/logistics_routing/application"
-	"ecommerce/internal/logistics_routing/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/logistics_routing/application"
+	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"log/slog"

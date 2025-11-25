@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/flashsale/domain/entity"
-	"ecommerce/internal/flashsale/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/repository"
 	"time"
 
 	"log/slog"

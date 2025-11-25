@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/file/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/file/domain/entity"
 )
 
 // FileRepository 文件仓储接口

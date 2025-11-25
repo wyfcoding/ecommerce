@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/customer_service/domain/entity"
-	"ecommerce/internal/customer_service/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/repository"
 	"fmt"
 	"time"
 

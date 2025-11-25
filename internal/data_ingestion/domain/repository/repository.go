@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/data_ingestion/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/entity"
 )
 
 // DataIngestionRepository 数据摄取仓储接口

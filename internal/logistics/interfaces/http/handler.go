@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"ecommerce/internal/logistics/application"
-	"ecommerce/internal/logistics/domain/entity"
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/internal/logistics/application"
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"log/slog"
 

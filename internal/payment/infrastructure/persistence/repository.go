@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"context"
-	"ecommerce/internal/payment/domain"
+	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 
 	"gorm.io/gorm"
 )

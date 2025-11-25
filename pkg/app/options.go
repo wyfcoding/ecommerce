@@ -1,6 +1,6 @@
 package app
 
-import "ecommerce/pkg/server"
+import "github.com/wyfcoding/ecommerce/pkg/server"
 
 // Option is an application option.
 type Option func(*options)

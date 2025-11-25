@@ -1,16 +1,16 @@
 package main
 
 import (
-	v1 "ecommerce/api/payment/v1"
-	"ecommerce/internal/payment/application"
-	mysqlRepo "ecommerce/internal/payment/infrastructure/persistence/mysql"
-	grpcServer "ecommerce/internal/payment/interfaces/grpc"
-	"ecommerce/pkg/app"
-	configpkg "ecommerce/pkg/config"
-	"ecommerce/pkg/databases"
-	"ecommerce/pkg/idgen"
-	"ecommerce/pkg/logging"
-	"ecommerce/pkg/metrics"
+	v1 "github.com/wyfcoding/ecommerce/api/payment/v1"
+	"github.com/wyfcoding/ecommerce/internal/payment/application"
+	mysqlRepo "github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/mysql"
+	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
+	"github.com/wyfcoding/ecommerce/pkg/app"
+	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/databases"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/metrics"
 
 	"google.golang.org/grpc"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/logging"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"

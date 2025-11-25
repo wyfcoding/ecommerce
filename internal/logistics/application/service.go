@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/logistics/domain/entity"
-	"ecommerce/internal/logistics/domain/repository"
-	"ecommerce/pkg/algorithm"
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/algorithm"
 	"encoding/json"
 	"time"
 

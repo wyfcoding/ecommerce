@@ -1,10 +1,10 @@
-module ecommerce
+module github.com/wyfcoding/ecommerce
 
 go 1.25.4
 
 require (
 	github.com/bwmarrin/snowflake v0.3.0
-	github.com/elastic/go-elasticsearch/v8 v8.19.0
+	github.com/elastic/go-elasticsearch/v9 v9.2.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0

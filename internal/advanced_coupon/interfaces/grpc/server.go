@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/advanced_coupon/v1"
-	"ecommerce/internal/advanced_coupon/application"
-	"ecommerce/internal/advanced_coupon/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/advanced_coupon/v1"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/application"
+	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

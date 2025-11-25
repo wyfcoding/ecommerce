@@ -1,7 +1,7 @@
 package server
 
 import (
-	"ecommerce/pkg/middleware"
+	"github.com/wyfcoding/ecommerce/pkg/middleware"
 	"log/slog"
 
 	"github.com/gin-gonic/gin"

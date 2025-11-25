@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"ecommerce/pkg/server"
+	"github.com/wyfcoding/ecommerce/pkg/server"
 	"log/slog"
 	"os"
 	"os/signal"

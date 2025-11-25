@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/data_processing/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/entity"
 )
 
 // DataProcessingRepository 数据处理仓储接口

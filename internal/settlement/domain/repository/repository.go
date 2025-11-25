@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/settlement/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/settlement/domain/entity"
 )
 
 // SettlementRepository 结算仓储接口

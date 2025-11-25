@@ -2,8 +2,8 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/data_processing/v1"
-	"ecommerce/internal/data_processing/application"
+	pb "github.com/wyfcoding/ecommerce/api/data_processing/v1"
+	"github.com/wyfcoding/ecommerce/internal/data_processing/application"
 	"strconv"
 
 	"google.golang.org/grpc/codes"

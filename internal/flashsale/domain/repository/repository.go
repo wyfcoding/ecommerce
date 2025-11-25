@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/flashsale/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
 )
 
 // FlashSaleRepository 秒杀仓储接口

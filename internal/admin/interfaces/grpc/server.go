@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/admin/v1"
-	"ecommerce/internal/admin/application"
-	"ecommerce/internal/admin/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/admin/v1"
+	"github.com/wyfcoding/ecommerce/internal/admin/application"
+	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

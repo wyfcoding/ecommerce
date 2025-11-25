@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/review/domain/entity"
-	"ecommerce/internal/review/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/review/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/review/domain/repository"
 	"errors"
 
 	"log/slog"

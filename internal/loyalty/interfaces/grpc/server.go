@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/loyalty/v1"
-	"ecommerce/internal/loyalty/application"
-	"ecommerce/internal/loyalty/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/loyalty/v1"
+	"github.com/wyfcoding/ecommerce/internal/loyalty/application"
+	"github.com/wyfcoding/ecommerce/internal/loyalty/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/review/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/review/domain/entity"
 )
 
 // ReviewRepository 评论仓储接口

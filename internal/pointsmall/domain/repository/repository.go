@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/pointsmall/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain/entity"
 )
 
 // PointsRepository 积分商城仓储接口

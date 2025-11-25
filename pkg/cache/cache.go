@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"ecommerce/pkg/config"
+	"github.com/wyfcoding/ecommerce/pkg/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"

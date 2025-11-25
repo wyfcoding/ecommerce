@@ -6,8 +6,8 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"ecommerce/internal/product/domain"
-	"ecommerce/pkg/algorithm"
+	"github.com/wyfcoding/ecommerce/internal/product/domain"
+	"github.com/wyfcoding/ecommerce/pkg/algorithm"
 )
 
 // ProductApplicationService 商品应用服务

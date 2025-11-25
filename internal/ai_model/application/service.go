@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce/internal/ai_model/domain/entity"
-	"ecommerce/internal/ai_model/domain/repository"
-	"ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/repository"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
 
 	"log/slog"
 )

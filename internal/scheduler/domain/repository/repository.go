@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/scheduler/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/scheduler/domain/entity"
 )
 
 // SchedulerRepository 调度器仓储接口

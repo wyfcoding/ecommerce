@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/financial_settlement/v1"
-	"ecommerce/internal/financial_settlement/application"
-	"ecommerce/internal/financial_settlement/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/financial_settlement/v1"
+	"github.com/wyfcoding/ecommerce/internal/financial_settlement/application"
+	"github.com/wyfcoding/ecommerce/internal/financial_settlement/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

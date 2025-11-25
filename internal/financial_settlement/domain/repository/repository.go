@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/financial_settlement/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/financial_settlement/domain/entity"
 	"time"
 )
 

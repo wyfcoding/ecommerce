@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/settlement/domain/entity"
-	"ecommerce/internal/settlement/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/settlement/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/settlement/domain/repository"
 	"errors"
 	"fmt"
 	"time"

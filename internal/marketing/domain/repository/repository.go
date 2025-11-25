@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/marketing/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/marketing/domain/entity"
 )
 
 // MarketingRepository 营销仓储接口

@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/content_moderation/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain/entity"
 )
 
 // ModerationRepository 内容审核仓储接口

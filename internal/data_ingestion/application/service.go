@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"ecommerce/internal/data_ingestion/domain/entity"
-	"ecommerce/internal/data_ingestion/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/repository"
 	"time"
 
 	"log/slog"

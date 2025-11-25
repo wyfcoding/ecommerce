@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/customer_service/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/entity"
 )
 
 // CustomerServiceRepository 客服仓储接口

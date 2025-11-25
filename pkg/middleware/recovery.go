@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"ecommerce/pkg/response"
+	"github.com/wyfcoding/ecommerce/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

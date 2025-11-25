@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"ecommerce/internal/user/domain"
+	"github.com/wyfcoding/ecommerce/internal/user/domain"
 
 	"gorm.io/gorm"
 )

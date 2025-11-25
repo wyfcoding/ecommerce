@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
-	pb "ecommerce/api/dynamic_pricing/v1"
-	"ecommerce/internal/dynamic_pricing/application"
-	"ecommerce/internal/dynamic_pricing/domain/entity"
+	pb "github.com/wyfcoding/ecommerce/api/dynamic_pricing/v1"
+	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/application"
+	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/entity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

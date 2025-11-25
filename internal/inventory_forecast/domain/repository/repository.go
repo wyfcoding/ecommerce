@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"ecommerce/internal/inventory_forecast/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/entity"
 )
 
 // InventoryForecastRepository 库存预测仓储接口
