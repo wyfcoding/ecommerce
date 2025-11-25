@@ -2,10 +2,10 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	pb "github.com/wyfcoding/ecommerce/api/search/v1"
 	"github.com/wyfcoding/ecommerce/internal/search/application"
 	"github.com/wyfcoding/ecommerce/internal/search/domain/entity"
-	"encoding/json"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

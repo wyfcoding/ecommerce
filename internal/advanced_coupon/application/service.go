@@ -2,10 +2,10 @@ package application
 
 import (
 	"context"
+	"errors"
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"
-	"errors"
 	"time"
 
 	"log/slog"

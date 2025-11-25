@@ -2,9 +2,9 @@ package persistence
 
 import (
 	"context"
+	"errors"
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain/repository"
-	"errors"
 	"time"
 
 	"gorm.io/gorm"

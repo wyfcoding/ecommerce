@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/repository"
-	"fmt"
 	"time"
 
 	"log/slog"

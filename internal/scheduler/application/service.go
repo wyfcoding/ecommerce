@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
+	"errors"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain/repository"
-	"errors"
 	"time"
 
 	"log/slog"
