@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/scheduler/v1"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/application"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/infrastructure/persistence"
+	schedulergrpc "github.com/wyfcoding/ecommerce/internal/scheduler/interfaces/grpc"
 	schedulerhttp "github.com/wyfcoding/ecommerce/internal/scheduler/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.SchedulerService)
+	pb.RegisterSchedulerServiceServer(s, schedulergrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for scheduler service (DDD)")
 }
 

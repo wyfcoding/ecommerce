@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"
+	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
 	settlementhttp "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.SettlementService)
+	pb.RegisterSettlementServiceServer(s, settlementgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for settlement service (DDD)")
 }
 

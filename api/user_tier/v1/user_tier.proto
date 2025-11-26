@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package api.user_tier.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/user_tier/v1;usertierv1";
+
+service UserTierService {
+  // Tier Management
+  rpc GetUserTier(GetUserTierRequest) returns (GetUserTierResponse);
+  rpc AddScore(AddScoreRequest) returns (google.protobuf.Empty);
+
+  // Points Management
+  rpc GetPoints(GetPointsRequest) returns (GetPointsResponse);
+  rpc AddPoints(AddPointsRequest) returns (google.protobuf.Empty);
+  rpc DeductPoints(DeductPointsRequest) returns (google.protobuf.Empty);
+  rpc ListPointsLogs(ListPointsLogsRequest) returns (ListPointsLogsResponse);
+
+  // Exchange Management
+  rpc Exchange(ExchangeRequest) returns (google.protobuf.Empty);
+  rpc ListExchanges(ListExchangesRequest) returns (ListExchangesResponse);
+}
+
+message UserTier {
+  uint64 user_id = 1;
+  int32 level = 2;
+  string level_name = 3;
+  int64 score = 4;
+  int64 next_level_score = 5;
+  double progress_to_next_level = 6;
+  double discount_rate = 7;
+  double points = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message PointsLog {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  int64 points = 3;
+  string reason = 4;
+  string type = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ExchangeItem {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  int64 required_points = 4;
+  int32 stock = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message GetUserTierRequest {
+  uint64 user_id = 1;
+}
+
+message GetUserTierResponse {
+  UserTier tier = 1;
+}
+
+message AddScoreRequest {
+  uint64 user_id = 1;
+  int64 score = 2;
+}
+
+message GetPointsRequest {
+  uint64 user_id = 1;
+}
+
+message GetPointsResponse {
+  int64 points = 1;
+}
+
+message AddPointsRequest {
+  uint64 user_id = 1;
+  int64 points = 2;
+  string reason = 3;
+}
+
+message DeductPointsRequest {
+  uint64 user_id = 1;
+  int64 points = 2;
+  string reason = 3;
+}
+
+message ListPointsLogsRequest {
+  uint64 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListPointsLogsResponse {
+  repeated PointsLog logs = 1;
+  int64 total_count = 2;
+}
+
+message ExchangeRequest {
+  uint64 user_id = 1;
+  uint64 exchange_id = 2;
+}
+
+message ListExchangesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListExchangesResponse {
+  repeated ExchangeItem items = 1;
+  int64 total_count = 2;
+}

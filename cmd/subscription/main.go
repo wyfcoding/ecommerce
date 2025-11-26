@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/subscription/v1"
 	"github.com/wyfcoding/ecommerce/internal/subscription/application"
 	"github.com/wyfcoding/ecommerce/internal/subscription/infrastructure/persistence"
+	subscriptiongrpc "github.com/wyfcoding/ecommerce/internal/subscription/interfaces/grpc"
 	subscriptionhttp "github.com/wyfcoding/ecommerce/internal/subscription/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.SubscriptionService)
+	pb.RegisterSubscriptionServiceServer(s, subscriptiongrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for subscription service (DDD)")
 }
 

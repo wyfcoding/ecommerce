@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/risk_security/v1"
 	"github.com/wyfcoding/ecommerce/internal/risk_security/application"
 	"github.com/wyfcoding/ecommerce/internal/risk_security/infrastructure/persistence"
+	riskgrpc "github.com/wyfcoding/ecommerce/internal/risk_security/interfaces/grpc"
 	riskhttp "github.com/wyfcoding/ecommerce/internal/risk_security/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.RiskService)
+	pb.RegisterRiskSecurityServiceServer(s, riskgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for risk_security service (DDD)")
 }
 

@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package api.scheduler.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/scheduler/v1;schedulerv1";
+
+service SchedulerService {
+  // Job Management
+  rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
+  rpc UpdateJob(UpdateJobRequest) returns (google.protobuf.Empty);
+  rpc ToggleJobStatus(ToggleJobStatusRequest) returns (google.protobuf.Empty);
+  rpc RunJob(RunJobRequest) returns (google.protobuf.Empty);
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+
+  // Log Management
+  rpc ListJobLogs(ListJobLogsRequest) returns (ListJobLogsResponse);
+}
+
+message Job {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  string cron_expr = 4;
+  string handler = 5;
+  string params = 6;
+  int32 status = 7;
+  google.protobuf.Timestamp last_run_time = 8;
+  google.protobuf.Timestamp next_run_time = 9;
+  int64 run_count = 10;
+  int64 fail_count = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message JobLog {
+  uint64 id = 1;
+  uint64 job_id = 2;
+  string job_name = 3;
+  string handler = 4;
+  string params = 5;
+  string status = 6;
+  string result = 7;
+  string error = 8;
+  int64 duration = 9;
+  google.protobuf.Timestamp start_time = 10;
+  google.protobuf.Timestamp end_time = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message CreateJobRequest {
+  string name = 1;
+  string description = 2;
+  string cron_expr = 3;
+  string handler = 4;
+  string params = 5;
+}
+
+message CreateJobResponse {
+  Job job = 1;
+}
+
+message UpdateJobRequest {
+  uint64 id = 1;
+  string cron_expr = 2;
+  string params = 3;
+}
+
+message ToggleJobStatusRequest {
+  uint64 id = 1;
+  bool enable = 2;
+}
+
+message RunJobRequest {
+  uint64 id = 1;
+}
+
+message ListJobsRequest {
+  int32 status = 1; // -1: All
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListJobsResponse {
+  repeated Job jobs = 1;
+  int64 total_count = 2;
+}
+
+message ListJobLogsRequest {
+  uint64 job_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListJobLogsResponse {
+  repeated JobLog logs = 1;
+  int64 total_count = 2;
+}

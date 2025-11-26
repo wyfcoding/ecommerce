@@ -3,64 +3,94 @@ syntax = "proto3";
 package api.settlement.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/settlement/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/api/settlement/v1;settlementv1";
 
-// SettlementService 定义了结算服务接口
 service SettlementService {
-  // 处理订单结算
-  rpc ProcessOrderSettlement(ProcessOrderSettlementRequest) returns (ProcessOrderSettlementResponse);
+  // Settlement Management
+  rpc CreateSettlement(CreateSettlementRequest) returns (CreateSettlementResponse);
+  rpc AddOrderToSettlement(AddOrderToSettlementRequest) returns (google.protobuf.Empty);
+  rpc ProcessSettlement(ProcessSettlementRequest) returns (google.protobuf.Empty);
+  rpc CompleteSettlement(CompleteSettlementRequest) returns (google.protobuf.Empty);
+  rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
 
-  // 获取结算记录
-  rpc GetSettlementRecord(GetSettlementRecordRequest) returns (SettlementRecord);
-
-  // 列出结算记录
-  rpc ListSettlementRecords(ListSettlementRecordsRequest) returns (ListSettlementRecordsResponse);
+  // Account Management
+  rpc GetMerchantAccount(GetMerchantAccountRequest) returns (GetMerchantAccountResponse);
 }
 
-// SettlementRecord 结算记录
-message SettlementRecord {
-  uint64 record_id = 1;
-  uint64 order_id = 2;
+message Settlement {
+  uint64 id = 1;
+  string settlement_no = 2;
   uint64 merchant_id = 3;
-  uint64 total_amount = 4; // 订单总金额
-  uint64 platform_fee = 5; // 平台佣金
-  uint64 settlement_amount = 6; // 结算给商家的金额
-  string status = 7; // PENDING, COMPLETED, FAILED
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp settled_at = 9;
+  string cycle = 4;
+  google.protobuf.Timestamp start_date = 5;
+  google.protobuf.Timestamp end_date = 6;
+  int64 order_count = 7;
+  uint64 total_amount = 8;
+  uint64 platform_fee = 9;
+  uint64 settlement_amount = 10;
+  int32 status = 11;
+  google.protobuf.Timestamp settled_at = 12;
+  string fail_reason = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
 }
 
-// ProcessOrderSettlementRequest 处理订单结算请求
-message ProcessOrderSettlementRequest {
-  uint64 order_id = 1;
+message MerchantAccount {
+  uint64 id = 1;
   uint64 merchant_id = 2;
-  uint64 total_amount = 3;
-  // ... 其他订单相关信息，如商品列表、优惠等
+  uint64 balance = 3;
+  uint64 frozen_balance = 4;
+  uint64 total_income = 5;
+  uint64 total_withdraw = 6;
+  double fee_rate = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// ProcessOrderSettlementResponse 处理订单结算响应
-message ProcessOrderSettlementResponse {
-  uint64 record_id = 1;
-  string status = 2;
-  string message = 3;
+message CreateSettlementRequest {
+  uint64 merchant_id = 1;
+  string cycle = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
 }
 
-// GetSettlementRecordRequest 获取结算记录请求
-message GetSettlementRecordRequest {
-  uint64 record_id = 1;
+message CreateSettlementResponse {
+  Settlement settlement = 1;
 }
 
-// ListSettlementRecordsRequest 列出结算记录请求
-message ListSettlementRecordsRequest {
-  uint64 merchant_id = 1; // 可选
-  string status = 2; // 可选
-  uint32 page_size = 3;
-  uint32 page_num = 4;
+message AddOrderToSettlementRequest {
+  uint64 settlement_id = 1;
+  uint64 order_id = 2;
+  string order_no = 3;
+  uint64 amount = 4;
 }
 
-// ListSettlementRecordsResponse 列出结算记录响应
-message ListSettlementRecordsResponse {
-  repeated SettlementRecord records = 1;
-  uint64 total_count = 2;
+message ProcessSettlementRequest {
+  uint64 id = 1;
+}
+
+message CompleteSettlementRequest {
+  uint64 id = 1;
+}
+
+message ListSettlementsRequest {
+  uint64 merchant_id = 1;
+  int32 status = 2; // -1: All
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListSettlementsResponse {
+  repeated Settlement settlements = 1;
+  int64 total_count = 2;
+}
+
+message GetMerchantAccountRequest {
+  uint64 merchant_id = 1;
+}
+
+message GetMerchantAccountResponse {
+  MerchantAccount account = 1;
 }

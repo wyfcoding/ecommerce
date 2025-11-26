@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/pricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/pricing/application"
 	"github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence"
+	pricinggrpc "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/grpc"
 	pricinghttp "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.PricingService)
+	pb.RegisterPricingServiceServer(s, pricinggrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for pricing service (DDD)")
 }
 

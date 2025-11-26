@@ -2,28 +2,54 @@ syntax = "proto3";
 
 package api.risk_security.v1;
 
-option go_package = "ecommerce/api/risk_security/v1;v1";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
-// RiskSecurityService 定义了风控与安全服务接口
+option go_package = "github.com/wyfcoding/ecommerce/api/risk_security/v1;risksecurityv1";
+
 service RiskSecurityService {
-  // 执行反欺诈检查
-  rpc PerformAntiFraudCheck(PerformAntiFraudCheckRequest) returns (PerformAntiFraudCheckResponse);
+  // Risk Evaluation
+  rpc EvaluateRisk(EvaluateRiskRequest) returns (EvaluateRiskResponse);
+
+  // Blacklist Management
+  rpc AddToBlacklist(AddToBlacklistRequest) returns (google.protobuf.Empty);
+  rpc RemoveFromBlacklist(RemoveFromBlacklistRequest) returns (google.protobuf.Empty);
+
+  // Behavior Tracking
+  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (google.protobuf.Empty);
 }
 
-// PerformAntiFraudCheckRequest 执行反欺诈检查请求
-message PerformAntiFraudCheckRequest {
-  string user_id = 1; // 用户ID
-  string ip_address = 2; // IP地址
-  string device_info = 3; // 设备信息
-  string order_id = 4; // 订单ID (如果适用)
-  uint64 amount = 5; // 交易金额 (如果适用)
-  map<string, string> additional_data = 6; // 额外数据
+message RiskAnalysisResult {
+  uint64 user_id = 1;
+  int32 risk_score = 2;
+  int32 risk_level = 3;
+  string risk_items_json = 4;
 }
 
-// PerformAntiFraudCheckResponse 执行反欺诈检查响应
-message PerformAntiFraudCheckResponse {
-  bool is_fraud = 1; // 是否为欺诈
-  string risk_score = 2; // 风险分数
-  string decision = 3; // 决策 (ALLOW, REVIEW, REJECT)
-  string message = 4; // 消息
+message EvaluateRiskRequest {
+  uint64 user_id = 1;
+  string ip = 2;
+  string device_id = 3;
+  int64 amount = 4;
+}
+
+message EvaluateRiskResponse {
+  RiskAnalysisResult result = 1;
+}
+
+message AddToBlacklistRequest {
+  string type = 1;
+  string value = 2;
+  string reason = 3;
+  int64 duration_seconds = 4;
+}
+
+message RemoveFromBlacklistRequest {
+  uint64 id = 1;
+}
+
+message RecordUserBehaviorRequest {
+  uint64 user_id = 1;
+  string ip = 2;
+  string device_id = 3;
 }

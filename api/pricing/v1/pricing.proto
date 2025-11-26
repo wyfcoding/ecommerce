@@ -2,50 +2,109 @@ syntax = "proto3";
 
 package api.pricing.v1;
 
-option go_package = "ecommerce/api/pricing/v1;v1";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
-// PricingService 定义了定价服务接口
+option go_package = "github.com/wyfcoding/ecommerce/api/pricing/v1;pricingv1";
+
 service PricingService {
-  // 计算商品最终价格 (考虑促销、优惠券等)
-  rpc CalculateFinalPrice(CalculateFinalPriceRequest) returns (CalculateFinalPriceResponse);
+  // Rule Management
+  rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
 
-  // 计算商品动态价格 (考虑AI模型)
-  rpc CalculateDynamicPrice(CalculateDynamicPriceRequest) returns (CalculateDynamicPriceResponse);
+  // Price Calculation
+  rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
+
+  // History Management
+  rpc RecordHistory(RecordHistoryRequest) returns (google.protobuf.Empty);
+  rpc ListHistory(ListHistoryRequest) returns (ListHistoryResponse);
 }
 
-// SkuPriceInfo SKU价格信息
-message SkuPriceInfo {
-  uint64 sku_id = 1;
-  uint64 original_price = 2; // 原始价格 (分)
-  uint32 quantity = 3;
+message PricingRule {
+  uint64 id = 1;
+  string name = 2;
+  uint64 product_id = 3;
+  uint64 sku_id = 4;
+  string strategy = 5;
+  uint64 base_price = 6;
+  uint64 min_price = 7;
+  uint64 max_price = 8;
+  double adjust_rate = 9;
+  bool enabled = 10;
+  google.protobuf.Timestamp start_time = 11;
+  google.protobuf.Timestamp end_time = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
 }
 
-// CalculateFinalPriceRequest 计算最终价格请求
-message CalculateFinalPriceRequest {
-  uint64 user_id = 1; // 用户ID，用于个性化定价或用户专属优惠
-  repeated SkuPriceInfo items = 2; // 待计算价格的商品列表
-  string coupon_code = 3; // 使用的优惠券码 (可选)
-  // ... 其他可能影响价格的因素，如会员等级、活动ID等
+message PriceHistory {
+  uint64 id = 1;
+  uint64 product_id = 2;
+  uint64 sku_id = 3;
+  uint64 price = 4;
+  uint64 old_price = 5;
+  double change_rate = 6;
+  string reason = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// CalculateFinalPriceResponse 计算最终价格响应
-message CalculateFinalPriceResponse {
-  uint64 total_original_price = 1; // 商品原始总价 (分)
-  uint64 total_discount_amount = 2; // 总优惠金额 (分)
-  uint64 final_price = 3; // 最终支付价格 (分)
-  // ... 其他价格明细，如运费、税费等
+message CreateRuleRequest {
+  string name = 1;
+  uint64 product_id = 2;
+  uint64 sku_id = 3;
+  string strategy = 4;
+  uint64 base_price = 5;
+  uint64 min_price = 6;
+  uint64 max_price = 7;
+  double adjust_rate = 8;
+  bool enabled = 9;
+  google.protobuf.Timestamp start_time = 10;
+  google.protobuf.Timestamp end_time = 11;
 }
 
-// CalculateDynamicPriceRequest 计算动态价格请求
-message CalculateDynamicPriceRequest {
+message CreateRuleResponse {
+  PricingRule rule = 1;
+}
+
+message ListRulesRequest {
   uint64 product_id = 1;
-  uint64 user_id = 2; // 用户ID，用于个性化定价
-  // ... 其他影响动态价格的因素，如库存、销量、时间、竞争对手价格
-  map<string, string> context_features = 3; // 上下文特征
+  int32 page = 2;
+  int32 page_size = 3;
 }
 
-// CalculateDynamicPriceResponse 计算动态价格响应
-message CalculateDynamicPriceResponse {
-  uint64 dynamic_price = 1; // 动态计算出的价格 (分)
-  string explanation = 2; // 价格解释 (可选)
+message ListRulesResponse {
+  repeated PricingRule rules = 1;
+  int64 total_count = 2;
+}
+
+message CalculatePriceRequest {
+  uint64 product_id = 1;
+  uint64 sku_id = 2;
+  double demand = 3;
+  double competition = 4;
+}
+
+message CalculatePriceResponse {
+  uint64 price = 1;
+}
+
+message RecordHistoryRequest {
+  uint64 product_id = 1;
+  uint64 sku_id = 2;
+  uint64 price = 3;
+  uint64 old_price = 4;
+  string reason = 5;
+}
+
+message ListHistoryRequest {
+  uint64 product_id = 1;
+  uint64 sku_id = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListHistoryResponse {
+  repeated PriceHistory history = 1;
+  int64 total_count = 2;
 }

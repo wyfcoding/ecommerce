@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/user_tier/v1"
 	"github.com/wyfcoding/ecommerce/internal/user_tier/application"
 	"github.com/wyfcoding/ecommerce/internal/user_tier/infrastructure/persistence"
+	usertiergrpc "github.com/wyfcoding/ecommerce/internal/user_tier/interfaces/grpc"
 	usertierhttp "github.com/wyfcoding/ecommerce/internal/user_tier/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.UserTierService)
+	pb.RegisterUserTierServiceServer(s, usertiergrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for user_tier service (DDD)")
 }
 

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/pointsmall/v1"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence"
+	pointsgrpc "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/grpc"
 	pointshttp "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -39,6 +41,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.PointsService)
+	pb.RegisterPointsmallServiceServer(s, pointsgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for pointsmall service (DDD)")
 }
 
