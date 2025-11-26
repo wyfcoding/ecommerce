@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package api.order_optimization.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/order_optimization/v1;orderoptimizationv1";
+
+service OrderOptimizationService {
+  rpc MergeOrders(MergeOrdersRequest) returns (MergeOrdersResponse);
+  rpc SplitOrder(SplitOrderRequest) returns (SplitOrderResponse);
+  rpc AllocateWarehouse(AllocateWarehouseRequest) returns (AllocateWarehouseResponse);
+}
+
+message OrderItem {
+  uint64 product_id = 1;
+  int32 quantity = 2;
+  int64 price = 3;
+}
+
+message ShippingAddress {
+  string name = 1;
+  string phone = 2;
+  string province = 3;
+  string city = 4;
+  string district = 5;
+  string address = 6;
+}
+
+message MergedOrder {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  repeated uint64 original_order_ids = 3;
+  repeated OrderItem items = 4;
+  int64 total_amount = 5;
+  int64 discount_amount = 6;
+  int64 final_amount = 7;
+  ShippingAddress shipping_address = 8;
+  string status = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message SplitOrder {
+  uint64 id = 1;
+  uint64 original_order_id = 2;
+  int32 split_index = 3;
+  repeated OrderItem items = 4;
+  int64 amount = 5;
+  uint64 warehouse_id = 6;
+  ShippingAddress shipping_address = 7;
+  string status = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message WarehouseAllocation {
+  uint64 product_id = 1;
+  int32 quantity = 2;
+  uint64 warehouse_id = 3;
+  double distance = 4;
+}
+
+message WarehouseAllocationPlan {
+  uint64 id = 1;
+  uint64 order_id = 2;
+  repeated WarehouseAllocation allocations = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message MergeOrdersRequest {
+  uint64 user_id = 1;
+  repeated uint64 order_ids = 2;
+}
+
+message MergeOrdersResponse {
+  MergedOrder merged_order = 1;
+}
+
+message SplitOrderRequest {
+  uint64 order_id = 1;
+}
+
+message SplitOrderResponse {
+  repeated SplitOrder split_orders = 1;
+}
+
+message AllocateWarehouseRequest {
+  uint64 order_id = 1;
+}
+
+message AllocateWarehouseResponse {
+  WarehouseAllocationPlan plan = 1;
+}

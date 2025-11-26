@@ -1,0 +1,177 @@
+package grpc
+
+import (
+	"context"
+	"encoding/json"
+
+	pb "github.com/wyfcoding/ecommerce/api/marketing/v1"
+	"github.com/wyfcoding/ecommerce/internal/marketing/application"
+	"github.com/wyfcoding/ecommerce/internal/marketing/domain/entity"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+type Server struct {
+	pb.UnimplementedMarketingServiceServer
+	app *application.MarketingService
+}
+
+func NewServer(app *application.MarketingService) *Server {
+	return &Server{app: app}
+}
+
+func (s *Server) CreateCampaign(ctx context.Context, req *pb.CreateCampaignRequest) (*pb.CreateCampaignResponse, error) {
+	var rules map[string]interface{}
+	if req.RulesJson != "" {
+		if err := json.Unmarshal([]byte(req.RulesJson), &rules); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid rules_json")
+		}
+	}
+
+	campaign, err := s.app.CreateCampaign(ctx, req.Name, entity.CampaignType(req.CampaignType), req.Description, req.StartTime.AsTime(), req.EndTime.AsTime(), req.Budget, rules)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.CreateCampaignResponse{
+		Campaign: convertCampaignToProto(campaign),
+	}, nil
+}
+
+func (s *Server) GetCampaign(ctx context.Context, req *pb.GetCampaignRequest) (*pb.GetCampaignResponse, error) {
+	campaign, err := s.app.GetCampaign(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	return &pb.GetCampaignResponse{
+		Campaign: convertCampaignToProto(campaign),
+	}, nil
+}
+
+func (s *Server) UpdateCampaignStatus(ctx context.Context, req *pb.UpdateCampaignStatusRequest) (*emptypb.Empty, error) {
+	if err := s.app.UpdateCampaignStatus(ctx, req.Id, entity.CampaignStatus(req.Status)); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) ListCampaigns(ctx context.Context, req *pb.ListCampaignsRequest) (*pb.ListCampaignsResponse, error) {
+	page := int(req.Page)
+	if page < 1 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	campaigns, total, err := s.app.ListCampaigns(ctx, entity.CampaignStatus(req.Status), page, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	pbCampaigns := make([]*pb.Campaign, len(campaigns))
+	for i, c := range campaigns {
+		pbCampaigns[i] = convertCampaignToProto(c)
+	}
+
+	return &pb.ListCampaignsResponse{
+		Campaigns:  pbCampaigns,
+		TotalCount: total,
+	}, nil
+}
+
+func (s *Server) RecordParticipation(ctx context.Context, req *pb.RecordParticipationRequest) (*emptypb.Empty, error) {
+	if err := s.app.RecordParticipation(ctx, req.CampaignId, req.UserId, req.OrderId, req.Discount); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) CreateBanner(ctx context.Context, req *pb.CreateBannerRequest) (*pb.CreateBannerResponse, error) {
+	banner, err := s.app.CreateBanner(ctx, req.Title, req.ImageUrl, req.LinkUrl, req.Position, req.Priority, req.StartTime.AsTime(), req.EndTime.AsTime())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.CreateBannerResponse{
+		Banner: convertBannerToProto(banner),
+	}, nil
+}
+
+func (s *Server) ListBanners(ctx context.Context, req *pb.ListBannersRequest) (*pb.ListBannersResponse, error) {
+	banners, err := s.app.ListBanners(ctx, req.Position, req.ActiveOnly)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	pbBanners := make([]*pb.Banner, len(banners))
+	for i, b := range banners {
+		pbBanners[i] = convertBannerToProto(b)
+	}
+
+	return &pb.ListBannersResponse{
+		Banners: pbBanners,
+	}, nil
+}
+
+func (s *Server) DeleteBanner(ctx context.Context, req *pb.DeleteBannerRequest) (*emptypb.Empty, error) {
+	if err := s.app.DeleteBanner(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) ClickBanner(ctx context.Context, req *pb.ClickBannerRequest) (*emptypb.Empty, error) {
+	if err := s.app.ClickBanner(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func convertCampaignToProto(c *entity.Campaign) *pb.Campaign {
+	if c == nil {
+		return nil
+	}
+	rulesJson, _ := json.Marshal(c.Rules)
+	return &pb.Campaign{
+		Id:           uint64(c.ID),
+		Name:         c.Name,
+		CampaignType: string(c.CampaignType),
+		Description:  c.Description,
+		StartTime:    timestamppb.New(c.StartTime),
+		EndTime:      timestamppb.New(c.EndTime),
+		Budget:       c.Budget,
+		Spent:        c.Spent,
+		TargetUsers:  c.TargetUsers,
+		ReachedUsers: c.ReachedUsers,
+		Status:       int32(c.Status),
+		RulesJson:    string(rulesJson),
+		CreatedAt:    timestamppb.New(c.CreatedAt),
+		UpdatedAt:    timestamppb.New(c.UpdatedAt),
+	}
+}
+
+func convertBannerToProto(b *entity.Banner) *pb.Banner {
+	if b == nil {
+		return nil
+	}
+	return &pb.Banner{
+		Id:         uint64(b.ID),
+		Title:      b.Title,
+		ImageUrl:   b.ImageURL,
+		LinkUrl:    b.LinkURL,
+		Position:   b.Position,
+		Priority:   b.Priority,
+		StartTime:  timestamppb.New(b.StartTime),
+		EndTime:    timestamppb.New(b.EndTime),
+		ClickCount: b.ClickCount,
+		Enabled:    b.Enabled,
+		CreatedAt:  timestamppb.New(b.CreatedAt),
+		UpdatedAt:  timestamppb.New(b.UpdatedAt),
+	}
+}

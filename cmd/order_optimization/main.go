@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/order_optimization/v1"
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/application"
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/infrastructure/persistence"
+	optigrpc "github.com/wyfcoding/ecommerce/internal/order_optimization/interfaces/grpc"
 	optihttp "github.com/wyfcoding/ecommerce/internal/order_optimization/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.OrderOptimizationService)
+	pb.RegisterOrderOptimizationServiceServer(s, optigrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for order_optimization service (DDD)")
 }
 

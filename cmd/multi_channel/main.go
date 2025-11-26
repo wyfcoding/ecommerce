@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/multi_channel/v1"
 	"github.com/wyfcoding/ecommerce/internal/multi_channel/application"
 	"github.com/wyfcoding/ecommerce/internal/multi_channel/infrastructure/persistence"
+	channelgrpc "github.com/wyfcoding/ecommerce/internal/multi_channel/interfaces/grpc"
 	channelhttp "github.com/wyfcoding/ecommerce/internal/multi_channel/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.MultiChannelService)
+	pb.RegisterMultiChannelServiceServer(s, channelgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for multi_channel service (DDD)")
 }
 

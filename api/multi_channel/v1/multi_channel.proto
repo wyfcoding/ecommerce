@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package api.multi_channel.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/multi_channel/v1;multichannelv1";
+
+service MultiChannelService {
+  // Channel Management
+  rpc RegisterChannel(RegisterChannelRequest) returns (RegisterChannelResponse);
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc SyncOrders(SyncOrdersRequest) returns (google.protobuf.Empty);
+
+  // Order Management
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+}
+
+message Channel {
+  uint64 id = 1;
+  string name = 2;
+  string type = 3;
+  string api_key = 4;
+  string api_secret = 5;
+  bool is_enabled = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message OrderItem {
+  uint64 product_id = 1;
+  string product_name = 2;
+  int32 quantity = 3;
+  int64 price = 4;
+  string sku = 5;
+}
+
+message BuyerInfo {
+  string name = 1;
+  string email = 2;
+  string phone = 3;
+  string country = 4;
+}
+
+message ShippingInfo {
+  string address = 1;
+  string city = 2;
+  string state = 3;
+  string zip_code = 4;
+  string country = 5;
+}
+
+message LocalOrder {
+  uint64 id = 1;
+  uint64 channel_id = 2;
+  string channel_name = 3;
+  string channel_order_id = 4;
+  repeated OrderItem items = 5;
+  int64 total_amount = 6;
+  BuyerInfo buyer_info = 7;
+  ShippingInfo shipping_info = 8;
+  string status = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message RegisterChannelRequest {
+  string name = 1;
+  string type = 2;
+  string api_key = 3;
+  string api_secret = 4;
+  bool is_enabled = 5;
+}
+
+message RegisterChannelResponse {
+  Channel channel = 1;
+}
+
+message ListChannelsRequest {
+}
+
+message ListChannelsResponse {
+  repeated Channel channels = 1;
+}
+
+message SyncOrdersRequest {
+  uint64 channel_id = 1;
+}
+
+message ListOrdersRequest {
+  uint64 channel_id = 1;
+  string status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListOrdersResponse {
+  repeated LocalOrder orders = 1;
+  int64 total_count = 2;
+}

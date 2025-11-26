@@ -2,176 +2,130 @@ syntax = "proto3";
 
 package api.marketing.v1;
 
-import "google/protobuf/empty.proto"; // Added for google.protobuf.Empty
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/marketing/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/api/marketing/v1;marketingv1";
 
-// ===================================
-// Service Definition
-// ===================================
-service Marketing {
-  // --- Admin Facing ---
-  // 创建优惠券模板
-  rpc CreateCouponTemplate(CreateCouponTemplateRequest) returns (CreateCouponTemplateResponse) {}
+service MarketingService {
+  // Campaign Management
+  rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+  rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
+  rpc UpdateCampaignStatus(UpdateCampaignStatusRequest) returns (google.protobuf.Empty);
+  rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+  rpc RecordParticipation(RecordParticipationRequest) returns (google.protobuf.Empty);
 
-  // --- User Facing ---
-  // 用户领取优惠券
-  rpc ClaimCoupon(ClaimCouponRequest) returns (ClaimCouponResponse);
-  // 查看我的优惠券
-  rpc ListMyCoupons(ListMyCouponsRequest) returns (ListMyCouponsResponse);
-
-  // --- Internal Service Facing ---
-  // 为订单服务计算优惠金额
-  rpc CalculateDiscount(CalculateDiscountRequest) returns (CalculateDiscountResponse) {}
-
-  // --- 促销管理 ---
-  rpc CreatePromotion(CreatePromotionRequest) returns (PromotionInfo);
-  rpc UpdatePromotion(UpdatePromotionRequest) returns (PromotionInfo);
-  rpc DeletePromotion(DeletePromotionRequest) returns (google.protobuf.Empty);
-  rpc GetPromotion(GetPromotionRequest) returns (PromotionInfo);
-  rpc ListPromotions(ListPromotionsRequest) returns (ListPromotionsResponse);
+  // Banner Management
+  rpc CreateBanner(CreateBannerRequest) returns (CreateBannerResponse);
+  rpc ListBanners(ListBannersRequest) returns (ListBannersResponse);
+  rpc DeleteBanner(DeleteBannerRequest) returns (google.protobuf.Empty);
+  rpc ClickBanner(ClickBannerRequest) returns (google.protobuf.Empty);
 }
 
-// ===================================
-// Message Definitions
-// ===================================
-
-// --- Admin ---
-message CreateCouponTemplateRequest {
-  string title = 1;
-  int32 type = 2; // 1-满减, 2-折扣, 3-无门槛
-  int32 scope_type = 3; // 1-全场, 2-指定分类, 3-指定SPU
-  repeated uint64 scope_ids = 4;
-  RuleSet rules = 5;
-  uint32 total_quantity = 6; // 总发行量, 0为不限量
-  uint32 per_user_limit = 7; // 每人限领张数
-  int32 validity_type = 8; // 1-固定时间, 2-领取后生效
-  string valid_from = 9; // 固定有效期-开始时间 (RFC3339 格式)
-  string valid_to = 10; // 固定有效期-结束时间 (RFC3339 格式)
-  uint32 valid_days_after_claim = 11; // 领取后N天内有效
-  int32 status = 12; // 1-可用, 2-禁用
-}
-
-message RuleSet {
-  uint64 threshold = 1; // 满减门槛 (分)
-  uint64 discount = 2; // 满减金额 (分) 或 折扣值 (如88代表88折)
-  uint64 max_deduction = 3; // 折扣券的最大优惠金额 (分)
-}
-message CreateCouponTemplateResponse {
-  uint64 template_id = 1;
-}
-
-// --- User ---
-message ClaimCouponRequest {
-  uint64 user_id = 1;
-  uint64 template_id = 2;
-}
-message ClaimCouponResponse {}
-
-message UserCouponInfo {
-  uint64 user_coupon_id = 1;
-  uint64 template_id = 2;
-  string title = 3;
-  int32 status = 4;
-  string valid_from = 5;
-  string valid_to = 6;
-  // ... 其他需要在前端展示的规则信息
-}
-message ListMyCouponsRequest {
-  uint64 user_id = 1;
-  int32 status = 2; // 1-未使用, 2-已使用, 3-已过期
-}
-message ListMyCouponsResponse {
-  repeated UserCouponInfo coupons = 1;
-}
-
-// --- Internal ---
-message OrderItemInfo {
-  uint64 sku_id = 1;
-  uint64 spu_id = 2;
-  uint64 category_id = 3;
-  uint64 price = 4;
-  uint32 quantity = 5;
-}
-message CalculateDiscountRequest {
-  uint64 user_id = 1;
-  string coupon_code = 2;
-  repeated OrderItemInfo items = 3;
-}
-message CalculateDiscountResponse {} // Added
-message ListCouponsResponse {
-  repeated CouponInfo coupons = 1;
-  uint64 total_count = 2;
-}
-
-// 促销信息
-message PromotionInfo {
+message Campaign {
   uint64 id = 1;
   string name = 2;
-  uint32 type = 3; // 1: 限时折扣, 2: 满减活动, 3: 买赠
+  string campaign_type = 3;
   string description = 4;
-  string start_time = 5;
-  string end_time = 6;
-  uint32 status = 7; // 1: 进行中, 2: 已结束, 3: 未开始, 4: 已禁用
-  repeated uint64 product_ids = 8; // 关联的商品ID
-  optional uint64 discount_value = 9; // 折扣值或满减金额
-  optional uint64 min_order_amount = 10; // 最小订单金额 (针对满减)
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  uint64 budget = 7;
+  uint64 spent = 8;
+  int64 target_users = 9;
+  int64 reached_users = 10;
+  int32 status = 11;
+  string rules_json = 12; // JSON string for rules
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
 }
 
-message CreatePromotionRequest {
+message Banner {
+  uint64 id = 1;
+  string title = 2;
+  string image_url = 3;
+  string link_url = 4;
+  string position = 5;
+  int32 priority = 6;
+  google.protobuf.Timestamp start_time = 7;
+  google.protobuf.Timestamp end_time = 8;
+  int64 click_count = 9;
+  bool enabled = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateCampaignRequest {
   string name = 1;
-  uint32 type = 2;
+  string campaign_type = 2;
   string description = 3;
-  string start_time = 4;
-  string end_time = 5;
-  repeated uint64 product_ids = 6;
-  optional uint64 discount_value = 7;
-  optional uint64 min_order_amount = 8;
+  google.protobuf.Timestamp start_time = 4;
+  google.protobuf.Timestamp end_time = 5;
+  uint64 budget = 6;
+  string rules_json = 7;
 }
 
-message UpdatePromotionRequest {
-  uint64 id = 1;
-  optional string name = 2;
-  optional uint32 type = 3;
-  optional string description = 4;
-  optional string start_time = 5;
-  optional string end_time = 6;
-  optional uint32 status = 7;
-  repeated uint64 product_ids = 8;
-  optional uint64 discount_value = 9;
-  optional uint64 min_order_amount = 10;
+message CreateCampaignResponse {
+  Campaign campaign = 1;
 }
 
-message DeletePromotionRequest {
+message GetCampaignRequest {
   uint64 id = 1;
 }
 
-message GetPromotionRequest {
+message GetCampaignResponse {
+  Campaign campaign = 1;
+}
+
+message UpdateCampaignStatusRequest {
+  uint64 id = 1;
+  int32 status = 2;
+}
+
+message ListCampaignsRequest {
+  int32 status = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListCampaignsResponse {
+  repeated Campaign campaigns = 1;
+  int64 total_count = 2;
+}
+
+message RecordParticipationRequest {
+  uint64 campaign_id = 1;
+  uint64 user_id = 2;
+  uint64 order_id = 3;
+  uint64 discount = 4;
+}
+
+message CreateBannerRequest {
+  string title = 1;
+  string image_url = 2;
+  string link_url = 3;
+  string position = 4;
+  int32 priority = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+message CreateBannerResponse {
+  Banner banner = 1;
+}
+
+message ListBannersRequest {
+  string position = 1;
+  bool active_only = 2;
+}
+
+message ListBannersResponse {
+  repeated Banner banners = 1;
+}
+
+message DeleteBannerRequest {
   uint64 id = 1;
 }
 
-message ListPromotionsRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
-  optional string name = 3;
-  optional uint32 type = 4;
-  optional uint32 status = 5;
-}
-
-message ListPromotionsResponse {
-  repeated PromotionInfo promotions = 1;
-  uint64 total_count = 2;
-}
-
-// 优惠券信息
-message CouponInfo {
+message ClickBannerRequest {
   uint64 id = 1;
-  string name = 2;
-  string code = 3;
-  uint32 type = 4; // 1: 满减, 2: 折扣
-  uint64 value = 5; // 满减金额或折扣百分比
-  uint64 min_order_amount = 6; // 最小订单金额
-  string start_time = 7;
-  string end_time = 8;
-  uint32 status = 9; // 1: 有效, 2: 已过期, 3: 已禁用
 }

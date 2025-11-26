@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/marketing/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"
 	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/persistence"
+	marketinggrpc "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/grpc"
 	marketinghttp "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.MarketingService)
+	pb.RegisterMarketingServiceServer(s, marketinggrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for marketing service (DDD)")
 }
 
