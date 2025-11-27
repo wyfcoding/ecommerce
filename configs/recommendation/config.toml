@@ -1,0 +1,26 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8108
+timeout = "1s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9128
+timeout = "1s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_recommendation?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.neo4j]
+uri = "bolt://127.0.0.1:7687"
+username = "neo4j"
+password = "password"
+
+[services.ai_model]
+addr = "127.0.0.1:9090"
+
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

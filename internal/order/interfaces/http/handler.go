@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -129,7 +130,10 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 	var opErr error
 	ctx := c.Request.Context()
-	operator := "User" // TODO: Get from context
+	operator := "User"
+	if userID, exists := c.Get("userID"); exists {
+		operator = strconv.FormatUint(userID.(uint64), 10)
+	}
 
 	switch req.Action {
 	case "pay":

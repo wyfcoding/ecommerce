@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/cart-service .
 COPY --from=builder /app/configs/cart/config.toml ./configs/cart/config.toml
 
 # Expose ports
-EXPOSE 8005 9005
+EXPOSE 8084 9094
 
 # Run the application
 CMD ["./cart-service"]

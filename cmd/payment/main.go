@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log/slog"
+
 	v1 "github.com/wyfcoding/ecommerce/api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	mysqlRepo "github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/mysql"
@@ -52,10 +54,7 @@ func main() {
 			}
 
 			// Application Service
-			appService := application.NewPaymentApplicationService(
-				paymentRepo,
-				idGenerator,
-			)
+			appService := application.NewPaymentApplicationService(paymentRepo, idGenerator, slog.Default())
 
 			// gRPC Server
 			srv := grpcServer.NewServer(appService)

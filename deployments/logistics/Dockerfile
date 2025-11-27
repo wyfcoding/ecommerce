@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/logistics-service .
 COPY --from=builder /app/configs/logistics/config.toml ./configs/logistics/config.toml
 
 # Expose ports
-EXPOSE 8007 9007
+EXPOSE 8087 9097
 
 # Run the application
 CMD ["./logistics-service"]

@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/order-service .
 COPY --from=builder /app/configs/order/config.toml ./configs/order/config.toml
 
 # Expose ports
-EXPOSE 8003 9003
+EXPOSE 8082 9092
 
 # Run the application
 CMD ["./order-service"]

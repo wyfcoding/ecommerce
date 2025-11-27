@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/product-service .
 COPY --from=builder /app/configs/product/config.toml ./configs/product/config.toml
 
 # Expose ports
-EXPOSE 8002 9002
+EXPOSE 8083 9093
 
 # Run the application
 CMD ["./product-service"]

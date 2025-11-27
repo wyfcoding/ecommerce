@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/payment-service .
 COPY --from=builder /app/configs/payment/config.toml ./configs/payment/config.toml
 
 # Expose ports
-EXPOSE 8004 9004
+EXPOSE 8086 9096
 
 # Run the application
 CMD ["./payment-service"]

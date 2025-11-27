@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	pb "github.com/wyfcoding/ecommerce/api/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence"
+	warehousegrpc "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/grpc"
 	warehousehttp "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
+	service := srv.(*application.WarehouseService)
+	pb.RegisterWarehouseServiceServer(s, warehousegrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for warehouse service (DDD)")
 }
 

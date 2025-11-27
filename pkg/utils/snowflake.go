@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"os"
+	"strconv"
 	"sync"
 
 	"github.com/bwmarrin/snowflake"
@@ -11,23 +13,31 @@ var (
 	once sync.Once
 )
 
-// InitSnowflake initializes the snowflake node.
-func InitSnowflake(nodeID int64) error {
+// initNode initializes node automatically if not initialized.
+func initNode() error {
 	var err error
 	once.Do(func() {
+		nodeID := int64(1) // default nodeID = 1
+
+		// try to read from env: SNOWFLAKE_NODE_ID
+		if v := os.Getenv("SNOWFLAKE_NODE_ID"); v != "" {
+			if n, e := strconv.ParseInt(v, 10, 64); e == nil {
+				nodeID = n
+			}
+		}
+
 		node, err = snowflake.NewNode(nodeID)
 	})
+
 	return err
 }
 
-// GenerateID generates a new snowflake ID.
+// GenerateID generates a unique ID safely.
 func GenerateID() int64 {
 	if node == nil {
-		// Fallback or panic? For safety, let's try to init with default if not initialized
-		// But ideally InitSnowflake should be called at startup.
-		// If not initialized, we can't guarantee uniqueness across nodes.
-		// Let's panic to enforce initialization.
-		panic("snowflake node not initialized")
+		if err := initNode(); err != nil {
+			panic("failed to init snowflake node: " + err.Error())
+		}
 	}
 	return node.Generate().Int64()
 }

@@ -24,7 +24,7 @@ type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-const serviceName = "flashsale-service"
+const serviceName = "flashsale"
 
 func main() {
 	app.NewBuilder(serviceName).

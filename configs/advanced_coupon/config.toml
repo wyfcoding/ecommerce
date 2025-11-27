@@ -1,0 +1,18 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8124
+timeout = "1s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9144
+timeout = "1s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_advanced_coupon?charset=utf8mb4&parseTime=True&loc=Local"
+
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

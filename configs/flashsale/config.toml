@@ -1,0 +1,23 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8088
+timeout = "1s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9088
+timeout = "1s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_flashsale?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.redis]
+addr = "localhost:6379"
+password = ""
+db = 0
+
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

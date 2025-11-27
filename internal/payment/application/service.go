@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/pkg/idgen"
@@ -12,12 +13,14 @@ import (
 type PaymentApplicationService struct {
 	paymentRepo domain.PaymentRepository
 	idGenerator idgen.Generator
+	logger      *slog.Logger
 }
 
-func NewPaymentApplicationService(paymentRepo domain.PaymentRepository, idGenerator idgen.Generator) *PaymentApplicationService {
+func NewPaymentApplicationService(paymentRepo domain.PaymentRepository, idGenerator idgen.Generator, logger *slog.Logger) *PaymentApplicationService {
 	return &PaymentApplicationService{
 		paymentRepo: paymentRepo,
 		idGenerator: idGenerator,
+		logger:      logger,
 	}
 }
 
@@ -25,6 +28,7 @@ func (s *PaymentApplicationService) InitiatePayment(ctx context.Context, orderID
 	// Check if payment already exists for this order
 	existingPayment, err := s.paymentRepo.FindByOrderID(ctx, orderID)
 	if err != nil {
+		s.logger.Error("failed to find existing payment", "order_id", orderID, "error", err)
 		return nil, err
 	}
 	if existingPayment != nil {
@@ -42,6 +46,7 @@ func (s *PaymentApplicationService) InitiatePayment(ctx context.Context, orderID
 	payment.ID = uint64(s.idGenerator.Generate())
 
 	if err := s.paymentRepo.Save(ctx, payment); err != nil {
+		s.logger.Error("failed to save payment", "order_id", orderID, "error", err)
 		return nil, err
 	}
 
@@ -51,6 +56,7 @@ func (s *PaymentApplicationService) InitiatePayment(ctx context.Context, orderID
 func (s *PaymentApplicationService) HandlePaymentCallback(ctx context.Context, paymentNo string, success bool, transactionID, thirdPartyNo string) error {
 	payment, err := s.paymentRepo.FindByPaymentNo(ctx, paymentNo)
 	if err != nil {
+		s.logger.Error("failed to find payment by no", "payment_no", paymentNo, "error", err)
 		return err
 	}
 	if payment == nil {
@@ -58,10 +64,15 @@ func (s *PaymentApplicationService) HandlePaymentCallback(ctx context.Context, p
 	}
 
 	if err := payment.Process(success, transactionID, thirdPartyNo); err != nil {
+		s.logger.Error("failed to process payment", "payment_no", paymentNo, "error", err)
 		return err
 	}
 
-	return s.paymentRepo.Update(ctx, payment)
+	if err := s.paymentRepo.Update(ctx, payment); err != nil {
+		s.logger.Error("failed to update payment", "payment_no", paymentNo, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (s *PaymentApplicationService) GetPaymentStatus(ctx context.Context, paymentID uint64) (*domain.Payment, error) {
@@ -71,6 +82,7 @@ func (s *PaymentApplicationService) GetPaymentStatus(ctx context.Context, paymen
 func (s *PaymentApplicationService) RequestRefund(ctx context.Context, paymentID uint64, amount int64, reason string) (*domain.Refund, error) {
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
+		s.logger.Error("failed to find payment", "payment_id", paymentID, "error", err)
 		return nil, err
 	}
 	if payment == nil {
@@ -79,11 +91,13 @@ func (s *PaymentApplicationService) RequestRefund(ctx context.Context, paymentID
 
 	refund, err := payment.CreateRefund(amount, reason)
 	if err != nil {
+		s.logger.Error("failed to create refund", "payment_id", paymentID, "error", err)
 		return nil, err
 	}
 	refund.ID = uint64(s.idGenerator.Generate())
 
 	if err := s.paymentRepo.Update(ctx, payment); err != nil {
+		s.logger.Error("failed to update payment for refund", "payment_id", paymentID, "error", err)
 		return nil, err
 	}
 

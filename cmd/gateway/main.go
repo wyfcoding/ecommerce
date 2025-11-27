@@ -22,7 +22,7 @@ type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-const serviceName = "gateway-service"
+const serviceName = "gateway"
 
 func main() {
 	app.NewBuilder(serviceName).

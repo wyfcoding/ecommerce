@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/inventory-service .
 COPY --from=builder /app/configs/inventory/config.toml ./configs/inventory/config.toml
 
 # Expose ports
-EXPOSE 8006 9006
+EXPOSE 8085 9095
 
 # Run the application
 CMD ["./inventory-service"]

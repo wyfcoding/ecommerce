@@ -1,0 +1,24 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8120
+timeout = "5s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9140
+timeout = "5s"
+
+[data.database]
+dsn = "root:password@tcp(127.0.0.1:3306)/ecommerce_marketing?charset=utf8mb4&parseTime=True&loc=Local"
+
+[data.redis]
+addr = "localhost:6379"
+password = ""
+db = 2
+read_timeout = "0.2s"
+write_timeout = "0.2s"
+
+[log]
+level = "debug"
+format = "console"
+output = "stdout"

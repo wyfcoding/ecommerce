@@ -81,7 +81,7 @@ func (b *Builder) WithGinMiddleware(middleware ...gin.HandlerFunc) *Builder {
 // Build 构建最终的 App。
 func (b *Builder) Build() *App {
 	// 1. 加载配置
-	configPath := fmt.Sprintf("./configs/%s.toml", b.serviceName)
+	configPath := fmt.Sprintf("./configs/%s/config.toml", b.serviceName)
 	var flagConfigPath string
 	flag.StringVar(&flagConfigPath, "conf", configPath, "config file path")
 	flag.Parse()

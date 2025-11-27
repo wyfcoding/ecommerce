@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package api.permission.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/permission/v1;permissionv1";
+
+service PermissionService {
+  // Role Management
+  rpc CreateRole(CreateRoleRequest) returns (Role);
+  rpc GetRole(GetRoleRequest) returns (Role);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
+
+  // Permission Management
+  rpc CreatePermission(CreatePermissionRequest) returns (Permission);
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
+
+  // User Role Management
+  rpc AssignRole(AssignRoleRequest) returns (google.protobuf.Empty);
+  rpc RevokeRole(RevokeRoleRequest) returns (google.protobuf.Empty);
+  rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+}
+
+message Role {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  repeated Permission permissions = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message Permission {
+  uint64 id = 1;
+  string code = 2; // e.g. "order:create"
+  string description = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message CreateRoleRequest {
+  string name = 1;
+  string description = 2;
+  repeated uint64 permission_ids = 3;
+}
+
+message GetRoleRequest {
+  uint64 id = 1;
+}
+
+message ListRolesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+  int64 total_count = 2;
+}
+
+message DeleteRoleRequest {
+  uint64 id = 1;
+}
+
+message CreatePermissionRequest {
+  string code = 1;
+  string description = 2;
+}
+
+message ListPermissionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListPermissionsResponse {
+  repeated Permission permissions = 1;
+  int64 total_count = 2;
+}
+
+message AssignRoleRequest {
+  uint64 user_id = 1;
+  uint64 role_id = 2;
+}
+
+message RevokeRoleRequest {
+  uint64 user_id = 1;
+  uint64 role_id = 2;
+}
+
+message GetUserRolesRequest {
+  uint64 user_id = 1;
+}
+
+message GetUserRolesResponse {
+  repeated Role roles = 1;
+}
+
+message CheckPermissionRequest {
+  uint64 user_id = 1;
+  string permission_code = 2;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+}

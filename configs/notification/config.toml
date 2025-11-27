@@ -1,0 +1,46 @@
+[server.http]
+addr = "0.0.0.0"
+port = 8115
+timeout = "2s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9115
+timeout = "2s"
+
+[mq]
+type = "rabbitmq"
+url = "amqp://guest:guest@localhost:5672/"
+consumer_queues = [
+  { queue_name = "user.events.registration", exchange_name = "user_events", routing_key = "user.registered" },
+  { queue_name = "order.events.status_change", exchange_name = "order_events", routing_key = "order.*" },
+  { queue_name = "payment.events.success", exchange_name = "payment_events", routing_key = "payment.success" }
+]
+
+[channels.smtp]
+enabled = true
+host = "smtp.example.com"
+port = 587
+username = "your_smtp_username"
+password = "your_smtp_password"
+from_address = "no-reply@ecommerce.com"
+from_name = "E-Commerce Platform"
+
+[channels.sms.twilio]
+enabled = true
+account_sid = "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+auth_token = "your_twilio_auth_token"
+from_number = "+15017122661"
+
+[channels.push.fcm]
+enabled = true
+server_key = "your_fcm_server_key"
+
+[tracing]
+jaeger_endpoint = "http://localhost:14268/api/traces"
+service_name = "notification-service"
+
+[log]
+level = "debug"
+format = "json"
+output = "stdout"

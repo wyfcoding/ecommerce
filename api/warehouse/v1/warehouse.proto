@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package api.warehouse.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/warehouse/v1;warehousev1";
+
+service WarehouseService {
+  // Warehouse Management
+  rpc CreateWarehouse(CreateWarehouseRequest) returns (CreateWarehouseResponse);
+  rpc ListWarehouses(ListWarehousesRequest) returns (ListWarehousesResponse);
+
+  // Stock Management
+  rpc UpdateStock(UpdateStockRequest) returns (google.protobuf.Empty);
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+
+  // Transfer Management
+  rpc CreateTransfer(CreateTransferRequest) returns (CreateTransferResponse);
+  rpc CompleteTransfer(CompleteTransferRequest) returns (google.protobuf.Empty);
+}
+
+message Warehouse {
+  uint64 id = 1;
+  string code = 2;
+  string name = 3;
+  string warehouse_type = 4;
+  string province = 5;
+  string city = 6;
+  string district = 7;
+  string address = 8;
+  double longitude = 9;
+  double latitude = 10;
+  string contact_name = 11;
+  string contact_phone = 12;
+  int32 priority = 13;
+  string status = 14;
+  int64 capacity = 15;
+  string description = 16;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
+}
+
+message WarehouseStock {
+  uint64 id = 1;
+  uint64 warehouse_id = 2;
+  uint64 sku_id = 3;
+  int32 stock = 4;
+  int32 locked_stock = 5;
+  int32 safe_stock = 6;
+  int32 max_stock = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message StockTransfer {
+  uint64 id = 1;
+  string transfer_no = 2;
+  uint64 from_warehouse_id = 3;
+  uint64 to_warehouse_id = 4;
+  uint64 sku_id = 5;
+  int32 quantity = 6;
+  string status = 7;
+  string reason = 8;
+  uint64 approved_by = 9;
+  google.protobuf.Timestamp approved_at = 10;
+  google.protobuf.Timestamp shipped_at = 11;
+  google.protobuf.Timestamp received_at = 12;
+  google.protobuf.Timestamp completed_at = 13;
+  string remark = 14;
+  uint64 created_by = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+message CreateWarehouseRequest {
+  string code = 1;
+  string name = 2;
+}
+
+message CreateWarehouseResponse {
+  Warehouse warehouse = 1;
+}
+
+message ListWarehousesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListWarehousesResponse {
+  repeated Warehouse warehouses = 1;
+  int64 total_count = 2;
+}
+
+message UpdateStockRequest {
+  uint64 warehouse_id = 1;
+  uint64 sku_id = 2;
+  int32 quantity = 3; // Can be negative for deduction
+}
+
+message GetStockRequest {
+  uint64 warehouse_id = 1;
+  uint64 sku_id = 2;
+}
+
+message GetStockResponse {
+  WarehouseStock stock = 1;
+}
+
+message CreateTransferRequest {
+  uint64 from_warehouse_id = 1;
+  uint64 to_warehouse_id = 2;
+  uint64 sku_id = 3;
+  int32 quantity = 4;
+  uint64 created_by = 5;
+}
+
+message CreateTransferResponse {
+  StockTransfer transfer = 1;
+}
+
+message CompleteTransferRequest {
+  uint64 transfer_id = 1;
+}
