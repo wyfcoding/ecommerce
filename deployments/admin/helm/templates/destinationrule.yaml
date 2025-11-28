@@ -2,11 +2,11 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: {{ include "user.fullname" . }}
+  name: {{ include "fullname" . }}
   labels:
-    {{- include "user.labels" . | nindent 4 }}
+    {{- include "labels" . | nindent 4 }}
 spec:
-  host: {{ include "user.fullname" . }}
+  host: {{ include "fullname" . }}
   trafficPolicy:
     loadBalancer:
       simple: ROUND_ROBIN

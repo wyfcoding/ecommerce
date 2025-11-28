@@ -2,9 +2,9 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: {{ include "user.fullname" . }}
+  name: {{ include "fullname" . }}
   labels:
-    {{- include "user.labels" . | nindent 4 }}
+    {{- include "labels" . | nindent 4 }}
 spec:
   hosts:
   {{- if .Values.istio.gateway.enabled }}
@@ -12,11 +12,11 @@ spec:
   - {{ . | quote }}
   {{- end }}
   {{- else }}
-  - {{ include "user.fullname" . }}
+  - {{ include "fullname" . }}
   {{- end }}
   {{- if .Values.istio.gateway.enabled }}
   gateways:
-  - {{ include "user.fullname" . }}-gateway
+  - {{ include "fullname" . }}-gateway
   {{- end }}
   http:
   - match:
@@ -24,7 +24,7 @@ spec:
         prefix: /api/v1/{{ .Chart.Name }}
     route:
     - destination:
-        host: {{ include "user.fullname" . }}
+        host: {{ include "fullname" . }}
         port:
           number: {{ .Values.service.httpPort }}
   - match:
@@ -32,7 +32,7 @@ spec:
         prefix: /{{ .Values.service.grpcService }}
     route:
     - destination:
-        host: {{ include "user.fullname" . }}
+        host: {{ include "fullname" . }}
         port:
           number: {{ .Values.service.grpcPort }}
 {{- end }}

@@ -95,3 +95,11 @@ istio:
     enabled: true
     hosts:
       - "*"
+
+networkPolicy:
+  enabled: false
+  allowExternal: true
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1

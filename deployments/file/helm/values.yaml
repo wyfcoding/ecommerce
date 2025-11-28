@@ -68,3 +68,11 @@ config:
   database:
     host: "mysql-service"
     port: 3306
+
+networkPolicy:
+  enabled: false
+  allowExternal: true
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
