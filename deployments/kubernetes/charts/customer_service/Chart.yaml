@@ -1,6 +1,0 @@
-apiVersion: v2
-name: customer_service
-description: A Helm chart for the customer_service service
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
