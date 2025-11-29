@@ -19,6 +19,10 @@ service WarehouseService {
   // Transfer Management
   rpc CreateTransfer(CreateTransferRequest) returns (CreateTransferResponse);
   rpc CompleteTransfer(CompleteTransferRequest) returns (google.protobuf.Empty);
+
+  // Saga Transaction Support
+  rpc DeductStock(DeductStockRequest) returns (google.protobuf.Empty);
+  rpc RevertStock(RevertStockRequest) returns (google.protobuf.Empty);
 }
 
 message Warehouse {
@@ -122,4 +126,18 @@ message CreateTransferResponse {
 
 message CompleteTransferRequest {
   uint64 transfer_id = 1;
+}
+
+message DeductStockRequest {
+  uint64 order_id = 1;
+  uint64 sku_id = 2;
+  int32 quantity = 3;
+  uint64 warehouse_id = 4;
+}
+
+message RevertStockRequest {
+  uint64 order_id = 1;
+  uint64 sku_id = 2;
+  int32 quantity = 3;
+  uint64 warehouse_id = 4;
 }

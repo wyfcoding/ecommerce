@@ -53,7 +53,9 @@ type ServerConfig struct {
 // DataConfig defines data related configuration.
 type DataConfig struct {
 	Database      DatabaseConfig      `mapstructure:"database" toml:"database"`
+	Shards        []DatabaseConfig    `mapstructure:"shards" toml:"shards"`
 	Redis         RedisConfig         `mapstructure:"redis" toml:"redis"`
+	BigCache      BigCacheConfig      `mapstructure:"bigcache" toml:"bigcache"`
 	MongoDB       MongoDBConfig       `mapstructure:"mongodb" toml:"mongodb"`
 	ClickHouse    ClickHouseConfig    `mapstructure:"clickhouse" toml:"clickhouse"`
 	Neo4j         Neo4jConfig         `mapstructure:"neo4j" toml:"neo4j"`
@@ -80,6 +82,11 @@ type RedisConfig struct {
 	WriteTimeout time.Duration `mapstructure:"write_timeout" toml:"write_timeout"`
 	PoolSize     int           `mapstructure:"pool_size" toml:"pool_size"`
 	MinIdleConns int           `mapstructure:"min_idle_conns" toml:"min_idle_conns"`
+}
+
+type BigCacheConfig struct {
+	TTL   time.Duration `mapstructure:"ttl" toml:"ttl"`
+	MaxMB int           `mapstructure:"max_mb" toml:"max_mb"`
 }
 
 // MongoDBConfig defines MongoDB configuration.

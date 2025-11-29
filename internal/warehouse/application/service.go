@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -31,8 +32,10 @@ func (s *WarehouseService) CreateWarehouse(ctx context.Context, code, name strin
 		Status: entity.WarehouseStatusInactive,
 	}
 	if err := s.repo.SaveWarehouse(ctx, warehouse); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create warehouse", "code", code, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "warehouse created successfully", "warehouse_id", warehouse.ID, "code", code)
 	return warehouse, nil
 }
 
@@ -58,7 +61,12 @@ func (s *WarehouseService) UpdateStock(ctx context.Context, warehouseID, skuID u
 	}
 
 	stock.Stock += quantity
-	return s.repo.SaveStock(ctx, stock)
+	if err := s.repo.SaveStock(ctx, stock); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update stock", "warehouse_id", warehouseID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock updated successfully", "warehouse_id", warehouseID, "sku_id", skuID, "quantity", quantity)
+	return nil
 }
 
 // CreateTransfer 创建调拨单
@@ -89,8 +97,10 @@ func (s *WarehouseService) CreateTransfer(ctx context.Context, fromID, toID, sku
 	}
 
 	if err := s.repo.SaveTransfer(ctx, transfer); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create transfer", "from_id", fromID, "to_id", toID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "transfer created successfully", "transfer_id", transfer.ID, "transfer_no", transfer.TransferNo)
 
 	return transfer, nil
 }
@@ -140,7 +150,12 @@ func (s *WarehouseService) CompleteTransfer(ctx context.Context, transferID uint
 	transfer.Status = entity.StockTransferStatusCompleted
 	now := time.Now()
 	transfer.CompletedAt = &now
-	return s.repo.SaveTransfer(ctx, transfer)
+	if err := s.repo.SaveTransfer(ctx, transfer); err != nil {
+		s.logger.ErrorContext(ctx, "failed to complete transfer", "transfer_id", transferID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "transfer completed successfully", "transfer_id", transferID)
+	return nil
 }
 
 // ListWarehouses 获取仓库列表
@@ -152,4 +167,48 @@ func (s *WarehouseService) ListWarehouses(ctx context.Context, page, pageSize in
 // GetStock 获取库存
 func (s *WarehouseService) GetStock(ctx context.Context, warehouseID, skuID uint64) (*entity.WarehouseStock, error) {
 	return s.repo.GetStock(ctx, warehouseID, skuID)
+}
+
+// DeductStock 扣减库存 (Saga Action)
+func (s *WarehouseService) DeductStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
+	stock, err := s.repo.GetStock(ctx, warehouseID, skuID)
+	if err != nil {
+		return err
+	}
+	if stock == nil {
+		return errors.New("stock not found")
+	}
+	if stock.Stock < quantity {
+		return errors.New("insufficient stock")
+	}
+
+	stock.Stock -= quantity
+	if err := s.repo.SaveStock(ctx, stock); err != nil {
+		s.logger.ErrorContext(ctx, "failed to deduct stock", "warehouse_id", warehouseID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock deducted successfully", "warehouse_id", warehouseID, "sku_id", skuID, "quantity", quantity)
+	return nil
+}
+
+// RevertStock 回滚库存 (Saga Compensate)
+func (s *WarehouseService) RevertStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
+	stock, err := s.repo.GetStock(ctx, warehouseID, skuID)
+	if err != nil {
+		return err
+	}
+	if stock == nil {
+		// If stock record doesn't exist during revert, it might be a serious data issue or it was never created.
+		// For compensation, we might want to create it or log error.
+		// Assuming it exists if Deduct succeeded.
+		return errors.New("stock not found during revert")
+	}
+
+	stock.Stock += quantity
+	if err := s.repo.SaveStock(ctx, stock); err != nil {
+		s.logger.ErrorContext(ctx, "failed to revert stock", "warehouse_id", warehouseID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock reverted successfully", "warehouse_id", warehouseID, "sku_id", skuID, "quantity", quantity)
+	return nil
 }

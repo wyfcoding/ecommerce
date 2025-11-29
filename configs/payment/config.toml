@@ -16,7 +16,15 @@ timeout = "5s"
 
 [data.database]
 driver = "mysql"
-dsn = "root:password@tcp(127.0.0.1:3306)/payment_db?charset=utf8mb4&parseTime=True&loc=Local"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_payment?charset=utf8mb4&parseTime=True&loc=Local"
+
+[[data.shards]]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_payment?charset=utf8mb4&parseTime=True&loc=Local"
+
+[[data.shards]]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_payment?charset=utf8mb4&parseTime=True&loc=Local"
 max_idle_conns = 10
 max_open_conns = 100
 conn_max_lifetime = "1h"

@@ -106,6 +106,28 @@ services:
     networks:
       - ecommerce-net
 
+  dtm:
+    image: yedf/dtm
+    container_name: ecommerce-dtm
+    restart: always
+    ports:
+      - "36789:36789" # HTTP
+      - "36790:36790" # gRPC
+    environment:
+      - DB_TYPE=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=password
+      - DB_NAME=dtm
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce-net
+
   # --- 微服务 ---
   # 使用YAML锚点来继承通用配置
   gateway:

@@ -3,33 +3,62 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"time"
 
+	"log/slog"
+
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"
+	"github.com/wyfcoding/ecommerce/pkg/cache"
+	"github.com/wyfcoding/ecommerce/pkg/metrics"
 )
 
 // ProductApplicationService 商品应用服务
 type ProductApplicationService struct {
-	productRepo  domain.ProductRepository
+	repo         domain.ProductRepository
 	skuRepo      domain.SKURepository
 	categoryRepo domain.CategoryRepository
 	brandRepo    domain.BrandRepository
+	cache        cache.Cache
+	logger       *slog.Logger
+
+	// Metrics
+	cacheHits   *prometheus.CounterVec
+	cacheMisses *prometheus.CounterVec
 }
 
 // NewProductApplicationService 创建商品应用服务
 func NewProductApplicationService(
-	productRepo domain.ProductRepository,
+	repo domain.ProductRepository,
 	skuRepo domain.SKURepository,
 	categoryRepo domain.CategoryRepository,
 	brandRepo domain.BrandRepository,
+	cache cache.Cache,
+	logger *slog.Logger,
+	m *metrics.Metrics,
 ) *ProductApplicationService {
+	cacheHits := m.NewCounterVec(prometheus.CounterOpts{
+		Name: "product_cache_hits_total",
+		Help: "Total number of cache hits",
+	}, []string{"layer"})
+
+	cacheMisses := m.NewCounterVec(prometheus.CounterOpts{
+		Name: "product_cache_misses_total",
+		Help: "Total number of cache misses",
+	}, []string{})
+
 	return &ProductApplicationService{
-		productRepo:  productRepo,
+		repo:         repo,
 		skuRepo:      skuRepo,
 		categoryRepo: categoryRepo,
 		brandRepo:    brandRepo,
+		cache:        cache,
+		logger:       logger,
+		cacheHits:    cacheHits,
+		cacheMisses:  cacheMisses,
 	}
 }
 
@@ -40,21 +69,44 @@ func (s *ProductApplicationService) CreateProduct(ctx context.Context, name, des
 		return nil, err
 	}
 
-	if err := s.productRepo.Save(ctx, product); err != nil {
+	if err := s.repo.Save(ctx, product); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create product", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "product created successfully", "product_id", product.ID)
 
 	return product, nil
 }
 
 // GetProductByID 获取商品详情
 func (s *ProductApplicationService) GetProductByID(ctx context.Context, id uint64) (*domain.Product, error) {
-	return s.productRepo.FindByID(ctx, uint(id))
+	// 1. Check Cache
+	var product domain.Product
+	cacheKey := fmt.Sprintf("product:%d", id)
+	if err := s.cache.Get(ctx, cacheKey, &product); err == nil {
+		s.cacheHits.WithLabelValues("L1_L2").Inc() // MultiLevelCache handles L1/L2 internally, but we count it as a hit here.
+		// Ideally MultiLevelCache should report which layer hit, but for now we just count overall hit.
+		return &product, nil
+	}
+	s.cacheMisses.WithLabelValues().Inc()
+
+	// 2. Check DB
+	p, err := s.repo.FindByID(ctx, uint(id))
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, nil
+	}
+
+	// Set cache
+	_ = s.cache.Set(ctx, cacheKey, p, 10*time.Minute)
+	return p, nil
 }
 
 // UpdateProductInfo 更新商品信息
 func (s *ProductApplicationService) UpdateProductInfo(ctx context.Context, id uint64, name, description *string, categoryID, brandID *uint64, status *domain.ProductStatus) (*domain.Product, error) {
-	product, err := s.productRepo.FindByID(ctx, uint(id))
+	product, err := s.repo.FindByID(ctx, uint(id))
 	if err != nil {
 		return nil, err
 	}
@@ -82,32 +134,43 @@ func (s *ProductApplicationService) UpdateProductInfo(ctx context.Context, id ui
 	// Let's stick to existing domain model.
 
 	// product.UpdatedAt = time.Now() // gorm.Model handles this
-	if err := s.productRepo.Update(ctx, product); err != nil {
+	if err := s.repo.Update(ctx, product); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update product", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "product updated successfully", "product_id", id)
+
+	// Invalidate cache
+	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
+
 	return product, nil
 }
 
 // DeleteProduct 删除商品
 func (s *ProductApplicationService) DeleteProduct(ctx context.Context, id uint64) error {
-	return s.productRepo.Delete(ctx, uint(id))
+	if err := s.repo.Delete(ctx, uint(id)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete product", "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "product deleted successfully", "product_id", id)
+	return s.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
 }
 
 // ListProducts 列出商品
 func (s *ProductApplicationService) ListProducts(ctx context.Context, page, pageSize int, categoryID, brandID uint64) ([]*domain.Product, int64, error) {
 	offset := (page - 1) * pageSize
 	if categoryID > 0 {
-		return s.productRepo.ListByCategory(ctx, uint(categoryID), offset, pageSize)
+		return s.repo.ListByCategory(ctx, uint(categoryID), offset, pageSize)
 	}
 	if brandID > 0 {
-		return s.productRepo.ListByBrand(ctx, uint(brandID), offset, pageSize)
+		return s.repo.ListByBrand(ctx, uint(brandID), offset, pageSize)
 	}
-	return s.productRepo.List(ctx, offset, pageSize)
+	return s.repo.List(ctx, offset, pageSize)
 }
 
 // AddSKU 添加SKU
 func (s *ProductApplicationService) AddSKU(ctx context.Context, productID uint64, name string, price int64, stock int32, image string, specs map[string]string) (*domain.SKU, error) {
-	product, err := s.productRepo.FindByID(ctx, uint(productID))
+	product, err := s.repo.FindByID(ctx, uint(productID))
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +184,10 @@ func (s *ProductApplicationService) AddSKU(ctx context.Context, productID uint64
 	}
 
 	if err := s.skuRepo.Save(ctx, sku); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add SKU", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "SKU added successfully", "sku_id", sku.ID, "product_id", productID)
 
 	return sku, nil
 }
@@ -149,14 +214,21 @@ func (s *ProductApplicationService) UpdateSKU(ctx context.Context, id uint64, pr
 	// sku.UpdatedAt = time.Now() // gorm.Model handles this
 
 	if err := s.skuRepo.Update(ctx, sku); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update SKU", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "SKU updated successfully", "sku_id", id)
 	return sku, nil
 }
 
 // DeleteSKU 删除SKU
 func (s *ProductApplicationService) DeleteSKU(ctx context.Context, id uint64) error {
-	return s.skuRepo.Delete(ctx, uint(id))
+	if err := s.skuRepo.Delete(ctx, uint(id)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete SKU", "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "SKU deleted successfully", "sku_id", id)
+	return nil
 }
 
 // GetSKUByID 获取SKU
@@ -178,8 +250,10 @@ func (s *ProductApplicationService) CreateCategory(ctx context.Context, name str
 	// category.Sort = sortOrder // Removed sortOrder from input
 
 	if err := s.categoryRepo.Save(ctx, category); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create category", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "category created successfully", "category_id", category.ID)
 	return category, nil
 }
 
@@ -210,14 +284,21 @@ func (s *ProductApplicationService) UpdateCategory(ctx context.Context, id uint6
 	// category.UpdatedAt = time.Now() // gorm.Model handles this
 
 	if err := s.categoryRepo.Update(ctx, category); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update category", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "category updated successfully", "category_id", id)
 	return category, nil
 }
 
 // DeleteCategory 删除分类
 func (s *ProductApplicationService) DeleteCategory(ctx context.Context, id uint64) error {
-	return s.categoryRepo.Delete(ctx, uint(id))
+	if err := s.categoryRepo.Delete(ctx, uint(id)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete category", "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "category deleted successfully", "category_id", id)
+	return nil
 }
 
 // ListCategories 列出分类
@@ -239,8 +320,10 @@ func (s *ProductApplicationService) CreateBrand(ctx context.Context, name, logo 
 	// Ignoring description for now.
 
 	if err := s.brandRepo.Save(ctx, brand); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create brand", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "brand created successfully", "brand_id", brand.ID)
 	return brand, nil
 }
 
@@ -268,14 +351,21 @@ func (s *ProductApplicationService) UpdateBrand(ctx context.Context, id uint64, 
 	// brand.UpdatedAt = time.Now() // gorm.Model handles this
 
 	if err := s.brandRepo.Update(ctx, brand); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update brand", "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "brand updated successfully", "brand_id", id)
 	return brand, nil
 }
 
 // DeleteBrand 删除品牌
 func (s *ProductApplicationService) DeleteBrand(ctx context.Context, id uint64) error {
-	return s.brandRepo.Delete(ctx, uint(id))
+	if err := s.brandRepo.Delete(ctx, uint(id)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete brand", "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "brand deleted successfully", "brand_id", id)
+	return nil
 }
 
 // ListBrands 列出品牌
@@ -285,7 +375,7 @@ func (s *ProductApplicationService) ListBrands(ctx context.Context) ([]*domain.B
 
 // CalculateProductPrice 计算商品动态价格
 func (s *ProductApplicationService) CalculateProductPrice(ctx context.Context, productID uint64, userID uint64) (int64, error) {
-	product, err := s.productRepo.FindByID(ctx, uint(productID))
+	product, err := s.repo.FindByID(ctx, uint(productID))
 	if err != nil {
 		return 0, err
 	}

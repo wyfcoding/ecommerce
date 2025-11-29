@@ -10,6 +10,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
+	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 // NewDB creates a new GORM DB instance.
@@ -39,6 +40,11 @@ func NewDB(cfg config.DatabaseConfig, logger *logging.Logger) (*gorm.DB, error) 
 	db, err := gorm.Open(dialector, gormConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	// Enable OpenTelemetry Tracing
+	if err := db.Use(tracing.NewPlugin()); err != nil {
+		return nil, fmt.Errorf("failed to use tracing plugin: %w", err)
 	}
 
 	sqlDB, err := db.DB()

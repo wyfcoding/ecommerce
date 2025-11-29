@@ -73,3 +73,9 @@ func RateLimitMiddleware(limiter *IPRateLimiter) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RateLimit is a convenience wrapper for RateLimitMiddleware
+func RateLimit(limit int, burst int) gin.HandlerFunc {
+	limiter := NewIPRateLimiter(rate.Limit(limit), burst)
+	return RateLimitMiddleware(limiter)
+}

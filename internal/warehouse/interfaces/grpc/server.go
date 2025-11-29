@@ -95,6 +95,21 @@ func (s *Server) CompleteTransfer(ctx context.Context, req *pb.CompleteTransferR
 	return &emptypb.Empty{}, nil
 }
 
+func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*emptypb.Empty, error) {
+	if err := s.app.DeductStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+		// DTM expects error to rollback
+		return nil, status.Error(codes.Aborted, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) RevertStock(ctx context.Context, req *pb.RevertStockRequest) (*emptypb.Empty, error) {
+	if err := s.app.RevertStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func convertWarehouseToProto(w *entity.Warehouse) *pb.Warehouse {
 	if w == nil {
 		return nil

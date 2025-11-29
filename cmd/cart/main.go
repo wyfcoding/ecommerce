@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewCartRepository(db)
 
 	// Application Layer
-	service := application.NewCartService(repo, slog.Default())
+	service := application.NewCartService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up cart service resources (DDD)...")

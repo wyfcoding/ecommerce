@@ -9,8 +9,27 @@ addr = "0.0.0.0"
 port = 9092  # 为订单服务选择一个不同的端口
 timeout = "1s"
 
+[message_queue.kafka]
+brokers = ["localhost:9092"]
+topic = "order-events"
+group_id = "order-group"
+
+[dtm]
+server = "localhost:36790"
+
+[warehouse]
+grpc_addr = "localhost:9004" # Assuming Warehouse gRPC port
+
 # 数据库配置 (指向订单数据库)
 [data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
+
+[[data.shards]]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
+
+[[data.shards]]
 driver = "mysql"
 dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
 

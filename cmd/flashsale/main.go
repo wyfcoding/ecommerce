@@ -1,18 +1,24 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
 	pb "github.com/wyfcoding/ecommerce/api/flashsale/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"
 	flashsalegrpc "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/grpc"
 	flashsalehttp "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/http"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/mq"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
 	"github.com/wyfcoding/ecommerce/pkg/databases"
+	"github.com/wyfcoding/ecommerce/pkg/databases/redis"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
 	"github.com/wyfcoding/ecommerce/pkg/logging"
+	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/ecommerce/pkg/metrics"
 	"github.com/wyfcoding/ecommerce/pkg/tracing"
 
@@ -72,15 +78,47 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
+	// Initialize Redis Client
+	redisClient, err := redis.NewRedis(&config.Data.Redis, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
+	}
+
+	// Initialize Redis Cache
+	flashSaleCache := cache.NewRedisFlashSaleCache(redisClient)
+
+	// Initialize Kafka Producer
+	producer := kafka.NewProducer(config.MessageQueue.Kafka, logger)
+
+	// Initialize ID Generator
+	idGen, err := idgen.NewSnowflakeGenerator(config.Snowflake)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create id generator: %w", err)
+	}
+
 	// Infrastructure Layer
 	repo := persistence.NewFlashSaleRepository(db)
 
 	// Application Layer
-	service := application.NewFlashSaleService(repo, slog.Default())
+	service := application.NewFlashSaleService(repo, flashSaleCache, producer, idGen, slog.Default())
+
+	// Initialize and Start Order Consumer
+	kafkaConsumer := kafka.NewConsumer(config.MessageQueue.Kafka, logger)
+	orderConsumer := mq.NewOrderConsumer(kafkaConsumer, repo, logger.Logger)
+
+	go func() {
+		if err := orderConsumer.Start(context.Background()); err != nil {
+			logger.Error("OrderConsumer failed", "error", err)
+		}
+	}()
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up flashsale service resources (DDD)...")
+		// Stop consumer first to stop accepting new messages
+		_ = orderConsumer.Stop(context.Background())
 		sqlDB.Close()
+		redisClient.Close()
+		producer.Close()
 	}
 
 	return service, cleanup, nil

@@ -2,22 +2,40 @@ package application
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/repository"
-	"time"
+	"github.com/wyfcoding/ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
 
 	"log/slog"
 )
 
 type FlashSaleService struct {
-	repo   repository.FlashSaleRepository
-	logger *slog.Logger
+	repo     repository.FlashSaleRepository
+	cache    repository.FlashSaleCache
+	producer *kafka.Producer
+	idGen    idgen.Generator
+	logger   *slog.Logger
 }
 
-func NewFlashSaleService(repo repository.FlashSaleRepository, logger *slog.Logger) *FlashSaleService {
+func NewFlashSaleService(
+	repo repository.FlashSaleRepository,
+	cache repository.FlashSaleCache,
+	producer *kafka.Producer,
+	idGen idgen.Generator,
+	logger *slog.Logger,
+) *FlashSaleService {
 	return &FlashSaleService{
-		repo:   repo,
-		logger: logger,
+		repo:     repo,
+		cache:    cache,
+		producer: producer,
+		idGen:    idGen,
+		logger:   logger,
 	}
 }
 
@@ -28,6 +46,14 @@ func (s *FlashSaleService) CreateFlashsale(ctx context.Context, name string, pro
 		s.logger.Error("failed to save flashsale", "error", err)
 		return nil, err
 	}
+
+	// Pre-warm Cache
+	if err := s.cache.SetStock(ctx, uint64(flashsale.ID), totalStock); err != nil {
+		s.logger.Error("failed to pre-warm cache", "error", err)
+		// Should we fail? Ideally yes, or retry.
+		return nil, fmt.Errorf("failed to pre-warm cache: %w", err)
+	}
+
 	return flashsale, nil
 }
 
@@ -42,37 +68,57 @@ func (s *FlashSaleService) ListFlashsales(ctx context.Context, status *entity.Fl
 	return s.repo.ListFlashsales(ctx, status, offset, pageSize)
 }
 
-// PlaceOrder 下单
+// PlaceOrder 下单 (High Concurrency Version)
 func (s *FlashSaleService) PlaceOrder(ctx context.Context, userID, flashsaleID uint64, quantity int32) (*entity.FlashsaleOrder, error) {
-	// 1. Get Flashsale
+	// 1. Get Flashsale (Can be cached too, but let's assume it's fast or cached in repo)
 	flashsale, err := s.repo.GetFlashsale(ctx, flashsaleID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Check User Limit
-	boughtCount, err := s.repo.CountUserBought(ctx, userID, flashsaleID)
+	// 2. Validate Time
+	now := time.Now()
+	if now.Before(flashsale.StartTime) || now.After(flashsale.EndTime) {
+		return nil, errors.New("flashsale is not active")
+	}
+
+	// 3. Deduct Stock in Redis (Atomic Check & Deduct)
+	success, err := s.cache.DeductStock(ctx, flashsaleID, userID, quantity, flashsale.LimitPerUser)
 	if err != nil {
+		s.logger.Error("failed to deduct stock in cache", "error", err)
 		return nil, err
 	}
-
-	// 3. Validate
-	if err := flashsale.CanBuy(boughtCount, quantity); err != nil {
-		return nil, err
+	if !success {
+		return nil, entity.ErrFlashsaleSoldOut // Or limit exceeded
 	}
 
-	// 4. Deduct Stock (Optimistic Lock handled in repo)
-	if err := s.repo.UpdateStock(ctx, flashsaleID, quantity); err != nil {
-		return nil, entity.ErrFlashsaleSoldOut
-	}
+	// 4. Generate Order ID
+	orderID := s.idGen.Generate()
 
-	// 5. Create Order
+	// 5. Create Order Object (Pending)
 	order := entity.NewFlashsaleOrder(flashsaleID, userID, flashsale.ProductID, flashsale.SkuID, quantity, flashsale.FlashPrice)
-	if err := s.repo.SaveOrder(ctx, order); err != nil {
-		s.logger.Error("failed to save order", "error", err)
-		// Rollback stock? In a real system, we might need a transaction or compensation.
-		// For simplicity here, we assume repo operations are atomic enough or we accept slight inconsistency.
-		return nil, err
+	order.ID = uint(orderID)
+	order.Status = entity.FlashsaleOrderStatusPending
+
+	// 6. Publish to MQ
+	event := map[string]interface{}{
+		"order_id":     orderID,
+		"flashsale_id": flashsaleID,
+		"user_id":      userID,
+		"product_id":   flashsale.ProductID,
+		"sku_id":       flashsale.SkuID,
+		"quantity":     quantity,
+		"price":        flashsale.FlashPrice,
+		"created_at":   order.CreatedAt,
+	}
+	payload, _ := json.Marshal(event)
+
+	// Use Order ID as key for ordering if needed, or Flashsale ID
+	if err := s.producer.Publish(ctx, []byte(fmt.Sprintf("%d", orderID)), payload); err != nil {
+		s.logger.Error("failed to publish order event", "error", err)
+		// Rollback Redis Stock
+		_ = s.cache.RevertStock(ctx, flashsaleID, userID, quantity)
+		return nil, fmt.Errorf("failed to publish order: %w", err)
 	}
 
 	return order, nil
@@ -94,7 +140,6 @@ func (s *FlashSaleService) CancelOrder(ctx context.Context, orderID uint64) erro
 		return err
 	}
 
-	// Restore stock
-	// Note: This should be a negative update
-	return s.repo.UpdateStock(ctx, order.FlashsaleID, -order.Quantity)
+	// Restore stock in Redis
+	return s.cache.RevertStock(ctx, order.FlashsaleID, order.UserID, order.Quantity)
 }

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/cart/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/cart/domain/repository"
 
@@ -29,8 +30,10 @@ func (s *CartService) GetCart(ctx context.Context, userID uint64) (*entity.Cart,
 	if cart == nil {
 		cart = entity.NewCart(userID)
 		if err := s.repo.Save(ctx, cart); err != nil {
+			s.logger.ErrorContext(ctx, "failed to create cart", "user_id", userID, "error", err)
 			return nil, err
 		}
+		s.logger.InfoContext(ctx, "cart created successfully", "user_id", userID, "cart_id", cart.ID)
 	}
 	return cart, nil
 }
@@ -43,7 +46,12 @@ func (s *CartService) AddItem(ctx context.Context, userID uint64, productID, sku
 	}
 
 	cart.AddItem(productID, skuID, productName, skuName, price, quantity, imageURL)
-	return s.repo.Save(ctx, cart)
+	if err := s.repo.Save(ctx, cart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add item to cart", "user_id", userID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "item added to cart successfully", "user_id", userID, "sku_id", skuID, "quantity", quantity)
+	return nil
 }
 
 // UpdateItemQuantity 更新购物车项数量
@@ -54,7 +62,12 @@ func (s *CartService) UpdateItemQuantity(ctx context.Context, userID uint64, sku
 	}
 
 	cart.UpdateItemQuantity(skuID, quantity)
-	return s.repo.Save(ctx, cart)
+	if err := s.repo.Save(ctx, cart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update item quantity", "user_id", userID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "item quantity updated successfully", "user_id", userID, "sku_id", skuID, "quantity", quantity)
+	return nil
 }
 
 // RemoveItem 移除购物车项
@@ -65,7 +78,12 @@ func (s *CartService) RemoveItem(ctx context.Context, userID uint64, skuID uint6
 	}
 
 	cart.RemoveItem(skuID)
-	return s.repo.Save(ctx, cart)
+	if err := s.repo.Save(ctx, cart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to remove item from cart", "user_id", userID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "item removed from cart successfully", "user_id", userID, "sku_id", skuID)
+	return nil
 }
 
 // ClearCart 清空购物车
@@ -76,5 +94,10 @@ func (s *CartService) ClearCart(ctx context.Context, userID uint64) error {
 	}
 
 	cart.Clear()
-	return s.repo.Clear(ctx, uint64(cart.ID))
+	if err := s.repo.Clear(ctx, uint64(cart.ID)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to clear cart", "user_id", userID, "cart_id", cart.ID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "cart cleared successfully", "user_id", userID, "cart_id", cart.ID)
+	return nil
 }

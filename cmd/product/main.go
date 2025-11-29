@@ -1,11 +1,14 @@
 package main
 
 import (
+	"log/slog"
+
 	v1 "github.com/wyfcoding/ecommerce/api/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/product/application"
 	mysqlRepo "github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence/mysql"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/product/interfaces/grpc"
 	"github.com/wyfcoding/ecommerce/pkg/app"
+	"github.com/wyfcoding/ecommerce/pkg/cache"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
 	"github.com/wyfcoding/ecommerce/pkg/databases"
 	"github.com/wyfcoding/ecommerce/pkg/logging"
@@ -46,18 +49,40 @@ func main() {
 			categoryRepo := mysqlRepo.NewCategoryRepository(db)
 			brandRepo := mysqlRepo.NewBrandRepository(db)
 
-			// Application Service
+			// Caches
+			redisCache, err := cache.NewRedisCache(c.Data.Redis)
+			if err != nil {
+				cleanupDB()
+				return nil, nil, err
+			}
+			bigCache, err := cache.NewBigCache(c.Data.BigCache.TTL, c.Data.BigCache.MaxMB)
+			if err != nil {
+				cleanupDB()
+				redisCache.Close()
+				return nil, nil, err
+			}
+			multiLevelCache := cache.NewMultiLevelCache(bigCache, redisCache)
+
+			cleanupCache := func() {
+				multiLevelCache.Close()
+			}
+
+			// Application Layer
 			appService := application.NewProductApplicationService(
 				productRepo,
 				skuRepo,
 				categoryRepo,
 				brandRepo,
+				multiLevelCache,
+				slog.Default(),
+				m,
 			)
 
 			// gRPC Server
 			srv := grpcServer.NewServer(appService)
 
 			return srv, func() {
+				cleanupCache()
 				cleanupDB()
 			}, nil
 		}).

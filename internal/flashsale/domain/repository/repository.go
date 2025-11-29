@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
 )
 
@@ -18,4 +19,11 @@ type FlashSaleRepository interface {
 	GetOrder(ctx context.Context, id uint64) (*entity.FlashsaleOrder, error)
 	GetUserOrders(ctx context.Context, userID, flashsaleID uint64) ([]*entity.FlashsaleOrder, error)
 	CountUserBought(ctx context.Context, userID, flashsaleID uint64) (int32, error)
+}
+
+// FlashSaleCache 秒杀缓存接口
+type FlashSaleCache interface {
+	SetStock(ctx context.Context, flashsaleID uint64, stock int32) error
+	DeductStock(ctx context.Context, flashsaleID, userID uint64, quantity, limitPerUser int32) (bool, error)
+	RevertStock(ctx context.Context, flashsaleID, userID uint64, quantity int32) error
 }

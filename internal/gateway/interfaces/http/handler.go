@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/gateway/application"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -42,7 +43,7 @@ func (h *Handler) RegisterRoute(c *gin.Context) {
 
 	route, err := h.service.RegisterRoute(c.Request.Context(), req.Path, req.Method, req.Service, req.Backend, req.Timeout, req.Retries, req.Description)
 	if err != nil {
-		h.logger.Error("Failed to register route", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to register route", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to register route", err.Error())
 		return
 	}
@@ -57,7 +58,7 @@ func (h *Handler) ListRoutes(c *gin.Context) {
 
 	list, total, err := h.service.ListRoutes(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list routes", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list routes", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list routes", err.Error())
 		return
 	}
@@ -79,7 +80,7 @@ func (h *Handler) DeleteRoute(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteRoute(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to delete route", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to delete route", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete route", err.Error())
 		return
 	}
@@ -105,7 +106,7 @@ func (h *Handler) AddRateLimitRule(c *gin.Context) {
 
 	rule, err := h.service.AddRateLimitRule(c.Request.Context(), req.Name, req.Path, req.Method, req.Limit, req.Window, req.Description)
 	if err != nil {
-		h.logger.Error("Failed to add rate limit rule", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add rate limit rule", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add rate limit rule", err.Error())
 		return
 	}
@@ -120,7 +121,7 @@ func (h *Handler) ListRateLimitRules(c *gin.Context) {
 
 	list, total, err := h.service.ListRateLimitRules(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list rate limit rules", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list rate limit rules", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list rate limit rules", err.Error())
 		return
 	}
@@ -142,7 +143,7 @@ func (h *Handler) DeleteRateLimitRule(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteRateLimitRule(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to delete rate limit rule", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to delete rate limit rule", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete rate limit rule", err.Error())
 		return
 	}

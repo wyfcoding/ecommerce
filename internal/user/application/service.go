@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"log/slog"
+
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"
 	"github.com/wyfcoding/ecommerce/pkg/hash"
@@ -20,6 +22,7 @@ type UserApplicationService struct {
 	jwtIssuer   string
 	jwtExpiry   time.Duration
 	antiBot     *algorithm.AntiBotDetector
+	logger      *slog.Logger
 }
 
 // NewUserApplicationService creates a new UserApplicationService.
@@ -29,6 +32,7 @@ func NewUserApplicationService(
 	jwtSecret string,
 	jwtIssuer string,
 	jwtExpiry time.Duration,
+	logger *slog.Logger,
 ) *UserApplicationService {
 	return &UserApplicationService{
 		userRepo:    userRepo,
@@ -37,6 +41,7 @@ func NewUserApplicationService(
 		jwtIssuer:   jwtIssuer,
 		jwtExpiry:   jwtExpiry,
 		antiBot:     algorithm.NewAntiBotDetector(),
+		logger:      logger,
 	}
 }
 
@@ -69,8 +74,10 @@ func (s *UserApplicationService) Register(ctx context.Context, username, passwor
 
 	// Save user
 	if err := s.userRepo.Save(ctx, user); err != nil {
+		s.logger.ErrorContext(ctx, "failed to register user", "username", username, "error", err)
 		return 0, err
 	}
+	s.logger.InfoContext(ctx, "user registered successfully", "user_id", user.ID, "username", username)
 
 	return uint64(user.ID), nil
 }
@@ -101,8 +108,10 @@ func (s *UserApplicationService) Login(ctx context.Context, username, password, 
 
 	token, err := jwt.GenerateToken(uint64(user.ID), user.Username, s.jwtSecret, s.jwtIssuer, s.jwtExpiry, nil)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate token", "user_id", user.ID, "error", err)
 		return "", 0, err
 	}
+	s.logger.InfoContext(ctx, "user logged in successfully", "user_id", user.ID, "username", username)
 
 	return token, time.Now().Add(s.jwtExpiry).Unix(), nil
 }
@@ -137,8 +146,10 @@ func (s *UserApplicationService) UpdateProfile(ctx context.Context, userID uint6
 	user.UpdateProfile(nickname, avatar, gender, birthday)
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update profile", "user_id", userID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "user profile updated successfully", "user_id", userID)
 
 	return user, nil
 }
@@ -163,8 +174,10 @@ func (s *UserApplicationService) AddAddress(ctx context.Context, userID uint64, 
 	}
 
 	if err := s.addressRepo.Save(ctx, address); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add address", "user_id", userID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "address added successfully", "user_id", userID, "address_id", address.ID)
 
 	if isDefault {
 		// Now that it's saved, we can ensure it's the default
@@ -217,8 +230,10 @@ func (s *UserApplicationService) UpdateAddress(ctx context.Context, userID, addr
 	// address.UpdatedAt = time.Now() // gorm.Model handles this
 
 	if err := s.addressRepo.Update(ctx, address); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update address", "user_id", userID, "address_id", addressID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "address updated successfully", "user_id", userID, "address_id", addressID)
 
 	if isDefault {
 		if err := s.addressRepo.SetDefault(ctx, uint(userID), uint(addressID)); err != nil {
@@ -240,7 +255,12 @@ func (s *UserApplicationService) DeleteAddress(ctx context.Context, userID, addr
 		return errors.New("address not found")
 	}
 
-	return s.addressRepo.Delete(ctx, uint(addressID))
+	if err := s.addressRepo.Delete(ctx, uint(addressID)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete address", "user_id", userID, "address_id", addressID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "address deleted successfully", "user_id", userID, "address_id", addressID)
+	return nil
 }
 
 // GetAddress gets an address by ID.

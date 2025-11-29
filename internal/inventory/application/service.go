@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"
@@ -39,9 +40,10 @@ func (s *InventoryService) CreateInventory(ctx context.Context, skuID, productID
 
 	inventory := entity.NewInventory(skuID, productID, warehouseID, totalStock, warningThreshold)
 	if err := s.repo.Save(ctx, inventory); err != nil {
-		s.logger.Error("failed to save inventory", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save inventory", "sku_id", skuID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "inventory created successfully", "inventory_id", inventory.ID, "sku_id", skuID)
 	return inventory, nil
 }
 
@@ -64,7 +66,12 @@ func (s *InventoryService) AddStock(ctx context.Context, skuID uint64, quantity 
 		return err
 	}
 
-	return s.repo.Save(ctx, inventory)
+	if err := s.repo.Save(ctx, inventory); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add stock", "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock added successfully", "sku_id", skuID, "quantity", quantity, "reason", reason)
+	return nil
 }
 
 // DeductStock 扣减库存
@@ -81,7 +88,12 @@ func (s *InventoryService) DeductStock(ctx context.Context, skuID uint64, quanti
 		return err
 	}
 
-	return s.repo.Save(ctx, inventory)
+	if err := s.repo.Save(ctx, inventory); err != nil {
+		s.logger.ErrorContext(ctx, "failed to deduct stock", "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock deducted successfully", "sku_id", skuID, "quantity", quantity, "reason", reason)
+	return nil
 }
 
 // LockStock 锁定库存
@@ -98,7 +110,12 @@ func (s *InventoryService) LockStock(ctx context.Context, skuID uint64, quantity
 		return err
 	}
 
-	return s.repo.Save(ctx, inventory)
+	if err := s.repo.Save(ctx, inventory); err != nil {
+		s.logger.ErrorContext(ctx, "failed to lock stock", "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock locked successfully", "sku_id", skuID, "quantity", quantity, "reason", reason)
+	return nil
 }
 
 // UnlockStock 解锁库存
@@ -115,7 +132,12 @@ func (s *InventoryService) UnlockStock(ctx context.Context, skuID uint64, quanti
 		return err
 	}
 
-	return s.repo.Save(ctx, inventory)
+	if err := s.repo.Save(ctx, inventory); err != nil {
+		s.logger.ErrorContext(ctx, "failed to unlock stock", "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "stock unlocked successfully", "sku_id", skuID, "quantity", quantity, "reason", reason)
+	return nil
 }
 
 // ConfirmDeduction 确认扣减
@@ -132,7 +154,12 @@ func (s *InventoryService) ConfirmDeduction(ctx context.Context, skuID uint64, q
 		return err
 	}
 
-	return s.repo.Save(ctx, inventory)
+	if err := s.repo.Save(ctx, inventory); err != nil {
+		s.logger.ErrorContext(ctx, "failed to confirm deduction", "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "deduction confirmed successfully", "sku_id", skuID, "quantity", quantity, "reason", reason)
+	return nil
 }
 
 // ListInventories 获取库存列表

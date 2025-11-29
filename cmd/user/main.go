@@ -48,6 +48,7 @@ func main() {
 				c.JWT.Secret,
 				c.JWT.Issuer,
 				c.JWT.Expire,
+				logger.Logger,
 			)
 
 			return svc, func() {

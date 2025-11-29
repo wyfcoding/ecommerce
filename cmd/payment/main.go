@@ -1,15 +1,13 @@
 package main
 
 import (
-	"log/slog"
-
 	v1 "github.com/wyfcoding/ecommerce/api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
-	mysqlRepo "github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/mysql"
+	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
+	"github.com/wyfcoding/ecommerce/pkg/databases/sharding"
 	"github.com/wyfcoding/ecommerce/pkg/idgen"
 	"github.com/wyfcoding/ecommerce/pkg/logging"
 	"github.com/wyfcoding/ecommerce/pkg/metrics"
@@ -27,24 +25,28 @@ func main() {
 		WithService(func(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 			c := cfg.(*Config)
 
-			// Database
+			// Database Sharding Manager
 			logger := logging.NewLogger("payment-service", "app")
-			db, err := databases.NewDB(c.Data.Database, logger)
+			shardingManager, err := sharding.NewManager(c.Data.Shards, logger)
 			if err != nil {
-				return nil, nil, err
-			}
-
-			sqlDB, err := db.DB()
-			if err != nil {
-				return nil, nil, err
+				// Fallback to single DB
+				if len(c.Data.Shards) == 0 {
+					logger.Info("No shards configured, using single database connection")
+					shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
+					if err != nil {
+						return nil, nil, err
+					}
+				} else {
+					return nil, nil, err
+				}
 			}
 
 			cleanupDB := func() {
-				sqlDB.Close()
+				shardingManager.Close()
 			}
 
 			// Repositories
-			paymentRepo := mysqlRepo.NewPaymentRepository(db)
+			paymentRepo := persistence.NewPaymentRepository(shardingManager)
 
 			// ID Generator
 			idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
@@ -54,7 +56,7 @@ func main() {
 			}
 
 			// Application Service
-			appService := application.NewPaymentApplicationService(paymentRepo, idGenerator, slog.Default())
+			appService := application.NewPaymentApplicationService(paymentRepo, idGenerator, logger.Logger)
 
 			// gRPC Server
 			srv := grpcServer.NewServer(appService)

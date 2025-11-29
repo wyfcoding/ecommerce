@@ -3,13 +3,14 @@ package logging
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"time"
 
-	"log/slog"
-
 	"gorm.io/gorm/logger"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -23,16 +24,39 @@ type Logger struct {
 	Module  string
 }
 
+// TraceHandler adds trace_id and span_id from context
+type TraceHandler struct {
+	slog.Handler
+}
+
+func (h *TraceHandler) Handle(ctx context.Context, r slog.Record) error {
+	spanCtx := trace.SpanContextFromContext(ctx)
+	if spanCtx.IsValid() {
+		r.AddAttrs(
+			slog.String("trace_id", spanCtx.TraceID().String()),
+			slog.String("span_id", spanCtx.SpanID().String()),
+		)
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
 // NewLogger creates a new slog Logger
 func NewLogger(service, module string) *Logger {
 	opts := &slog.HandlerOptions{
 		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				a.Key = "timestamp"
+			}
+			return a
+		},
 	}
 
 	// Use JSON handler for structured logging
-	handler := slog.NewJSONHandler(os.Stdout, opts)
+	jsonHandler := slog.NewJSONHandler(os.Stdout, opts)
+	traceHandler := &TraceHandler{Handler: jsonHandler}
 
-	logger := slog.New(handler).With(
+	logger := slog.New(traceHandler).With(
 		slog.String("service", service),
 		slog.String("module", module),
 	)

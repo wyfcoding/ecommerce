@@ -77,7 +77,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	warehouseRepo := persistence.NewWarehouseRepository(db)
 
 	// Application Layer
-	service := application.NewInventoryService(repo, warehouseRepo, slog.Default())
+	service := application.NewInventoryService(repo, warehouseRepo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up inventory service resources (DDD)...")

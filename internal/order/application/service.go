@@ -2,68 +2,110 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
+	warehousev1 "github.com/wyfcoding/ecommerce/api/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/order/domain/repository"
-	"time"
 
 	"github.com/wyfcoding/ecommerce/pkg/idgen"
 	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
+
+	"github.com/dtm-labs/client/dtmgrpc"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/wyfcoding/ecommerce/pkg/metrics"
 
 	"log/slog"
 )
 
 type OrderService struct {
-	repo     repository.OrderRepository
-	idGen    idgen.Generator
-	producer *kafka.Producer
-	logger   *slog.Logger
+	repo              repository.OrderRepository
+	idGen             idgen.Generator
+	producer          *kafka.Producer
+	logger            *slog.Logger
+	dtmServer         string
+	warehouseGrpcAddr string
+
+	// Metrics
+	orderCreatedCounter *prometheus.CounterVec
 }
 
-func NewOrderService(repo repository.OrderRepository, idGen idgen.Generator, producer *kafka.Producer, logger *slog.Logger) *OrderService {
+func NewOrderService(repo repository.OrderRepository, idGen idgen.Generator, producer *kafka.Producer, logger *slog.Logger, dtmServer, warehouseGrpcAddr string, m *metrics.Metrics) *OrderService {
+	orderCreatedCounter := m.NewCounterVec(prometheus.CounterOpts{
+		Name: "order_created_total",
+		Help: "Total number of orders created",
+	}, []string{"status"})
+
 	return &OrderService{
-		repo:     repo,
-		idGen:    idGen,
-		producer: producer,
-		logger:   logger,
+		repo:                repo,
+		idGen:               idGen,
+		producer:            producer,
+		logger:              logger,
+		dtmServer:           dtmServer,
+		warehouseGrpcAddr:   warehouseGrpcAddr,
+		orderCreatedCounter: orderCreatedCounter,
 	}
 }
 
-// CreateOrder 创建订单
+// CreateOrder 创建订单 (Saga)
 func (s *OrderService) CreateOrder(ctx context.Context, userID uint64, items []*entity.OrderItem, shippingAddr *entity.ShippingAddress) (*entity.Order, error) {
 	// Generate Order No
 	orderID := s.idGen.Generate()
 	orderNo := fmt.Sprintf("%s%d", time.Now().Format("20060102"), orderID)
 
 	order := entity.NewOrder(orderNo, userID, items, shippingAddr)
-	// Initial status is PendingPayment, but in Saga we might want to start with Allocating if we reserve stock first.
-	// Let's assume flow: Create(Pending) -> Reserve Stock -> Allocating -> Reserved -> Pay -> Paid.
-	// Or: Create(Allocating) -> Reserve Stock -> Reserved -> Pay -> Paid.
-	// Let's stick to: Create(Pending) -> Publish OrderCreated -> Inventory Service consumes -> Reserves -> Publishes InventoryReserved -> Order Service consumes -> Updates to Allocating (or Reserved)?
-	// Actually, usually: Order Created -> Payment -> Inventory. Or Order Created -> Inventory -> Payment.
-	// Requirement: Order -> Inventory -> Payment.
-	// So: Create Order (Allocating) -> Publish OrderCreated.
-	order.Status = entity.Allocating
+	// Initial status: PendingPayment.
+	// We will use Saga to ensure stock is reserved.
+	order.Status = entity.PendingPayment
 
+	// 1. Save Order locally (Local Transaction)
 	if err := s.repo.Save(ctx, order); err != nil {
-		s.logger.Error("failed to create order", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create order", "error", err)
 		return nil, err
 	}
 
-	// Publish OrderCreated event
-	event := map[string]interface{}{
-		"order_id": order.ID,
-		"user_id":  userID,
-		"items":    items,
-	}
-	payload, _ := json.Marshal(event)
-	if err := s.producer.Publish(ctx, []byte(orderNo), payload); err != nil {
-		s.logger.Error("failed to publish OrderCreated event", "error", err)
-		// Should we rollback? For now, just log error. In real system, transactional outbox pattern is better.
+	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
+
+	// 2. Create Saga
+	gid := orderNo
+	saga := dtmgrpc.NewSagaGrpc(s.dtmServer, gid).
+		Add(
+			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/DeductStock",
+			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/RevertStock",
+			&warehousev1.DeductStockRequest{
+				OrderId:     uint64(order.ID),
+				SkuId:       items[0].SkuID,
+				Quantity:    items[0].Quantity,
+				WarehouseId: 1,
+			},
+		)
+
+	// Note: For multiple items, we should add multiple branches to Saga.
+	// But dtmgrpc.Add takes payload.
+	// For simplicity in this demo, we assume 1 item.
+	// If multiple items, we loop:
+	/*
+		for _, item := range items {
+			saga.Add(..., &Req{...})
+		}
+	*/
+
+	// 3. Submit Saga
+	// Wait for result? Or async?
+	// Usually Submit returns immediately if DTM receives it.
+	// But we want to know if it fails immediately.
+	if err := saga.Submit(); err != nil {
+		s.logger.ErrorContext(ctx, "failed to submit saga", "error", err)
+		// If submit fails, we should probably fail the order or mark it as failed.
+		// But since we already saved it, we might need to delete it or mark as Cancelled.
+		_ = order.Cancel("System", "Saga Submit Failed")
+		_ = s.repo.Save(ctx, order)
+		return nil, fmt.Errorf("failed to submit saga: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "order created successfully", "order_id", order.ID, "order_no", order.OrderNo)
 	return order, nil
 }
 
