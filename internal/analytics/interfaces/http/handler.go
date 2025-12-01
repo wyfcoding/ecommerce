@@ -10,8 +10,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -44,7 +45,7 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 
 	err := h.service.RecordMetric(c.Request.Context(), entity.MetricType(req.MetricType), req.Name, req.Value, entity.TimeGranularity(req.Granularity), req.Dimension, req.DimensionVal)
 	if err != nil {
-		h.logger.Error("Failed to record metric", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to record metric", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to record metric", err.Error())
 		return
 	}
@@ -80,7 +81,7 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 
 	list, total, err := h.service.QueryMetrics(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to query metrics", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to query metrics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to query metrics", err.Error())
 		return
 	}
@@ -108,7 +109,7 @@ func (h *Handler) CreateDashboard(c *gin.Context) {
 
 	dashboard, err := h.service.CreateDashboard(c.Request.Context(), req.Name, req.Description, req.UserID)
 	if err != nil {
-		h.logger.Error("Failed to create dashboard", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create dashboard", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create dashboard", err.Error())
 		return
 	}
@@ -126,7 +127,7 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 
 	dashboard, err := h.service.GetDashboard(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get dashboard", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get dashboard", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get dashboard", err.Error())
 		return
 	}
@@ -155,7 +156,7 @@ func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 
 	err = h.service.AddMetricToDashboard(c.Request.Context(), id, entity.MetricType(req.MetricType), req.Title, req.ChartType)
 	if err != nil {
-		h.logger.Error("Failed to add metric to dashboard", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add metric to dashboard", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add metric to dashboard", err.Error())
 		return
 	}
@@ -179,7 +180,7 @@ func (h *Handler) CreateReport(c *gin.Context) {
 
 	report, err := h.service.CreateReport(c.Request.Context(), req.Title, req.Description, req.UserID, req.ReportType)
 	if err != nil {
-		h.logger.Error("Failed to create report", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create report", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create report", err.Error())
 		return
 	}

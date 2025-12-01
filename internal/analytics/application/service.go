@@ -32,9 +32,10 @@ func (s *AnalyticsService) RecordMetric(ctx context.Context, metricType entity.M
 	metric.DimensionVal = dimensionVal
 
 	if err := s.repo.CreateMetric(ctx, metric); err != nil {
-		s.logger.Error("failed to create metric", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create metric", "name", name, "error", err)
 		return err
 	}
+	s.logger.InfoContext(ctx, "metric recorded successfully", "name", name, "value", value)
 	return nil
 }
 
@@ -47,9 +48,10 @@ func (s *AnalyticsService) QueryMetrics(ctx context.Context, query *repository.M
 func (s *AnalyticsService) CreateDashboard(ctx context.Context, name, description string, userID uint64) (*entity.Dashboard, error) {
 	dashboard := entity.NewDashboard(name, description, userID)
 	if err := s.repo.CreateDashboard(ctx, dashboard); err != nil {
-		s.logger.Error("failed to create dashboard", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create dashboard", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "dashboard created successfully", "dashboard_id", dashboard.ID, "name", name)
 	return dashboard, nil
 }
 
@@ -93,9 +95,10 @@ func (s *AnalyticsService) CreateReport(ctx context.Context, title, description 
 	report := entity.NewReport(reportNo, title, description, userID, reportType)
 
 	if err := s.repo.CreateReport(ctx, report); err != nil {
-		s.logger.Error("failed to create report", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create report", "title", title, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "report created successfully", "report_id", report.ID, "title", title)
 	return report, nil
 }
 

@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewDataIngestionRepository(db)
 
 	// Application Layer
-	service := application.NewDataIngestionService(repo, slog.Default())
+	service := application.NewDataIngestionService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up data_ingestion service resources (DDD)...")

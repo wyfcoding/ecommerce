@@ -3,9 +3,10 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/file/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/file/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -33,11 +34,11 @@ func (s *FileService) UploadFile(ctx context.Context, name string, size int64, f
 	file := entity.NewFileMetadata(name, size, fileType, path, url, checksum, bucket)
 
 	if err := s.repo.Save(ctx, file); err != nil {
-		s.logger.Error("failed to save file metadata", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save file metadata", "name", name, "error", err)
 		return nil, err
 	}
 
-	s.logger.Info("File uploaded successfully (simulated)", "path", path)
+	s.logger.InfoContext(ctx, "File uploaded successfully (simulated)", "path", path, "file_id", file.ID)
 	return file, nil
 }
 
@@ -50,7 +51,7 @@ func (s *FileService) GetFile(ctx context.Context, id uint64) (*entity.FileMetad
 func (s *FileService) DeleteFile(ctx context.Context, id uint64) error {
 	// Simulate deletion from storage
 	if err := s.repo.Delete(ctx, id); err != nil {
-		s.logger.Error("failed to delete file metadata", "error", err)
+		s.logger.ErrorContext(ctx, "failed to delete file metadata", "file_id", id, "error", err)
 		return err
 	}
 	return nil

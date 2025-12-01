@@ -9,8 +9,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -46,7 +47,7 @@ func (h *Handler) CreateFlashsale(c *gin.Context) {
 
 	flashsale, err := h.service.CreateFlashsale(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.FlashPrice, req.TotalStock, req.LimitPerUser, req.StartTime, req.EndTime)
 	if err != nil {
-		h.logger.Error("Failed to create flashsale", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create flashsale", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create flashsale", err.Error())
 		return
 	}
@@ -64,7 +65,7 @@ func (h *Handler) GetFlashsale(c *gin.Context) {
 
 	flashsale, err := h.service.GetFlashsale(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get flashsale", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get flashsale", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get flashsale", err.Error())
 		return
 	}
@@ -86,7 +87,7 @@ func (h *Handler) ListFlashsales(c *gin.Context) {
 
 	list, total, err := h.service.ListFlashsales(c.Request.Context(), status, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list flashsales", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list flashsales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list flashsales", err.Error())
 		return
 	}
@@ -114,7 +115,7 @@ func (h *Handler) PlaceOrder(c *gin.Context) {
 
 	order, err := h.service.PlaceOrder(c.Request.Context(), req.UserID, req.FlashsaleID, req.Quantity)
 	if err != nil {
-		h.logger.Error("Failed to place order", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to place order", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to place order", err.Error())
 		return
 	}

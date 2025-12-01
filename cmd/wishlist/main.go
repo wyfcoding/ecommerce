@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewWishlistRepository(db)
 
 	// Application Layer
-	service := application.NewWishlistService(repo, slog.Default())
+	service := application.NewWishlistService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up wishlist service resources (DDD)...")

@@ -36,7 +36,7 @@ func (s *AuditService) LogEvent(ctx context.Context, userID uint64, username str
 	}
 
 	if err := s.repo.CreateLog(ctx, log); err != nil {
-		s.logger.Error("failed to create audit log", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create audit log", "user_id", userID, "event_type", eventType, "error", err)
 		return err
 	}
 	return nil
@@ -83,9 +83,10 @@ func (s *AuditService) QueryLogs(ctx context.Context, query *repository.AuditLog
 func (s *AuditService) CreatePolicy(ctx context.Context, name, description string) (*entity.AuditPolicy, error) {
 	policy := entity.NewAuditPolicy(name, description)
 	if err := s.repo.CreatePolicy(ctx, policy); err != nil {
-		s.logger.Error("failed to create audit policy", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create audit policy", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "audit policy created successfully", "policy_id", policy.ID, "name", name)
 	return policy, nil
 }
 
@@ -116,9 +117,10 @@ func (s *AuditService) CreateReport(ctx context.Context, title, description stri
 	report := entity.NewAuditReport(reportNo, title, description)
 
 	if err := s.repo.CreateReport(ctx, report); err != nil {
-		s.logger.Error("failed to create audit report", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create audit report", "title", title, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "audit report created successfully", "report_id", report.ID, "title", title)
 	return report, nil
 }
 

@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -41,7 +42,7 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 
 	ticket, err := h.service.CreateTicket(c.Request.Context(), req.UserID, req.Subject, req.Description, req.Category, req.Priority)
 	if err != nil {
-		h.logger.Error("Failed to create ticket", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create ticket", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create ticket", err.Error())
 		return
 	}
@@ -71,7 +72,7 @@ func (h *Handler) ReplyTicket(c *gin.Context) {
 
 	message, err := h.service.ReplyTicket(c.Request.Context(), ticketID, req.SenderID, req.SenderType, req.Content, req.Type)
 	if err != nil {
-		h.logger.Error("Failed to reply ticket", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to reply ticket", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to reply ticket", err.Error())
 		return
 	}
@@ -88,7 +89,7 @@ func (h *Handler) ListTickets(c *gin.Context) {
 
 	list, total, err := h.service.ListTickets(c.Request.Context(), userID, entity.TicketStatus(status), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list tickets", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list tickets", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list tickets", err.Error())
 		return
 	}
@@ -114,7 +115,7 @@ func (h *Handler) ListMessages(c *gin.Context) {
 
 	list, total, err := h.service.ListMessages(c.Request.Context(), ticketID, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list messages", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list messages", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list messages", err.Error())
 		return
 	}
@@ -137,7 +138,7 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 
 	err = h.service.CloseTicket(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to close ticket", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to close ticket", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to close ticket", err.Error())
 		return
 	}

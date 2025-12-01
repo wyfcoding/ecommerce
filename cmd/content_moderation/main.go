@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewModerationRepository(db)
 
 	// Application Layer
-	service := application.NewModerationService(repo, slog.Default())
+	service := application.NewModerationService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up content_moderation service resources (DDD)...")

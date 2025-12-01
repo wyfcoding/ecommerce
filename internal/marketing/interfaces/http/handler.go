@@ -9,8 +9,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -44,7 +45,7 @@ func (h *Handler) CreateCampaign(c *gin.Context) {
 
 	campaign, err := h.service.CreateCampaign(c.Request.Context(), req.Name, entity.CampaignType(req.Type), req.Description, req.StartTime, req.EndTime, req.Budget, req.Rules)
 	if err != nil {
-		h.logger.Error("Failed to create campaign", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create campaign", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create campaign", err.Error())
 		return
 	}
@@ -62,7 +63,7 @@ func (h *Handler) GetCampaign(c *gin.Context) {
 
 	campaign, err := h.service.GetCampaign(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get campaign", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get campaign", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get campaign", err.Error())
 		return
 	}
@@ -78,7 +79,7 @@ func (h *Handler) ListCampaigns(c *gin.Context) {
 
 	list, total, err := h.service.ListCampaigns(c.Request.Context(), entity.CampaignStatus(status), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list campaigns", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list campaigns", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list campaigns", err.Error())
 		return
 	}
@@ -110,7 +111,7 @@ func (h *Handler) CreateBanner(c *gin.Context) {
 
 	banner, err := h.service.CreateBanner(c.Request.Context(), req.Title, req.ImageURL, req.LinkURL, req.Position, req.Priority, req.StartTime, req.EndTime)
 	if err != nil {
-		h.logger.Error("Failed to create banner", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create banner", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create banner", err.Error())
 		return
 	}
@@ -125,7 +126,7 @@ func (h *Handler) ListBanners(c *gin.Context) {
 
 	list, err := h.service.ListBanners(c.Request.Context(), position, activeOnly)
 	if err != nil {
-		h.logger.Error("Failed to list banners", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list banners", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list banners", err.Error())
 		return
 	}
@@ -142,7 +143,7 @@ func (h *Handler) ClickBanner(c *gin.Context) {
 	}
 
 	if err := h.service.ClickBanner(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to record click", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to record click", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to record click", err.Error())
 		return
 	}

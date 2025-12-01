@@ -2,9 +2,10 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -87,9 +88,10 @@ func (s *DynamicPricingService) CalculatePrice(ctx context.Context, req *entity.
 	}
 
 	if err := s.repo.SaveDynamicPrice(ctx, price); err != nil {
-		s.logger.Error("failed to save dynamic price", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save dynamic price", "sku_id", req.SKUID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "dynamic price calculated successfully", "sku_id", req.SKUID, "final_price", finalPrice)
 
 	return price, nil
 }

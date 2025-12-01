@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -34,7 +35,7 @@ func (h *Handler) CalculatePrice(c *gin.Context) {
 
 	price, err := h.service.CalculatePrice(c.Request.Context(), &req)
 	if err != nil {
-		h.logger.Error("Failed to calculate price", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to calculate price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to calculate price", err.Error())
 		return
 	}
@@ -52,7 +53,7 @@ func (h *Handler) GetLatestPrice(c *gin.Context) {
 
 	price, err := h.service.GetLatestPrice(c.Request.Context(), skuID)
 	if err != nil {
-		h.logger.Error("Failed to get latest price", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get latest price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get latest price", err.Error())
 		return
 	}
@@ -69,7 +70,7 @@ func (h *Handler) SaveStrategy(c *gin.Context) {
 	}
 
 	if err := h.service.SaveStrategy(c.Request.Context(), &strategy); err != nil {
-		h.logger.Error("Failed to save strategy", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to save strategy", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to save strategy", err.Error())
 		return
 	}
@@ -84,7 +85,7 @@ func (h *Handler) ListStrategies(c *gin.Context) {
 
 	list, total, err := h.service.ListStrategies(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list strategies", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list strategies", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list strategies", err.Error())
 		return
 	}

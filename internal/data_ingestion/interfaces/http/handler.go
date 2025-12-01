@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -40,7 +41,7 @@ func (h *Handler) RegisterSource(c *gin.Context) {
 
 	source, err := h.service.RegisterSource(c.Request.Context(), req.Name, req.Type, req.Config, req.Description)
 	if err != nil {
-		h.logger.Error("Failed to register source", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to register source", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to register source", err.Error())
 		return
 	}
@@ -55,7 +56,7 @@ func (h *Handler) ListSources(c *gin.Context) {
 
 	list, total, err := h.service.ListSources(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list sources", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list sources", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list sources", err.Error())
 		return
 	}
@@ -78,7 +79,7 @@ func (h *Handler) TriggerIngestion(c *gin.Context) {
 
 	job, err := h.service.TriggerIngestion(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to trigger ingestion", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to trigger ingestion", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to trigger ingestion", err.Error())
 		return
 	}
@@ -94,7 +95,7 @@ func (h *Handler) ListJobs(c *gin.Context) {
 
 	list, total, err := h.service.ListJobs(c.Request.Context(), sourceID, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list jobs", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list jobs", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list jobs", err.Error())
 		return
 	}

@@ -3,9 +3,10 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -28,9 +29,10 @@ func (s *CustomerService) CreateTicket(ctx context.Context, userID uint64, subje
 	ticket := entity.NewTicket(ticketNo, userID, subject, description, category, priority)
 
 	if err := s.repo.SaveTicket(ctx, ticket); err != nil {
-		s.logger.Error("failed to create ticket", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create ticket", "user_id", userID, "subject", subject, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "ticket created successfully", "ticket_id", ticket.ID, "ticket_no", ticketNo)
 	return ticket, nil
 }
 
@@ -51,9 +53,10 @@ func (s *CustomerService) ReplyTicket(ctx context.Context, ticketID, senderID ui
 
 	message := entity.NewMessage(ticketID, senderID, senderType, content, msgType, false)
 	if err := s.repo.SaveMessage(ctx, message); err != nil {
-		s.logger.Error("failed to save message", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save message", "ticket_id", ticketID, "sender_id", senderID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "message saved successfully", "message_id", message.ID, "ticket_id", ticketID)
 
 	return message, nil
 }

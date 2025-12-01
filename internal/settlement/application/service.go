@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -37,8 +38,10 @@ func (s *SettlementService) CreateSettlement(ctx context.Context, merchantID uin
 	}
 
 	if err := s.repo.SaveSettlement(ctx, settlement); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create settlement", "merchant_id", merchantID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "settlement created successfully", "settlement_id", settlement.ID, "settlement_no", settlementNo)
 	return settlement, nil
 }
 

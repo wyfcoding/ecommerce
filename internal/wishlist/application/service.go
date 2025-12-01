@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/repository"
 
@@ -42,14 +43,21 @@ func (s *WishlistService) Add(ctx context.Context, userID, productID, skuID uint
 	}
 
 	if err := s.repo.Save(ctx, wishlist); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add to wishlist", "user_id", userID, "sku_id", skuID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "added to wishlist successfully", "user_id", userID, "sku_id", skuID)
 	return wishlist, nil
 }
 
 // Remove 移除收藏
 func (s *WishlistService) Remove(ctx context.Context, userID, id uint64) error {
-	return s.repo.Delete(ctx, userID, id)
+	if err := s.repo.Delete(ctx, userID, id); err != nil {
+		s.logger.ErrorContext(ctx, "failed to remove from wishlist", "user_id", userID, "id", id, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "removed from wishlist successfully", "user_id", userID, "id", id)
+	return nil
 }
 
 // List 获取收藏列表

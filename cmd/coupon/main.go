@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewCouponRepository(db)
 
 	// Application Layer
-	service := application.NewCouponService(repo, slog.Default())
+	service := application.NewCouponService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up coupon service resources (DDD)...")

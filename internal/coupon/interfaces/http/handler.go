@@ -9,8 +9,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -42,7 +43,7 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 
 	coupon, err := h.service.CreateCoupon(c.Request.Context(), req.Name, req.Description, req.Type, req.DiscountAmount, req.MinOrderAmount)
 	if err != nil {
-		h.logger.Error("Failed to create coupon", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create coupon", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create coupon", err.Error())
 		return
 	}
@@ -60,7 +61,7 @@ func (h *Handler) ActivateCoupon(c *gin.Context) {
 
 	err = h.service.ActivateCoupon(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to activate coupon", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to activate coupon", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to activate coupon", err.Error())
 		return
 	}
@@ -82,7 +83,7 @@ func (h *Handler) IssueCoupon(c *gin.Context) {
 
 	userCoupon, err := h.service.IssueCoupon(c.Request.Context(), req.UserID, req.CouponID)
 	if err != nil {
-		h.logger.Error("Failed to issue coupon", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to issue coupon", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to issue coupon", err.Error())
 		return
 	}
@@ -97,7 +98,7 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 
 	list, total, err := h.service.ListCoupons(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list coupons", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list coupons", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list coupons", err.Error())
 		return
 	}
@@ -123,7 +124,7 @@ func (h *Handler) ListUserCoupons(c *gin.Context) {
 
 	list, total, err := h.service.ListUserCoupons(c.Request.Context(), userID, status, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list user coupons", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list user coupons", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list user coupons", err.Error())
 		return
 	}
@@ -153,7 +154,7 @@ func (h *Handler) CreateActivity(c *gin.Context) {
 
 	activity, err := h.service.CreateActivity(c.Request.Context(), req.Name, req.Description, req.StartTime, req.EndTime, req.CouponIDs)
 	if err != nil {
-		h.logger.Error("Failed to create activity", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create activity", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create activity", err.Error())
 		return
 	}

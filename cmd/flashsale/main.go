@@ -100,7 +100,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewFlashSaleRepository(db)
 
 	// Application Layer
-	service := application.NewFlashSaleService(repo, flashSaleCache, producer, idGen, slog.Default())
+	service := application.NewFlashSaleService(repo, flashSaleCache, producer, idGen, logger.Logger)
 
 	// Initialize and Start Order Consumer
 	kafkaConsumer := kafka.NewConsumer(config.MessageQueue.Kafka, logger)

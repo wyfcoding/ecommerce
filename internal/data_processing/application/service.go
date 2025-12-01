@@ -2,9 +2,10 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -25,9 +26,10 @@ func NewDataProcessingService(repo repository.DataProcessingRepository, logger *
 func (s *DataProcessingService) SubmitTask(ctx context.Context, name, taskType, config string, workflowID uint64) (*entity.ProcessingTask, error) {
 	task := entity.NewProcessingTask(name, taskType, config, workflowID)
 	if err := s.repo.SaveTask(ctx, task); err != nil {
-		s.logger.Error("failed to save task", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save task", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "task submitted successfully", "task_id", task.ID, "name", name)
 
 	// Async processing simulation
 	go s.processTask(task)
@@ -58,9 +60,10 @@ func (s *DataProcessingService) ListTasks(ctx context.Context, workflowID uint64
 func (s *DataProcessingService) CreateWorkflow(ctx context.Context, name, description, steps string) (*entity.ProcessingWorkflow, error) {
 	workflow := entity.NewProcessingWorkflow(name, description, steps)
 	if err := s.repo.SaveWorkflow(ctx, workflow); err != nil {
-		s.logger.Error("failed to save workflow", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save workflow", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "workflow created successfully", "workflow_id", workflow.ID, "name", name)
 	return workflow, nil
 }
 

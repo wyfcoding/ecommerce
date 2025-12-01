@@ -43,13 +43,14 @@ func NewFlashSaleService(
 func (s *FlashSaleService) CreateFlashsale(ctx context.Context, name string, productID, skuID uint64, originalPrice, flashPrice int64, totalStock, limitPerUser int32, startTime, endTime time.Time) (*entity.Flashsale, error) {
 	flashsale := entity.NewFlashsale(name, productID, skuID, originalPrice, flashPrice, totalStock, limitPerUser, startTime, endTime)
 	if err := s.repo.SaveFlashsale(ctx, flashsale); err != nil {
-		s.logger.Error("failed to save flashsale", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save flashsale", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "flashsale created successfully", "flashsale_id", flashsale.ID, "name", name)
 
 	// Pre-warm Cache
 	if err := s.cache.SetStock(ctx, uint64(flashsale.ID), totalStock); err != nil {
-		s.logger.Error("failed to pre-warm cache", "error", err)
+		s.logger.ErrorContext(ctx, "failed to pre-warm cache", "flashsale_id", flashsale.ID, "error", err)
 		// Should we fail? Ideally yes, or retry.
 		return nil, fmt.Errorf("failed to pre-warm cache: %w", err)
 	}
@@ -85,7 +86,7 @@ func (s *FlashSaleService) PlaceOrder(ctx context.Context, userID, flashsaleID u
 	// 3. Deduct Stock in Redis (Atomic Check & Deduct)
 	success, err := s.cache.DeductStock(ctx, flashsaleID, userID, quantity, flashsale.LimitPerUser)
 	if err != nil {
-		s.logger.Error("failed to deduct stock in cache", "error", err)
+		s.logger.ErrorContext(ctx, "failed to deduct stock in cache", "flashsale_id", flashsaleID, "user_id", userID, "error", err)
 		return nil, err
 	}
 	if !success {
@@ -115,7 +116,7 @@ func (s *FlashSaleService) PlaceOrder(ctx context.Context, userID, flashsaleID u
 
 	// Use Order ID as key for ordering if needed, or Flashsale ID
 	if err := s.producer.Publish(ctx, []byte(fmt.Sprintf("%d", orderID)), payload); err != nil {
-		s.logger.Error("failed to publish order event", "error", err)
+		s.logger.ErrorContext(ctx, "failed to publish order event", "order_id", orderID, "error", err)
 		// Rollback Redis Stock
 		_ = s.cache.RevertStock(ctx, flashsaleID, userID, quantity)
 		return nil, fmt.Errorf("failed to publish order: %w", err)

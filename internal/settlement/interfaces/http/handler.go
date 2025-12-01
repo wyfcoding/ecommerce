@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -43,7 +44,7 @@ func (h *Handler) CreateSettlement(c *gin.Context) {
 
 	settlement, err := h.service.CreateSettlement(c.Request.Context(), req.MerchantID, req.Cycle, start, end)
 	if err != nil {
-		h.logger.Error("Failed to create settlement", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create settlement", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create settlement", err.Error())
 		return
 	}
@@ -71,7 +72,7 @@ func (h *Handler) AddOrder(c *gin.Context) {
 	}
 
 	if err := h.service.AddOrderToSettlement(c.Request.Context(), id, req.OrderID, req.OrderNo, req.Amount); err != nil {
-		h.logger.Error("Failed to add order", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add order", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add order", err.Error())
 		return
 	}
@@ -88,7 +89,7 @@ func (h *Handler) Process(c *gin.Context) {
 	}
 
 	if err := h.service.ProcessSettlement(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to process settlement", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to process settlement", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to process settlement", err.Error())
 		return
 	}
@@ -105,7 +106,7 @@ func (h *Handler) Complete(c *gin.Context) {
 	}
 
 	if err := h.service.CompleteSettlement(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to complete settlement", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to complete settlement", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to complete settlement", err.Error())
 		return
 	}
@@ -130,7 +131,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	list, total, err := h.service.ListSettlements(c.Request.Context(), merchantID, status, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list settlements", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list settlements", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list settlements", err.Error())
 		return
 	}
@@ -153,7 +154,7 @@ func (h *Handler) GetAccount(c *gin.Context) {
 
 	account, err := h.service.GetMerchantAccount(c.Request.Context(), merchantID)
 	if err != nil {
-		h.logger.Error("Failed to get merchant account", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get merchant account", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get merchant account", err.Error())
 		return
 	}

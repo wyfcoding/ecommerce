@@ -2,9 +2,10 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -25,9 +26,10 @@ func NewDataIngestionService(repo repository.DataIngestionRepository, logger *sl
 func (s *DataIngestionService) RegisterSource(ctx context.Context, name string, sourceType entity.SourceType, config, description string) (*entity.IngestionSource, error) {
 	source := entity.NewIngestionSource(name, sourceType, config, description)
 	if err := s.repo.SaveSource(ctx, source); err != nil {
-		s.logger.Error("failed to save source", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save source", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "source registered successfully", "source_id", source.ID, "name", name)
 	return source, nil
 }
 
@@ -46,8 +48,10 @@ func (s *DataIngestionService) TriggerIngestion(ctx context.Context, sourceID ui
 
 	job := entity.NewIngestionJob(uint64(source.ID))
 	if err := s.repo.SaveJob(ctx, job); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save job", "source_id", sourceID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "ingestion job triggered", "job_id", job.ID, "source_id", sourceID)
 
 	// Async processing simulation
 	go s.processJob(job)
@@ -59,6 +63,7 @@ func (s *DataIngestionService) processJob(job *entity.IngestionJob) {
 	ctx := context.Background()
 	job.Start()
 	s.repo.UpdateJob(ctx, job)
+	s.logger.InfoContext(ctx, "ingestion job started", "job_id", job.ID)
 
 	// Simulate processing
 	time.Sleep(2 * time.Second)
@@ -66,6 +71,7 @@ func (s *DataIngestionService) processJob(job *entity.IngestionJob) {
 	// Success simulation
 	job.Complete(100)
 	s.repo.UpdateJob(ctx, job)
+	s.logger.InfoContext(ctx, "ingestion job completed", "job_id", job.ID, "rows_processed", 100)
 
 	// Update source last run
 	source, _ := s.repo.GetSource(ctx, job.SourceID)

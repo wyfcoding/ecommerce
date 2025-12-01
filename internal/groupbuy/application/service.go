@@ -33,9 +33,10 @@ func (s *GroupbuyService) CreateGroupbuy(ctx context.Context, name string, produ
 	groupbuy := entity.NewGroupbuy(name, productID, skuID, originalPrice, groupPrice, minPeople, maxPeople, totalStock, startTime, endTime)
 
 	if err := s.repo.CreateGroupbuy(ctx, groupbuy); err != nil {
-		s.logger.Error("failed to create groupbuy", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create groupbuy", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "groupbuy created successfully", "groupbuy_id", groupbuy.ID, "name", name)
 
 	return groupbuy, nil
 }
@@ -65,14 +66,18 @@ func (s *GroupbuyService) InitiateTeam(ctx context.Context, groupbuyID, userID u
 
 	team := entity.NewGroupbuyTeam(groupbuyID, teamNo, userID, groupbuy.MaxPeople, expireAt)
 	if err := s.repo.CreateTeam(ctx, team); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create groupbuy team", "groupbuy_id", groupbuyID, "error", err)
 		return nil, nil, err
 	}
+	s.logger.InfoContext(ctx, "groupbuy team created successfully", "team_id", team.ID, "team_no", teamNo)
 
 	// 3. 创建订单
 	order := entity.NewGroupbuyOrder(groupbuyID, uint64(team.ID), teamNo, userID, groupbuy.ProductID, groupbuy.SkuID, groupbuy.GroupPrice, 1, true)
 	if err := s.repo.CreateOrder(ctx, order); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create groupbuy order", "team_id", team.ID, "user_id", userID, "error", err)
 		return nil, nil, err
 	}
+	s.logger.InfoContext(ctx, "groupbuy order created successfully", "order_id", order.ID, "team_id", team.ID)
 
 	return team, order, nil
 }
@@ -104,8 +109,10 @@ func (s *GroupbuyService) JoinTeam(ctx context.Context, teamNo string, userID ui
 	// 5. 创建订单
 	order := entity.NewGroupbuyOrder(team.GroupbuyID, uint64(team.ID), teamNo, userID, groupbuy.ProductID, groupbuy.SkuID, groupbuy.GroupPrice, 1, false)
 	if err := s.repo.CreateOrder(ctx, order); err != nil {
+		s.logger.ErrorContext(ctx, "failed to join groupbuy team", "team_no", teamNo, "user_id", userID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "joined groupbuy team successfully", "team_no", teamNo, "user_id", userID)
 
 	return order, nil
 }

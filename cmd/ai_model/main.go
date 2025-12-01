@@ -83,7 +83,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewAIModelRepository(db)
 
 	// Application Layer
-	service := application.NewAIModelService(repo, idGenerator, slog.Default())
+	service := application.NewAIModelService(repo, idGenerator, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up ai_model service resources (DDD)...")

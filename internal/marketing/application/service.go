@@ -2,9 +2,10 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -25,9 +26,10 @@ func NewMarketingService(repo repository.MarketingRepository, logger *slog.Logge
 func (s *MarketingService) CreateCampaign(ctx context.Context, name string, campaignType entity.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]interface{}) (*entity.Campaign, error) {
 	campaign := entity.NewCampaign(name, campaignType, description, startTime, endTime, budget, rules)
 	if err := s.repo.SaveCampaign(ctx, campaign); err != nil {
-		s.logger.Error("failed to create campaign", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create campaign", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "campaign created successfully", "campaign_id", campaign.ID, "name", name)
 	return campaign, nil
 }
 
@@ -90,9 +92,10 @@ func (s *MarketingService) RecordParticipation(ctx context.Context, campaignID, 
 func (s *MarketingService) CreateBanner(ctx context.Context, title, imageURL, linkURL, position string, priority int32, startTime, endTime time.Time) (*entity.Banner, error) {
 	banner := entity.NewBanner(title, imageURL, linkURL, position, priority, startTime, endTime)
 	if err := s.repo.SaveBanner(ctx, banner); err != nil {
-		s.logger.Error("failed to create banner", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create banner", "title", title, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "banner created successfully", "banner_id", banner.ID, "title", title)
 	return banner, nil
 }
 

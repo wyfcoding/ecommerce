@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewSettlementRepository(db)
 
 	// Application Layer
-	service := application.NewSettlementService(repo, slog.Default())
+	service := application.NewSettlementService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up settlement service resources (DDD)...")

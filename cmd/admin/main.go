@@ -88,7 +88,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	adminRepo := persistence.NewAdminRepository(db)
 
 	// Application Layer
-	adminService := application.NewAdminService(adminRepo, slog.Default())
+	adminService := application.NewAdminService(adminRepo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up admin service resources (DDD)...")

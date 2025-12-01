@@ -9,8 +9,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -45,7 +46,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	afterSales, err := h.service.CreateAfterSales(c.Request.Context(), req.OrderID, req.OrderNo, req.UserID, req.Type, req.Reason, req.Description, req.Images, req.Items)
 	if err != nil {
-		h.logger.Error("Failed to create after-sales", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create after-sales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create after-sales", err.Error())
 		return
 	}
@@ -72,7 +73,7 @@ func (h *Handler) Approve(c *gin.Context) {
 	}
 
 	if err := h.service.Approve(c.Request.Context(), id, req.Operator, req.Amount); err != nil {
-		h.logger.Error("Failed to approve after-sales", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to approve after-sales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to approve after-sales", err.Error())
 		return
 	}
@@ -99,7 +100,7 @@ func (h *Handler) Reject(c *gin.Context) {
 	}
 
 	if err := h.service.Reject(c.Request.Context(), id, req.Operator, req.Reason); err != nil {
-		h.logger.Error("Failed to reject after-sales", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to reject after-sales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to reject after-sales", err.Error())
 		return
 	}
@@ -121,7 +122,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	list, total, err := h.service.List(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to list after-sales", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list after-sales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list after-sales", err.Error())
 		return
 	}
@@ -144,7 +145,7 @@ func (h *Handler) GetDetails(c *gin.Context) {
 
 	details, err := h.service.GetDetails(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get after-sales details", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get after-sales details", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get after-sales details", err.Error())
 		return
 	}

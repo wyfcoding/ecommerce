@@ -80,7 +80,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	aftersalesRepo := persistence.NewAfterSalesRepository(db)
-	aftersalesService := application.NewAfterSalesService(aftersalesRepo, idGenerator, slog.Default())
+	aftersalesService := application.NewAfterSalesService(aftersalesRepo, idGenerator, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up aftersales service resources (DDD)...")

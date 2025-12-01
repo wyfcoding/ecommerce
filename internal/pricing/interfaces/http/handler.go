@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -33,7 +34,7 @@ func (h *Handler) CreateRule(c *gin.Context) {
 	}
 
 	if err := h.service.CreateRule(c.Request.Context(), &req); err != nil {
-		h.logger.Error("Failed to create rule", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create rule", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create rule", err.Error())
 		return
 	}
@@ -57,7 +58,7 @@ func (h *Handler) CalculatePrice(c *gin.Context) {
 
 	price, err := h.service.CalculatePrice(c.Request.Context(), req.ProductID, req.SkuID, req.Demand, req.Competition)
 	if err != nil {
-		h.logger.Error("Failed to calculate price", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to calculate price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to calculate price", err.Error())
 		return
 	}
@@ -73,7 +74,7 @@ func (h *Handler) ListRules(c *gin.Context) {
 
 	list, total, err := h.service.ListRules(c.Request.Context(), productID, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list rules", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list rules", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list rules", err.Error())
 		return
 	}
@@ -95,7 +96,7 @@ func (h *Handler) ListHistory(c *gin.Context) {
 
 	list, total, err := h.service.ListHistory(c.Request.Context(), productID, skuID, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list history", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list history", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list history", err.Error())
 		return
 	}

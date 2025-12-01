@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/file/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -39,7 +40,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 
 	metadata, err := h.service.UploadFile(c.Request.Context(), file.Filename, file.Size, fileType, nil)
 	if err != nil {
-		h.logger.Error("Failed to upload file", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to upload file", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to upload file", err.Error())
 		return
 	}
@@ -57,7 +58,7 @@ func (h *Handler) GetFile(c *gin.Context) {
 
 	file, err := h.service.GetFile(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get file", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get file", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get file", err.Error())
 		return
 	}
@@ -74,7 +75,7 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteFile(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to delete file", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to delete file", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete file", err.Error())
 		return
 	}
@@ -89,7 +90,7 @@ func (h *Handler) ListFiles(c *gin.Context) {
 
 	list, total, err := h.service.ListFiles(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list files", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list files", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list files", err.Error())
 		return
 	}

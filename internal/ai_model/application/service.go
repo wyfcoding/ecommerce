@@ -32,9 +32,10 @@ func (s *AIModelService) CreateModel(ctx context.Context, name, description, mod
 	model := entity.NewAIModel(modelNo, name, description, modelType, algorithm, creatorID)
 
 	if err := s.repo.Create(ctx, model); err != nil {
-		s.logger.Error("failed to create model", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create model", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "model created successfully", "model_id", model.ID, "name", name)
 
 	return model, nil
 }
@@ -153,7 +154,7 @@ func (s *AIModelService) Predict(ctx context.Context, modelID uint64, input stri
 	}
 
 	if err := s.repo.CreatePrediction(ctx, prediction); err != nil {
-		s.logger.Warn("failed to save prediction record", "error", err)
+		s.logger.WarnContext(ctx, "failed to save prediction record", "model_id", modelID, "error", err)
 	}
 
 	return output, confidence, nil

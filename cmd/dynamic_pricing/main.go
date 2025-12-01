@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewPricingRepository(db)
 
 	// Application Layer
-	service := application.NewDynamicPricingService(repo, slog.Default())
+	service := application.NewDynamicPricingService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up dynamic_pricing service resources (DDD)...")

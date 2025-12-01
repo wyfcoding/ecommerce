@@ -9,8 +9,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -42,7 +43,7 @@ func (h *Handler) CreateModel(c *gin.Context) {
 
 	model, err := h.service.CreateModel(c.Request.Context(), req.Name, req.Description, req.Type, req.Algorithm, req.CreatorID)
 	if err != nil {
-		h.logger.Error("Failed to create model", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create model", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create model", err.Error())
 		return
 	}
@@ -70,7 +71,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 
 	list, total, err := h.service.ListModels(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to list models", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list models", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list models", err.Error())
 		return
 	}
@@ -93,7 +94,7 @@ func (h *Handler) GetModelDetails(c *gin.Context) {
 
 	model, err := h.service.GetModelDetails(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get model details", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get model details", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get model details", err.Error())
 		return
 	}
@@ -110,7 +111,7 @@ func (h *Handler) StartTraining(c *gin.Context) {
 	}
 
 	if err := h.service.StartTraining(c.Request.Context(), id); err != nil {
-		h.logger.Error("Failed to start training", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to start training", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to start training", err.Error())
 		return
 	}
@@ -138,7 +139,7 @@ func (h *Handler) Predict(c *gin.Context) {
 
 	output, confidence, err := h.service.Predict(c.Request.Context(), id, req.Input, req.UserID)
 	if err != nil {
-		h.logger.Error("Failed to predict", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to predict", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to predict", err.Error())
 		return
 	}

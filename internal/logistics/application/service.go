@@ -3,10 +3,11 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"
-	"time"
 
 	"log/slog"
 )
@@ -35,9 +36,10 @@ func (s *LogisticsService) CreateLogistics(ctx context.Context, orderID uint64, 
 		receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon)
 
 	if err := s.repo.Save(ctx, logistics); err != nil {
-		s.logger.Error("failed to save logistics", "error", err)
+		s.logger.ErrorContext(ctx, "failed to save logistics", "order_id", orderID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "logistics created successfully", "logistics_id", logistics.ID, "tracking_no", trackingNo)
 	return logistics, nil
 }
 
@@ -79,7 +81,12 @@ func (s *LogisticsService) UpdateStatus(ctx context.Context, id uint64, status e
 
 	logistics.AddTrace(location, description, "") // Status string could be mapped from enum if needed
 
-	return s.repo.Save(ctx, logistics)
+	if err := s.repo.Save(ctx, logistics); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update logistics status", "logistics_id", id, "status", status, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "logistics status updated successfully", "logistics_id", id, "status", status)
+	return nil
 }
 
 // AddTrace 添加物流轨迹
@@ -92,7 +99,12 @@ func (s *LogisticsService) AddTrace(ctx context.Context, id uint64, location, de
 	logistics.AddTrace(location, description, status)
 	logistics.UpdateLocation(location)
 
-	return s.repo.Save(ctx, logistics)
+	if err := s.repo.Save(ctx, logistics); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add trace", "logistics_id", id, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "logistics trace added successfully", "logistics_id", id, "location", location)
+	return nil
 }
 
 // SetEstimatedTime 设置预计送达时间
@@ -103,7 +115,12 @@ func (s *LogisticsService) SetEstimatedTime(ctx context.Context, id uint64, esti
 	}
 
 	logistics.SetEstimatedTime(estimatedTime)
-	return s.repo.Save(ctx, logistics)
+	if err := s.repo.Save(ctx, logistics); err != nil {
+		s.logger.ErrorContext(ctx, "failed to set estimated time", "logistics_id", id, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "logistics estimated time set successfully", "logistics_id", id, "estimated_time", estimatedTime)
+	return nil
 }
 
 // ListLogistics 获取物流列表
@@ -147,8 +164,10 @@ func (s *LogisticsService) OptimizeDeliveryRoute(ctx context.Context, logisticsI
 	// GORM default association handling might work if we set logistics.Route = deliveryRoute and Save(logistics).
 	logistics.Route = deliveryRoute
 	if err := s.repo.Save(ctx, logistics); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save optimized route", "logistics_id", logisticsID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "delivery route optimized successfully", "logistics_id", logisticsID)
 
 	return deliveryRoute, nil
 }

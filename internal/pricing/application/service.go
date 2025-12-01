@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain/repository"
 
@@ -22,7 +23,12 @@ func NewPricingService(repo repository.PricingRepository, logger *slog.Logger) *
 
 // CreateRule 创建规则
 func (s *PricingService) CreateRule(ctx context.Context, rule *entity.PricingRule) error {
-	return s.repo.SaveRule(ctx, rule)
+	if err := s.repo.SaveRule(ctx, rule); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create pricing rule", "rule_id", rule.ID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "pricing rule created successfully", "rule_id", rule.ID)
+	return nil
 }
 
 // CalculatePrice 计算价格
@@ -55,7 +61,12 @@ func (s *PricingService) RecordHistory(ctx context.Context, productID, skuID, pr
 		ChangeRate: changeRate,
 		Reason:     reason,
 	}
-	return s.repo.SaveHistory(ctx, history)
+	if err := s.repo.SaveHistory(ctx, history); err != nil {
+		s.logger.ErrorContext(ctx, "failed to record price history", "product_id", productID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "price history recorded successfully", "product_id", productID, "sku_id", skuID, "price", price)
+	return nil
 }
 
 // ListRules 规则列表

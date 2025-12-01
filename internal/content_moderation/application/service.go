@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain/repository"
 
@@ -29,9 +30,10 @@ func (s *ModerationService) SubmitContent(ctx context.Context, contentType entit
 	record.SetAIResult(0.1, []string{"safe"})
 
 	if err := s.repo.CreateRecord(ctx, record); err != nil {
-		s.logger.Error("failed to create moderation record", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create moderation record", "content_type", contentType, "content_id", contentID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "moderation record created successfully", "record_id", record.ID, "content_type", contentType, "content_id", contentID)
 	return record, nil
 }
 
@@ -61,9 +63,10 @@ func (s *ModerationService) ListPendingRecords(ctx context.Context, page, pageSi
 func (s *ModerationService) AddSensitiveWord(ctx context.Context, word, category string, level int8) (*entity.SensitiveWord, error) {
 	sensitiveWord := entity.NewSensitiveWord(word, category, level)
 	if err := s.repo.CreateWord(ctx, sensitiveWord); err != nil {
-		s.logger.Error("failed to create sensitive word", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create sensitive word", "word", word, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "sensitive word created successfully", "word_id", sensitiveWord.ID, "word", word)
 	return sensitiveWord, nil
 }
 

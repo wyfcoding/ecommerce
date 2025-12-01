@@ -3,9 +3,10 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/repository"
-	"time"
 
 	"log/slog"
 )
@@ -26,9 +27,10 @@ func NewCouponService(repo repository.CouponRepository, logger *slog.Logger) *Co
 func (s *CouponService) CreateCoupon(ctx context.Context, name, description string, couponType entity.CouponType, discountAmount, minOrderAmount int64) (*entity.Coupon, error) {
 	coupon := entity.NewCoupon(name, description, couponType, discountAmount, minOrderAmount)
 	if err := s.repo.SaveCoupon(ctx, coupon); err != nil {
-		s.logger.Error("failed to create coupon", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create coupon", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "coupon created successfully", "coupon_id", coupon.ID, "name", name)
 	return coupon, nil
 }
 
@@ -125,9 +127,10 @@ func (s *CouponService) ListUserCoupons(ctx context.Context, userID uint64, stat
 func (s *CouponService) CreateActivity(ctx context.Context, name, description string, startTime, endTime time.Time, couponIDs []uint64) (*entity.CouponActivity, error) {
 	activity := entity.NewCouponActivity(name, description, startTime, endTime, couponIDs)
 	if err := s.repo.SaveActivity(ctx, activity); err != nil {
-		s.logger.Error("failed to create activity", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create activity", "name", name, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "activity created successfully", "activity_id", activity.ID, "name", name)
 	return activity, nil
 }
 

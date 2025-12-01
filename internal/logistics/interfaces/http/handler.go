@@ -55,7 +55,7 @@ func (h *Handler) CreateLogistics(c *gin.Context) {
 		req.SenderName, req.SenderPhone, req.SenderAddress, req.SenderLat, req.SenderLon,
 		req.ReceiverName, req.ReceiverPhone, req.ReceiverAddress, req.ReceiverLat, req.ReceiverLon)
 	if err != nil {
-		h.logger.Error("Failed to create logistics", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create logistics", err.Error())
 		return
 	}
@@ -73,7 +73,7 @@ func (h *Handler) GetLogistics(c *gin.Context) {
 
 	logistics, err := h.service.GetLogistics(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to get logistics", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logistics", err.Error())
 		return
 	}
@@ -101,7 +101,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStatus(c.Request.Context(), id, entity.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
-		h.logger.Error("Failed to update status", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to update status", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update status", err.Error())
 		return
 	}
@@ -129,7 +129,7 @@ func (h *Handler) AddTrace(c *gin.Context) {
 	}
 
 	if err := h.service.AddTrace(c.Request.Context(), id, req.Location, req.Description, req.Status); err != nil {
-		h.logger.Error("Failed to add trace", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add trace", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add trace", err.Error())
 		return
 	}
@@ -155,7 +155,7 @@ func (h *Handler) SetEstimatedTime(c *gin.Context) {
 	}
 
 	if err := h.service.SetEstimatedTime(c.Request.Context(), id, req.EstimatedTime); err != nil {
-		h.logger.Error("Failed to set estimated time", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to set estimated time", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to set estimated time", err.Error())
 		return
 	}
@@ -170,7 +170,7 @@ func (h *Handler) ListLogistics(c *gin.Context) {
 
 	list, total, err := h.service.ListLogistics(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list logistics", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list logistics", err.Error())
 		return
 	}

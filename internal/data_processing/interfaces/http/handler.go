@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -40,7 +41,7 @@ func (h *Handler) SubmitTask(c *gin.Context) {
 
 	task, err := h.service.SubmitTask(c.Request.Context(), req.Name, req.Type, req.Config, req.WorkflowID)
 	if err != nil {
-		h.logger.Error("Failed to submit task", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to submit task", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to submit task", err.Error())
 		return
 	}
@@ -57,7 +58,7 @@ func (h *Handler) ListTasks(c *gin.Context) {
 
 	list, total, err := h.service.ListTasks(c.Request.Context(), workflowID, entity.TaskStatus(status), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list tasks", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list tasks", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list tasks", err.Error())
 		return
 	}
@@ -85,7 +86,7 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 
 	workflow, err := h.service.CreateWorkflow(c.Request.Context(), req.Name, req.Description, req.Steps)
 	if err != nil {
-		h.logger.Error("Failed to create workflow", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create workflow", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create workflow", err.Error())
 		return
 	}
@@ -100,7 +101,7 @@ func (h *Handler) ListWorkflows(c *gin.Context) {
 
 	list, total, err := h.service.ListWorkflows(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list workflows", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list workflows", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list workflows", err.Error())
 		return
 	}

@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/wishlist/application"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -42,7 +43,7 @@ func (h *Handler) Add(c *gin.Context) {
 
 	wishlist, err := h.service.Add(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.ImageURL)
 	if err != nil {
-		h.logger.Error("Failed to add to wishlist", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add to wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add to wishlist", err.Error())
 		return
 	}
@@ -70,7 +71,7 @@ func (h *Handler) Remove(c *gin.Context) {
 	}
 
 	if err := h.service.Remove(c.Request.Context(), userID, id); err != nil {
-		h.logger.Error("Failed to remove from wishlist", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to remove from wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to remove from wishlist", err.Error())
 		return
 	}
@@ -91,7 +92,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	list, total, err := h.service.List(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list wishlist", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list wishlist", err.Error())
 		return
 	}
@@ -119,7 +120,7 @@ func (h *Handler) CheckStatus(c *gin.Context) {
 
 	exists, err := h.service.CheckStatus(c.Request.Context(), userID, skuID)
 	if err != nil {
-		h.logger.Error("Failed to check status", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to check status", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to check status", err.Error())
 		return
 	}

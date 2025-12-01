@@ -83,7 +83,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewAnalyticsRepository(db)
 
 	// Application Layer
-	service := application.NewAnalyticsService(repo, idGenerator, slog.Default())
+	service := application.NewAnalyticsService(repo, idGenerator, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up analytics service resources (DDD)...")

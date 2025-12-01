@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/admin/application"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -40,7 +41,7 @@ func (h *Handler) RegisterAdmin(c *gin.Context) {
 
 	admin, err := h.service.RegisterAdmin(c.Request.Context(), req.Username, req.Email, req.Password, req.RealName, req.Phone)
 	if err != nil {
-		h.logger.Error("Failed to register admin", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to register admin", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to register admin", err.Error())
 		return
 	}
@@ -62,7 +63,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	token, err := h.service.Login(c.Request.Context(), req.Username, req.Password, c.ClientIP())
 	if err != nil {
-		h.logger.Warn("Login failed", "username", req.Username, "error", err)
+		h.logger.WarnContext(c.Request.Context(), "Login failed", "username", req.Username, "error", err)
 		response.ErrorWithStatus(c, http.StatusUnauthorized, "Login failed", err.Error())
 		return
 	}
@@ -81,7 +82,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 
 	admin, err := h.service.GetAdminProfile(c.Request.Context(), userID.(uint64))
 	if err != nil {
-		h.logger.Error("Failed to get profile", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get profile", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get profile", err.Error())
 		return
 	}
@@ -96,7 +97,7 @@ func (h *Handler) ListAdmins(c *gin.Context) {
 
 	admins, total, err := h.service.ListAdmins(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list admins", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list admins", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list admins", err.Error())
 		return
 	}
@@ -124,7 +125,7 @@ func (h *Handler) CreateRole(c *gin.Context) {
 
 	role, err := h.service.CreateRole(c.Request.Context(), req.Name, req.Code, req.Description)
 	if err != nil {
-		h.logger.Error("Failed to create role", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create role", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
 	}
@@ -145,7 +146,7 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	}
 
 	if err := h.service.AssignRoleToAdmin(c.Request.Context(), req.AdminID, req.RoleID); err != nil {
-		h.logger.Error("Failed to assign role", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to assign role", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to assign role", err.Error())
 		return
 	}

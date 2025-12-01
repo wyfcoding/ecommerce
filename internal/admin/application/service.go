@@ -45,9 +45,10 @@ func (s *AdminService) RegisterAdmin(ctx context.Context, username, email, passw
 
 	admin := entity.NewAdmin(username, email, string(hashedPassword), realName, phone)
 	if err := s.repo.CreateAdmin(ctx, admin); err != nil {
-		s.logger.Error("failed to create admin", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create admin", "username", username, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "admin created successfully", "admin_id", admin.ID, "username", username)
 
 	return admin, nil
 }
@@ -118,8 +119,10 @@ func (s *AdminService) CreateRole(ctx context.Context, name, code, description s
 	}
 
 	if err := s.repo.CreateRole(ctx, role); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create role", "role_code", code, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "role created successfully", "role_id", role.ID, "role_code", code)
 
 	return role, nil
 }
@@ -150,8 +153,10 @@ func (s *AdminService) CreatePermission(ctx context.Context, name, code, permTyp
 	}
 
 	if err := s.repo.CreatePermission(ctx, permission); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create permission", "perm_code", code, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "permission created successfully", "perm_id", permission.ID, "perm_code", code)
 
 	return permission, nil
 }

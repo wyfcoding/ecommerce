@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/application"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -47,7 +48,7 @@ func (h *Handler) CreateGroupbuy(c *gin.Context) {
 	groupbuy, err := h.service.CreateGroupbuy(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.GroupPrice,
 		req.MinPeople, req.MaxPeople, req.TotalStock, req.StartTime, req.EndTime)
 	if err != nil {
-		h.logger.Error("Failed to create groupbuy", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create groupbuy", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create groupbuy", err.Error())
 		return
 	}
@@ -62,7 +63,7 @@ func (h *Handler) ListGroupbuys(c *gin.Context) {
 
 	groupbuys, total, err := h.service.ListGroupbuys(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list groupbuys", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list groupbuys", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list groupbuys", err.Error())
 		return
 	}
@@ -89,7 +90,7 @@ func (h *Handler) InitiateTeam(c *gin.Context) {
 
 	team, order, err := h.service.InitiateTeam(c.Request.Context(), req.GroupbuyID, req.UserID)
 	if err != nil {
-		h.logger.Error("Failed to initiate team", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to initiate team", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to initiate team", err.Error())
 		return
 	}
@@ -114,7 +115,7 @@ func (h *Handler) JoinTeam(c *gin.Context) {
 
 	order, err := h.service.JoinTeam(c.Request.Context(), req.TeamNo, req.UserID)
 	if err != nil {
-		h.logger.Error("Failed to join team", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to join team", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to join team", err.Error())
 		return
 	}
@@ -132,7 +133,7 @@ func (h *Handler) GetTeamDetails(c *gin.Context) {
 
 	team, orders, err := h.service.GetTeamDetails(c.Request.Context(), teamID)
 	if err != nil {
-		h.logger.Error("Failed to get team details", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get team details", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get team details", err.Error())
 		return
 	}

@@ -76,7 +76,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewFileRepository(db)
 
 	// Application Layer
-	service := application.NewFileService(repo, slog.Default())
+	service := application.NewFileService(repo, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up file service resources (DDD)...")

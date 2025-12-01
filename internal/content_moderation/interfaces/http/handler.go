@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain/entity"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -40,7 +41,7 @@ func (h *Handler) SubmitContent(c *gin.Context) {
 
 	record, err := h.service.SubmitContent(c.Request.Context(), entity.ContentType(req.ContentType), req.ContentID, req.Content, req.UserID)
 	if err != nil {
-		h.logger.Error("Failed to submit content", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to submit content", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to submit content", err.Error())
 		return
 	}
@@ -69,7 +70,7 @@ func (h *Handler) ReviewContent(c *gin.Context) {
 
 	err = h.service.ReviewContent(c.Request.Context(), id, req.ModeratorID, req.Approved, req.Reason)
 	if err != nil {
-		h.logger.Error("Failed to review content", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to review content", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to review content", err.Error())
 		return
 	}
@@ -84,7 +85,7 @@ func (h *Handler) ListPendingRecords(c *gin.Context) {
 
 	list, total, err := h.service.ListPendingRecords(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list pending records", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list pending records", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list pending records", err.Error())
 		return
 	}
@@ -112,7 +113,7 @@ func (h *Handler) AddSensitiveWord(c *gin.Context) {
 
 	word, err := h.service.AddSensitiveWord(c.Request.Context(), req.Word, req.Category, req.Level)
 	if err != nil {
-		h.logger.Error("Failed to add sensitive word", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add sensitive word", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add sensitive word", err.Error())
 		return
 	}
@@ -127,7 +128,7 @@ func (h *Handler) ListSensitiveWords(c *gin.Context) {
 
 	list, total, err := h.service.ListSensitiveWords(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list sensitive words", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list sensitive words", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list sensitive words", err.Error())
 		return
 	}
@@ -150,7 +151,7 @@ func (h *Handler) DeleteSensitiveWord(c *gin.Context) {
 
 	err = h.service.DeleteSensitiveWord(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("Failed to delete sensitive word", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to delete sensitive word", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete sensitive word", err.Error())
 		return
 	}

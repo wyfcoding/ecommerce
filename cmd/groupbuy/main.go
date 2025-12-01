@@ -83,7 +83,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// Application Layer
-	service := application.NewGroupbuyService(repo, idGenerator, slog.Default())
+	service := application.NewGroupbuyService(repo, idGenerator, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up groupbuy service resources (DDD)...")

@@ -39,9 +39,10 @@ func (s *AfterSalesService) CreateAfterSales(ctx context.Context, orderID uint64
 	}
 
 	if err := s.repo.Create(ctx, afterSales); err != nil {
-		s.logger.Error("failed to create after-sales", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create after-sales", "order_id", orderID, "user_id", userID, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "after-sales request created successfully", "after_sales_id", afterSales.ID, "order_id", orderID)
 
 	// Log creation
 	s.logOperation(ctx, uint64(afterSales.ID), "User", "Create", "", entity.AfterSalesStatusPending.String(), "Created after-sales request")
@@ -113,6 +114,6 @@ func (s *AfterSalesService) logOperation(ctx context.Context, asID uint64, opera
 		Remark:       remark,
 	}
 	if err := s.repo.CreateLog(ctx, log); err != nil {
-		s.logger.Warn("failed to create after-sales log", "error", err)
+		s.logger.WarnContext(ctx, "failed to create after-sales log", "after_sales_id", asID, "error", err)
 	}
 }

@@ -10,8 +10,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/audit/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/response"
 
-	"github.com/gin-gonic/gin"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -58,7 +59,7 @@ func (h *Handler) QueryLogs(c *gin.Context) {
 
 	list, total, err := h.service.QueryLogs(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to query audit logs", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to query audit logs", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to query audit logs", err.Error())
 		return
 	}
@@ -85,7 +86,7 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 
 	policy, err := h.service.CreatePolicy(c.Request.Context(), req.Name, req.Description)
 	if err != nil {
-		h.logger.Error("Failed to create audit policy", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create audit policy", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create audit policy", err.Error())
 		return
 	}
@@ -100,7 +101,7 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 
 	list, total, err := h.service.ListPolicies(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list audit policies", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list audit policies", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list audit policies", err.Error())
 		return
 	}
@@ -127,7 +128,7 @@ func (h *Handler) CreateReport(c *gin.Context) {
 
 	report, err := h.service.CreateReport(c.Request.Context(), req.Title, req.Description)
 	if err != nil {
-		h.logger.Error("Failed to create audit report", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to create audit report", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create audit report", err.Error())
 		return
 	}
@@ -142,7 +143,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 	list, total, err := h.service.ListReports(c.Request.Context(), page, pageSize)
 	if err != nil {
-		h.logger.Error("Failed to list audit reports", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to list audit reports", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list audit reports", err.Error())
 		return
 	}
