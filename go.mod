@@ -1,6 +1,6 @@
 module github.com/wyfcoding/ecommerce
 
-go 1.25.4
+go 1.25.5
 
 require (
 	github.com/allegro/bigcache/v3 v3.1.0

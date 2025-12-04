@@ -14,14 +14,16 @@ import (
 // 它协调领域层和基础设施层，处理支付的发起、回调处理、退款请求和查询等业务逻辑。
 type PaymentApplicationService struct {
 	paymentRepo domain.PaymentRepository // 依赖PaymentRepository接口，用于支付数据持久化操作。
+	refundRepo  domain.RefundRepository  // 依赖RefundRepository接口，用于退款数据持久化操作。
 	idGenerator idgen.Generator          // ID生成器，用于生成支付和退款ID。
 	logger      *slog.Logger             // 日志记录器，用于记录服务运行时的信息和错误。
 }
 
 // NewPaymentApplicationService 创建并返回一个新的 PaymentApplicationService 实例。
-func NewPaymentApplicationService(paymentRepo domain.PaymentRepository, idGenerator idgen.Generator, logger *slog.Logger) *PaymentApplicationService {
+func NewPaymentApplicationService(paymentRepo domain.PaymentRepository, refundRepo domain.RefundRepository, idGenerator idgen.Generator, logger *slog.Logger) *PaymentApplicationService {
 	return &PaymentApplicationService{
 		paymentRepo: paymentRepo,
+		refundRepo:  refundRepo,
 		idGenerator: idGenerator,
 		logger:      logger,
 	}
@@ -151,10 +153,30 @@ func (s *PaymentApplicationService) RequestRefund(ctx context.Context, paymentID
 // success: 退款是否成功。
 // 返回可能发生的错误。
 func (s *PaymentApplicationService) HandleRefundCallback(ctx context.Context, refundNo string, success bool) error {
-	// TODO: 目前该方法未完全实现，因为缺少通过 refundNo 查找退款记录的仓储方法。
-	// 理想情况下，需要 PaymentRepository 支持 FindRefundByRefundNo 或创建一个独立的 RefundRepository。
-	// 或者，退款回调中应包含 PaymentID，以便能找到对应的 Payment 聚合根。
-	return errors.New("HandleRefundCallback not fully implemented due to missing repo method")
+	// 1. 根据退款单号查找退款记录。
+	refund, err := s.refundRepo.FindByRefundNo(ctx, refundNo)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to find refund by no", "refund_no", refundNo, "error", err)
+		return err
+	}
+	if refund == nil {
+		return errors.New("refund not found")
+	}
+
+	// 2. 更新退款状态。
+	if success {
+		refund.Status = domain.RefundSuccess
+	} else {
+		refund.Status = domain.RefundFailed
+	}
+
+	// 3. 更新退款记录。
+	if err := s.refundRepo.Update(ctx, refund); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update refund", "refund_no", refundNo, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "refund processed successfully", "refund_no", refundNo, "success", success)
+	return nil
 }
 
 // GetRefundStatus 获取退款状态。
@@ -162,7 +184,5 @@ func (s *PaymentApplicationService) HandleRefundCallback(ctx context.Context, re
 // refundID: 退款ID。
 // 返回退款实体和可能发生的错误。
 func (s *PaymentApplicationService) GetRefundStatus(ctx context.Context, refundID uint64) (*domain.Refund, error) {
-	// TODO: 目前该方法未完全实现，因为缺少通过 refundID 查找退款记录的仓储方法。
-	// 理想情况下，需要 PaymentRepository 支持 FindRefundByID 或 GetRefundsByPaymentID。
-	return nil, errors.New("GetRefundStatus not fully implemented")
+	return s.refundRepo.FindByID(ctx, refundID)
 }
