@@ -165,9 +165,9 @@ func (s *PaymentApplicationService) HandleRefundCallback(ctx context.Context, re
 
 	// 2. 更新退款状态。
 	if success {
-		refund.Status = domain.RefundSuccess
+		refund.Status = domain.PaymentRefunded
 	} else {
-		refund.Status = domain.RefundFailed
+		refund.Status = domain.PaymentFailed
 	}
 
 	// 3. 更新退款记录。

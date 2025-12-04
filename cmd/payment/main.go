@@ -51,6 +51,7 @@ func main() {
 
 			// Repositories
 			paymentRepo := persistence.NewPaymentRepository(shardingManager)
+			refundRepo := persistence.NewRefundRepository(shardingManager)
 
 			// ID Generator
 			idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
@@ -60,7 +61,7 @@ func main() {
 			}
 
 			// Application Service
-			appService := application.NewPaymentApplicationService(paymentRepo, idGenerator, logger.Logger)
+			appService := application.NewPaymentApplicationService(paymentRepo, refundRepo, idGenerator, logger.Logger)
 
 			// gRPC Server
 			srv := grpcServer.NewServer(appService)
