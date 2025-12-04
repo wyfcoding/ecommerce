@@ -2,25 +2,32 @@ package persistence
 
 import (
 	"context"
-	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"
-	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"     // 导入分析模块的领域实体定义。
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository" // 导入分析模块的领域仓储接口。
 
-	"gorm.io/gorm"
+	"gorm.io/gorm" // 导入GORM ORM框架。
 )
 
+// analyticsRepository 是 AnalyticsRepository 接口的GORM实现。
+// 它负责将分析模块的领域实体映射到数据库，并执行持久化操作。
 type analyticsRepository struct {
-	db *gorm.DB
+	db *gorm.DB // GORM数据库连接实例。
 }
 
+// NewAnalyticsRepository 创建并返回一个新的 analyticsRepository 实例。
+// db: GORM数据库连接实例。
 func NewAnalyticsRepository(db *gorm.DB) repository.AnalyticsRepository {
 	return &analyticsRepository{db: db}
 }
 
-// Metric methods
+// --- Metric methods ---
+
+// CreateMetric 在数据库中创建一个新的指标记录。
 func (r *analyticsRepository) CreateMetric(ctx context.Context, metric *entity.Metric) error {
 	return r.db.WithContext(ctx).Create(metric).Error
 }
 
+// GetMetric 根据ID从数据库获取指标记录。
 func (r *analyticsRepository) GetMetric(ctx context.Context, id uint64) (*entity.Metric, error) {
 	var metric entity.Metric
 	if err := r.db.WithContext(ctx).First(&metric, id).Error; err != nil {
@@ -29,12 +36,14 @@ func (r *analyticsRepository) GetMetric(ctx context.Context, id uint64) (*entity
 	return &metric, nil
 }
 
+// ListMetrics 从数据库列出所有指标记录，支持通过查询条件进行过滤和分页。
 func (r *analyticsRepository) ListMetrics(ctx context.Context, query *repository.MetricQuery) ([]*entity.Metric, int64, error) {
 	var list []*entity.Metric
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&entity.Metric{})
 
+	// 根据查询条件构建WHERE子句。
 	if query.MetricType != "" {
 		db = db.Where("metric_type = ?", query.MetricType)
 	}
@@ -51,10 +60,12 @@ func (r *analyticsRepository) ListMetrics(ctx context.Context, query *repository
 		db = db.Where("timestamp <= ?", query.EndTime)
 	}
 
+	// 统计总记录数。
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// 应用分页和排序。
 	offset := (query.Page - 1) * query.PageSize
 	if err := db.Offset(offset).Limit(query.PageSize).Order("timestamp desc").Find(&list).Error; err != nil {
 		return nil, 0, err
@@ -63,15 +74,20 @@ func (r *analyticsRepository) ListMetrics(ctx context.Context, query *repository
 	return list, total, nil
 }
 
+// DeleteMetric 根据ID从数据库删除指标记录。
 func (r *analyticsRepository) DeleteMetric(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&entity.Metric{}, id).Error
 }
 
-// Dashboard methods
+// --- Dashboard methods ---
+
+// CreateDashboard 在数据库中创建一个新的仪表板记录。
 func (r *analyticsRepository) CreateDashboard(ctx context.Context, dashboard *entity.Dashboard) error {
+	// 创建仪表板时会同时创建其关联的Metrics和Filters。
 	return r.db.WithContext(ctx).Create(dashboard).Error
 }
 
+// GetDashboard 根据ID从数据库获取仪表板记录，并预加载其关联的指标和过滤器。
 func (r *analyticsRepository) GetDashboard(ctx context.Context, id uint64) (*entity.Dashboard, error) {
 	var dashboard entity.Dashboard
 	if err := r.db.WithContext(ctx).Preload("Metrics").Preload("Filters").First(&dashboard, id).Error; err != nil {
@@ -80,16 +96,20 @@ func (r *analyticsRepository) GetDashboard(ctx context.Context, id uint64) (*ent
 	return &dashboard, nil
 }
 
+// ListDashboards 从数据库列出仪表板记录，支持根据用户ID或是否公开进行过滤，并支持分页。
 func (r *analyticsRepository) ListDashboards(ctx context.Context, userID uint64, offset, limit int) ([]*entity.Dashboard, int64, error) {
 	var list []*entity.Dashboard
 	var total int64
 
+	// 查询条件：用户ID匹配，或者仪表板是公开的。
 	db := r.db.WithContext(ctx).Model(&entity.Dashboard{}).Where("user_id = ? OR is_public = ?", userID, true)
 
+	// 统计总记录数。
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// 应用分页和排序。
 	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
@@ -97,19 +117,29 @@ func (r *analyticsRepository) ListDashboards(ctx context.Context, userID uint64,
 	return list, total, nil
 }
 
+// UpdateDashboard 更新数据库中的仪表板记录。
 func (r *analyticsRepository) UpdateDashboard(ctx context.Context, dashboard *entity.Dashboard) error {
+	// GORM的Save方法会根据主键自动判断是创建还是更新。
+	// 注意：对于关联的Metrics和Filters，可能需要手动处理或使用GORM的关联更新功能。
 	return r.db.WithContext(ctx).Save(dashboard).Error
 }
 
+// DeleteDashboard 根据ID从数据库删除仪表板记录。
+// 同时删除其关联的Metrics和Filters。
 func (r *analyticsRepository) DeleteDashboard(ctx context.Context, id uint64) error {
+	// Select("Metrics", "Filters") 用于指定在删除Dashboard时，同时删除其关联的Metrics和Filters记录。
 	return r.db.WithContext(ctx).Select("Metrics", "Filters").Delete(&entity.Dashboard{}, id).Error
 }
 
-// Report methods
+// --- Report methods ---
+
+// CreateReport 在数据库中创建一个新的报告记录。
 func (r *analyticsRepository) CreateReport(ctx context.Context, report *entity.Report) error {
+	// 创建报告时会同时创建其关联的Metrics。
 	return r.db.WithContext(ctx).Create(report).Error
 }
 
+// GetReport 根据ID从数据库获取报告记录，并预加载其关联的指标。
 func (r *analyticsRepository) GetReport(ctx context.Context, id uint64) (*entity.Report, error) {
 	var report entity.Report
 	if err := r.db.WithContext(ctx).Preload("Metrics").First(&report, id).Error; err != nil {
@@ -118,16 +148,19 @@ func (r *analyticsRepository) GetReport(ctx context.Context, id uint64) (*entity
 	return &report, nil
 }
 
+// ListReports 从数据库列出报告记录，支持根据用户ID过滤，并支持分页。
 func (r *analyticsRepository) ListReports(ctx context.Context, userID uint64, offset, limit int) ([]*entity.Report, int64, error) {
 	var list []*entity.Report
 	var total int64
 
 	db := r.db.WithContext(ctx).Model(&entity.Report{}).Where("user_id = ?", userID)
 
+	// 统计总记录数。
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// 应用分页和排序。
 	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
@@ -135,10 +168,16 @@ func (r *analyticsRepository) ListReports(ctx context.Context, userID uint64, of
 	return list, total, nil
 }
 
+// UpdateReport 更新数据库中的报告记录。
 func (r *analyticsRepository) UpdateReport(ctx context.Context, report *entity.Report) error {
+	// GORM的Save方法会根据主键自动判断是创建还是更新。
+	// 注意：对于关联的Metrics，可能需要手动处理或使用GORM的关联更新功能。
 	return r.db.WithContext(ctx).Save(report).Error
 }
 
+// DeleteReport 根据ID从数据库删除报告记录。
+// 同时删除其关联的Metrics。
 func (r *analyticsRepository) DeleteReport(ctx context.Context, id uint64) error {
+	// Select("Metrics") 用于指定在删除Report时，同时删除其关联的Metrics记录。
 	return r.db.WithContext(ctx).Select("Metrics").Delete(&entity.Report{}, id).Error
 }

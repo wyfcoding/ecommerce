@@ -58,10 +58,10 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	// Initialize Logger
+	// 初始化 Logger
 	logger := logging.NewLogger("serviceName", "app")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -72,10 +72,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewAdvancedCouponRepository(db)
 
-	// Application Layer
+	// 应用层
 	service := application.NewAdvancedCouponService(repo, slog.Default())
 
 	cleanup := func() {

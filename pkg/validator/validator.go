@@ -33,7 +33,7 @@ func IsValidPassword(password string) bool {
 	if !passwordRegex.MatchString(password) {
 		return false
 	}
-	// Check for at least one letter and one digit manually since Go regex doesn't support lookarounds
+	// 手动检查至少包含一个字母和一个数字，因为 Go 正则表达式不支持零宽断言
 	hasLetter := false
 	hasDigit := false
 	for _, c := range password {

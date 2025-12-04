@@ -47,7 +47,7 @@ func main() {
 				addressRepo,
 				c.JWT.Secret,
 				c.JWT.Issuer,
-				c.JWT.Expire,
+				c.JWT.ExpireDuration,
 				logger.Logger,
 			)
 

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log/slog"
+
+	"github.com/gin-gonic/gin"
 	v1 "github.com/wyfcoding/ecommerce/api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence"
@@ -12,6 +15,7 @@ import (
 	"github.com/wyfcoding/ecommerce/pkg/logging"
 	"github.com/wyfcoding/ecommerce/pkg/metrics"
 
+	paymenthttp "github.com/wyfcoding/ecommerce/internal/payment/interfaces/http"
 	"google.golang.org/grpc"
 )
 
@@ -68,6 +72,17 @@ func main() {
 		WithGRPC(func(s *grpc.Server, svc interface{}) {
 			v1.RegisterPaymentServer(s, svc.(v1.PaymentServer))
 		}).
+		WithGin(registerGin).
 		Build().
 		Run()
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	service := srv.(*application.PaymentApplicationService)
+	handler := paymenthttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for payment service (DDD)")
 }

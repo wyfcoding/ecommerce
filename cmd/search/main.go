@@ -42,7 +42,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
 	service := srv.(*application.SearchService)
-	pb.RegisterSearchServiceServer(s, searchgrpc.NewServer(service))
+	pb.RegisterSearchServiceServer(s, searchgrpc.NewServer(service, slog.Default()))
 	slog.Default().Info("gRPC server registered for search service (DDD)")
 }
 

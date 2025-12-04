@@ -63,10 +63,10 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	// Initialize Logger
+	// 初始化 Logger
 	logger := logging.NewLogger("serviceName", "app")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -77,17 +77,17 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Initialize Redis
+	// 初始化 Redis
 	redisCache, err := cache.NewRedisCache(config.Data.Redis)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	adminRepo := persistence.NewAdminRepository(db)
 
-	// Application Layer
+	// 应用层
 	adminService := application.NewAdminService(adminRepo, logger.Logger)
 
 	cleanup := func() {

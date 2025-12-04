@@ -9,12 +9,12 @@ import (
 	"github.com/elastic/go-elasticsearch/v9"
 )
 
-// ESClient wraps elasticsearch.Client.
+// ESClient 包装 elasticsearch.Client。
 type ESClient struct {
 	client *elasticsearch.Client
 }
 
-// NewESClient creates a new Elasticsearch client.
+// NewESClient 创建一个新的 Elasticsearch 客户端。
 func NewESClient(addresses []string, username, password string) (*ESClient, error) {
 	cfg := elasticsearch.Config{
 		Addresses: addresses,
@@ -28,7 +28,7 @@ func NewESClient(addresses []string, username, password string) (*ESClient, erro
 	return &ESClient{client: client}, nil
 }
 
-// Index indexes a document.
+// Index 索引文档。
 func (c *ESClient) Index(ctx context.Context, index, id string, body interface{}) error {
 	data, err := json.Marshal(body)
 	if err != nil {
@@ -52,7 +52,7 @@ func (c *ESClient) Index(ctx context.Context, index, id string, body interface{}
 	return nil
 }
 
-// Search searches for documents.
+// Search 搜索文档。
 func (c *ESClient) Search(ctx context.Context, index string, query map[string]interface{}) (map[string]interface{}, error) {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {

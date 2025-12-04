@@ -1,4 +1,5 @@
-// Package hbase 提供 HBase 列式存储客户端
+// Package hbase 提供 HBase 列式存储客户端的占位符实现。
+// 此包旨在封装与HBase数据库交互的逻辑，例如用户画像数据的存储和检索。
 package hbase
 
 import (
@@ -7,80 +8,95 @@ import (
 	"time"
 )
 
-// Client HBase 客户端
+// Client 结构体代表 HBase 客户端。
+// 当前版本仅包含 ZooKeeper quorum 地址作为配置，实际功能待集成 `gohbase` 库实现。
 type Client struct {
-	zkQuorum string
+	zkQuorum string // ZooKeeper quorum 地址，用于HBase客户端发现集群。
 }
 
-// NewClient 创建 HBase 客户端
+// NewClient 创建并返回一个新的 HBase 客户端实例。
+// zkQuorum: ZooKeeper quorum 的连接字符串。
 func NewClient(zkQuorum string) *Client {
-	// TODO: 集成 gohbase
+	// TODO: 此处需要集成 `gohbase` 或其他 HBase 客户端库来建立真正的连接。
 	return &Client{
 		zkQuorum: zkQuorum,
 	}
 }
 
-// UserProfile 用户画像
+// UserProfile 结构体定义了存储在 HBase 中的用户画像数据模型。
 type UserProfile struct {
-	UserID            string
-	Age               int
-	Gender            string
-	City              string
-	Province          string
-	LastLogin         time.Time
-	TotalOrders       int
-	TotalSpent        float64
-	FavoriteCategory  string
-	FavoriteBrand     string
-	PreferredPayment  string
-	AverageOrderValue float64
-	PurchaseFrequency float64
+	UserID            string    // 用户ID，通常作为HBase的Row Key。
+	Age               int       // 用户年龄。
+	Gender            string    // 用户性别。
+	City              string    // 用户所在城市。
+	Province          string    // 用户所在省份。
+	LastLogin         time.Time // 最后登录时间。
+	TotalOrders       int       // 总订单数。
+	TotalSpent        float64   // 总消费金额。
+	FavoriteCategory  string    // 偏好商品类别。
+	FavoriteBrand     string    // 偏好品牌。
+	PreferredPayment  string    // 偏好支付方式。
+	AverageOrderValue float64   // 平均客单价。
+	PurchaseFrequency float64   // 购买频率。
 }
 
-// SaveUserProfile 保存用户画像
+// SaveUserProfile 将用户画像数据保存到 HBase。
+// ctx: 上下文，用于控制操作的生命周期。
+// profile: 待保存的用户画像数据。
 func (c *Client) SaveUserProfile(ctx context.Context, profile *UserProfile) error {
-	// TODO: 实现 HBase 写入
-	// 1. 构造 Put 请求
-	// 2. 设置列族和列
-	// 3. 执行写入
+	// TODO: 实现 HBase 写入逻辑。
+	// 1. 构造 HBase 的 Put 请求，指定表名和Row Key (profile.UserID)。
+	// 2. 将 UserProfile 结构体的字段映射为 HBase 的列族和列（例如，cf:age, cf:gender）。
+	// 3. 执行写入操作。
 
-	fmt.Printf("Saving user profile for user: %s\n", profile.UserID)
+	fmt.Printf("Saving user profile for user: %s\n", profile.UserID) // 打印模拟消息。
 	return nil
 }
 
-// GetUserProfile 获取用户画像
+// GetUserProfile 从 HBase 获取指定用户ID的用户画像数据。
+// ctx: 上下文。
+// userID: 用户的唯一标识符。
 func (c *Client) GetUserProfile(ctx context.Context, userID string) (*UserProfile, error) {
-	// TODO: 实现 HBase 读取
-	// 1. 构造 Get 请求
-	// 2. 执行查询
-	// 3. 解析结果
+	// TODO: 实现 HBase 读取逻辑。
+	// 1. 构造 HBase 的 Get 请求，指定表名和Row Key (userID)。
+	// 2. 执行查询操作。
+	// 3. 解析 HBase 返回的结果，并反序列化为 UserProfile 结构体。
 
-	fmt.Printf("Getting user profile for user: %s\n", userID)
-	return &UserProfile{
-		UserID: userID,
-	}, nil
+	fmt.Printf("Getting user profile for user: %s\n", userID) // 打印模拟消息。
+	return &UserProfile{                                      // 返回一个模拟的用户画像数据。
+			UserID: userID,
+		},
+		nil
 }
 
-// ScanUsersByCity 扫描某个城市的所有用户
+// ScanUsersByCity 扫描并返回某个城市的所有用户画像数据。
+// ctx: 上下文。
+// city: 待扫描的城市名称。
 func (c *Client) ScanUsersByCity(ctx context.Context, city string) ([]*UserProfile, error) {
-	// TODO: 实现 HBase 扫描
-	// 1. 构造 Scan 请求
-	// 2. 设置过滤器
-	// 3. 执行扫描
-	// 4. 解析结果
+	// TODO: 实现 HBase 扫描逻辑。
+	// 1. 构造 HBase 的 Scan 请求，指定表名。
+	// 2. 可以使用RowFilter或ColumnFamilyFilter等过滤器来按城市过滤数据（如果城市信息被索引）。
+	// 3. 执行扫描操作。
+	// 4. 解析结果，并收集符合条件的用户画像。
 
-	fmt.Printf("Scanning users in city: %s\n", city)
-	return []*UserProfile{}, nil
+	fmt.Printf("Scanning users in city: %s\n", city) // 打印模拟消息。
+	return []*UserProfile{}, nil                     // 返回一个空的User Profile切片作为模拟结果。
 }
 
-// UpdateUserBehavior 更新用户行为数据
+// UpdateUserBehavior 更新用户的行为数据。
+// 这可能涉及到将行为数据增量地写入HBase，例如使用计数器或Append操作。
+// ctx: 上下文。
+// userID: 用户的唯一标识符。
+// behavior: 待更新的行为数据，例如 map[string]interface{}{"click_count": 1, "last_active": time.Now()}
 func (c *Client) UpdateUserBehavior(ctx context.Context, userID string, behavior map[string]interface{}) error {
-	// TODO: 实现行为数据更新
-	fmt.Printf("Updating behavior for user: %s\n", userID)
+	// TODO: 实现行为数据更新逻辑。
+	fmt.Printf("Updating behavior for user: %s\n", userID) // 打印模拟消息。
 	return nil
 }
 
-// Close 关闭连接
+// Close 关闭 HBase 客户端连接。
+// 在实际实现中，这会释放与HBase集群的连接资源。
 func (c *Client) Close() error {
+	// TODO: 实现连接关闭逻辑。
 	return nil
 }

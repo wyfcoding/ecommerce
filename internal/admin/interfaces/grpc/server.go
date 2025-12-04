@@ -2,81 +2,102 @@ package grpc
 
 import (
 	"context"
-	pb "github.com/wyfcoding/ecommerce/api/admin/v1"
-	"github.com/wyfcoding/ecommerce/internal/admin/application"
-	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity"
+	"errors"
+	"fmt" // 用于格式化错误信息。
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	pb "github.com/wyfcoding/ecommerce/api/admin/v1"              // 导入Admin模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/admin/application"   // 导入Admin模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity" // 导入Admin模块的领域实体。
+
+	"google.golang.org/grpc/codes"                       // gRPC状态码。
+	"google.golang.org/grpc/status"                      // gRPC状态处理。
+	"google.golang.org/protobuf/types/known/emptypb"     // 导入空消息类型。
+	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
 
+// Server 结构体实现了 AdminService 的 gRPC 服务端接口。
+// 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedAdminServiceServer
-	app *application.AdminService
+	pb.UnimplementedAdminServiceServer                           // 嵌入生成的UnimplementedAdminServiceServer，确保前向兼容性。
+	app                                *application.AdminService // 依赖Admin应用服务，处理核心业务逻辑。
 }
 
+// NewServer 创建并返回一个新的 Admin gRPC 服务端实例。
 func NewServer(app *application.AdminService) *Server {
 	return &Server{app: app}
 }
 
 // --- AdminUser ---
 
+// CreateAdminUser 处理创建管理员用户的gRPC请求。
+// req: 包含创建管理员所需信息的请求体。
+// 返回创建成功的管理员用户响应和可能发生的gRPC错误。
 func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserRequest) (*pb.CreateAdminUserResponse, error) {
-	// Service RegisterAdmin(ctx, username, email, password, realName, phone)
-	// Proto: username, password, email, nickname, role_ids
-	// Mapping nickname -> realName. Phone is missing in proto, passing empty.
-
+	// 调用应用服务层注册管理员用户。
+	// 注意：Proto中没有Phone字段，因此传递空字符串。Proto中Nickname映射为realName。
 	admin, err := s.app.RegisterAdmin(ctx, req.Username, req.Email, req.Password, req.Nickname, "")
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		// 根据应用服务返回的错误类型，映射为gRPC状态码和错误信息。
+		if errors.Is(err, entity.ErrUsernameExists) || errors.Is(err, entity.ErrEmailExists) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create admin user: %v", err))
 	}
 
-	// Assign roles if provided
+	// 如果请求中包含角色ID，则为新创建的管理员分配角色。
 	if len(req.RoleIds) > 0 {
 		for _, roleID := range req.RoleIds {
 			if err := s.app.AssignRoleToAdmin(ctx, uint64(admin.ID), roleID); err != nil {
-				// Log error but continue? Or fail?
-				// For now, fail to ensure consistency
-				return nil, status.Error(codes.Internal, "failed to assign role: "+err.Error())
+				// 如果分配角色失败，可以选择回滚管理员创建或记录错误。
+				// 当前实现选择返回错误以保证数据一致性。
+				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign role to admin: %v", err))
 			}
 		}
-		// Re-fetch admin to get roles? Or just return what we have (roles empty in returned admin from Register)
-		// Service RegisterAdmin returns admin without preloading roles usually.
-		// We might need to fetch it again if we want to return roles in response.
-		// Let's fetch it.
-		if a, err := s.app.GetAdminProfile(ctx, uint64(admin.ID)); err == nil {
+		// 分配角色后，重新获取管理员信息，以确保返回的AdminUser包含最新的角色信息。
+		if a, fetchErr := s.app.GetAdminProfile(ctx, uint64(admin.ID)); fetchErr == nil {
 			admin = a
 		}
 	}
 
+	// 将领域实体转换为protobuf响应格式。
 	return &pb.CreateAdminUserResponse{
 		AdminUser: s.adminToProto(admin),
 	}, nil
 }
 
+// GetAdminUser 处理获取单个管理员用户信息的gRPC请求。
+// req: 包含管理员用户ID的请求体。
+// 返回管理员用户响应和可能发生的gRPC错误。
 func (s *Server) GetAdminUser(ctx context.Context, req *pb.GetAdminUserRequest) (*pb.GetAdminUserResponse, error) {
 	admin, err := s.app.GetAdminProfile(ctx, req.Id)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
+		// 如果管理员未找到，返回NotFound状态码。
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("admin user not found: %v", err))
 	}
 	return &pb.GetAdminUserResponse{
 		AdminUser: s.adminToProto(admin),
 	}, nil
 }
 
+// UpdateAdminUser 处理更新管理员用户信息的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) UpdateAdminUser(ctx context.Context, req *pb.UpdateAdminUserRequest) (*pb.UpdateAdminUserResponse, error) {
+	// TODO: 实现UpdateAdminUser逻辑。
 	return nil, status.Error(codes.Unimplemented, "UpdateAdminUser not implemented")
 }
 
+// DeleteAdminUser 处理删除管理员用户的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) DeleteAdminUser(ctx context.Context, req *pb.DeleteAdminUserRequest) (*emptypb.Empty, error) {
+	// TODO: 实现DeleteAdminUser逻辑。
 	return nil, status.Error(codes.Unimplemented, "DeleteAdminUser not implemented")
 }
 
+// ListAdminUsers 处理列出管理员用户的gRPC请求，支持分页。
+// req: 包含分页参数的请求体。
+// 返回管理员用户列表响应和可能发生的gRPC错误。
 func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersRequest) (*pb.ListAdminUsersResponse, error) {
-	// Service ListAdmins(ctx, page, pageSize)
-	// Proto has page_token (int32) as page?
+	// 将protobuf的分页Token转换为应用服务层的页码。
 	page := int(req.PageToken)
 	if page < 1 {
 		page = 1
@@ -86,11 +107,13 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 		pageSize = 10
 	}
 
+	// 调用应用服务层获取管理员列表。
 	admins, total, err := s.app.ListAdmins(ctx, page, pageSize)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list admin users: %v", err))
 	}
 
+	// 将领域实体列表转换为protobuf响应格式的列表。
 	pbAdmins := make([]*pb.AdminUser, len(admins))
 	for i, a := range admins {
 		pbAdmins[i] = s.adminToProto(a)
@@ -98,27 +121,31 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 
 	return &pb.ListAdminUsersResponse{
 		AdminUsers: pbAdmins,
-		TotalCount: int32(total),
+		TotalCount: int32(total), // 总记录数。
 	}, nil
 }
 
 // --- Role ---
 
+// CreateRole 处理创建角色的gRPC请求。
+// req: 包含创建角色所需信息的请求体。
+// 返回创建成功的角色响应和可能发生的gRPC错误。
 func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.CreateRoleResponse, error) {
-	// Service CreateRole(ctx, name, code, description)
-	// Proto: name, description, permission_ids. Missing code.
-	// We'll use name as code or generate one.
-	// Let's use name as code for now.
+	// 调用应用服务层创建角色。
+	// 注意：Proto中没有Code字段，这里暂时使用Name作为Code。
 	role, err := s.app.CreateRole(ctx, req.Name, req.Name, req.Description)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		if errors.Is(err, entity.ErrRoleCodeExists) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create role: %v", err))
 	}
 
-	// Assign permissions
+	// 如果请求中包含权限ID，则为新创建的角色分配权限。
 	if len(req.PermissionIds) > 0 {
 		for _, permID := range req.PermissionIds {
 			if err := s.app.AssignPermissionToRole(ctx, uint64(role.ID), permID); err != nil {
-				return nil, status.Error(codes.Internal, "failed to assign permission: "+err.Error())
+				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign permission to role: %v", err))
 			}
 		}
 	}
@@ -128,19 +155,32 @@ func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb
 	}, nil
 }
 
+// GetRole 处理获取单个角色信息的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.GetRoleResponse, error) {
+	// TODO: 实现GetRole逻辑。
 	return nil, status.Error(codes.Unimplemented, "GetRole not implemented")
 }
 
+// UpdateRole 处理更新角色信息的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb.UpdateRoleResponse, error) {
+	// TODO: 实现UpdateRole逻辑。
 	return nil, status.Error(codes.Unimplemented, "UpdateRole not implemented")
 }
 
+// DeleteRole 处理删除角色的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*emptypb.Empty, error) {
+	// TODO: 实现DeleteRole逻辑。
 	return nil, status.Error(codes.Unimplemented, "DeleteRole not implemented")
 }
 
+// ListRoles 处理列出角色列表的gRPC请求，支持分页。
+// req: 包含分页参数的请求体。
+// 返回角色列表响应和可能发生的gRPC错误。
 func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
+	// 将protobuf的分页Token转换为应用服务层的页码。
 	page := int(req.PageToken)
 	if page < 1 {
 		page = 1
@@ -150,11 +190,13 @@ func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.L
 		pageSize = 10
 	}
 
+	// 调用应用服务层获取角色列表。
 	roles, total, err := s.app.ListRoles(ctx, page, pageSize)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list roles: %v", err))
 	}
 
+	// 将领域实体列表转换为protobuf响应格式的列表。
 	pbRoles := make([]*pb.Role, len(roles))
 	for i, r := range roles {
 		pbRoles[i] = s.roleToProto(r)
@@ -162,37 +204,48 @@ func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.L
 
 	return &pb.ListRolesResponse{
 		Roles:      pbRoles,
-		TotalCount: int32(total),
+		TotalCount: int32(total), // 总记录数。
 	}, nil
 }
 
 // --- Permission ---
 
+// CreatePermission 处理创建权限的gRPC请求。
+// req: 包含创建权限所需信息的请求体。
+// 返回创建成功的权限响应和可能发生的gRPC错误。
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.CreatePermissionResponse, error) {
-	// Service CreatePermission(ctx, name, code, permType, path, method, parentID)
-	// Proto: name, description. Missing code, type, path, method, parentID.
-	// This is a big gap.
-	// We'll use placeholders or defaults.
-	// Code = name, Type = "api", Path = "", Method = "", ParentID = 0
+	// 调用应用服务层创建权限。
+	// 注意：Proto定义与实体定义之间存在字段缺失，这里使用占位符或默认值填充。
+	// 例如，使用Name作为Code，Type默认为"api"，Path和Method为空字符串，ParentID为0。
 	perm, err := s.app.CreatePermission(ctx, req.Name, req.Name, "api", "", "", 0)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		if errors.Is(err, entity.ErrPermCodeExists) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create permission: %v", err))
 	}
 	return &pb.CreatePermissionResponse{
 		Permission: s.permissionToProto(perm),
 	}, nil
 }
 
+// GetPermission 处理获取单个权限信息的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) GetPermission(ctx context.Context, req *pb.GetPermissionRequest) (*pb.GetPermissionResponse, error) {
+	// TODO: 实现GetPermission逻辑。
 	return nil, status.Error(codes.Unimplemented, "GetPermission not implemented")
 }
 
+// ListPermissions 处理列出权限列表的gRPC请求。
+// req: 空的请求体。
+// 返回权限列表响应和可能发生的gRPC错误。
 func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
 	perms, err := s.app.ListPermissions(ctx)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list permissions: %v", err))
 	}
 
+	// 将领域实体列表转换为protobuf响应格式的列表。
 	pbPerms := make([]*pb.Permission, len(perms))
 	for i, p := range perms {
 		pbPerms[i] = s.permissionToProto(p)
@@ -200,66 +253,79 @@ func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsReq
 
 	return &pb.ListPermissionsResponse{
 		Permissions: pbPerms,
-		TotalCount:  int32(len(perms)),
+		TotalCount:  int32(len(perms)), // 总记录数。
 	}, nil
 }
 
 // --- AuditLog ---
 
+// ListAuditLogs 处理列出审计日志的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest) (*pb.ListAuditLogsResponse, error) {
+	// TODO: 实现ListAuditLogs逻辑。
 	return nil, status.Error(codes.Unimplemented, "ListAuditLogs not implemented")
 }
 
 // --- SystemSetting ---
 
+// GetSystemSetting 处理获取系统设置的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) GetSystemSetting(ctx context.Context, req *pb.GetSystemSettingRequest) (*pb.GetSystemSettingResponse, error) {
+	// TODO: 实现GetSystemSetting逻辑。
 	return nil, status.Error(codes.Unimplemented, "GetSystemSetting not implemented")
 }
 
+// UpdateSystemSetting 处理更新系统设置的gRPC请求。
+// 此方法尚未实现。
 func (s *Server) UpdateSystemSetting(ctx context.Context, req *pb.UpdateSystemSettingRequest) (*pb.UpdateSystemSettingResponse, error) {
+	// TODO: 实现UpdateSystemSetting逻辑。
 	return nil, status.Error(codes.Unimplemented, "UpdateSystemSetting not implemented")
 }
 
 // --- Helpers ---
 
+// adminToProto 将领域层的 Admin 实体转换为 protobuf 的 AdminUser 消息。
 func (s *Server) adminToProto(a *entity.Admin) *pb.AdminUser {
+	// 提取管理员的角色名称列表。
 	roles := make([]string, len(a.Roles))
 	for i, r := range a.Roles {
 		roles[i] = r.Name
 	}
 	return &pb.AdminUser{
-		Id:        uint64(a.ID),
-		Username:  a.Username,
-		Email:     a.Email,
-		Nickname:  a.RealName,
-		IsActive:  a.IsActive(),
-		Roles:     roles,
-		CreatedAt: timestamppb.New(a.CreatedAt),
-		UpdatedAt: timestamppb.New(a.UpdatedAt),
+		Id:        uint64(a.ID),                 // 管理员ID。
+		Username:  a.Username,                   // 用户名。
+		Email:     a.Email,                      // 邮箱。
+		Nickname:  a.RealName,                   // 昵称（映射为真实姓名）。
+		IsActive:  a.IsActive(),                 // 是否激活。
+		Roles:     roles,                        // 角色名称列表。
+		CreatedAt: timestamppb.New(a.CreatedAt), // 创建时间。
+		UpdatedAt: timestamppb.New(a.UpdatedAt), // 更新时间。
 	}
 }
 
+// roleToProto 将领域层的 Role 实体转换为 protobuf 的 Role 消息。
 func (s *Server) roleToProto(r *entity.Role) *pb.Role {
+	// 提取角色拥有的权限名称列表。
 	perms := make([]string, len(r.Permissions))
 	for i, p := range r.Permissions {
-		perms[i] = p.Name // Proto expects string permissions, maybe codes?
+		perms[i] = p.Name // Proto中期望字符串权限（可能是Code或Name），这里使用Name。
 	}
 	return &pb.Role{
-		Id:          uint64(r.ID),
-		Name:        r.Name,
-		Description: r.Description,
-		Permissions: perms,
-		CreatedAt:   timestamppb.New(r.CreatedAt),
-		UpdatedAt:   timestamppb.New(r.UpdatedAt),
+		Id:          uint64(r.ID),                 // 角色ID。
+		Name:        r.Name,                       // 角色名称。
+		Description: r.Description,                // 角色描述。
+		Permissions: perms,                        // 权限名称列表。
+		CreatedAt:   timestamppb.New(r.CreatedAt), // 创建时间。
+		UpdatedAt:   timestamppb.New(r.UpdatedAt), // 更新时间。
 	}
 }
 
+// permissionToProto 将领域层的 Permission 实体转换为 protobuf 的 Permission 消息。
 func (s *Server) permissionToProto(p *entity.Permission) *pb.Permission {
 	return &pb.Permission{
-		Id:          uint64(p.ID),
-		Name:        p.Name,
-		Description: "", // Entity doesn't have description? Check entity.
-		// Entity Permission: Name, Code, Type, ParentID, Path, Method, Icon, Sort, Status.
-		// No Description.
+		Id:          uint64(p.ID), // 权限ID。
+		Name:        p.Name,       // 权限名称。
+		Description: "",           // 领域实体中没有Description字段，因此这里为空字符串。
+		// Proto消息中可能期望Code, Type, Path, Method等，但此处未映射。
 	}
 }

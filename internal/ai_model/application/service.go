@@ -5,19 +5,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/entity"
-	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/repository"
-	"github.com/wyfcoding/ecommerce/pkg/idgen"
+	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/entity"     // 导入AI模型领域的实体定义。
+	"github.com/wyfcoding/ecommerce/internal/ai_model/domain/repository" // 导入AI模型领域的仓储接口。
+	"github.com/wyfcoding/ecommerce/pkg/idgen"                           // 导入ID生成器接口。
 
-	"log/slog"
+	"log/slog" // 导入结构化日志库。
 )
 
+// AIModelService 结构体定义了AI模型管理相关的应用服务。
+// 它协调领域层和基础设施层，处理AI模型的创建、训练、部署、预测等全生命周期管理。
 type AIModelService struct {
-	repo        repository.AIModelRepository
-	idGenerator idgen.Generator
-	logger      *slog.Logger
+	repo        repository.AIModelRepository // 依赖AIModelRepository接口，用于数据持久化操作。
+	idGenerator idgen.Generator              // 依赖ID生成器接口，用于生成唯一的模型编号。
+	logger      *slog.Logger                 // 日志记录器，用于记录服务运行时的信息和错误。
 }
 
+// NewAIModelService 创建并返回一个新的 AIModelService 实例。
 func NewAIModelService(repo repository.AIModelRepository, idGenerator idgen.Generator, logger *slog.Logger) *AIModelService {
 	return &AIModelService{
 		repo:        repo,
@@ -26,11 +29,21 @@ func NewAIModelService(repo repository.AIModelRepository, idGenerator idgen.Gene
 	}
 }
 
-// CreateModel 创建模型
+// CreateModel 创建一个新的AI模型记录。
+// ctx: 上下文。
+// name: 模型名称。
+// description: 模型描述。
+// modelType: 模型类型（例如，"推荐模型", "欺诈检测"）。
+// algorithm: 使用的算法（例如，"RandomForest", "NeuralNetwork"）。
+// creatorID: 创建模型的用户ID。
+// 返回创建成功的AIModel实体和可能发生的错误。
 func (s *AIModelService) CreateModel(ctx context.Context, name, description, modelType, algorithm string, creatorID uint64) (*entity.AIModel, error) {
+	// 生成唯一的模型编号。
 	modelNo := fmt.Sprintf("AIM%d", s.idGenerator.Generate())
+	// 创建AIModel实体。
 	model := entity.NewAIModel(modelNo, name, description, modelType, algorithm, creatorID)
 
+	// 通过仓储接口将模型实体保存到数据库。
 	if err := s.repo.Create(ctx, model); err != nil {
 		s.logger.ErrorContext(ctx, "failed to create model", "name", name, "error", err)
 		return nil, err
@@ -40,83 +53,133 @@ func (s *AIModelService) CreateModel(ctx context.Context, name, description, mod
 	return model, nil
 }
 
-// StartTraining 开始训练
+// StartTraining 启动指定ID的AI模型的训练过程。
+// ctx: 上下文。
+// id: AI模型的ID。
+// 返回可能发生的错误。
 func (s *AIModelService) StartTraining(ctx context.Context, id uint64) error {
+	// 根据ID获取模型实体。
 	model, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
+	// 调用实体方法更新模型状态为训练中。
 	model.StartTraining()
+	// 通过仓储接口更新数据库中的模型状态。
 	return s.repo.Update(ctx, model)
 }
 
-// CompleteTraining 完成训练
+// CompleteTraining 完成指定ID的AI模型的训练过程。
+// ctx: 上下文。
+// id: AI模型的ID。
+// accuracy: 训练完成后的模型准确率。
+// modelPath: 训练完成后的模型存储路径。
+// 返回可能发生的错误。
 func (s *AIModelService) CompleteTraining(ctx context.Context, id uint64, accuracy float64, modelPath string) error {
+	// 根据ID获取模型实体。
 	model, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
+	// 调用实体方法更新模型状态为训练完成，并记录准确率和模型路径。
 	model.CompleteTraining(accuracy, modelPath)
+	// 通过仓储接口更新数据库中的模型状态。
 	return s.repo.Update(ctx, model)
 }
 
-// FailTraining 训练失败
+// FailTraining 标记指定ID的AI模型的训练过程失败。
+// ctx: 上下文。
+// id: AI模型的ID。
+// reason: 训练失败的原因。
+// 返回可能发生的错误。
 func (s *AIModelService) FailTraining(ctx context.Context, id uint64, reason string) error {
+	// 根据ID获取模型实体。
 	model, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
+	// 调用实体方法更新模型状态为训练失败。
 	model.FailTraining(reason)
+	// 通过仓储接口更新数据库中的模型状态。
 	return s.repo.Update(ctx, model)
 }
 
-// Deploy 部署模型
+// Deploy 部署指定ID的AI模型。
+// ctx: 上下文。
+// id: AI模型的ID。
+// 返回可能发生的错误。
 func (s *AIModelService) Deploy(ctx context.Context, id uint64) error {
+	// 根据ID获取模型实体。
 	model, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
+	// 调用实体方法更新模型状态为部署中。
 	model.Deploy()
+	// 通过仓储接口更新数据库中的模型状态。
 	return s.repo.Update(ctx, model)
 }
 
-// CompleteDeployment 完成部署
+// CompleteDeployment 完成指定ID的AI模型的部署过程。
+// ctx: 上下文。
+// id: AI模型的ID。
+// 返回可能发生的错误。
 func (s *AIModelService) CompleteDeployment(ctx context.Context, id uint64) error {
+	// 根据ID获取模型实体。
 	model, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
+	// 调用实体方法更新模型状态为已部署。
 	model.CompleteDeployment()
+	// 通过仓储接口更新数据库中的模型状态。
 	return s.repo.Update(ctx, model)
 }
 
-// Archive 归档模型
+// Archive 归档指定ID的AI模型。
+// ctx: 上下文。
+// id: AI模型的ID。
+// 返回可能发生的错误。
 func (s *AIModelService) Archive(ctx context.Context, id uint64) error {
+	// 根据ID获取模型实体。
 	model, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
+	// 调用实体方法更新模型状态为已归档。
 	model.Archive()
+	// 通过仓储接口更新数据库中的模型状态。
 	return s.repo.Update(ctx, model)
 }
 
-// ListModels 获取模型列表
+// ListModels 获取AI模型列表，支持通过查询条件进行过滤。
+// ctx: 上下文。
+// query: 包含过滤条件和分页参数的查询对象。
+// 返回AI模型列表、总数和可能发生的错误。
 func (s *AIModelService) ListModels(ctx context.Context, query *repository.ModelQuery) ([]*entity.AIModel, int64, error) {
 	return s.repo.List(ctx, query)
 }
 
-// GetModelDetails 获取模型详情
+// GetModelDetails 获取指定ID的AI模型详细信息。
+// ctx: 上下文。
+// id: AI模型的ID。
+// 返回AIModel实体和可能发生的错误。
 func (s *AIModelService) GetModelDetails(ctx context.Context, id uint64) (*entity.AIModel, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-// AddTrainingLog 添加训练日志
+// AddTrainingLog 添加模型的训练日志记录。
+// ctx: 上下文。
+// modelID: 关联的AI模型ID。
+// iteration: 训练迭代次数。
+// loss, accuracy, valLoss, valAccuracy: 训练过程中的各项指标。
+// 返回可能发生的错误。
 func (s *AIModelService) AddTrainingLog(ctx context.Context, modelID uint64, iteration int32, loss, accuracy, valLoss, valAccuracy float64) error {
 	log := &entity.ModelTrainingLog{
 		ModelID:            modelID,
@@ -129,21 +192,29 @@ func (s *AIModelService) AddTrainingLog(ctx context.Context, modelID uint64, ite
 	return s.repo.CreateTrainingLog(ctx, log)
 }
 
-// Predict 预测
+// Predict 使用指定ID的已部署AI模型进行预测。
+// ctx: 上下文。
+// modelID: 用于预测的AI模型ID。
+// input: 预测的输入数据（这里是字符串，实际可能更复杂）。
+// userID: 发起预测请求的用户ID。
+// 返回预测结果、置信度和可能发生的错误。
 func (s *AIModelService) Predict(ctx context.Context, modelID uint64, input string, userID uint64) (string, float64, error) {
+	// 获取模型实体。
 	model, err := s.repo.GetByID(ctx, modelID)
 	if err != nil {
 		return "", 0, err
 	}
 
+	// 检查模型状态，只允许已部署的模型进行预测。
 	if model.Status != entity.ModelStatusDeployed {
 		return "", 0, fmt.Errorf("model is not deployed")
 	}
 
-	// Mock prediction logic
+	// Mock prediction logic: 模拟预测逻辑，实际应调用真实的AI模型推理服务。
 	output := "mock_prediction_result"
 	confidence := 0.95
 
+	// 创建预测记录。
 	prediction := &entity.ModelPrediction{
 		ModelID:        modelID,
 		Input:          input,
@@ -153,6 +224,7 @@ func (s *AIModelService) Predict(ctx context.Context, modelID uint64, input stri
 		PredictionTime: time.Now(),
 	}
 
+	// 保存预测记录。
 	if err := s.repo.CreatePrediction(ctx, prediction); err != nil {
 		s.logger.WarnContext(ctx, "failed to save prediction record", "model_id", modelID, "error", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/permission/application"
 	"github.com/wyfcoding/ecommerce/internal/permission/infrastructure/persistence/mysql"
 	permissiongrpc "github.com/wyfcoding/ecommerce/internal/permission/interfaces/grpc"
+	permissionhttp "github.com/wyfcoding/ecommerce/internal/permission/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
 	"github.com/wyfcoding/ecommerce/pkg/databases"
@@ -45,7 +46,12 @@ func registerGRPC(s *grpc.Server, srv interface{}) {
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	// HTTP routes not implemented yet
+	service := srv.(*application.PermissionService)
+	handler := permissionhttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
 	slog.Default().Info("HTTP routes registered for permission service (DDD)")
 }
 

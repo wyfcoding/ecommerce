@@ -79,7 +79,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// Initialize Redis Client
-	redisClient, err := redis.NewRedis(&config.Data.Redis, logger)
+	redisClient, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
@@ -117,7 +117,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		// Stop consumer first to stop accepting new messages
 		_ = orderConsumer.Stop(context.Background())
 		sqlDB.Close()
-		redisClient.Close()
+		cleanupRedis()
 		producer.Close()
 	}
 

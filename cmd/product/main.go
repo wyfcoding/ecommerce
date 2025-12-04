@@ -3,10 +3,12 @@ package main
 import (
 	"log/slog"
 
+	"github.com/gin-gonic/gin"
 	v1 "github.com/wyfcoding/ecommerce/api/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/product/application"
 	mysqlRepo "github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence/mysql"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/product/interfaces/grpc"
+	producthttp "github.com/wyfcoding/ecommerce/internal/product/interfaces/http"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	"github.com/wyfcoding/ecommerce/pkg/cache"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -55,7 +57,7 @@ func main() {
 				cleanupDB()
 				return nil, nil, err
 			}
-			bigCache, err := cache.NewBigCache(c.Data.BigCache.TTL, c.Data.BigCache.MaxMB)
+			bigCache, err := cache.NewBigCache(c.Data.BigCache.LifeWindow, c.Data.BigCache.HardMaxCacheSize)
 			if err != nil {
 				cleanupDB()
 				redisCache.Close()
@@ -89,6 +91,17 @@ func main() {
 		WithGRPC(func(s *grpc.Server, svc interface{}) {
 			v1.RegisterProductServer(s, svc.(v1.ProductServer))
 		}).
+		WithGin(registerGin).
 		Build().
 		Run()
+}
+
+func registerGin(e *gin.Engine, srv interface{}) {
+	service := srv.(*application.ProductApplicationService)
+	handler := producthttp.NewHandler(service, slog.Default())
+
+	api := e.Group("/api/v1")
+	handler.RegisterRoutes(api)
+
+	slog.Default().Info("HTTP routes registered for product service (DDD)")
 }

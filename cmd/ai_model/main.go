@@ -59,10 +59,10 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	config := cfg.(*Config)
 
-	// Initialize Logger
+	// 初始化 Logger
 	logger := logging.NewLogger("serviceName", "app")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(config.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -73,16 +73,16 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Initialize ID Generator
-	idGenerator, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{MachineID: 1}) // NodeID should be configurable
+	// 初始化 ID 生成器
+	idGenerator, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{MachineID: 1}) // NodeID 应该是可配置的
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewAIModelRepository(db)
 
-	// Application Layer
+	// 应用层
 	service := application.NewAIModelService(repo, idGenerator, logger.Logger)
 
 	cleanup := func() {

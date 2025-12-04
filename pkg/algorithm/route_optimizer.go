@@ -5,29 +5,29 @@ import (
 	"sort"
 )
 
-// Location represents a geographical location.
+// Location 代表地理位置。
 type Location struct {
 	ID  uint64
 	Lat float64
 	Lon float64
 }
 
-// Route represents an optimized route.
+// Route 代表优化后的路线。
 type Route struct {
 	Locations []Location
 	Distance  float64
 }
 
-// RouteOptimizer optimizes delivery routes.
+// RouteOptimizer 优化配送路线。
 type RouteOptimizer struct{}
 
-// NewRouteOptimizer creates a new RouteOptimizer.
+// NewRouteOptimizer 创建一个新的 RouteOptimizer。
 func NewRouteOptimizer() *RouteOptimizer {
 	return &RouteOptimizer{}
 }
 
-// OptimizeRoute optimizes the route visiting all locations starting from start.
-// Uses a simple Nearest Neighbor algorithm for TSP.
+// OptimizeRoute 优化从起点开始访问所有地点的路线。
+// 使用简单的最近邻算法解决 TSP 问题。
 func (ro *RouteOptimizer) OptimizeRoute(start Location, destinations []Location) Route {
 	if len(destinations) == 0 {
 		return Route{
@@ -75,8 +75,8 @@ func (ro *RouteOptimizer) OptimizeRoute(start Location, destinations []Location)
 	}
 }
 
-// OptimizeBatchRoutes optimizes routes for multiple vehicles (VRP simplified).
-// Clusters locations using K-Means (simplified) then TSP per cluster.
+// OptimizeBatchRoutes 优化多辆车的路线 (简化的 VRP)。
+// 使用 K-Means (简化版) 对地点进行聚类，然后对每个聚类进行 TSP。
 func (ro *RouteOptimizer) OptimizeBatchRoutes(start Location, destinations []Location, vehicles int) []Route {
 	if len(destinations) == 0 {
 		return []Route{}
@@ -88,7 +88,7 @@ func (ro *RouteOptimizer) OptimizeBatchRoutes(start Location, destinations []Loc
 		// Trivial case: each vehicle takes one or few
 		routes := make([]Route, 0)
 		for _, dest := range destinations {
-			dist := haversineDistance(start.Lat, start.Lon, dest.Lat, dest.Lon)
+			dist := haversineDistance(start.Lat, start.Lon, dest.Lat, start.Lon)
 			routes = append(routes, Route{
 				Locations: []Location{start, dest},
 				Distance:  dist,

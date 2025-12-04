@@ -1,3 +1,6 @@
+// Package config 提供了应用程序的配置管理功能。
+// 它定义了所有服务相关的配置结构体，支持从TOML文件加载配置，并通过环境变量进行覆盖，
+// 同时提供了配置热加载的能力。
 package config
 
 import (
@@ -5,12 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
+	"github.com/fsnotify/fsnotify" // 文件系统事件通知库
+	"github.com/spf13/viper"       // 强大的配置管理库
 	"gorm.io/gorm/logger"
 )
 
-// Config is the top-level configuration struct.
+// Config 是应用程序的顶级配置结构体。
+// 它包含了所有子模块和服务的配置信息。
 type Config struct {
 	Server         ServerConfig         `mapstructure:"server" toml:"server"`
 	Data           DataConfig           `mapstructure:"data" toml:"data"`
@@ -84,77 +88,32 @@ type RedisConfig struct {
 	MinIdleConns int           `mapstructure:"min_idle_conns" toml:"min_idle_conns"`
 }
 
-type BigCacheConfig struct {
-	TTL   time.Duration `mapstructure:"ttl" toml:"ttl"`
-	MaxMB int           `mapstructure:"max_mb" toml:"max_mb"`
-}
-
-// MongoDBConfig defines MongoDB configuration.
-type MongoDBConfig struct {
-	URI            string        `mapstructure:"uri" toml:"uri"`
-	Database       string        `mapstructure:"database" toml:"database"`
-	ConnectTimeout time.Duration `mapstructure:"connect_timeout" toml:"connect_timeout"`
-	MinPoolSize    uint64        `mapstructure:"min_pool_size" toml:"min_pool_size"`
-	MaxPoolSize    uint64        `mapstructure:"max_pool_size" toml:"max_pool_size"`
-}
-
-// ClickHouseConfig defines ClickHouse configuration.
-type ClickHouseConfig struct {
-	DSN             string        `mapstructure:"dsn" toml:"dsn"`
-	Database        string        `mapstructure:"database" toml:"database"`
-	Username        string        `mapstructure:"username" toml:"username"`
-	Password        string        `mapstructure:"password" toml:"password"`
-	DialTimeout     time.Duration `mapstructure:"dial_timeout" toml:"dial_timeout"`
-	MaxOpenConns    int           `mapstructure:"max_open_conns" toml:"max_open_conns"`
-	MaxIdleConns    int           `mapstructure:"max_idle_conns" toml:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime" toml:"conn_max_lifetime"`
-}
-
-// Neo4jConfig defines Neo4j configuration.
-type Neo4jConfig struct {
-	URI      string `mapstructure:"uri" toml:"uri"`
-	Username string `mapstructure:"username" toml:"username"`
-	Password string `mapstructure:"password" toml:"password"`
-}
-
-// ElasticsearchConfig defines Elasticsearch configuration.
-type ElasticsearchConfig struct {
-	Addresses  []string `mapstructure:"addresses" toml:"addresses"`
-	Username   string   `mapstructure:"username" toml:"username"`
-	Password   string   `mapstructure:"password" toml:"password"`
-	MaxRetries int      `mapstructure:"max_retries" toml:"max_retries"`
-}
-
-// LogConfig defines logging configuration.
 type LogConfig struct {
 	Level      string `mapstructure:"level" toml:"level"`
 	Format     string `mapstructure:"format" toml:"format"`
 	Output     string `mapstructure:"output" toml:"output"`
+	File       string `mapstructure:"file" toml:"file"`
 	MaxSize    int    `mapstructure:"max_size" toml:"max_size"`
 	MaxBackups int    `mapstructure:"max_backups" toml:"max_backups"`
 	MaxAge     int    `mapstructure:"max_age" toml:"max_age"`
 	Compress   bool   `mapstructure:"compress" toml:"compress"`
 }
 
-// JWTConfig defines JWT configuration.
 type JWTConfig struct {
-	Secret string        `mapstructure:"secret" toml:"secret"`
-	Issuer string        `mapstructure:"issuer" toml:"issuer"`
-	Expire time.Duration `mapstructure:"expire_duration" toml:"expire_duration"`
+	Secret         string        `mapstructure:"secret" toml:"secret"`
+	Issuer         string        `mapstructure:"issuer" toml:"issuer"`
+	ExpireDuration time.Duration `mapstructure:"expire_duration" toml:"expire_duration"`
 }
 
-// SnowflakeConfig defines Snowflake configuration.
 type SnowflakeConfig struct {
 	StartTime string `mapstructure:"start_time" toml:"start_time"`
 	MachineID int64  `mapstructure:"machine_id" toml:"machine_id"`
 }
 
-// MessageQueueConfig defines message queue configuration.
 type MessageQueueConfig struct {
 	Kafka KafkaConfig `mapstructure:"kafka" toml:"kafka"`
 }
 
-// KafkaConfig defines Kafka configuration.
 type KafkaConfig struct {
 	Brokers        []string      `mapstructure:"brokers" toml:"brokers"`
 	Topic          string        `mapstructure:"topic" toml:"topic"`
@@ -177,20 +136,9 @@ type MinioConfig struct {
 	AccessKeyID     string `mapstructure:"access_key_id" toml:"access_key_id"`
 	SecretAccessKey string `mapstructure:"secret_access_key" toml:"secret_access_key"`
 	UseSSL          bool   `mapstructure:"use_ssl" toml:"use_ssl"`
+	BucketName      string `mapstructure:"bucket_name" toml:"bucket_name"`
 }
 
-// HadoopConfig defines Hadoop configuration.
-type HadoopConfig struct {
-	HDFS HDFSConfig `mapstructure:"hdfs" toml:"hdfs"`
-}
-
-// HDFSConfig defines HDFS configuration.
-type HDFSConfig struct {
-	Addresses []string `mapstructure:"addresses" toml:"addresses"`
-	User      string   `mapstructure:"user" toml:"user"`
-}
-
-// TracingConfig defines tracing configuration.
 type TracingConfig struct {
 	ServiceName  string `mapstructure:"service_name" toml:"service_name"`
 	OTLPEndpoint string `mapstructure:"otlp_endpoint" toml:"otlp_endpoint"`
@@ -254,35 +202,75 @@ type ServiceAddr struct {
 	HTTPAddr string `mapstructure:"http_addr" toml:"http_addr"`
 }
 
-// Load loads configuration from file and environment variables.
-func Load(path string, v interface{}) error {
-	viper.SetConfigFile(path)
-	viper.SetConfigType("toml")
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+// HadoopConfig defines Hadoop configuration.
+type HadoopConfig struct {
+	NameNode string `mapstructure:"name_node" toml:"name_node"`
+}
 
-	if err := viper.ReadInConfig(); err != nil {
+// BigCacheConfig defines BigCache configuration.
+type BigCacheConfig struct {
+	Shards             int           `mapstructure:"shards" toml:"shards"`
+	LifeWindow         time.Duration `mapstructure:"life_window" toml:"life_window"`
+	CleanWindow        time.Duration `mapstructure:"clean_window" toml:"clean_window"`
+	MaxEntrySize       int           `mapstructure:"max_entry_size" toml:"max_entry_size"`
+	Verbose            bool          `mapstructure:"verbose" toml:"verbose"`
+	HardMaxCacheSize   int           `mapstructure:"hard_max_cache_size" toml:"hard_max_cache_size"`
+	OnRemoveWithReason bool          `mapstructure:"on_remove_with_reason" toml:"on_remove_with_reason"`
+}
+
+// MongoDBConfig defines MongoDB configuration.
+type MongoDBConfig struct {
+	URI      string `mapstructure:"uri" toml:"uri"`
+	Database string `mapstructure:"database" toml:"database"`
+}
+
+// ClickHouseConfig defines ClickHouse configuration.
+type ClickHouseConfig struct {
+	Addr     string `mapstructure:"addr" toml:"addr"`
+	Database string `mapstructure:"database" toml:"database"`
+	Username string `mapstructure:"username" toml:"username"`
+	Password string `mapstructure:"password" toml:"password"`
+}
+
+// Neo4jConfig defines Neo4j configuration.
+type Neo4jConfig struct {
+	URI      string `mapstructure:"uri" toml:"uri"`
+	Username string `mapstructure:"username" toml:"username"`
+	Password string `mapstructure:"password" toml:"password"`
+}
+
+// ElasticsearchConfig defines Elasticsearch configuration.
+type ElasticsearchConfig struct {
+	Addresses []string `mapstructure:"addresses" toml:"addresses"`
+	Username  string   `mapstructure:"username" toml:"username"`
+	Password  string   `mapstructure:"password" toml:"password"`
+}
+
+// Load 从指定路径加载配置
+func Load(path string, conf interface{}) error {
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("toml")
+	v.AutomaticEnv()
+	v.SetEnvPrefix("ECOMMERCE")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if err := v.ReadInConfig(); err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	if err := viper.Unmarshal(v); err != nil {
+	if err := v.Unmarshal(conf); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	return nil
-}
-
-// WatchConfig watches for config changes and reloads them.
-func WatchConfig(v interface{}, onChange func()) {
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Printf("Config file changed: %s\n", e.Name)
-		if err := viper.Unmarshal(v); err != nil {
-			fmt.Printf("Failed to unmarshal config after change: %v\n", err)
-			return
-		}
-		if onChange != nil {
-			onChange()
+	// Watch for changes
+	v.WatchConfig()
+	v.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println("Config file changed:", e.Name)
+		if err := v.Unmarshal(conf); err != nil {
+			fmt.Println("Failed to unmarshal config after change:", err)
 		}
 	})
+
+	return nil
 }

@@ -3,10 +3,11 @@ package application
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/repository"
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"
-	"time"
 
 	"log/slog"
 )
@@ -58,7 +59,7 @@ func (s *AdvancedCouponService) UseCoupon(ctx context.Context, userID uint64, co
 		return errors.New("coupon is invalid or expired")
 	}
 
-	// Check per user limit
+	// 检查每位用户的限制
 	usedCount, err := s.repo.CountUsageByUser(ctx, userID, uint64(coupon.ID))
 	if err != nil {
 		return err
@@ -67,13 +68,13 @@ func (s *AdvancedCouponService) UseCoupon(ctx context.Context, userID uint64, co
 		return errors.New("coupon usage limit exceeded for user")
 	}
 
-	// Update coupon usage
+	// 更新优惠券使用情况
 	coupon.UsedQuantity++
 	if err := s.repo.Save(ctx, coupon); err != nil {
 		return err
 	}
 
-	// Record usage
+	// 记录使用情况
 	usage := &entity.CouponUsage{
 		UserID:   userID,
 		CouponID: uint64(coupon.ID),
@@ -90,44 +91,44 @@ func (s *AdvancedCouponService) CalculateBestDiscount(ctx context.Context, order
 		return nil, orderAmount, 0, nil
 	}
 
-	// Fetch coupons
+	// 获取优惠券
 	var algoCoupons []algorithm.Coupon
 	for _, id := range couponIDs {
 		coupon, err := s.repo.GetByID(ctx, id)
 		if err != nil {
-			continue // Skip invalid coupons or handle error
+			continue // 跳过无效优惠券或处理错误
 		}
 		if coupon == nil || !coupon.IsValid() {
 			continue
 		}
 
-		// Map to algorithm coupon
+		// 映射到算法优惠券
 		ac := algorithm.Coupon{
 			ID:        uint64(coupon.ID),
 			Threshold: coupon.MinPurchaseAmount,
-			CanStack:  true, // Default to true for now
+			CanStack:  true, // 暂时默认为 true
 			Priority:  1,
 		}
 
 		switch coupon.Type {
 		case entity.CouponTypePercentage:
 			ac.Type = algorithm.CouponTypeDiscount
-			// DiscountValue is percentage (e.g., 20 for 20% off -> 0.8 rate? No, 20% off means 0.8 factor)
-			// Assuming DiscountValue 20 means 20% off.
-			// Algorithm expects DiscountRate as factor (0.8 for 20% off)
-			// Wait, algorithm comment says: DiscountRate float64 // 折扣率（0.8表示8折）
-			// If DiscountValue is 80 (8折), then rate is 0.8.
-			// If DiscountValue is 20 (20% off), then rate is 0.8.
-			// Let's assume DiscountValue is "percentage off" e.g. 20.
+			// DiscountValue 是百分比（例如，20 表示 20% 折扣 -> 0.8 比率？不，20% 折扣意味着 0.8 因子）
+			// 假设 DiscountValue 20 表示 20% 折扣。
+			// 算法期望 DiscountRate 作为因子（0.8 表示 20% 折扣）
+			// 等等，算法注释说：DiscountRate float64 // 折扣率（0.8表示8折）
+			// 如果 DiscountValue 是 80（8折），那么比率是 0.8。
+			// 如果 DiscountValue 是 20（20% 折扣），那么比率是 0.8。
+			// 让我们假设 DiscountValue 是“折扣百分比”，例如 20。
 			ac.DiscountRate = 1.0 - float64(coupon.DiscountValue)/100.0
 			ac.MaxDiscount = coupon.MaxDiscountAmount
 		case entity.CouponTypeFixed:
 			ac.Type = algorithm.CouponTypeReduction
 			ac.ReductionAmount = coupon.DiscountValue
 		case entity.CouponTypeFreeShipping:
-			// Treat as cash reduction of 0 for price calc, or specific amount if we knew shipping cost.
-			// For now, ignore or treat as small cash reduction?
-			// Let's skip free shipping for price optimization or treat as 0 reduction.
+			// 视为 0 现金减免或具体的运费金额（如果我们知道运费）。
+			// 目前，忽略或视为小额现金减免？
+			// 让我们在价格优化中跳过免运费，或视为 0 减免。
 			continue
 		}
 
