@@ -61,7 +61,7 @@ func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest
 	return convertRefundToProto(refund), nil
 }
 
-// Helper functions
+// 辅助函数
 
 func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	if p == nil {

@@ -30,7 +30,7 @@ func NewServer(app *application.CouponService) *Server {
 
 // CreateCoupon 处理创建优惠券的gRPC请求。
 // req: 包含创建优惠券所需信息的请求体。
-// 返回创建成功的优惠券响应和可能发生的gRPC错误。
+// 返回created successfully的优惠券响应和可能发生的gRPC错误。
 func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) (*pb.CouponResponse, error) {
 	// 领域服务层的 CreateCoupon 方法参数相对简化。
 	// Proto请求中包含更多字段 (valid_from, valid_until, total_quantity, etc.)，但服务方法未直接接收。

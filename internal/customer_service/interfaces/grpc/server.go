@@ -28,7 +28,7 @@ func NewServer(app *application.CustomerService) *Server {
 
 // CreateTicket 处理创建工单的gRPC请求。
 // req: 包含用户ID、主题、描述的请求体。
-// 返回创建成功的工单响应和可能发生的gRPC错误。
+// 返回created successfully的工单响应和可能发生的gRPC错误。
 func (s *Server) CreateTicket(ctx context.Context, req *pb.CreateTicketRequest) (*pb.TicketResponse, error) {
 	// 应用服务层的 CreateTicket 方法需要 category 和 priority 字段。
 	// Proto请求中缺少这些字段。这里使用默认值 "general" 作为类别，TicketPriorityMedium 作为优先级。

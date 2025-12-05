@@ -191,9 +191,9 @@ func (s *RiskService) RecordUserBehavior(ctx context.Context, userID uint64, ip,
 	return nil
 }
 
-// GetRiskAnalysisResult retrieves the latest risk analysis result for a user.
+// GetRiskAnalysisResult 获取指定用户的最新风险分析结果。
 func (s *RiskService) GetRiskAnalysisResult(ctx context.Context, userID uint64) (*entity.RiskAnalysisResult, error) {
-	// Get the latest result. Limiting to 1.
+	// 获取最新的结果，限制为1条。
 	results, err := s.repo.ListAnalysisResults(ctx, userID, 1)
 	if err != nil {
 		return nil, err
@@ -204,21 +204,15 @@ func (s *RiskService) GetRiskAnalysisResult(ctx context.Context, userID uint64) 
 	return results[0], nil
 }
 
-// GetBlacklist retrieves blacklist entries.
-// Note: The repository interface for GetBlacklist takes specific type and value.
-// To list all or filter, we might need a ListBlacklist method in repo.
-// For now, let's implement a simple check or mock list if repo doesn't support listing all.
-// Looking at repo interface: GetBlacklist(ctx, bType, value).
-// It seems we can't list all blacklist entries easily with current repo interface.
-// I will implement a method to check if a value is blacklisted for now, or add ListBlacklist to repo if I could (but I shouldn't modify repo interface if not necessary).
-// Let's change the service method to CheckBlacklist or similar, or just return an error for now if listing is not supported.
-// Actually, the HTTP handler might want to check a specific value.
-// Let's implement CheckBlacklist instead of GetBlacklist (List).
+// CheckBlacklist 检查指定类型和值是否在黑名单中。
+// 注意: 仓储接口的GetBlacklist方法需要特定的类型和值参数。
+// 要列出所有黑名单条目或进行过滤，可能需要在仓储中添加ListBlacklist方法。
+// 当前实现仅提供单个值的黑名单检查功能。
 func (s *RiskService) CheckBlacklist(ctx context.Context, bType string, value string) (*entity.Blacklist, error) {
 	return s.repo.GetBlacklist(ctx, entity.BlacklistType(bType), value)
 }
 
-// GetUserBehavior retrieves user behavior data.
+// GetUserBehavior 获取用户行为数据。
 func (s *RiskService) GetUserBehavior(ctx context.Context, userID uint64) (*entity.UserBehavior, error) {
 	return s.repo.GetUserBehavior(ctx, userID)
 }

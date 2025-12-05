@@ -59,7 +59,7 @@ func NewOrderService(repo repository.OrderRepository, idGen idgen.Generator, pro
 // userID: 购买用户ID。
 // items: 订单商品列表。
 // shippingAddr: 收货地址。
-// 返回创建成功的Order实体和可能发生的错误。
+// 返回created successfully的Order实体和可能发生的错误。
 func (s *OrderService) CreateOrder(ctx context.Context, userID uint64, items []*entity.OrderItem, shippingAddr *entity.ShippingAddress) (*entity.Order, error) {
 	// 1. 生成订单ID和订单号。
 	orderID := s.idGen.Generate()

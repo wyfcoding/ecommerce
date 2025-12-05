@@ -37,7 +37,7 @@ func NewInventoryService(repo repository.InventoryRepository, warehouseRepo repo
 // warehouseID: 仓库ID。
 // totalStock: 总库存量。
 // warningThreshold: 警告阈值。
-// 返回创建成功的Inventory实体和可能发生的错误。
+// 返回created successfully的Inventory实体和可能发生的错误。
 func (s *InventoryService) CreateInventory(ctx context.Context, skuID, productID, warehouseID uint64, totalStock, warningThreshold int32) (*entity.Inventory, error) {
 	// 检查指定SKU的库存记录是否已存在。
 	// 注意：如果一个SKU可以存在于多个仓库，这个检查逻辑可能需要调整为检查特定仓库的SKU库存。

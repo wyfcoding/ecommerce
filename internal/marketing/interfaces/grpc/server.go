@@ -29,7 +29,7 @@ func NewServer(app *application.MarketingService) *Server {
 
 // CreateCampaign 处理创建营销活动的gRPC请求。
 // req: 包含活动名称、类型、描述、时间范围、预算和规则（JSON字符串）的请求体。
-// 返回创建成功的营销活动响应和可能发生的gRPC错误。
+// 返回created successfully的营销活动响应和可能发生的gRPC错误。
 func (s *Server) CreateCampaign(ctx context.Context, req *pb.CreateCampaignRequest) (*pb.CreateCampaignResponse, error) {
 	var rules map[string]interface{}
 	// 如果Proto请求中提供了RulesJson，则尝试解析为map[string]interface{}。
@@ -122,7 +122,7 @@ func (s *Server) RecordParticipation(ctx context.Context, req *pb.RecordParticip
 
 // CreateBanner 处理创建广告横幅的gRPC请求。
 // req: 包含横幅标题、图片URL、链接、位置、优先级和时间范围的请求体。
-// 返回创建成功的广告横幅响应和可能发生的gRPC错误。
+// 返回created successfully的广告横幅响应和可能发生的gRPC错误。
 func (s *Server) CreateBanner(ctx context.Context, req *pb.CreateBannerRequest) (*pb.CreateBannerResponse, error) {
 	banner, err := s.app.CreateBanner(ctx, req.Title, req.ImageUrl, req.LinkUrl, req.Position, req.Priority, req.StartTime.AsTime(), req.EndTime.AsTime())
 	if err != nil {

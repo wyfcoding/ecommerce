@@ -33,7 +33,7 @@ func NewMarketingService(repo repository.MarketingRepository, logger *slog.Logge
 // startTime, endTime: 活动的开始和结束时间。
 // budget: 活动预算。
 // rules: 活动规则（例如，JSON格式）。
-// 返回创建成功的Campaign实体和可能发生的错误。
+// 返回created successfully的Campaign实体和可能发生的错误。
 func (s *MarketingService) CreateCampaign(ctx context.Context, name string, campaignType entity.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]interface{}) (*entity.Campaign, error) {
 	campaign := entity.NewCampaign(name, campaignType, description, startTime, endTime, budget, rules) // 创建Campaign实体。
 	// 通过仓储接口保存营销活动。
@@ -133,7 +133,7 @@ func (s *MarketingService) RecordParticipation(ctx context.Context, campaignID, 
 // position: Banner展示位置。
 // priority: 优先级。
 // startTime, endTime: Banner的展示时间范围。
-// 返回创建成功的Banner实体和可能发生的错误。
+// 返回created successfully的Banner实体和可能发生的错误。
 func (s *MarketingService) CreateBanner(ctx context.Context, title, imageURL, linkURL, position string, priority int32, startTime, endTime time.Time) (*entity.Banner, error) {
 	banner := entity.NewBanner(title, imageURL, linkURL, position, priority, startTime, endTime) // 创建Banner实体。
 	// 通过仓储接口保存Banner。

@@ -30,7 +30,7 @@ func NewModerationService(repo repository.ModerationRepository, logger *slog.Log
 // contentID: 待审核内容的唯一标识符。
 // content: 待审核的实际内容字符串。
 // userID: 提交内容的用户ID。
-// 返回创建成功的ModerationRecord实体和可能发生的错误。
+// 返回created successfully的ModerationRecord实体和可能发生的错误。
 func (s *ModerationService) SubmitContent(ctx context.Context, contentType entity.ContentType, contentID uint64, content string, userID uint64) (*entity.ModerationRecord, error) {
 	record := entity.NewModerationRecord(contentType, contentID, content, userID) // 创建ModerationRecord实体。
 
@@ -88,7 +88,7 @@ func (s *ModerationService) ListPendingRecords(ctx context.Context, page, pageSi
 // word: 敏感词字符串。
 // category: 敏感词所属的类别。
 // level: 敏感词的敏感级别。
-// 返回创建成功的SensitiveWord实体和可能发生的错误。
+// 返回created successfully的SensitiveWord实体和可能发生的错误。
 func (s *ModerationService) AddSensitiveWord(ctx context.Context, word, category string, level int8) (*entity.SensitiveWord, error) {
 	sensitiveWord := entity.NewSensitiveWord(word, category, level) // 创建SensitiveWord实体。
 	if err := s.repo.CreateWord(ctx, sensitiveWord); err != nil {

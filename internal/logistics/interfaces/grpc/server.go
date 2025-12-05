@@ -29,7 +29,7 @@ func NewServer(app *application.LogisticsService) *Server {
 
 // CreateLogistics 处理创建物流单的gRPC请求。
 // req: 包含订单信息、跟踪号、承运商和发收件人信息的请求体。
-// 返回创建成功的物流单响应和可能发生的gRPC错误。
+// 返回created successfully的物流单响应和可能发生的gRPC错误。
 func (s *Server) CreateLogistics(ctx context.Context, req *pb.CreateLogisticsRequest) (*pb.CreateLogisticsResponse, error) {
 	// 调用应用服务层创建物流单。
 	logistics, err := s.app.CreateLogistics(

@@ -28,7 +28,7 @@ func NewServer(app *application.PointsService) *Server {
 
 // CreateProduct 处理创建积分商品的gRPC请求。
 // req: 包含商品名称、描述、图片URL、所需积分、库存、限购数量和状态的请求体。
-// 返回创建成功的商品响应和可能发生的gRPC错误。
+// 返回created successfully的商品响应和可能发生的gRPC错误。
 func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest) (*pb.CreateProductResponse, error) {
 	// 将protobuf请求转换为领域实体所需的 PointsProduct 实体。
 	product := &entity.PointsProduct{

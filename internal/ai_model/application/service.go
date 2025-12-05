@@ -36,7 +36,7 @@ func NewAIModelService(repo repository.AIModelRepository, idGenerator idgen.Gene
 // modelType: 模型类型（例如，"推荐模型", "欺诈检测"）。
 // algorithm: 使用的算法（例如，"RandomForest", "NeuralNetwork"）。
 // creatorID: 创建模型的用户ID。
-// 返回创建成功的AIModel实体和可能发生的错误。
+// 返回created successfully的AIModel实体和可能发生的错误。
 func (s *AIModelService) CreateModel(ctx context.Context, name, description, modelType, algorithm string, creatorID uint64) (*entity.AIModel, error) {
 	// 生成唯一的模型编号。
 	modelNo := fmt.Sprintf("AIM%d", s.idGenerator.Generate())

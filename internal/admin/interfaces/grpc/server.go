@@ -31,7 +31,7 @@ func NewServer(app *application.AdminService) *Server {
 
 // CreateAdminUser 处理创建管理员用户的gRPC请求。
 // req: 包含创建管理员所需信息的请求体。
-// 返回创建成功的管理员用户响应和可能发生的gRPC错误。
+// 返回created successfully的管理员用户响应和可能发生的gRPC错误。
 func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserRequest) (*pb.CreateAdminUserResponse, error) {
 	// 调用应用服务层注册管理员用户。
 	// 注意：Proto中没有Phone字段，因此传递空字符串。Proto中Nickname映射为realName。
@@ -136,7 +136,7 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 
 // CreateRole 处理创建角色的gRPC请求。
 // req: 包含创建角色所需信息的请求体。
-// 返回创建成功的角色响应和可能发生的gRPC错误。
+// 返回created successfully的角色响应和可能发生的gRPC错误。
 func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.CreateRoleResponse, error) {
 	// 调用应用服务层创建角色。
 	// 注意：Proto中没有Code字段，这里暂时使用Name作为Code。
@@ -231,7 +231,7 @@ func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.L
 
 // CreatePermission 处理创建权限的gRPC请求。
 // req: 包含创建权限所需信息的请求体。
-// 返回创建成功的权限响应和可能发生的gRPC错误。
+// 返回created successfully的权限响应和可能发生的gRPC错误。
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.CreatePermissionResponse, error) {
 	// 调用应用服务层创建权限。
 	// 注意：Proto定义与实体定义之间存在字段缺失，这里使用占位符或默认值填充。

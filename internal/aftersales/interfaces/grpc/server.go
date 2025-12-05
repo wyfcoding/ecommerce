@@ -28,7 +28,7 @@ func NewServer(app *application.AfterSalesService) *Server {
 
 // CreateReturnRequest 处理创建退货（售后）申请的gRPC请求。
 // req: 包含创建退货申请所需信息的请求体。
-// 返回创建成功的退货申请响应和可能发生的gRPC错误。
+// 返回created successfully的退货申请响应和可能发生的gRPC错误。
 func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRequestRequest) (*pb.ReturnRequestResponse, error) {
 	// 将protobuf定义的售后请求类型映射到领域实体定义的售后类型。
 	var entityType entity.AfterSalesType

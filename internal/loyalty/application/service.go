@@ -137,7 +137,7 @@ func (s *LoyaltyService) GetPointsTransactions(ctx context.Context, userID uint6
 // description: 权益描述。
 // discountRate: 折扣率。
 // pointsRate: 积分倍率。
-// 返回创建成功的MemberBenefit实体和可能发生的错误。
+// 返回created successfully的MemberBenefit实体和可能发生的错误。
 func (s *LoyaltyService) AddBenefit(ctx context.Context, level entity.MemberLevel, name, description string, discountRate, pointsRate float64) (*entity.MemberBenefit, error) {
 	benefit := entity.NewMemberBenefit(level, name, description, discountRate, pointsRate) // 创建MemberBenefit实体。
 	if err := s.repo.SaveMemberBenefit(ctx, benefit); err != nil {

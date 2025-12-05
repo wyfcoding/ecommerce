@@ -76,7 +76,7 @@ func (h *Handler) AddToBlacklist(c *gin.Context) {
 		return
 	}
 
-	// 解析持续时间字符串，如果解析失败，则使用默认的24小时。
+	// 解析持续时间字符串，如果failed to parse，则使用默认的24小时。
 	duration, err := time.ParseDuration(req.Duration)
 	if err != nil {
 		duration = 24 * time.Hour // 默认有效期24小时。

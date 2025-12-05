@@ -10,13 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler handles HTTP requests for the payment service.
+// Handler 处理支付服务的 HTTP 请求。
 type Handler struct {
 	app    *application.PaymentApplicationService
 	logger *slog.Logger
 }
 
-// NewHandler creates a new HTTP handler.
+// NewHandler 创建一个新的 HTTP 处理器。
 func NewHandler(app *application.PaymentApplicationService, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
@@ -24,7 +24,7 @@ func NewHandler(app *application.PaymentApplicationService, logger *slog.Logger)
 	}
 }
 
-// RegisterRoutes registers the payment routes.
+// RegisterRoutes 注册支付相关的路由。
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	payments := router.Group("/payments")
 	{
@@ -42,7 +42,7 @@ type initiatePaymentRequest struct {
 	PaymentMethod string `json:"payment_method" binding:"required"`
 }
 
-// InitiatePayment handles payment initiation requests.
+// InitiatePayment 处理支付发起请求。
 func (h *Handler) InitiatePayment(c *gin.Context) {
 	var req initiatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -67,7 +67,7 @@ type paymentCallbackRequest struct {
 	ThirdPartyNo  string `json:"third_party_no"`
 }
 
-// HandlePaymentCallback handles payment callbacks from third-party providers.
+// HandlePaymentCallback 处理来自第三方支付提供商的支付回调。
 func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 	var req paymentCallbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +84,7 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetPaymentStatus handles requests to get payment status.
+// GetPaymentStatus 处理获取支付状态的请求。
 func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -112,7 +112,7 @@ type requestRefundRequest struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
-// RequestRefund handles refund requests.
+// RequestRefund 处理退款请求。
 func (h *Handler) RequestRefund(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)

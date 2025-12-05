@@ -5,6 +5,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -266,9 +267,9 @@ func Load(path string, conf interface{}) error {
 	// Watch for changes
 	v.WatchConfig()
 	v.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Println("Config file changed:", e.Name)
+		slog.Info("config file changed", "file", e.Name)
 		if err := v.Unmarshal(conf); err != nil {
-			fmt.Println("Failed to unmarshal config after change:", err)
+			slog.Error("failed to unmarshal config after change", "error", err)
 		}
 	})
 

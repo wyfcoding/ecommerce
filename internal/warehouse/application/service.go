@@ -31,7 +31,7 @@ func NewWarehouseService(repo repository.WarehouseRepository, logger *slog.Logge
 // ctx: 上下文。
 // code: 仓库代码，唯一标识。
 // name: 仓库名称。
-// 返回创建成功的Warehouse实体和可能发生的错误。
+// 返回created successfully的Warehouse实体和可能发生的错误。
 func (s *WarehouseService) CreateWarehouse(ctx context.Context, code, name string) (*entity.Warehouse, error) {
 	warehouse := &entity.Warehouse{
 		Code:   code,
@@ -99,7 +99,7 @@ func (s *WarehouseService) UpdateStock(ctx context.Context, warehouseID, skuID u
 // skuID: 调拨的SKU ID。
 // quantity: 调拨数量。
 // createdBy: 创建调拨单的用户ID。
-// 返回创建成功的StockTransfer实体和可能发生的错误。
+// 返回created successfully的StockTransfer实体和可能发生的错误。
 func (s *WarehouseService) CreateTransfer(ctx context.Context, fromID, toID, skuID uint64, quantity int32, createdBy uint64) (*entity.StockTransfer, error) {
 	// 1. 检查源仓库的库存是否充足。
 	stock, err := s.repo.GetStock(ctx, fromID, skuID)

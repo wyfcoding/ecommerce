@@ -35,7 +35,7 @@ func NewLogisticsService(repo repository.LogisticsRepository, logger *slog.Logge
 // trackingNo, carrier, carrierCode: 运单号、承运商和承运商编码。
 // senderName, senderPhone, senderAddress, senderLat, senderLon: 发件人信息及位置。
 // receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon: 收件人信息及位置。
-// 返回创建成功的Logistics实体和可能发生的错误。
+// 返回created successfully的Logistics实体和可能发生的错误。
 func (s *LogisticsService) CreateLogistics(ctx context.Context, orderID uint64, orderNo, trackingNo, carrier, carrierCode string,
 	senderName, senderPhone, senderAddress string, senderLat, senderLon float64,
 	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64) (*entity.Logistics, error) {

@@ -27,7 +27,7 @@ func NewServer(app *application.GroupbuyService) *Server {
 
 // CreateGroupbuy 处理创建拼团活动的gRPC请求。
 // req: 包含活动名称、商品信息、价格、人数和时间范围等请求体。
-// 返回创建成功的拼团活动响应和可能发生的gRPC错误。
+// 返回created successfully的拼团活动响应和可能发生的gRPC错误。
 func (s *Server) CreateGroupbuy(ctx context.Context, req *pb.CreateGroupbuyRequest) (*pb.CreateGroupbuyResponse, error) {
 	// 调用应用服务层创建拼团活动。
 	groupbuy, err := s.app.CreateGroupbuy(

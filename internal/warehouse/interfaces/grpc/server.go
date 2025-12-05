@@ -28,7 +28,7 @@ func NewServer(app *application.WarehouseService) *Server {
 
 // CreateWarehouse 处理创建仓库的gRPC请求。
 // req: 包含仓库代码和名称的请求体。
-// 返回创建成功的仓库响应和可能发生的gRPC错误。
+// 返回created successfully的仓库响应和可能发生的gRPC错误。
 func (s *Server) CreateWarehouse(ctx context.Context, req *pb.CreateWarehouseRequest) (*pb.CreateWarehouseResponse, error) {
 	warehouse, err := s.app.CreateWarehouse(ctx, req.Code, req.Name)
 	if err != nil {
@@ -99,7 +99,7 @@ func (s *Server) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.Get
 
 // CreateTransfer 处理创建库存调拨单的gRPC请求。
 // req: 包含调出/调入仓库ID、SKU ID、数量和创建人ID的请求体。
-// 返回创建成功的调拨单响应和可能发生的gRPC错误。
+// 返回created successfully的调拨单响应和可能发生的gRPC错误。
 func (s *Server) CreateTransfer(ctx context.Context, req *pb.CreateTransferRequest) (*pb.CreateTransferResponse, error) {
 	transfer, err := s.app.CreateTransfer(ctx, req.FromWarehouseId, req.ToWarehouseId, req.SkuId, req.Quantity, req.CreatedBy)
 	if err != nil {

@@ -39,7 +39,7 @@ func NewAfterSalesService(repo repository.AfterSalesRepository, idGenerator idge
 // description: 售后描述。
 // images: 相关的图片URL列表。
 // items: 申请售后的商品列表。
-// 返回创建成功的售后实体和可能发生的错误。
+// 返回created successfully的售后实体和可能发生的错误。
 func (s *AfterSalesService) CreateAfterSales(ctx context.Context, orderID uint64, orderNo string, userID uint64,
 	asType entity.AfterSalesType, reason, description string, images []string, items []*entity.AfterSalesItem) (*entity.AfterSales, error) {
 

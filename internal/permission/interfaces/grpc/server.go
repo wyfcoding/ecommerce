@@ -28,7 +28,7 @@ func NewServer(app *application.PermissionService) *Server {
 
 // CreateRole 处理创建角色的gRPC请求。
 // req: 包含角色名称、描述和权限ID列表的请求体。
-// 返回创建成功的角色响应和可能发生的gRPC错误。
+// 返回created successfully的角色响应和可能发生的gRPC错误。
 func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.Role, error) {
 	role, err := s.app.CreateRole(ctx, req.Name, req.Description, req.PermissionIds)
 	if err != nil {
@@ -93,7 +93,7 @@ func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*em
 
 // CreatePermission 处理创建权限的gRPC请求。
 // req: 包含权限代码和描述的请求体。
-// 返回创建成功的权限响应和可能发生的gRPC错误。
+// 返回created successfully的权限响应和可能发生的gRPC错误。
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.Permission, error) {
 	perm, err := s.app.CreatePermission(ctx, req.Code, req.Description)
 	if err != nil {

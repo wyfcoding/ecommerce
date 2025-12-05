@@ -28,7 +28,7 @@ func NewPermissionService(repo repository.PermissionRepository, logger *slog.Log
 // name: 角色名称。
 // description: 角色描述。
 // permissionIDs: 角色关联的权限ID列表。
-// 返回创建成功的Role实体和可能发生的错误。
+// 返回created successfully的Role实体和可能发生的错误。
 func (s *PermissionService) CreateRole(ctx context.Context, name, description string, permissionIDs []uint64) (*entity.Role, error) {
 	// 1. 根据权限ID获取权限实体列表。
 	permissions, err := s.repo.GetPermissionsByIDs(ctx, permissionIDs)
@@ -82,7 +82,7 @@ func (s *PermissionService) DeleteRole(ctx context.Context, id uint64) error {
 // ctx: 上下文。
 // code: 权限代码（唯一标识符）。
 // description: 权限描述。
-// 返回创建成功的Permission实体和可能发生的错误。
+// 返回created successfully的Permission实体和可能发生的错误。
 func (s *PermissionService) CreatePermission(ctx context.Context, code, description string) (*entity.Permission, error) {
 	permission := &entity.Permission{
 		Code:        code,

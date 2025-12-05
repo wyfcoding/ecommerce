@@ -53,7 +53,7 @@ func (a *App) Run() error {
 		go func(s server.Server) {
 			// server.Start是一个阻塞调用，直到上下文被取消或发生错误。
 			if err := s.Start(a.ctx); err != nil {
-				a.logger.Error("服务器启动失败", "error", err)
+				a.logger.Error("server failed to start", "error", err)
 				// 如果任何一个关键服务器启动失败，则取消应用程序上下文，触发关闭流程。
 				a.cancel()
 			}
@@ -65,7 +65,7 @@ func (a *App) Run() error {
 	// 注册要监听的信号：中断信号（SIGINT, Ctrl+C）和终止信号（SIGTERM）。
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit // 阻塞等待直到接收到信号。
-	a.logger.Info("正在关闭应用程序", "name", a.name)
+	a.logger.Info("shutting down application", "name", a.name)
 
 	// 收到退出信号后，调用cancel函数，通知所有监听 `a.ctx` 的goroutine停止。
 	if a.cancel != nil {
@@ -79,7 +79,7 @@ func (a *App) Run() error {
 	// 优雅地停止所有服务器。
 	for _, srv := range a.opts.servers {
 		if err := srv.Stop(shutdownCtx); err != nil {
-			a.logger.Error("服务器停止失败", "error", err)
+			a.logger.Error("server failed to stop", "error", err)
 			return err // 如果服务器未能优雅关闭，则返回错误。
 		}
 	}
@@ -89,6 +89,6 @@ func (a *App) Run() error {
 		cleanup()
 	}
 
-	a.logger.Info("应用程序已优雅关闭。")
+	a.logger.Info("application shut down gracefully")
 	return nil
 }

@@ -28,7 +28,7 @@ func NewServer(app *application.PricingService) *Server {
 
 // CreateRule 处理创建定价规则的gRPC请求。
 // req: 包含规则名称、商品/SKU ID、策略、价格范围、调整率、启用状态和时间范围的请求体。
-// 返回创建成功的规则响应和可能发生的gRPC错误。
+// 返回created successfully的规则响应和可能发生的gRPC错误。
 func (s *Server) CreateRule(ctx context.Context, req *pb.CreateRuleRequest) (*pb.CreateRuleResponse, error) {
 	// 将protobuf请求转换为领域实体所需的 PricingRule 实体。
 	rule := &entity.PricingRule{

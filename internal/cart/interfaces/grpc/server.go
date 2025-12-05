@@ -59,7 +59,7 @@ func (s *Server) UpdateCartItem(ctx context.Context, req *pb.UpdateCartItemReque
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update cart item quantity: %v", err))
 	}
 
-	// 更新成功后，返回最新的购物车信息。
+	// updated successfully后，返回最新的购物车信息。
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 

@@ -31,7 +31,7 @@ func NewServer(app *application.ProductApplicationService) *Server {
 
 // CreateProduct 处理创建商品的gRPC请求。
 // req: 包含商品名称、描述、分类ID、品牌ID的请求体。
-// 返回创建成功的商品信息响应和可能发生的gRPC错误。
+// 返回created successfully的商品信息响应和可能发生的gRPC错误。
 func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest) (*pb.ProductInfo, error) {
 	// 应用服务层的 CreateProduct 方法期望 price 和 stock 参数，但在 gRPC 请求中这些字段可能缺失或默认。
 	// 当前实现暂时传递0值。这需要根据业务需求决定是在接口层、应用服务层补充或验证这些字段。
@@ -146,7 +146,7 @@ func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) 
 
 // AddSKUsToProduct 处理为商品添加SKU的gRPC请求。
 // req: 包含商品ID和SKU列表的请求体。
-// 返回创建成功的SKU列表响应和可能发生的gRPC错误。
+// 返回created successfully的SKU列表响应和可能发生的gRPC错误。
 func (s *Server) AddSKUsToProduct(ctx context.Context, req *pb.AddSKUsToProductRequest) (*pb.AddSKUsToProductResponse, error) {
 	var createdSKUs []*pb.SKU
 	for _, skuReq := range req.Skus {

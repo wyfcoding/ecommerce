@@ -32,7 +32,7 @@ func NewGatewayService(repo repository.GatewayRepository, logger *slog.Logger) *
 // timeout: 请求超时时间。
 // retries: 重试次数。
 // description: 路由描述。
-// 返回创建成功的Route实体和可能发生的错误。
+// 返回created successfully的Route实体和可能发生的错误。
 func (s *GatewayService) RegisterRoute(ctx context.Context, path, method, service, backend string, timeout, retries int32, description string) (*entity.Route, error) {
 	route := entity.NewRoute(path, method, service, backend, timeout, retries, description) // 创建Route实体。
 	// 通过仓储接口保存路由。
@@ -76,7 +76,7 @@ func (s *GatewayService) DeleteRoute(ctx context.Context, id uint64) error {
 // limit: 限流次数。
 // window: 限流时间窗口。
 // description: 规则描述。
-// 返回创建成功的RateLimitRule实体和可能发生的错误。
+// 返回created successfully的RateLimitRule实体和可能发生的错误。
 func (s *GatewayService) AddRateLimitRule(ctx context.Context, name, path, method string, limit, window int32, description string) (*entity.RateLimitRule, error) {
 	rule := entity.NewRateLimitRule(name, path, method, limit, window, description) // 创建RateLimitRule实体。
 	// 通过仓储接口保存限流规则。

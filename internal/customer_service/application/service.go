@@ -33,7 +33,7 @@ func NewCustomerService(repo repository.CustomerServiceRepository, logger *slog.
 // description: 工单详细描述。
 // category: 工单类别。
 // priority: 工单优先级。
-// 返回创建成功的Ticket实体和可能发生的错误。
+// 返回created successfully的Ticket实体和可能发生的错误。
 func (s *CustomerService) CreateTicket(ctx context.Context, userID uint64, subject, description, category string, priority entity.TicketPriority) (*entity.Ticket, error) {
 	// 生成唯一的工单编号。
 	ticketNo := fmt.Sprintf("TKT%d", time.Now().UnixNano())
@@ -56,7 +56,7 @@ func (s *CustomerService) CreateTicket(ctx context.Context, userID uint64, subje
 // senderType: 发送者类型（"user"或"support"）。
 // content: 消息内容。
 // msgType: 消息类型。
-// 返回创建成功的Message实体和可能发生的错误。
+// 返回created successfully的Message实体和可能发生的错误。
 func (s *CustomerService) ReplyTicket(ctx context.Context, ticketID, senderID uint64, senderType, content string, msgType entity.MessageType) (*entity.Message, error) {
 	// 获取工单实体。
 	ticket, err := s.repo.GetTicket(ctx, ticketID)

@@ -28,7 +28,7 @@ func NewServer(app *application.SchedulerService) *Server {
 
 // CreateJob 处理创建任务的gRPC请求。
 // req: 包含任务名称、描述、Cron表达式、处理器和参数的请求体。
-// 返回创建成功的任务响应和可能发生的gRPC错误。
+// 返回created successfully的任务响应和可能发生的gRPC错误。
 func (s *Server) CreateJob(ctx context.Context, req *pb.CreateJobRequest) (*pb.CreateJobResponse, error) {
 	job, err := s.app.CreateJob(ctx, req.Name, req.Description, req.CronExpr, req.Handler, req.Params)
 	if err != nil {

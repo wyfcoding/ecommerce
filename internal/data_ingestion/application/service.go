@@ -31,7 +31,7 @@ func NewDataIngestionService(repo repository.DataIngestionRepository, logger *sl
 // sourceType: 数据源类型（例如，“Kafka”，“MySQL”）。
 // config: 数据源的连接配置（例如，JSON字符串）。
 // description: 数据源描述。
-// 返回创建成功的IngestionSource实体和可能发生的错误。
+// 返回created successfully的IngestionSource实体和可能发生的错误。
 func (s *DataIngestionService) RegisterSource(ctx context.Context, name string, sourceType entity.SourceType, config, description string) (*entity.IngestionSource, error) {
 	source := entity.NewIngestionSource(name, sourceType, config, description) // 创建IngestionSource实体。
 	// 通过仓储接口保存数据源。

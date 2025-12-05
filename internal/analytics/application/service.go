@@ -64,7 +64,7 @@ func (s *AnalyticsService) QueryMetrics(ctx context.Context, query *repository.M
 // name: 仪表板名称。
 // description: 仪表板描述。
 // userID: 创建仪表板的用户ID。
-// 返回创建成功的Dashboard实体和可能发生的错误。
+// 返回created successfully的Dashboard实体和可能发生的错误。
 func (s *AnalyticsService) CreateDashboard(ctx context.Context, name, description string, userID uint64) (*entity.Dashboard, error) {
 	dashboard := entity.NewDashboard(name, description, userID) // 创建Dashboard实体。
 	if err := s.repo.CreateDashboard(ctx, dashboard); err != nil {
@@ -134,7 +134,7 @@ func (s *AnalyticsService) PublishDashboard(ctx context.Context, id uint64) erro
 // description: 报告描述。
 // userID: 创建报告的用户ID。
 // reportType: 报告类型。
-// 返回创建成功的Report实体和可能发生的错误。
+// 返回created successfully的Report实体和可能发生的错误。
 func (s *AnalyticsService) CreateReport(ctx context.Context, title, description string, userID uint64, reportType string) (*entity.Report, error) {
 	// 生成唯一的报告编号。
 	reportNo := fmt.Sprintf("RPT%d", s.idGenerator.Generate())

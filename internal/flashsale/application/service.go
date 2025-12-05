@@ -49,7 +49,7 @@ func NewFlashSaleService(
 // originalPrice, flashPrice: 商品原价和秒杀价格。
 // totalStock, limitPerUser: 秒杀总库存和每用户限购数量。
 // startTime, endTime: 秒杀活动的开始和结束时间。
-// 返回创建成功的Flashsale实体和可能发生的错误。
+// 返回created successfully的Flashsale实体和可能发生的错误。
 func (s *FlashSaleService) CreateFlashsale(ctx context.Context, name string, productID, skuID uint64, originalPrice, flashPrice int64, totalStock, limitPerUser int32, startTime, endTime time.Time) (*entity.Flashsale, error) {
 	flashsale := entity.NewFlashsale(name, productID, skuID, originalPrice, flashPrice, totalStock, limitPerUser, startTime, endTime) // 创建Flashsale实体。
 	// 通过仓储接口保存秒杀活动。

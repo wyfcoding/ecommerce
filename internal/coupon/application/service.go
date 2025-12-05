@@ -33,7 +33,7 @@ func NewCouponService(repo repository.CouponRepository, logger *slog.Logger) *Co
 // couponType: 优惠券类型。
 // discountAmount: 优惠金额或折扣率（根据类型而定）。
 // minOrderAmount: 最低订单金额门槛。
-// 返回创建成功的Coupon实体和可能发生的错误。
+// 返回created successfully的Coupon实体和可能发生的错误。
 func (s *CouponService) CreateCoupon(ctx context.Context, name, description string, couponType entity.CouponType, discountAmount, minOrderAmount int64) (*entity.Coupon, error) {
 	coupon := entity.NewCoupon(name, description, couponType, discountAmount, minOrderAmount) // 创建Coupon实体。
 	// 通过仓储接口保存优惠券。
@@ -172,7 +172,7 @@ func (s *CouponService) ListUserCoupons(ctx context.Context, userID uint64, stat
 // description: 活动描述。
 // startTime, endTime: 活动的开始和结束时间。
 // couponIDs: 活动中包含的优惠券ID列表。
-// 返回创建成功的CouponActivity实体和可能发生的错误。
+// 返回created successfully的CouponActivity实体和可能发生的错误。
 func (s *CouponService) CreateActivity(ctx context.Context, name, description string, startTime, endTime time.Time, couponIDs []uint64) (*entity.CouponActivity, error) {
 	activity := entity.NewCouponActivity(name, description, startTime, endTime, couponIDs) // 创建CouponActivity实体。
 	// 通过仓储接口保存活动。

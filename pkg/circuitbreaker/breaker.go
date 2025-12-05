@@ -76,12 +76,12 @@ func (cb *CircuitBreaker) Call(fn func() error) error {
 		return err
 	}
 
-	cb.onSuccess() // 处理成功情况。
+	cb.onSuccess() // processed successfully情况。
 	return nil
 }
 
 // onFailure 处理函数调用失败后的逻辑。
-// 根据熔断器当前状态，更新失败计数并判断是否需要切换到Open状态。
+// 根据熔断器当前状态，failed to update计数并判断是否需要切换到Open状态。
 func (cb *CircuitBreaker) onFailure() {
 	cb.failureCount++               // 增加失败计数。
 	cb.lastFailureTime = time.Now() // 更新上次失败时间。
@@ -97,7 +97,7 @@ func (cb *CircuitBreaker) onFailure() {
 }
 
 // onSuccess 处理函数调用成功后的逻辑。
-// 根据熔断器当前状态，更新成功计数并判断是否需要切换到Closed状态。
+// 根据熔断器当前状态，updated successfully计数并判断是否需要切换到Closed状态。
 func (cb *CircuitBreaker) onSuccess() {
 	// 成功调用会重置失败计数。
 	cb.failureCount = 0

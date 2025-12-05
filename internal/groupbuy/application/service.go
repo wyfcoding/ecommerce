@@ -37,7 +37,7 @@ func NewGroupbuyService(repo repository.GroupbuyRepository, idGenerator idgen.Ge
 // minPeople, maxPeople: 拼团的最小和最大人数。
 // totalStock: 拼团活动的总库存。
 // startTime, endTime: 活动的开始和结束时间。
-// 返回创建成功的Groupbuy实体和可能发生的错误。
+// 返回created successfully的Groupbuy实体和可能发生的错误。
 func (s *GroupbuyService) CreateGroupbuy(ctx context.Context, name string, productID, skuID, originalPrice, groupPrice uint64,
 	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time) (*entity.Groupbuy, error) {
 

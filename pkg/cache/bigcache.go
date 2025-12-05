@@ -77,7 +77,7 @@ func (c *BigCache) Delete(ctx context.Context, keys ...string) error {
 func (c *BigCache) Exists(ctx context.Context, key string) (bool, error) {
 	_, err := c.cache.Get(key) // 尝试获取键
 	if err == nil {
-		return true, nil // 如果获取成功，表示存在
+		return true, nil // 如果fetched successfully，表示存在
 	}
 	if err == bigcache.ErrEntryNotFound {
 		return false, nil // 如果返回未找到错误，表示不存在

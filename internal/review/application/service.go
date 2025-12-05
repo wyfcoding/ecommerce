@@ -34,7 +34,7 @@ func NewReviewService(repo repository.ReviewRepository, logger *slog.Logger) *Re
 // rating: 评分（1-5）。
 // content: 评论内容。
 // images: 评论图片URL列表。
-// 返回创建成功的Review实体和可能发生的错误。
+// 返回created successfully的Review实体和可能发生的错误。
 func (s *ReviewService) CreateReview(ctx context.Context, userID, productID, orderID, skuID uint64, rating int, content string, images []string) (*entity.Review, error) {
 	// 基础输入验证。
 	if rating < 1 || rating > 5 {

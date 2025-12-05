@@ -28,7 +28,7 @@ func NewServer(app *application.ReviewService) *Server {
 
 // CreateReview 处理创建评论的gRPC请求。
 // req: 包含用户ID、商品ID、评分、内容和图片URL的请求体。
-// 返回创建成功的评论信息响应和可能发生的gRPC错误。
+// 返回created successfully的评论信息响应和可能发生的gRPC错误。
 func (s *Server) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) (*pb.CreateReviewResponse, error) {
 	// 将字符串类型的用户ID和商品ID转换为uint64。
 	userID, err := strconv.ParseUint(req.UserId, 10, 64)

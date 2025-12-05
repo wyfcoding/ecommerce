@@ -29,7 +29,7 @@ func NewServer(app *application.FlashSaleService) *Server {
 
 // CreateFlashSaleEvent 处理创建秒杀活动的gRPC请求。
 // req: 包含秒杀活动名称、商品信息、时间范围等请求体。
-// 返回创建成功的秒杀活动响应和可能发生的gRPC错误。
+// 返回created successfully的秒杀活动响应和可能发生的gRPC错误。
 func (s *Server) CreateFlashSaleEvent(ctx context.Context, req *pb.CreateFlashSaleEventRequest) (*pb.CreateFlashSaleEventResponse, error) {
 	if len(req.Products) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one product is required for flash sale event")

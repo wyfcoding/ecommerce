@@ -28,7 +28,7 @@ func NewServer(app *application.SubscriptionService) *Server {
 
 // CreatePlan 处理创建订阅计划的gRPC请求。
 // req: 包含计划名称、描述、价格、时长和功能列表的请求体。
-// 返回创建成功的计划响应和可能发生的gRPC错误。
+// 返回created successfully的计划响应和可能发生的gRPC错误。
 func (s *Server) CreatePlan(ctx context.Context, req *pb.CreatePlanRequest) (*pb.CreatePlanResponse, error) {
 	plan, err := s.app.CreatePlan(ctx, req.Name, req.Description, req.Price, req.Duration, req.Features)
 	if err != nil {

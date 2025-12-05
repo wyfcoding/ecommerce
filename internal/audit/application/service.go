@@ -107,7 +107,7 @@ func (s *AuditService) QueryLogs(ctx context.Context, query *repository.AuditLog
 // ctx: 上下文。
 // name: 策略名称。
 // description: 策略描述。
-// 返回创建成功的AuditPolicy实体和可能发生的错误。
+// 返回created successfully的AuditPolicy实体和可能发生的错误。
 func (s *AuditService) CreatePolicy(ctx context.Context, name, description string) (*entity.AuditPolicy, error) {
 	policy := entity.NewAuditPolicy(name, description) // 创建审计策略实体。
 	if err := s.repo.CreatePolicy(ctx, policy); err != nil {
@@ -155,7 +155,7 @@ func (s *AuditService) ListPolicies(ctx context.Context, page, pageSize int) ([]
 // ctx: 上下文。
 // title: 报告标题。
 // description: 报告描述。
-// 返回创建成功的AuditReport实体和可能发生的错误。
+// 返回created successfully的AuditReport实体和可能发生的错误。
 func (s *AuditService) CreateReport(ctx context.Context, title, description string) (*entity.AuditReport, error) {
 	// 生成唯一的报告编号。
 	reportNo := fmt.Sprintf("AUDRPT%d", s.idGenerator.Generate())

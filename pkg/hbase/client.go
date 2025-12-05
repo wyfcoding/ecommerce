@@ -4,7 +4,7 @@ package hbase
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -49,7 +49,7 @@ func (c *Client) SaveUserProfile(ctx context.Context, profile *UserProfile) erro
 	// 2. 将 UserProfile 结构体的字段映射为 HBase 的列族和列（例如，cf:age, cf:gender）。
 	// 3. 执行写入操作。
 
-	fmt.Printf("Saving user profile for user: %s\n", profile.UserID) // 打印模拟消息。
+	slog.InfoContext(ctx, "saving user profile to hbase", "user_id", profile.UserID)
 	return nil
 }
 
@@ -62,8 +62,8 @@ func (c *Client) GetUserProfile(ctx context.Context, userID string) (*UserProfil
 	// 2. 执行查询操作。
 	// 3. 解析 HBase 返回的结果，并反序列化为 UserProfile 结构体。
 
-	fmt.Printf("Getting user profile for user: %s\n", userID) // 打印模拟消息。
-	return &UserProfile{                                      // 返回一个模拟的用户画像数据。
+	slog.InfoContext(ctx, "getting user profile from hbase", "user_id", userID)
+	return &UserProfile{
 			UserID: userID,
 		},
 		nil
@@ -79,8 +79,8 @@ func (c *Client) ScanUsersByCity(ctx context.Context, city string) ([]*UserProfi
 	// 3. 执行扫描操作。
 	// 4. 解析结果，并收集符合条件的用户画像。
 
-	fmt.Printf("Scanning users in city: %s\n", city) // 打印模拟消息。
-	return []*UserProfile{}, nil                     // 返回一个空的User Profile切片作为模拟结果。
+	slog.InfoContext(ctx, "scanning users by city in hbase", "city", city)
+	return []*UserProfile{}, nil
 }
 
 // UpdateUserBehavior 更新用户的行为数据。
@@ -90,7 +90,7 @@ func (c *Client) ScanUsersByCity(ctx context.Context, city string) ([]*UserProfi
 // behavior: 待更新的行为数据，例如 map[string]interface{}{"click_count": 1, "last_active": time.Now()}
 func (c *Client) UpdateUserBehavior(ctx context.Context, userID string, behavior map[string]interface{}) error {
 	// TODO: 实现行为数据更新逻辑。
-	fmt.Printf("Updating behavior for user: %s\n", userID) // 打印模拟消息。
+	slog.InfoContext(ctx, "updating user behavior in hbase", "user_id", userID)
 	return nil
 }
 

@@ -33,7 +33,7 @@ func NewSchedulerService(repo repository.SchedulerRepository, logger *slog.Logge
 // cron: Cron表达式，定义任务的执行时间。
 // handler: 任务处理器的标识。
 // params: 任务执行所需的参数（JSON字符串）。
-// 返回创建成功的Job实体和可能发生的错误。
+// 返回created successfully的Job实体和可能发生的错误。
 func (s *SchedulerService) CreateJob(ctx context.Context, name, desc, cron, handler, params string) (*entity.Job, error) {
 	// 1. 检查任务名称是否已存在，确保任务名称的唯一性。
 	existing, err := s.repo.GetJobByName(ctx, name)

@@ -28,7 +28,7 @@ func NewServer(app *application.MultiChannelService) *Server {
 
 // RegisterChannel 处理注册渠道的gRPC请求。
 // req: 包含渠道名称、类型、API凭证和启用状态的请求体。
-// 返回创建成功的渠道响应和可能发生的gRPC错误。
+// 返回created successfully的渠道响应和可能发生的gRPC错误。
 func (s *Server) RegisterChannel(ctx context.Context, req *pb.RegisterChannelRequest) (*pb.RegisterChannelResponse, error) {
 	// 将protobuf请求转换为领域实体所需的 Channel 实体。
 	channel := &entity.Channel{

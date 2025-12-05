@@ -32,7 +32,7 @@ func NewSettlementService(repo repository.SettlementRepository, logger *slog.Log
 // merchantID: 商户ID。
 // cycle: 结算周期类型。
 // startDate, endDate: 结算周期开始和结束日期。
-// 返回创建成功的Settlement实体和可能发生的错误。
+// 返回created successfully的Settlement实体和可能发生的错误。
 func (s *SettlementService) CreateSettlement(ctx context.Context, merchantID uint64, cycle string, startDate, endDate time.Time) (*entity.Settlement, error) {
 	// 生成唯一的结算单号。
 	settlementNo := fmt.Sprintf("S%d%d", merchantID, time.Now().UnixNano())

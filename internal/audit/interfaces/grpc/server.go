@@ -108,7 +108,7 @@ func (s *Server) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest) (*pb.Q
 
 // CreatePolicy 处理创建审计策略的gRPC请求。
 // req: 包含策略名称和描述的请求体。
-// 返回创建成功的审计策略响应和可能发生的gRPC错误。
+// 返回created successfully的审计策略响应和可能发生的gRPC错误。
 func (s *Server) CreatePolicy(ctx context.Context, req *pb.CreatePolicyRequest) (*pb.CreatePolicyResponse, error) {
 	// 调用应用服务层创建审计策略。
 	policy, err := s.app.CreatePolicy(ctx, req.Name, req.Description)
@@ -165,7 +165,7 @@ func (s *Server) ListPolicies(ctx context.Context, req *pb.ListPoliciesRequest) 
 
 // CreateReport 处理创建审计报告的gRPC请求。
 // req: 包含报告标题和描述的请求体。
-// 返回创建成功的审计报告响应和可能发生的gRPC错误。
+// 返回created successfully的审计报告响应和可能发生的gRPC错误。
 func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) (*pb.CreateReportResponse, error) {
 	// 调用应用服务层创建审计报告。
 	report, err := s.app.CreateReport(ctx, req.Title, req.Description)

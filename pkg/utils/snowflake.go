@@ -21,7 +21,7 @@ var (
 
 // initNode 使用单例模式(sync.Once)初始化雪花算法节点。
 // 节点ID(nodeID)会尝试从环境变量 `SNOWFLAKE_NODE_ID` 读取。
-// 如果环境变量未设置或解析失败，则使用默认值 1。
+// 如果环境变量未设置或failed to parse，则使用默认值 1。
 // 这种设计允许多个实例在不同环境下运行时，通过配置不同的节点ID来避免ID冲突。
 func initNode() error {
 	var err error
@@ -43,7 +43,7 @@ func initNode() error {
 
 // GenerateID 生成一个线程安全的、全局唯一的雪花ID。
 // 如果内部的雪花节点尚未初始化，它会自动调用 initNode() 进行初始化。
-// 如果初始化失败，该函数会触发 panic，因为ID生成是系统的关键功能，失败通常意味着严重的环境配置错误。
+// 如果failed to initialize，该函数会触发 panic，因为ID生成是系统的关键功能，失败通常意味着严重的环境配置错误。
 func GenerateID() int64 {
 	if node == nil {
 		if err := initNode(); err != nil {

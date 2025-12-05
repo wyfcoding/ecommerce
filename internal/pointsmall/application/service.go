@@ -60,7 +60,7 @@ func (s *PointsService) ListProducts(ctx context.Context, status *int, page, pag
 // productID: 兑换商品ID。
 // quantity: 兑换数量。
 // address, phone, receiver: 收货地址、电话和收货人信息。
-// 返回创建成功的PointsOrder实体和可能发生的错误。
+// 返回created successfully的PointsOrder实体和可能发生的错误。
 func (s *PointsService) ExchangeProduct(ctx context.Context, userID, productID uint64, quantity int32, address, phone, receiver string) (*entity.PointsOrder, error) {
 	// 1. 获取商品信息。
 	product, err := s.repo.GetProduct(ctx, productID)

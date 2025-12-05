@@ -231,11 +231,11 @@ func (c *Consumer) Consume(ctx context.Context, handler func(ctx context.Context
 			continue // 继续下一条消息，不提交当前消息的offset。
 		}
 
-		// 消息处理成功，记录成功指标。
+		// 消息processed successfully，记录成功指标。
 		mqConsumed.WithLabelValues(c.reader.Config().Topic, "success").Inc()
 		span.End()
 
-		// 消息处理成功后，手动提交消息的offset。
+		// 消息processed successfully后，手动提交消息的offset。
 		if err := c.reader.CommitMessages(ctx, m); err != nil {
 			c.logger.Error("failed to commit message", "error", err)
 		}

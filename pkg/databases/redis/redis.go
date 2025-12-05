@@ -11,8 +11,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// NewRedisClient creates a new Redis client using the provided configuration.
-// It returns a *redis.Client instance, a cleanup function, and an error if connection fails.
+// NewRedisClient 使用提供的配置创建一个新的 Redis 客户端。
+// 返回一个 *redis.Client 实例、清理函数和连接失败时的错误。
 func NewRedisClient(cfg *config.RedisConfig, logger *logging.Logger) (*redis.Client, func(), error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:         cfg.Addr,

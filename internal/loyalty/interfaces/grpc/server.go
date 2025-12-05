@@ -110,7 +110,7 @@ func (s *Server) ListPointsTransactions(ctx context.Context, req *pb.ListPointsT
 
 // AddBenefit 处理添加会员权益的gRPC请求。
 // req: 包含会员等级、权益名称、描述和费率的请求体。
-// 返回创建成功的会员权益响应和可能发生的gRPC错误。
+// 返回created successfully的会员权益响应和可能发生的gRPC错误。
 func (s *Server) AddBenefit(ctx context.Context, req *pb.AddBenefitRequest) (*pb.AddBenefitResponse, error) {
 	// 调用应用服务层添加会员权益。
 	benefit, err := s.app.AddBenefit(ctx, entity.MemberLevel(req.Level), req.Name, req.Description, req.DiscountRate, req.PointsRate)

@@ -30,7 +30,7 @@ func NewFinancialSettlementService(repo repository.SettlementRepository, logger 
 // sellerID: 关联的卖家ID。
 // period: 结算周期描述（例如，“2023-01”）。
 // startDate, endDate: 结算周期的起始和结束日期。
-// 返回创建成功的Settlement实体和可能发生的错误。
+// 返回created successfully的Settlement实体和可能发生的错误。
 func (s *FinancialSettlementService) CreateSettlement(ctx context.Context, sellerID uint64, period string, startDate, endDate time.Time) (*entity.Settlement, error) {
 	// TODO: 在实际场景中，此处应根据订单数据计算各项金额。
 	// 当前实现创建了一个带有模拟金额的占位结算单。

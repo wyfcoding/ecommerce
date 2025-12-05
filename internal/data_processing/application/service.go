@@ -31,7 +31,7 @@ func NewDataProcessingService(repo repository.DataProcessingRepository, logger *
 // taskType: 任务类型。
 // config: 任务配置（例如，JSON字符串）。
 // workflowID: 关联的工作流ID。
-// 返回创建成功的ProcessingTask实体和可能发生的错误。
+// 返回created successfully的ProcessingTask实体和可能发生的错误。
 func (s *DataProcessingService) SubmitTask(ctx context.Context, name, taskType, config string, workflowID uint64) (*entity.ProcessingTask, error) {
 	task := entity.NewProcessingTask(name, taskType, config, workflowID) // 创建ProcessingTask实体。
 	// 通过仓储接口保存任务。
@@ -78,7 +78,7 @@ func (s *DataProcessingService) ListTasks(ctx context.Context, workflowID uint64
 // name: 工作流名称。
 // description: 工作流描述。
 // steps: 工作流的步骤定义（例如，JSON或YAML字符串）。
-// 返回创建成功的ProcessingWorkflow实体和可能发生的错误。
+// 返回created successfully的ProcessingWorkflow实体和可能发生的错误。
 func (s *DataProcessingService) CreateWorkflow(ctx context.Context, name, description, steps string) (*entity.ProcessingWorkflow, error) {
 	workflow := entity.NewProcessingWorkflow(name, description, steps) // 创建ProcessingWorkflow实体。
 	// 通过仓储接口保存工作流。

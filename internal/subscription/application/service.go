@@ -33,7 +33,7 @@ func NewSubscriptionService(repo repository.SubscriptionRepository, logger *slog
 // price: 计划价格（单位：分）。
 // duration: 计划持续时间（天）。
 // features: 计划包含的功能列表。
-// 返回创建成功的SubscriptionPlan实体和可能发生的错误。
+// 返回created successfully的SubscriptionPlan实体和可能发生的错误。
 func (s *SubscriptionService) CreatePlan(ctx context.Context, name, desc string, price uint64, duration int32, features []string) (*entity.SubscriptionPlan, error) {
 	plan := &entity.SubscriptionPlan{
 		Name:        name,
@@ -56,7 +56,7 @@ func (s *SubscriptionService) CreatePlan(ctx context.Context, name, desc string,
 // ctx: 上下文。
 // userID: 订阅用户ID。
 // planID: 订阅计划ID。
-// 返回创建成功的Subscription实体和可能发生的错误。
+// 返回created successfully的Subscription实体和可能发生的错误。
 func (s *SubscriptionService) Subscribe(ctx context.Context, userID, planID uint64) (*entity.Subscription, error) {
 	// 1. 检查用户是否已存在活跃订阅。
 	active, err := s.repo.GetActiveSubscription(ctx, userID)

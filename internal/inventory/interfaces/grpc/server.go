@@ -28,7 +28,7 @@ func NewServer(app *application.InventoryService) *Server {
 
 // CreateInventory 处理创建库存记录的gRPC请求。
 // req: 包含SKU ID、商品ID、仓库ID、总库存和预警阈值的请求体。
-// 返回创建成功的库存记录响应和可能发生的gRPC错误。
+// 返回created successfully的库存记录响应和可能发生的gRPC错误。
 func (s *Server) CreateInventory(ctx context.Context, req *pb.CreateInventoryRequest) (*pb.CreateInventoryResponse, error) {
 	inventory, err := s.app.CreateInventory(ctx, req.SkuId, req.ProductId, req.WarehouseId, req.TotalStock, req.WarningThreshold)
 	if err != nil {

@@ -61,7 +61,7 @@ func Retry(ctx context.Context, fn RetryFunc, cfg RetryConfig) error {
 	for i := 0; i <= cfg.MaxRetries; i++ {
 		// 执行业务函数
 		if err = fn(); err == nil {
-			// 执行成功，直接返回
+			// executed successfully，直接返回
 			return nil
 		}
 

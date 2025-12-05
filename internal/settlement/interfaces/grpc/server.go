@@ -28,7 +28,7 @@ func NewServer(app *application.SettlementService) *Server {
 
 // CreateSettlement 处理创建结算单的gRPC请求。
 // req: 包含商户ID、结算周期、开始/结束日期等信息的请求体。
-// 返回创建成功的结算单响应和可能发生的gRPC错误。
+// 返回created successfully的结算单响应和可能发生的gRPC错误。
 func (s *Server) CreateSettlement(ctx context.Context, req *pb.CreateSettlementRequest) (*pb.CreateSettlementResponse, error) {
 	settlement, err := s.app.CreateSettlement(ctx, req.MerchantId, req.Cycle, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {

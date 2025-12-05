@@ -28,7 +28,7 @@ func NewServer(app *application.OrderService) *Server {
 
 // CreateOrder 处理创建订单的gRPC请求。
 // req: 包含用户ID、商品列表和收货地址的请求体。
-// 返回创建成功的订单信息响应和可能发生的gRPC错误。
+// 返回created successfully的订单信息响应和可能发生的gRPC错误。
 func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.OrderInfo, error) {
 	// 将Proto的OrderItem列表转换为领域实体所需的 OrderItem 列表。
 	items := make([]*entity.OrderItem, len(req.Items))
@@ -110,7 +110,7 @@ func (s *Server) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrderStatu
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update order status: %v", err))
 	}
 
-	// 状态更新成功后，重新获取订单详情并返回。
+	// 状态updated successfully后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.Id})
 }
 
@@ -243,7 +243,7 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update order shipping status: %v", err))
 	}
 
-	// 配送状态更新成功后，重新获取订单详情并返回。
+	// 配送状态updated successfully后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.OrderId})
 }
 
