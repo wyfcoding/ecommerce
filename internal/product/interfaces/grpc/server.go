@@ -4,7 +4,7 @@ import (
 	"context" // 导入上下文。
 	"fmt"     // 导入格式化库。
 
-	pb "github.com/wyfcoding/ecommerce/api/product/v1"            // 导入产品模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/product/v1"            // 导入产品模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/product/application" // 导入产品模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/product/domain"      // 导入产品模块的领域实体。
 
@@ -165,15 +165,189 @@ func (s *Server) AddSKUsToProduct(ctx context.Context, req *pb.AddSKUsToProductR
 	return &pb.AddSKUsToProductResponse{CreatedSkus: createdSKUs}, nil
 }
 
-// TODO: 补充实现 UpdateSKU, DeleteSKU, GetSKUByID, ListSKUs 等SKU相关接口。
+// UpdateSKU 更新单个SKU的信息。
+func (s *Server) UpdateSKU(ctx context.Context, req *pb.UpdateSKURequest) (*pb.SKU, error) {
+	var price *int64
+	if req.Price != nil {
+		v := req.Price.Value
+		price = &v
+	}
+	var stock *int32
+	if req.StockQuantity != nil {
+		v := req.StockQuantity.Value
+		stock = &v
+	}
+	var image *string
+	if req.ImageUrl != nil {
+		v := req.ImageUrl.Value
+		image = &v
+	}
+
+	sku, err := s.app.UpdateSKU(ctx, req.Id, price, stock, image)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update SKU: %v", err))
+	}
+	return convertSKUToProto(sku), nil
+}
+
+// DeleteSKU 删除商品下的一个或多个SKU。
+func (s *Server) DeleteSKU(ctx context.Context, req *pb.DeleteSKURequest) (*emptypb.Empty, error) {
+	// 目前应用服务只支持单个删除，这里循环删除
+	for _, id := range req.SkuIds {
+		if err := s.app.DeleteSKU(ctx, id); err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete SKU %d: %v", id, err))
+		}
+	}
+	return &emptypb.Empty{}, nil
+}
+
+// GetSKUByID 根据SKU ID获取其详细信息。
+func (s *Server) GetSKUByID(ctx context.Context, req *pb.GetSKUByIDRequest) (*pb.SKU, error) {
+	sku, err := s.app.GetSKUByID(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get SKU: %v", err))
+	}
+	if sku == nil {
+		return nil, status.Error(codes.NotFound, "SKU not found")
+	}
+	return convertSKUToProto(sku), nil
+}
 
 // --- 分类 (Category) 相关接口实现 ---
 
-// TODO: 补充实现 CreateCategory, GetCategoryByID, UpdateCategory, DeleteCategory, ListCategories 等Category相关接口。
+// CreateCategory 创建一个新的商品分类。
+func (s *Server) CreateCategory(ctx context.Context, req *pb.CreateCategoryRequest) (*pb.Category, error) {
+	category, err := s.app.CreateCategory(ctx, req.Name, req.ParentId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create category: %v", err))
+	}
+	return convertCategoryToProto(category), nil
+}
+
+// GetCategoryByID 根据ID获取分类信息。
+func (s *Server) GetCategoryByID(ctx context.Context, req *pb.GetCategoryByIDRequest) (*pb.Category, error) {
+	category, err := s.app.GetCategoryByID(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get category: %v", err))
+	}
+	if category == nil {
+		return nil, status.Error(codes.NotFound, "category not found")
+	}
+	return convertCategoryToProto(category), nil
+}
+
+// UpdateCategory 更新分类信息。
+func (s *Server) UpdateCategory(ctx context.Context, req *pb.UpdateCategoryRequest) (*pb.Category, error) {
+	var name *string
+	if req.Name != nil {
+		v := req.Name.Value
+		name = &v
+	}
+	var parentID *uint64
+	if req.ParentId != nil {
+		v := req.ParentId.Value
+		parentID = &v
+	}
+	var sort *int
+	if req.SortOrder != nil {
+		v := int(req.SortOrder.Value)
+		sort = &v
+	}
+
+	category, err := s.app.UpdateCategory(ctx, req.Id, name, parentID, sort)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update category: %v", err))
+	}
+	return convertCategoryToProto(category), nil
+}
+
+// DeleteCategory 删除一个分类。
+func (s *Server) DeleteCategory(ctx context.Context, req *pb.DeleteCategoryRequest) (*emptypb.Empty, error) {
+	if err := s.app.DeleteCategory(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete category: %v", err))
+	}
+	return &emptypb.Empty{}, nil
+}
+
+// ListCategories 获取分类列表。
+func (s *Server) ListCategories(ctx context.Context, req *pb.ListCategoriesRequest) (*pb.ListCategoriesResponse, error) {
+	categories, err := s.app.ListCategories(ctx, req.ParentId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list categories: %v", err))
+	}
+
+	var pbCategories []*pb.Category
+	for _, c := range categories {
+		pbCategories = append(pbCategories, convertCategoryToProto(c))
+	}
+	return &pb.ListCategoriesResponse{Categories: pbCategories}, nil
+}
 
 // --- 品牌 (Brand) 相关接口实现 ---
 
-// TODO: 补充实现 CreateBrand, GetBrandByID, UpdateBrand, DeleteBrand, ListBrands 等Brand相关接口。
+// CreateBrand 创建一个新的品牌。
+func (s *Server) CreateBrand(ctx context.Context, req *pb.CreateBrandRequest) (*pb.Brand, error) {
+	brand, err := s.app.CreateBrand(ctx, req.Name, req.LogoUrl)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create brand: %v", err))
+	}
+	return convertBrandToProto(brand), nil
+}
+
+// GetBrandByID 根据ID获取品牌信息。
+func (s *Server) GetBrandByID(ctx context.Context, req *pb.GetBrandByIDRequest) (*pb.Brand, error) {
+	brand, err := s.app.GetBrandByID(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get brand: %v", err))
+	}
+	if brand == nil {
+		return nil, status.Error(codes.NotFound, "brand not found")
+	}
+	return convertBrandToProto(brand), nil
+}
+
+// UpdateBrand 更新品牌信息。
+func (s *Server) UpdateBrand(ctx context.Context, req *pb.UpdateBrandRequest) (*pb.Brand, error) {
+	var name *string
+	if req.Name != nil {
+		v := req.Name.Value
+		name = &v
+	}
+	var logo *string
+	if req.LogoUrl != nil {
+		v := req.LogoUrl.Value
+		logo = &v
+	}
+
+	brand, err := s.app.UpdateBrand(ctx, req.Id, name, logo)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update brand: %v", err))
+	}
+	return convertBrandToProto(brand), nil
+}
+
+// DeleteBrand 删除一个品牌。
+func (s *Server) DeleteBrand(ctx context.Context, req *pb.DeleteBrandRequest) (*emptypb.Empty, error) {
+	if err := s.app.DeleteBrand(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete brand: %v", err))
+	}
+	return &emptypb.Empty{}, nil
+}
+
+// ListBrands 分页列出所有品牌。
+func (s *Server) ListBrands(ctx context.Context, req *pb.ListBrandsRequest) (*pb.ListBrandsResponse, error) {
+	// 目前应用服务 ListBrands 不支持分页，这里暂时忽略分页参数
+	brands, err := s.app.ListBrands(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list brands: %v", err))
+	}
+
+	var pbBrands []*pb.Brand
+	for _, b := range brands {
+		pbBrands = append(pbBrands, convertBrandToProto(b))
+	}
+	return &pb.ListBrandsResponse{Brands: pbBrands, Total: int32(len(brands))}, nil
+}
 
 // --- 辅助函数：领域实体到Proto消息的转换 ---
 
@@ -224,5 +398,30 @@ func convertSKUToProto(s *domain.SKU) *pb.SKU {
 		SpecValues:    specValues,                   // 规格参数。
 		CreatedAt:     timestamppb.New(s.CreatedAt), // 创建时间。
 		UpdatedAt:     timestamppb.New(s.UpdatedAt), // 更新时间。
+	}
+}
+
+func convertCategoryToProto(c *domain.Category) *pb.Category {
+	if c == nil {
+		return nil
+	}
+	return &pb.Category{
+		Id:        uint64(c.ID),
+		Name:      c.Name,
+		ParentId:  uint64(c.ParentID),
+		SortOrder: int32(c.Sort),
+		// IconUrl missing in domain entity
+	}
+}
+
+func convertBrandToProto(b *domain.Brand) *pb.Brand {
+	if b == nil {
+		return nil
+	}
+	return &pb.Brand{
+		Id:      uint64(b.ID),
+		Name:    b.Name,
+		LogoUrl: b.Logo,
+		// Description missing in domain entity
 	}
 }

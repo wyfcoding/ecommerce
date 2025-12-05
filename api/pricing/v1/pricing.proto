@@ -5,7 +5,7 @@ package api.pricing.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/api/pricing/v1;pricingv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/pricing/v1;pricingv1";
 
 service PricingService {
   // Rule Management

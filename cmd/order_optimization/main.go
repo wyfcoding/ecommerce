@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/order_optimization/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/order_optimization/v1"
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/application"
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/infrastructure/persistence"
 	optigrpc "github.com/wyfcoding/ecommerce/internal/order_optimization/interfaces/grpc"

@@ -5,7 +5,7 @@ package api.bi.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/bi/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/bi/v1;v1";
 
 // BI 商业智能服务定义了所有与商业智能报告和数据分析相关的RPC接口。
 service BI {

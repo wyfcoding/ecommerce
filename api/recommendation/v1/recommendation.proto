@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package recommendation.v1;
 
-option go_package = "ecommerce/api/recommendation/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/recommendation/v1;v1";
 
 service RecommendationService {
   // 定义推荐服务的接口

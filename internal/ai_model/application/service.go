@@ -224,10 +224,111 @@ func (s *AIModelService) Predict(ctx context.Context, modelID uint64, input stri
 		PredictionTime: time.Now(),
 	}
 
-	// 保存预测记录。
+	// Save prediction record.
 	if err := s.repo.CreatePrediction(ctx, prediction); err != nil {
 		s.logger.WarnContext(ctx, "failed to save prediction record", "model_id", modelID, "error", err)
 	}
 
 	return output, confidence, nil
+}
+
+// ProductRecommendationDTO represents a product recommendation.
+type ProductRecommendationDTO struct {
+	ProductID uint64
+	Score     float64
+	Reason    string
+}
+
+// GetProductRecommendations returns mock product recommendations.
+func (s *AIModelService) GetProductRecommendations(ctx context.Context, userID uint64, contextPage string) ([]ProductRecommendationDTO, error) {
+	// Mock logic: return random product recommendations
+	return []ProductRecommendationDTO{
+		{ProductID: 101, Score: 0.95, Reason: "Based on your history"},
+		{ProductID: 102, Score: 0.88, Reason: "Popular in your area"},
+		{ProductID: 103, Score: 0.75, Reason: "You might also like"},
+	}, nil
+}
+
+// GetRelatedProducts returns mock related products.
+func (s *AIModelService) GetRelatedProducts(ctx context.Context, productID uint64) ([]ProductRecommendationDTO, error) {
+	// Mock logic: return random related products
+	return []ProductRecommendationDTO{
+		{ProductID: 201, Score: 0.92, Reason: "Frequently bought together"},
+		{ProductID: 202, Score: 0.85, Reason: "Similar style"},
+	}, nil
+}
+
+// FeedItemDTO represents a feed item.
+type FeedItemDTO struct {
+	ItemType  string
+	ItemID    string
+	Title     string
+	ImageURL  string
+	TargetURL string
+	Score     float64
+}
+
+// GetPersonalizedFeed returns mock feed items.
+func (s *AIModelService) GetPersonalizedFeed(ctx context.Context, userID uint64) ([]FeedItemDTO, error) {
+	// Mock logic: return random feed items
+	return []FeedItemDTO{
+		{ItemType: "product", ItemID: "301", Title: "New Arrival", ImageURL: "http://example.com/img1.jpg", TargetURL: "http://example.com/prod/301", Score: 0.99},
+		{ItemType: "article", ItemID: "ART-001", Title: "Fashion Trends", ImageURL: "http://example.com/img2.jpg", TargetURL: "http://example.com/art/001", Score: 0.95},
+	}, nil
+}
+
+// RecognizeImageContent returns mock image labels.
+func (s *AIModelService) RecognizeImageContent(ctx context.Context, imageURL string) ([]string, error) {
+	// Mock logic: return random labels
+	return []string{"cat", "animal", "pet"}, nil
+}
+
+// ProductSearchResultDTO represents an image search result.
+type ProductSearchResultDTO struct {
+	ProductID       uint64
+	SimilarityScore float64
+}
+
+// SearchImageByImage returns mock image search results.
+func (s *AIModelService) SearchImageByImage(ctx context.Context, imageURL string) ([]ProductSearchResultDTO, error) {
+	// Mock logic: return random image search results
+	return []ProductSearchResultDTO{
+		{ProductID: 401, SimilarityScore: 0.98},
+		{ProductID: 402, SimilarityScore: 0.85},
+	}, nil
+}
+
+// AnalyzeReviewSentiment returns mock sentiment analysis.
+func (s *AIModelService) AnalyzeReviewSentiment(ctx context.Context, text string) (float64, string, error) {
+	// Mock logic: return random sentiment score and explanation
+	return 0.8, "Positive sentiment detected", nil
+}
+
+// ExtractKeywordsFromText returns mock keywords.
+func (s *AIModelService) ExtractKeywordsFromText(ctx context.Context, text string) ([]string, error) {
+	// Mock logic: return random keywords
+	return []string{"keyword1", "keyword2", "keyword3"}, nil
+}
+
+// SummarizeText returns mock summary.
+func (s *AIModelService) SummarizeText(ctx context.Context, text string) (string, error) {
+	// Mock logic: return a fixed summary
+	return "This is a mock summary of the text.", nil
+}
+
+// FraudScoreDTO represents fraud score result.
+type FraudScoreDTO struct {
+	FraudScore   float64
+	IsFraudulent bool
+	Reasons      []string
+}
+
+// GetFraudScore returns mock fraud score.
+func (s *AIModelService) GetFraudScore(ctx context.Context, userID uint64, amount float64, ip string) (FraudScoreDTO, error) {
+	// Mock logic: return random fraud score
+	return FraudScoreDTO{
+		FraudScore:   0.05,
+		IsFraudulent: false,
+		Reasons:      []string{"Normal transaction pattern"},
+	}, nil
 }

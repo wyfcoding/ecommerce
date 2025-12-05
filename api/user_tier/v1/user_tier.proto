@@ -5,7 +5,7 @@ package api.user_tier.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/api/user_tier/v1;usertierv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/user_tier/v1;usertierv1";
 
 service UserTierService {
   // Tier Management

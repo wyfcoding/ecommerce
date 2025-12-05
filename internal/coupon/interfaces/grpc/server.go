@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"     // 导入格式化包，用于错误信息。
 	"strconv" // 导入字符串和数字转换工具。
+	"time"
 
-	pb "github.com/wyfcoding/ecommerce/api/coupon/v1"              // 导入优惠券模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/coupon/v1"              // 导入优惠券模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/coupon/application"   // 导入优惠券模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity" // 导入优惠券模块的领域实体。
 
@@ -61,24 +62,42 @@ func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) 
 // req: 包含优惠券ID的请求体。
 // 返回优惠券响应和可能发生的gRPC错误。
 func (s *Server) GetCouponByID(ctx context.Context, req *pb.GetCouponByIDRequest) (*pb.CouponResponse, error) {
-	// 注意：应用服务层目前没有直接暴露根据ID获取Coupon的方法（只有仓储层有）。
-	// 理想情况下，应用服务层应该提供一个公共方法来获取优惠券详情。
-	// 为避免直接访问仓储（不符合DDD原则），此处暂时返回Unimplemented错误。
-	return nil, status.Error(codes.Unimplemented, "GetCouponByID not exposed in application service")
+	coupon, err := s.app.GetCoupon(ctx, req.CouponId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get coupon: %v", err))
+	}
+	return &pb.CouponResponse{
+		Coupon: s.toProto(coupon),
+	}, nil
 }
 
 // UpdateCoupon 处理更新优惠券信息的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) UpdateCoupon(ctx context.Context, req *pb.UpdateCouponRequest) (*pb.CouponResponse, error) {
-	// TODO: 实现UpdateCoupon逻辑。
-	return nil, status.Error(codes.Unimplemented, "UpdateCoupon not implemented")
+	var validFrom, validUntil *time.Time
+	if req.ValidFrom != nil {
+		t := req.ValidFrom.AsTime()
+		validFrom = &t
+	}
+	if req.ValidUntil != nil {
+		t := req.ValidUntil.AsTime()
+		validUntil = &t
+	}
+
+	coupon, err := s.app.UpdateCoupon(ctx, req.CouponId, req.Name, req.Description, validFrom, validUntil, req.TotalQuantity)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update coupon: %v", err))
+	}
+	return &pb.CouponResponse{
+		Coupon: s.toProto(coupon),
+	}, nil
 }
 
 // DeleteCoupon 处理删除优惠券的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) DeleteCoupon(ctx context.Context, req *pb.DeleteCouponRequest) (*emptypb.Empty, error) {
-	// TODO: 实现DeleteCoupon逻辑。
-	return nil, status.Error(codes.Unimplemented, "DeleteCoupon not implemented")
+	if err := s.app.DeleteCoupon(ctx, req.CouponId); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete coupon: %v", err))
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // IssueCoupon 处理向用户发放优惠券的gRPC请求。

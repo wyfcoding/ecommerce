@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "ecommerce/api/cart/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/cart/v1;v1";
 
 // Cart 购物车服务定义了所有与用户购物车管理相关的RPC接口。
 service Cart {

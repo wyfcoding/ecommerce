@@ -31,19 +31,20 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /plans 路由组，用于订阅计划管理。
 	plans := r.Group("/plans")
 	{
-		plans.POST("", h.CreatePlan) // 创建订阅计划。
-		plans.GET("", h.ListPlans)   // 获取订阅计划列表。
-		// TODO: 补充获取计划详情、更新计划、删除计划、启用/禁用计划等接口。
+		plans.POST("", h.CreatePlan)    // 创建订阅计划。
+		plans.GET("", h.ListPlans)      // 获取订阅计划列表。
+		plans.GET("/:id", h.GetPlan)    // 获取计划详情。
+		plans.PUT("/:id", h.UpdatePlan) // 更新计划。
 	}
 
 	// /subscriptions 路由组，用于用户订阅管理。
 	subscriptions := r.Group("/subscriptions")
 	{
-		subscriptions.POST("", h.Subscribe)         // 订阅计划。
-		subscriptions.GET("", h.ListSubscriptions)  // 获取用户订阅列表。
-		subscriptions.POST("/:id/cancel", h.Cancel) // 取消订阅。
-		subscriptions.POST("/:id/renew", h.Renew)   // 续订。
-		// TODO: 补充获取订阅详情、更新订阅设置（如自动续订）等接口。
+		subscriptions.POST("", h.Subscribe)          // 订阅计划。
+		subscriptions.GET("", h.ListSubscriptions)   // 获取用户订阅列表。
+		subscriptions.GET("/:id", h.GetSubscription) // 获取订阅详情。
+		subscriptions.POST("/:id/cancel", h.Cancel)  // 取消订阅。
+		subscriptions.POST("/:id/renew", h.Renew)    // 续订。
 	}
 }
 
@@ -191,4 +192,85 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 		"items":       subs,
 		"total_count": total,
 	})
+}
+
+// GetPlan handles the request to get a subscription plan by ID.
+// Method: GET
+// Path: /plans/:id
+func (h *Handler) GetPlan(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	plan, err := h.app.GetPlan(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("failed to get plan", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if plan == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "plan not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, plan)
+}
+
+// UpdatePlan handles the request to update a subscription plan.
+// Method: PUT
+// Path: /plans/:id
+func (h *Handler) UpdatePlan(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req struct {
+		Name        *string  `json:"name"`
+		Description *string  `json:"description"`
+		Price       *uint64  `json:"price"`
+		Duration    *int32   `json:"duration"`
+		Features    []string `json:"features"`
+		Enabled     *bool    `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	plan, err := h.app.UpdatePlan(c.Request.Context(), id, req.Name, req.Description, req.Price, req.Duration, req.Features, req.Enabled)
+	if err != nil {
+		h.logger.Error("failed to update plan", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, plan)
+}
+
+// GetSubscription handles the request to get a subscription by ID.
+// Method: GET
+// Path: /subscriptions/:id
+func (h *Handler) GetSubscription(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	sub, err := h.app.GetSubscription(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("failed to get subscription", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if sub == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "subscription not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, sub)
 }

@@ -157,8 +157,66 @@ func (a *AfterSales) Complete() {
 }
 
 // Cancel 取消售后申请，更新售后单状态为“已取消”，并记录取消时间。
+// Cancel 取消售后申请，更新售后单状态为“已取消”，并记录取消时间。
 func (a *AfterSales) Cancel() {
 	a.Status = AfterSalesStatusCancelled // 状态更新为“已取消”。
 	now := time.Now()
 	a.CancelledAt = &now // 记录取消时间。
+}
+
+// SupportTicketStatus 定义工单状态。
+type SupportTicketStatus int8
+
+const (
+	SupportTicketStatusOpen     SupportTicketStatus = 1
+	SupportTicketStatusPending  SupportTicketStatus = 2
+	SupportTicketStatusResolved SupportTicketStatus = 3
+	SupportTicketStatusClosed   SupportTicketStatus = 4
+)
+
+func (s SupportTicketStatus) String() string {
+	switch s {
+	case SupportTicketStatusOpen:
+		return "Open"
+	case SupportTicketStatusPending:
+		return "Pending"
+	case SupportTicketStatusResolved:
+		return "Resolved"
+	case SupportTicketStatusClosed:
+		return "Closed"
+	default:
+		return "Unknown"
+	}
+}
+
+// SupportTicket 客服工单实体。
+type SupportTicket struct {
+	gorm.Model
+	TicketNo    string                  `gorm:"type:varchar(64);uniqueIndex;not null;comment:工单编号"`
+	UserID      uint64                  `gorm:"not null;index;comment:用户ID"`
+	OrderID     uint64                  `gorm:"index;comment:关联订单ID"`
+	Subject     string                  `gorm:"type:varchar(255);not null;comment:主题"`
+	Description string                  `gorm:"type:text;comment:描述"`
+	Status      SupportTicketStatus     `gorm:"type:tinyint;not null;default:1;comment:状态"`
+	Priority    int8                    `gorm:"type:tinyint;default:1;comment:优先级"` // 1: Low, 2: Medium, 3: High
+	Category    string                  `gorm:"type:varchar(64);comment:分类"`
+	Messages    []*SupportTicketMessage `gorm:"foreignKey:TicketID"`
+}
+
+// SupportTicketMessage 工单消息实体。
+type SupportTicketMessage struct {
+	gorm.Model
+	TicketID   uint64 `gorm:"not null;index;comment:工单ID"`
+	SenderID   uint64 `gorm:"not null;comment:发送者ID"`                  // 0 for system/agent, >0 for user
+	SenderType string `gorm:"type:varchar(32);not null;comment:发送者类型"` // User, Agent, System
+	Content    string `gorm:"type:text;not null;comment:消息内容"`
+	IsRead     bool   `gorm:"default:false;comment:是否已读"`
+}
+
+// AfterSalesConfig 售后配置实体。
+type AfterSalesConfig struct {
+	gorm.Model
+	Key         string `gorm:"type:varchar(128);uniqueIndex;not null;comment:配置键"`
+	Value       string `gorm:"type:text;comment:配置值"`
+	Description string `gorm:"type:varchar(255);comment:描述"`
 }

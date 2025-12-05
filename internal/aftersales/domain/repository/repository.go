@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity" // 导入售后领域的实体定义。
 )
 
@@ -30,6 +31,18 @@ type AfterSalesRepository interface {
 	CreateLog(ctx context.Context, log *entity.AfterSalesLog) error
 	// ListLogs 列出指定售后申请的所有操作日志。
 	ListLogs(ctx context.Context, afterSalesID uint64) ([]*entity.AfterSalesLog, error)
+
+	// --- Support Ticket methods ---
+	CreateSupportTicket(ctx context.Context, ticket *entity.SupportTicket) error
+	GetSupportTicket(ctx context.Context, id uint64) (*entity.SupportTicket, error)
+	UpdateSupportTicket(ctx context.Context, ticket *entity.SupportTicket) error
+	ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*entity.SupportTicket, int64, error)
+	CreateSupportTicketMessage(ctx context.Context, msg *entity.SupportTicketMessage) error
+	ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*entity.SupportTicketMessage, error)
+
+	// --- Config methods ---
+	GetConfig(ctx context.Context, key string) (*entity.AfterSalesConfig, error)
+	SetConfig(ctx context.Context, config *entity.AfterSalesConfig) error
 }
 
 // AfterSalesQuery 结构体定义了查询售后申请的条件。

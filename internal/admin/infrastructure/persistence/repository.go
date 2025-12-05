@@ -275,3 +275,19 @@ func (r *adminRepository) ListOperationLogs(ctx context.Context, adminID uint64,
 
 	return logs, total, nil
 }
+
+// --- SystemSetting methods 系统配置方法 ---
+
+// GetSystemSetting 根据键获取系统配置。
+func (r *adminRepository) GetSystemSetting(ctx context.Context, key string) (*entity.SystemSetting, error) {
+	var setting entity.SystemSetting
+	if err := r.db.WithContext(ctx).Where("key = ?", key).First(&setting).Error; err != nil {
+		return nil, err
+	}
+	return &setting, nil
+}
+
+// SaveSystemSetting 保存系统配置。
+func (r *adminRepository) SaveSystemSetting(ctx context.Context, setting *entity.SystemSetting) error {
+	return r.db.WithContext(ctx).Save(setting).Error
+}

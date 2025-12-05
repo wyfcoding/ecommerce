@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/inventory/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
 	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"

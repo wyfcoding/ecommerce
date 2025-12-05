@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/flashsale/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"

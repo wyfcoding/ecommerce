@@ -5,7 +5,7 @@ package api.dynamic_pricing.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/dynamic_pricing/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/dynamic_pricing/v1;v1";
 
 // DynamicPricingService 动态定价服务定义了所有与动态定价相关的RPC接口。
 service DynamicPricingService {

@@ -6,7 +6,7 @@ import (
 	"fmt"     // 导入格式化包，用于错误信息。
 	"strconv" // 导入字符串和数字转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/api/flashsale/v1"              // 导入秒杀模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"              // 导入秒杀模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"   // 导入秒杀模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity" // 导入秒杀模块的领域实体。
 

@@ -155,3 +155,11 @@ func (a *Admin) RecordLoginFailure() {
 		a.Status = AdminStatusLocked // 将账户状态设置为锁定。
 	}
 }
+
+// SystemSetting 实体代表系统全局设置。
+type SystemSetting struct {
+	gorm.Model
+	Key         string `gorm:"type:varchar(64);uniqueIndex;not null;comment:配置键" json:"key"`
+	Value       string `gorm:"type:text;comment:配置值" json:"value"`
+	Description string `gorm:"type:varchar(255);comment:描述" json:"description"`
+}

@@ -64,6 +64,26 @@ func (r *reviewRepository) List(ctx context.Context, productID uint64, status *e
 	return list, total, nil
 }
 
+// ListByUser 从数据库列出指定用户ID的所有评论记录，支持分页。
+func (r *reviewRepository) ListByUser(ctx context.Context, userID uint64, offset, limit int) ([]*entity.Review, int64, error) {
+	var list []*entity.Review
+	var total int64
+
+	db := r.db.WithContext(ctx).Model(&entity.Review{}).Where("user_id = ?", userID)
+
+	// 统计总记录数。
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 应用分页和排序。
+	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
+}
+
 // Delete 根据ID从数据库删除评论记录。
 // GORM默认进行软删除。
 func (r *reviewRepository) Delete(ctx context.Context, id uint64) error {

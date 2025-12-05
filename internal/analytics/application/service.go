@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"     // 导入分析模块的领域实体。
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository" // 导入分析模块的仓储接口。
@@ -192,4 +193,120 @@ func (s *AnalyticsService) ListDashboards(ctx context.Context, userID uint64, pa
 func (s *AnalyticsService) ListReports(ctx context.Context, userID uint64, page, pageSize int) ([]*entity.Report, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.ListReports(ctx, userID, offset, pageSize)
+}
+
+// UpdateDashboard 更新仪表板信息。
+func (s *AnalyticsService) UpdateDashboard(ctx context.Context, id uint64, name, description string) (*entity.Dashboard, error) {
+	dashboard, err := s.repo.GetDashboard(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if dashboard == nil {
+		return nil, fmt.Errorf("dashboard not found")
+	}
+
+	if name != "" {
+		dashboard.Name = name
+	}
+	if description != "" {
+		dashboard.Description = description
+	}
+
+	if err := s.repo.UpdateDashboard(ctx, dashboard); err != nil {
+		return nil, err
+	}
+	return dashboard, nil
+}
+
+// DeleteDashboard 删除仪表板。
+func (s *AnalyticsService) DeleteDashboard(ctx context.Context, id uint64) error {
+	return s.repo.DeleteDashboard(ctx, id)
+}
+
+// UpdateReport 更新报告信息。
+func (s *AnalyticsService) UpdateReport(ctx context.Context, id uint64, title, description string) (*entity.Report, error) {
+	report, err := s.repo.GetReport(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if report == nil {
+		return nil, fmt.Errorf("report not found")
+	}
+
+	if title != "" {
+		report.Title = title
+	}
+	if description != "" {
+		report.Description = description
+	}
+
+	if err := s.repo.UpdateReport(ctx, report); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
+// DeleteReport 删除报告。
+func (s *AnalyticsService) DeleteReport(ctx context.Context, id uint64) error {
+	return s.repo.DeleteReport(ctx, id)
+}
+
+// GetUserActivityReport 获取用户活动报告。
+// 这里是一个简化的实现，实际可能需要复杂的聚合查询。
+func (s *AnalyticsService) GetUserActivityReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
+	// 示例：查询活跃用户数
+	query := &repository.MetricQuery{
+		MetricType: entity.MetricTypeActiveUsers,
+		StartTime:  startTime,
+		EndTime:    endTime,
+	}
+	metrics, _, err := s.repo.ListMetrics(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	// 聚合逻辑...
+	return map[string]interface{}{
+		"active_users": len(metrics), // 仅作为示例
+	}, nil
+}
+
+// GetProductPerformanceReport 获取产品性能报告。
+func (s *AnalyticsService) GetProductPerformanceReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
+	// 示例逻辑
+	return map[string]interface{}{
+		"top_products": []string{},
+	}, nil
+}
+
+// GetConversionFunnelReport 获取转化漏斗报告。
+func (s *AnalyticsService) GetConversionFunnelReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
+	// 示例逻辑
+	return map[string]interface{}{
+		"funnel_steps": []string{},
+	}, nil
+}
+
+// GetCustomReport 获取自定义报告。
+func (s *AnalyticsService) GetCustomReport(ctx context.Context, reportID uint64, startTime, endTime time.Time) (map[string]interface{}, error) {
+	// 示例逻辑
+	return map[string]interface{}{
+		"custom_data": "data",
+	}, nil
+}
+
+// GetUserBehaviorPath 获取用户行为路径。
+func (s *AnalyticsService) GetUserBehaviorPath(ctx context.Context, userID uint64, startTime, endTime time.Time) (map[string]interface{}, error) {
+	// 示例逻辑
+	return map[string]interface{}{
+		"path": []string{},
+	}, nil
+}
+
+// GetUserSegments 获取用户细分。
+func (s *AnalyticsService) GetUserSegments(ctx context.Context) (map[string]interface{}, error) {
+	// 示例逻辑
+	return map[string]interface{}{
+		"segments": []string{},
+	}, nil
 }

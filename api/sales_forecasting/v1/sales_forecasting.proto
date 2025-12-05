@@ -4,7 +4,7 @@ package api.sales_forecasting.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "ecommerce/api/sales_forecasting/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/sales_forecasting/v1;v1";
 
 // SalesForecastingService 定义了销售预测服务接口
 service SalesForecastingService {

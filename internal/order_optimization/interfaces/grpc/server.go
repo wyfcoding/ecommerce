@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/api/order_optimization/v1"              // 导入订单优化模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/order_optimization/v1"              // 导入订单优化模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/application"   // 导入订单优化模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/domain/entity" // 导入订单优化模块的领域实体。
 

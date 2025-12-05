@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化库。
 	"time"    // 导入时间库。
 
-	pb "github.com/wyfcoding/ecommerce/api/user/v1"            // 导入用户模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/user/v1"            // 导入用户模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/user/application" // 导入用户模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/user/domain"      // 导入用户模块的领域实体。
 

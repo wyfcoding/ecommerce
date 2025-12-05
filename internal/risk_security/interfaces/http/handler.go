@@ -8,8 +8,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risk_security/application" // 导入风控安全模块的应用服务。
 	"github.com/wyfcoding/ecommerce/pkg/response"                       // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了RiskSecurity模块的HTTP处理层。
@@ -142,16 +143,89 @@ func (h *Handler) RecordBehavior(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Behavior recorded successfully", nil)
 }
 
+// GetRiskAnalysisResult handles the request to get risk analysis result.
+// Method: GET
+// Path: /risk/result/:user_id
+func (h *Handler) GetRiskAnalysisResult(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
+		return
+	}
+
+	result, err := h.service.GetRiskAnalysisResult(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get risk analysis result", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get risk analysis result", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Risk analysis result retrieved", result)
+}
+
+// CheckBlacklist handles the request to check if a value is blacklisted.
+// Method: GET
+// Path: /risk/blacklist
+func (h *Handler) CheckBlacklist(c *gin.Context) {
+	bType := c.Query("type")
+	value := c.Query("value")
+
+	if bType == "" || value == "" {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Missing type or value", "type and value query parameters are required")
+		return
+	}
+
+	blacklist, err := h.service.CheckBlacklist(c.Request.Context(), bType, value)
+	if err != nil {
+		// If not found, it might return error or nil depending on repo implementation.
+		// Assuming error if not found or db error.
+		// If it's a "not found" error, we should return 404 or just say not blacklisted.
+		// For simplicity, let's return error for now.
+		h.logger.Error("Failed to check blacklist", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to check blacklist", err.Error())
+		return
+	}
+
+	if blacklist == nil {
+		response.SuccessWithStatus(c, http.StatusOK, "Not blacklisted", gin.H{"blacklisted": false})
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Blacklisted", gin.H{"blacklisted": true, "entry": blacklist})
+}
+
+// GetUserBehavior handles the request to get user behavior.
+// Method: GET
+// Path: /risk/behavior/:user_id
+func (h *Handler) GetUserBehavior(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
+		return
+	}
+
+	behavior, err := h.service.GetUserBehavior(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user behavior", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get user behavior", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "User behavior retrieved", behavior)
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册RiskSecurity模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /risk 路由组，用于所有风控安全相关接口。
 	group := r.Group("/risk")
 	{
-		group.POST("/evaluate", h.EvaluateRisk)               // 评估风险。
-		group.POST("/blacklist", h.AddToBlacklist)            // 添加到黑名单。
-		group.DELETE("/blacklist/:id", h.RemoveFromBlacklist) // 从黑名单移除。
-		group.POST("/behavior", h.RecordBehavior)             // 记录用户行为。
-		// TODO: 补充获取风险分析结果、获取黑名单列表、获取用户行为等接口。
+		group.POST("/evaluate", h.EvaluateRisk)                // 评估风险。
+		group.POST("/blacklist", h.AddToBlacklist)             // 添加到黑名单。
+		group.GET("/blacklist", h.CheckBlacklist)              // 检查黑名单。
+		group.DELETE("/blacklist/:id", h.RemoveFromBlacklist)  // 从黑名单移除。
+		group.POST("/behavior", h.RecordBehavior)              // 记录用户行为。
+		group.GET("/behavior/:user_id", h.GetUserBehavior)     // 获取用户行为。
+		group.GET("/result/:user_id", h.GetRiskAnalysisResult) // 获取风险分析结果。
 	}
 }

@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/admin/application" // 导入Admin模块的应用服务。
 	"github.com/wyfcoding/ecommerce/pkg/response"               // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Admin模块的HTTP处理层。
@@ -193,6 +194,249 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Role assigned successfully", nil)
 }
 
+// --- Additional Handlers ---
+
+// UpdateAdmin 处理更新管理员信息的HTTP请求。
+// Method: PUT
+// Path: /admin/users/:id
+func (h *Handler) UpdateAdmin(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Email    string   `json:"email"`
+		RealName string   `json:"real_name"`
+		Phone    string   `json:"phone"`
+		RoleIDs  []uint64 `json:"role_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	admin, err := h.service.UpdateAdmin(c.Request.Context(), id, req.Email, req.RealName, req.Phone, req.RoleIDs)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update admin", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Admin updated successfully", admin)
+}
+
+// DeleteAdmin 处理删除管理员的HTTP请求。
+// Method: DELETE
+// Path: /admin/users/:id
+func (h *Handler) DeleteAdmin(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.DeleteAdmin(c.Request.Context(), id); err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete admin", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Admin deleted successfully", nil)
+}
+
+// GetRole 处理获取角色详情的HTTP请求。
+// Method: GET
+// Path: /admin/roles/:id
+func (h *Handler) GetRole(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	role, err := h.service.GetRole(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get role", err.Error())
+		return
+	}
+	if role == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Role not found", "role not found")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Role retrieved successfully", role)
+}
+
+// UpdateRole 处理更新角色的HTTP请求。
+// Method: PUT
+// Path: /admin/roles/:id
+func (h *Handler) UpdateRole(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Name          string   `json:"name"`
+		Description   string   `json:"description"`
+		PermissionIDs []uint64 `json:"permission_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	role, err := h.service.UpdateRole(c.Request.Context(), id, req.Name, req.Description, req.PermissionIDs)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update role", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Role updated successfully", role)
+}
+
+// DeleteRole 处理删除角色的HTTP请求。
+// Method: DELETE
+// Path: /admin/roles/:id
+func (h *Handler) DeleteRole(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.DeleteRole(c.Request.Context(), id); err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete role", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Role deleted successfully", nil)
+}
+
+// ListRoles 处理列出角色的HTTP请求。
+// Method: GET
+// Path: /admin/roles
+func (h *Handler) ListRoles(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	roles, total, err := h.service.ListRoles(c.Request.Context(), page, pageSize)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list roles", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Roles listed successfully", gin.H{
+		"data":      roles,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// CreatePermission 处理创建权限的HTTP请求。
+// Method: POST
+// Path: /admin/permissions
+func (h *Handler) CreatePermission(c *gin.Context) {
+	var req struct {
+		Name     string `json:"name" binding:"required"`
+		Code     string `json:"code" binding:"required"`
+		Type     string `json:"type" binding:"required"`
+		Path     string `json:"path"`
+		Method   string `json:"method"`
+		ParentID uint64 `json:"parent_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	perm, err := h.service.CreatePermission(c.Request.Context(), req.Name, req.Code, req.Type, req.Path, req.Method, req.ParentID)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create permission", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Permission created successfully", perm)
+}
+
+// ListPermissions 处理列出权限的HTTP请求。
+// Method: GET
+// Path: /admin/permissions
+func (h *Handler) ListPermissions(c *gin.Context) {
+	perms, err := h.service.ListPermissions(c.Request.Context())
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list permissions", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Permissions listed successfully", perms)
+}
+
+// ListAuditLogs 处理列出审计日志的HTTP请求。
+// Method: GET
+// Path: /admin/audit-logs
+func (h *Handler) ListAuditLogs(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	adminID, _ := strconv.ParseUint(c.Query("admin_id"), 10, 64)
+
+	logs, total, err := h.service.ListAuditLogs(c.Request.Context(), adminID, page, pageSize)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list audit logs", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Audit logs listed successfully", gin.H{
+		"data":      logs,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// GetSystemSetting 处理获取系统设置的HTTP请求。
+// Method: GET
+// Path: /admin/settings/:key
+func (h *Handler) GetSystemSetting(c *gin.Context) {
+	key := c.Param("key")
+	setting, err := h.service.GetSystemSetting(c.Request.Context(), key)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get setting", err.Error())
+		return
+	}
+	if setting == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Setting not found", "setting not found")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Setting retrieved successfully", setting)
+}
+
+// UpdateSystemSetting 处理更新系统设置的HTTP请求。
+// Method: PUT
+// Path: /admin/settings/:key
+func (h *Handler) UpdateSystemSetting(c *gin.Context) {
+	key := c.Param("key")
+	var req struct {
+		Value       string `json:"value" binding:"required"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	setting, err := h.service.UpdateSystemSetting(c.Request.Context(), key, req.Value, req.Description)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update setting", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Setting updated successfully", setting)
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Admin模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -207,9 +451,24 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	adminGroup := r.Group("/admin")
 	// TODO: 在这里添加认证中间件（例如JWTAuth），保护/admin组的接口。
 	{
-		adminGroup.GET("/profile", h.GetProfile)      // 获取当前登录管理员的个人信息。
-		adminGroup.GET("/list", h.ListAdmins)         // 获取管理员列表。
+		adminGroup.GET("/profile", h.GetProfile)       // 获取当前登录管理员的个人信息。
+		adminGroup.GET("/list", h.ListAdmins)          // 获取管理员列表。
+		adminGroup.PUT("/users/:id", h.UpdateAdmin)    // 更新管理员信息。
+		adminGroup.DELETE("/users/:id", h.DeleteAdmin) // 删除管理员。
+
 		adminGroup.POST("/role", h.CreateRole)        // 创建角色。
+		adminGroup.GET("/roles", h.ListRoles)         // 获取角色列表。
+		adminGroup.GET("/roles/:id", h.GetRole)       // 获取角色详情。
+		adminGroup.PUT("/roles/:id", h.UpdateRole)    // 更新角色。
+		adminGroup.DELETE("/roles/:id", h.DeleteRole) // 删除角色。
 		adminGroup.POST("/assign-role", h.AssignRole) // 分配角色给管理员。
+
+		adminGroup.POST("/permissions", h.CreatePermission) // 创建权限。
+		adminGroup.GET("/permissions", h.ListPermissions)   // 获取权限列表。
+
+		adminGroup.GET("/audit-logs", h.ListAuditLogs) // 获取审计日志。
+
+		adminGroup.GET("/settings/:key", h.GetSystemSetting)    // 获取系统设置。
+		adminGroup.PUT("/settings/:key", h.UpdateSystemSetting) // 更新系统设置。
 	}
 }

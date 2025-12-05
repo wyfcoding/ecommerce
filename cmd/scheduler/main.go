@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/scheduler/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/scheduler/v1"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/application"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/infrastructure/persistence"
 	schedulergrpc "github.com/wyfcoding/ecommerce/internal/scheduler/interfaces/grpc"

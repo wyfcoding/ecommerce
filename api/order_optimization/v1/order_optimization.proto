@@ -4,7 +4,7 @@ package api.order_optimization.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/api/order_optimization/v1;orderoptimizationv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/order_optimization/v1;orderoptimizationv1";
 
 service OrderOptimizationService {
   rpc MergeOrders(MergeOrdersRequest) returns (MergeOrdersResponse);

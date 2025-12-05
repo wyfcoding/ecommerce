@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/review/domain/entity" // 导入评论领域的实体定义。
 )
 
@@ -18,6 +19,8 @@ type ReviewRepository interface {
 	Get(ctx context.Context, id uint64) (*entity.Review, error)
 	// List 列出指定商品ID的所有评论实体，支持通过状态过滤和分页。
 	List(ctx context.Context, productID uint64, status *entity.ReviewStatus, offset, limit int) ([]*entity.Review, int64, error)
+	// ListByUser 列出指定用户ID的所有评论实体，支持分页。
+	ListByUser(ctx context.Context, userID uint64, offset, limit int) ([]*entity.Review, int64, error)
 	// Delete 根据ID删除评论实体。
 	Delete(ctx context.Context, id uint64) error
 	// GetProductStats 获取指定商品的评分统计数据。

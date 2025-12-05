@@ -4,7 +4,7 @@ package api.advanced_coupon.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "ecommerce/api/advanced_coupon/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/advanced_coupon/v1;v1";
 
 // AdvancedCouponService 定义了高级优惠券服务接口
 service AdvancedCouponService {

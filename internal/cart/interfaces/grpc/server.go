@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/api/cart/v1"              // 导入购物车模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/cart/v1"              // 导入购物车模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/cart/application"   // 导入购物车模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/cart/domain/entity" // 导入购物车模块的领域实体。
 
@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
 	"google.golang.org/protobuf/types/known/emptypb"     // 导入空消息类型。
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Server 结构体实现了 CartService 的 gRPC 服务端接口。
@@ -102,21 +103,39 @@ func (s *Server) ClearCart(ctx context.Context, req *pb.ClearCartRequest) (*empt
 }
 
 // MergeCarts 处理合并购物车的gRPC请求。
-// 此方法尚未实现。
+// req: 包含源用户ID和目标用户ID的请求体。
+// 返回合并后的购物车信息和可能发生的gRPC错误。
 func (s *Server) MergeCarts(ctx context.Context, req *pb.MergeCartsRequest) (*pb.CartInfo, error) {
-	return nil, status.Error(codes.Unimplemented, "MergeCarts not implemented")
+	if err := s.app.MergeCarts(ctx, req.SourceUserId, req.TargetUserId); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to merge carts: %v", err))
+	}
+
+	// 合并成功后,返回目标用户的购物车信息。
+	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.TargetUserId})
 }
 
 // ApplyCouponToCart 处理为购物车应用优惠券的gRPC请求。
-// 此方法尚未实现。
+// req: 包含用户ID和优惠券码的请求体。
+// 返回应用优惠券后的购物车信息和可能发生的gRPC错误。
 func (s *Server) ApplyCouponToCart(ctx context.Context, req *pb.ApplyCouponToCartRequest) (*pb.CartInfo, error) {
-	return nil, status.Error(codes.Unimplemented, "ApplyCouponToCart not implemented")
+	if err := s.app.ApplyCoupon(ctx, req.UserId, req.CouponCode); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to apply coupon to cart: %v", err))
+	}
+
+	// 应用优惠券成功后,返回最新的购物车信息。
+	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 
 // RemoveCouponFromCart 处理从购物车中移除优惠券的gRPC请求。
-// 此方法尚未实现。
+// req: 包含用户ID的请求体。
+// 返回移除优惠券后的购物车信息和可能发生的gRPC错误。
 func (s *Server) RemoveCouponFromCart(ctx context.Context, req *pb.RemoveCouponFromCartRequest) (*pb.CartInfo, error) {
-	return nil, status.Error(codes.Unimplemented, "RemoveCouponFromCart not implemented")
+	if err := s.app.RemoveCoupon(ctx, req.UserId); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove coupon from cart: %v", err))
+	}
+
+	// 移除优惠券成功后,返回最新的购物车信息。
+	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 
 // toProto 是一个辅助函数，将领域层的 Cart 实体转换为 protobuf 的 CartInfo 消息。
@@ -150,13 +169,23 @@ func (s *Server) toProto(cart *entity.Cart) *pb.CartInfo {
 	}
 
 	return &pb.CartInfo{
-		UserId:         cart.UserID,                     // 用户ID。
-		Items:          items,                           // 购物车商品项列表。
-		TotalQuantity:  totalQuantity,                   // 购物车中商品总数量。
-		TotalAmount:    totalAmount,                     // 购物车中商品总金额（分）。
-		DiscountAmount: 0,                               // 优惠金额（当前未实现）。
-		ActualAmount:   totalAmount,                     // 实际支付金额（当前等于总金额）。
-		CreatedAt:      timestamppb.New(cart.CreatedAt), // 创建时间。
-		UpdatedAt:      timestamppb.New(cart.UpdatedAt), // 更新时间。
+		UserId:            cart.UserID,                                  // 用户ID。
+		Items:             items,                                        // 购物车商品项列表。
+		TotalQuantity:     totalQuantity,                                // 购物车中商品总数量。
+		TotalAmount:       totalAmount,                                  // 购物车中商品总金额(分)。
+		DiscountAmount:    0,                                            // 优惠金额(当前未实现)。
+		ActualAmount:      totalAmount,                                  // 实际支付金额(当前等于总金额)。
+		AppliedCouponCode: getCouponCodeWrapper(cart.AppliedCouponCode), // 已应用的优惠券码。
+		CreatedAt:         timestamppb.New(cart.CreatedAt),              // 创建时间。
+		UpdatedAt:         timestamppb.New(cart.UpdatedAt),              // 更新时间。
 	}
+}
+
+// getCouponCodeWrapper 将优惠券码转换为StringValue包装器。
+// 如果优惠券码为空,则返回nil。
+func getCouponCodeWrapper(code string) *wrapperspb.StringValue {
+	if code == "" {
+		return nil
+	}
+	return wrapperspb.String(code)
 }

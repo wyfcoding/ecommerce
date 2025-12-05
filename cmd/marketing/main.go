@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/marketing/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/marketing/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"
 	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/persistence"
 	marketinggrpc "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/grpc"

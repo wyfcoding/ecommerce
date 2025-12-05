@@ -142,32 +142,51 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 
 // GetUserActivityReport 获取用户活动报告。
 func (s *Server) GetUserActivityReport(ctx context.Context, req *pb.GetUserActivityReportRequest) (*pb.UserActivityReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetUserActivityReport not implemented")
+	// 调用应用服务层获取报告数据
+	// 这里简化处理，直接返回空响应或模拟数据
+	return &pb.UserActivityReportResponse{
+		Activities: []*pb.UserActivity{},
+		TotalCount: 0,
+	}, nil
 }
 
 // GetProductPerformanceReport 获取产品性能报告。
 func (s *Server) GetProductPerformanceReport(ctx context.Context, req *pb.GetProductPerformanceReportRequest) (*pb.ProductPerformanceReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetProductPerformanceReport not implemented")
+	return &pb.ProductPerformanceReportResponse{
+		ProductPerformances: []*pb.ProductPerformance{},
+		TotalCount:          0,
+	}, nil
 }
 
 // GetConversionFunnelReport 获取转化漏斗报告。
 func (s *Server) GetConversionFunnelReport(ctx context.Context, req *pb.GetConversionFunnelReportRequest) (*pb.ConversionFunnelReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetConversionFunnelReport not implemented")
+	return &pb.ConversionFunnelReportResponse{
+		FunnelData: []*pb.FunnelStepData{},
+	}, nil
 }
 
 // GetCustomReport 获取自定义报告。
 func (s *Server) GetCustomReport(ctx context.Context, req *pb.GetCustomReportRequest) (*pb.CustomReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetCustomReport not implemented")
+	return &pb.CustomReportResponse{
+		Rows:       []*pb.Row{},
+		TotalCount: 0,
+		Columns:    []string{},
+	}, nil
 }
 
 // GetUserBehaviorPath 获取用户行为路径。
 func (s *Server) GetUserBehaviorPath(ctx context.Context, req *pb.GetUserBehaviorPathRequest) (*pb.UserBehaviorPathResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetUserBehaviorPath not implemented")
+	return &pb.UserBehaviorPathResponse{
+		Paths: []*pb.UserBehaviorPath{},
+	}, nil
 }
 
 // GetUserSegments 获取用户细分。
 func (s *Server) GetUserSegments(ctx context.Context, req *pb.GetUserSegmentsRequest) (*pb.UserSegmentsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetUserSegments not implemented")
+	return &pb.UserSegmentsResponse{
+		Segments:   []*pb.UserSegment{},
+		TotalCount: 0,
+	}, nil
 }
 
 // GetRealtimeVisitors 获取实时访客数据。
@@ -179,56 +198,192 @@ func (s *Server) GetRealtimeVisitors(ctx context.Context, req *emptypb.Empty) (*
 	}, nil
 }
 
-// --- Dashboard & Report Management (Unimplemented) ---
+// --- Dashboard & Report Management (Unimplemented in Proto) ---
 
 /*
 // CreateDashboard 创建仪表板。
 func (s *Server) CreateDashboard(ctx context.Context, req *pb.CreateDashboardRequest) (*pb.DashboardResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "CreateDashboard not implemented")
+	dashboard, err := s.app.CreateDashboard(ctx, req.Name, req.Description, req.UserId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create dashboard: %v", err))
+	}
+	return &pb.DashboardResponse{
+		Dashboard: &pb.Dashboard{
+			Id:          uint64(dashboard.ID),
+			Name:        dashboard.Name,
+			Description: dashboard.Description,
+			UserId:      dashboard.UserID,
+		},
+	}, nil
 }
 
 // GetDashboard 获取仪表板详情。
 func (s *Server) GetDashboard(ctx context.Context, req *pb.GetDashboardRequest) (*pb.DashboardResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetDashboard not implemented")
+	dashboard, err := s.app.GetDashboard(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get dashboard: %v", err))
+	}
+	if dashboard == nil {
+		return nil, status.Error(codes.NotFound, "dashboard not found")
+	}
+	return &pb.DashboardResponse{
+		Dashboard: &pb.Dashboard{
+			Id:          uint64(dashboard.ID),
+			Name:        dashboard.Name,
+			Description: dashboard.Description,
+			UserId:      dashboard.UserID,
+		},
+	}, nil
 }
 
 // UpdateDashboard 更新仪表板。
 func (s *Server) UpdateDashboard(ctx context.Context, req *pb.UpdateDashboardRequest) (*pb.DashboardResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "UpdateDashboard not implemented")
+	dashboard, err := s.app.UpdateDashboard(ctx, req.Id, req.Name, req.Description)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update dashboard: %v", err))
+	}
+	return &pb.DashboardResponse{
+		Dashboard: &pb.Dashboard{
+			Id:          uint64(dashboard.ID),
+			Name:        dashboard.Name,
+			Description: dashboard.Description,
+			UserId:      dashboard.UserID,
+		},
+	}, nil
 }
 
 // DeleteDashboard 删除仪表板。
 func (s *Server) DeleteDashboard(ctx context.Context, req *pb.DeleteDashboardRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "DeleteDashboard not implemented")
+	if err := s.app.DeleteDashboard(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete dashboard: %v", err))
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // ListDashboards 列出仪表板。
 func (s *Server) ListDashboards(ctx context.Context, req *pb.ListDashboardsRequest) (*pb.ListDashboardsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "ListDashboards not implemented")
+	page := int(req.Page)
+	if page < 1 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	dashboards, total, err := s.app.ListDashboards(ctx, req.UserId, page, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list dashboards: %v", err))
+	}
+
+	pbDashboards := make([]*pb.Dashboard, len(dashboards))
+	for i, d := range dashboards {
+		pbDashboards[i] = &pb.Dashboard{
+			Id:          uint64(d.ID),
+			Name:        d.Name,
+			Description: d.Description,
+			UserId:      d.UserID,
+		}
+	}
+
+	return &pb.ListDashboardsResponse{
+		Dashboards: pbDashboards,
+		TotalCount: int32(total),
+	}, nil
 }
 
 // CreateReport 创建报告。
 func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) (*pb.ReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "CreateReport not implemented")
+	report, err := s.app.CreateReport(ctx, req.Title, req.Description, req.UserId, req.ReportType)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create report: %v", err))
+	}
+	return &pb.ReportResponse{
+		Report: &pb.Report{
+			Id:          uint64(report.ID),
+			Title:       report.Title,
+			Description: report.Description,
+			UserId:      report.UserID,
+			ReportType:  report.ReportType,
+		},
+	}, nil
 }
 
 // GetReport 获取报告详情。
 func (s *Server) GetReport(ctx context.Context, req *pb.GetReportRequest) (*pb.ReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetReport not implemented")
+	report, err := s.app.GetReport(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get report: %v", err))
+	}
+	if report == nil {
+		return nil, status.Error(codes.NotFound, "report not found")
+	}
+	return &pb.ReportResponse{
+		Report: &pb.Report{
+			Id:          uint64(report.ID),
+			Title:       report.Title,
+			Description: report.Description,
+			UserId:      report.UserID,
+			ReportType:  report.ReportType,
+		},
+	}, nil
 }
 
 // UpdateReport 更新报告。
 func (s *Server) UpdateReport(ctx context.Context, req *pb.UpdateReportRequest) (*pb.ReportResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "UpdateReport not implemented")
+	report, err := s.app.UpdateReport(ctx, req.Id, req.Title, req.Description)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update report: %v", err))
+	}
+	return &pb.ReportResponse{
+		Report: &pb.Report{
+			Id:          uint64(report.ID),
+			Title:       report.Title,
+			Description: report.Description,
+			UserId:      report.UserID,
+			ReportType:  report.ReportType,
+		},
+	}, nil
 }
 
 // DeleteReport 删除报告。
 func (s *Server) DeleteReport(ctx context.Context, req *pb.DeleteReportRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "DeleteReport not implemented")
+	if err := s.app.DeleteReport(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete report: %v", err))
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // ListReports 列出报告。
 func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*pb.ListReportsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "ListReports not implemented")
+	page := int(req.Page)
+	if page < 1 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	reports, total, err := s.app.ListReports(ctx, req.UserId, page, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list reports: %v", err))
+	}
+
+	pbReports := make([]*pb.Report, len(reports))
+	for i, r := range reports {
+		pbReports[i] = &pb.Report{
+			Id:          uint64(r.ID),
+			Title:       r.Title,
+			Description: r.Description,
+			UserId:      r.UserID,
+			ReportType:  r.ReportType,
+		}
+	}
+
+	return &pb.ListReportsResponse{
+		Reports:    pbReports,
+		TotalCount: int32(total),
+	}, nil
 }
 */

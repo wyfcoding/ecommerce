@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/entity" // 导入收藏夹领域的实体定义。
 )
 
@@ -16,10 +17,14 @@ type WishlistRepository interface {
 	Save(ctx context.Context, wishlist *entity.Wishlist) error
 	// Delete 从数据存储中删除指定用户ID和收藏夹条目ID的记录。
 	Delete(ctx context.Context, userID, id uint64) error
+	// DeleteByProduct 从数据存储中删除指定用户ID和商品ID（SKUID）的记录。
+	DeleteByProduct(ctx context.Context, userID, skuID uint64) error
 	// Get 获取指定用户ID和SKUID的收藏夹实体。
 	Get(ctx context.Context, userID, skuID uint64) (*entity.Wishlist, error)
 	// List 列出指定用户ID的所有收藏夹实体，支持分页。
 	List(ctx context.Context, userID uint64, offset, limit int) ([]*entity.Wishlist, int64, error)
 	// Count 统计指定用户ID的收藏夹条目数量。
 	Count(ctx context.Context, userID uint64) (int64, error)
+	// Clear 清空指定用户的收藏夹。
+	Clear(ctx context.Context, userID uint64) error
 }

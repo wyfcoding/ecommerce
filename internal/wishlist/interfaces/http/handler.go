@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/wishlist/application" // 导入收藏夹模块的应用服务。
 	"github.com/wyfcoding/ecommerce/pkg/response"                  // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Wishlist模块的HTTP处理层。
@@ -156,10 +157,62 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /wishlist 路由组，用于所有收藏夹相关接口。
 	group := r.Group("/wishlist")
 	{
-		group.POST("", h.Add)               // 添加商品到收藏夹。
-		group.DELETE("/:id", h.Remove)      // 从收藏夹移除商品。
-		group.GET("", h.List)               // 获取收藏夹列表。
-		group.GET("/status", h.CheckStatus) // 检查商品收藏状态。
-		// TODO: 补充清空收藏夹等接口。
+		group.POST("", h.Add)                               // 添加商品到收藏夹。
+		group.DELETE("/:id", h.Remove)                      // 从收藏夹移除商品。
+		group.GET("", h.List)                               // 获取收藏夹列表。
+		group.GET("/status", h.CheckStatus)                 // 检查商品收藏状态。
+		group.DELETE("", h.Clear)                           // 清空收藏夹。
+		group.DELETE("/product/:sku_id", h.RemoveByProduct) // 按商品移除。
 	}
+}
+
+// Clear 处理清空收藏夹的HTTP请求。
+// Method: DELETE
+// Path: /wishlist
+func (h *Handler) Clear(c *gin.Context) {
+	// 从查询参数中获取用户ID。
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "User ID required", err.Error())
+		return
+	}
+
+	// 调用应用服务层清空收藏夹。
+	if err := h.service.Clear(c.Request.Context(), userID); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to clear wishlist", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to clear wishlist", err.Error())
+		return
+	}
+
+	// 返回成功的响应。
+	response.SuccessWithStatus(c, http.StatusOK, "Wishlist cleared successfully", nil)
+}
+
+// RemoveByProduct 处理按商品移除收藏夹条目的HTTP请求。
+// Method: DELETE
+// Path: /wishlist/product/:sku_id
+func (h *Handler) RemoveByProduct(c *gin.Context) {
+	// 从URL路径中解析SKU ID。
+	skuID, err := strconv.ParseUint(c.Param("sku_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid SKU ID", err.Error())
+		return
+	}
+
+	// 从查询参数中获取用户ID。
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "User ID required", err.Error())
+		return
+	}
+
+	// 调用应用服务层按商品移除。
+	if err := h.service.RemoveByProduct(c.Request.Context(), userID, skuID); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to remove from wishlist by product", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to remove from wishlist by product", err.Error())
+		return
+	}
+
+	// 返回成功的响应。
+	response.SuccessWithStatus(c, http.StatusOK, "Removed from wishlist by product successfully", nil)
 }

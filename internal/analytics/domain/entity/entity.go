@@ -10,14 +10,15 @@ import (
 type MetricType string
 
 const (
-	MetricTypeSales       MetricType = "sales"      // 销售额指标。
-	MetricTypeOrders      MetricType = "orders"     // 订单数指标。
-	MetricTypeUsers       MetricType = "users"      // 用户数指标。
-	MetricTypeConversion  MetricType = "conversion" // 转化率指标。
-	MetricTypeRevenue     MetricType = "revenue"    // 收入指标。
-	MetricTypePageViews   MetricType = "page_views" // 页面浏览量指标。
-	MetricTypeClickRate   MetricType = "click_rate" // 点击率指标。
-	MetricTypeAvgOrderVal MetricType = "avg_order"  // 平均订单值指标。
+	MetricTypeSales       MetricType = "sales"        // 销售额指标。
+	MetricTypeOrders      MetricType = "orders"       // 订单数指标。
+	MetricTypeUsers       MetricType = "users"        // 用户数指标。
+	MetricTypeConversion  MetricType = "conversion"   // 转化率指标。
+	MetricTypeRevenue     MetricType = "revenue"      // 收入指标。
+	MetricTypePageViews   MetricType = "page_views"   // 页面浏览量指标。
+	MetricTypeClickRate   MetricType = "click_rate"   // 点击率指标。
+	MetricTypeAvgOrderVal MetricType = "avg_order"    // 平均订单值指标。
+	MetricTypeActiveUsers MetricType = "active_users" // 活跃用户数指标。
 )
 
 // TimeGranularity 定义了时间粒度。

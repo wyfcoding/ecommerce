@@ -5,7 +5,7 @@ package api.logistics.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/logistics/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/logistics/v1;v1";
 
 // LogisticsService 定义了物流服务接口
 service LogisticsService {

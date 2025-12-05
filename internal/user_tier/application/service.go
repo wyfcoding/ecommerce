@@ -231,3 +231,39 @@ func (s *UserTierService) ListPointsLogs(ctx context.Context, userID uint64, pag
 	offset := (page - 1) * pageSize
 	return s.repo.ListPointsLogs(ctx, userID, offset, pageSize)
 }
+
+// CreateTierConfig 创建或更新等级配置。
+func (s *UserTierService) CreateTierConfig(ctx context.Context, level entity.TierLevel, name string, minScore int64, discount float64) error {
+	config := &entity.TierConfig{
+		Level:        level,
+		LevelName:    name,
+		MinScore:     minScore,
+		DiscountRate: discount,
+	}
+	return s.repo.SaveTierConfig(ctx, config)
+}
+
+// ListTierConfigs 获取所有等级配置。
+func (s *UserTierService) ListTierConfigs(ctx context.Context) ([]*entity.TierConfig, error) {
+	return s.repo.ListTierConfigs(ctx)
+}
+
+// CreateExchange 创建兑换商品。
+func (s *UserTierService) CreateExchange(ctx context.Context, name, desc string, points int64, stock int32) (*entity.Exchange, error) {
+	exchange := &entity.Exchange{
+		Name:           name,
+		Description:    desc,
+		RequiredPoints: points,
+		Stock:          stock,
+	}
+	if err := s.repo.SaveExchange(ctx, exchange); err != nil {
+		return nil, err
+	}
+	return exchange, nil
+}
+
+// ListExchangeRecords 获取用户的兑换记录。
+func (s *UserTierService) ListExchangeRecords(ctx context.Context, userID uint64, page, pageSize int) ([]*entity.ExchangeRecord, int64, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListExchangeRecords(ctx, userID, offset, pageSize)
+}

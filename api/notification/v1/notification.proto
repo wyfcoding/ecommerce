@@ -4,7 +4,7 @@ package api.notification.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "ecommerce/api/notification/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/notification/v1;v1";
 
 // NotificationService 定义了通知服务接口
 service NotificationService {

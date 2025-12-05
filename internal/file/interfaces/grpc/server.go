@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/api/file/v1"              // 导入文件模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/file/v1"              // 导入文件模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/file/application"   // 导入文件模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/file/domain/entity" // 导入文件模块的领域实体。
 

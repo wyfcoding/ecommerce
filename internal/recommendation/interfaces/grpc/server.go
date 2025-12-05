@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/api/recommendation/v1"            // 导入推荐模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"            // 导入推荐模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/recommendation/application" // 导入推荐模块的应用服务。
 	// "github.com/wyfcoding/ecommerce/internal/recommendation/domain/entity" // 导入推荐模块的领域实体，此处未直接使用，通过应用服务层转换。
 

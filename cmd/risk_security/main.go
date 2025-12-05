@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/risk_security/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/risk_security/v1"
 	"github.com/wyfcoding/ecommerce/internal/risk_security/application"
 	"github.com/wyfcoding/ecommerce/internal/risk_security/infrastructure/persistence"
 	riskgrpc "github.com/wyfcoding/ecommerce/internal/risk_security/interfaces/grpc"

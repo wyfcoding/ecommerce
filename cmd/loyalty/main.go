@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/loyalty/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/loyalty/v1"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/application"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/infrastructure/persistence"
 	loyaltygrpc "github.com/wyfcoding/ecommerce/internal/loyalty/interfaces/grpc"

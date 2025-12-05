@@ -5,10 +5,12 @@ import (
 	"strconv"  // 导入字符串和数字转换工具。
 
 	"github.com/wyfcoding/ecommerce/internal/user_tier/application" // 导入用户等级模块的应用服务。
-	"github.com/wyfcoding/ecommerce/pkg/response"                   // 导入统一的响应处理工具。
+	"github.com/wyfcoding/ecommerce/internal/user_tier/domain/entity"
+	"github.com/wyfcoding/ecommerce/pkg/response" // 导入统一的响应处理工具。
+
+	"log/slog" // 导入结构化日志库。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了UserTier模块的HTTP处理层。
@@ -148,12 +150,178 @@ func (h *Handler) ListPointsLogs(c *gin.Context) {
 	}
 
 	// 返回包含分页信息的成功响应。
-	response.SuccessWithStatus(c, http.StatusOK, "Points logs listed successfully", gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"data":      list,
 		"total":     total,
 		"page":      page,
 		"page_size": pageSize,
 	})
+}
+
+// CreateTierConfig handles the request to create or update a tier config.
+// Method: POST
+// Path: /user_tier/configs
+func (h *Handler) CreateTierConfig(c *gin.Context) {
+	var req struct {
+		Level    int     `json:"level"`
+		Name     string  `json:"name"`
+		MinScore int64   `json:"min_score"`
+		Discount float64 `json:"discount"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Assuming entity.TierLevel is int compatible
+	if err := h.service.CreateTierConfig(c.Request.Context(), entity.TierLevel(req.Level), req.Name, req.MinScore, req.Discount); err != nil {
+		h.logger.Error("Failed to create tier config", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// ListTierConfigs handles the request to list all tier configs.
+// Method: GET
+// Path: /user_tier/configs
+func (h *Handler) ListTierConfigs(c *gin.Context) {
+	configs, err := h.service.ListTierConfigs(c.Request.Context())
+	if err != nil {
+		h.logger.Error("Failed to list tier configs", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, configs)
+}
+
+// CreateExchange handles the request to create a new exchange item.
+// Method: POST
+// Path: /user_tier/exchanges
+func (h *Handler) CreateExchange(c *gin.Context) {
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Points      int64  `json:"points"`
+		Stock       int32  `json:"stock"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	item, err := h.service.CreateExchange(c.Request.Context(), req.Name, req.Description, req.Points, req.Stock)
+	if err != nil {
+		h.logger.Error("Failed to create exchange item", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+// ListExchangeRecords handles the request to list exchange records for a user.
+// Method: GET
+// Path: /user_tier/:user_id/exchanges/records
+func (h *Handler) ListExchangeRecords(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid User ID"})
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	records, total, err := h.service.ListExchangeRecords(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to list exchange records", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":      records,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// AddScore handles the request to add score to a user.
+// Method: POST
+// Path: /user_tier/:user_id/score/add
+func (h *Handler) AddScore(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid User ID"})
+		return
+	}
+	var req struct {
+		Score int64 `json:"score"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AddScore(c.Request.Context(), userID, req.Score); err != nil {
+		h.logger.Error("Failed to add score", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// AddPoints handles the request to add points to a user.
+// Method: POST
+// Path: /user_tier/:user_id/points/add
+func (h *Handler) AddPoints(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid User ID"})
+		return
+	}
+	var req struct {
+		Points int64  `json:"points"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AddPoints(c.Request.Context(), userID, req.Points, req.Reason); err != nil {
+		h.logger.Error("Failed to add points", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// DeductPoints handles the request to deduct points from a user.
+// Method: POST
+// Path: /user_tier/:user_id/points/deduct
+func (h *Handler) DeductPoints(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid User ID"})
+		return
+	}
+	var req struct {
+		Points int64  `json:"points"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.DeductPoints(c.Request.Context(), userID, req.Points, req.Reason); err != nil {
+		h.logger.Error("Failed to deduct points", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
 // RegisterRoutes 在给定的Gin路由组中注册UserTier模块的HTTP路由。
@@ -162,11 +330,19 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /user_tier 路由组，用于所有用户等级和积分相关接口。
 	group := r.Group("/user_tier")
 	{
-		group.GET("/:user_id", h.GetTier)                    // 获取用户等级信息。
-		group.GET("/:user_id/points", h.GetPoints)           // 获取用户积分余额。
-		group.GET("/:user_id/points/logs", h.ListPointsLogs) // 获取用户积分日志列表。
-		group.POST("/exchange", h.Exchange)                  // 兑换商品。
-		group.GET("/exchanges", h.ListExchanges)             // 获取可兑换商品列表。
-		// TODO: 补充增加/扣除成长值、增加/扣除积分、获取等级配置等接口。
+		group.GET("/:user_id", h.GetTier)                               // 获取用户等级信息。
+		group.GET("/:user_id/points", h.GetPoints)                      // 获取用户积分余额。
+		group.GET("/:user_id/points/logs", h.ListPointsLogs)            // 获取用户积分日志列表。
+		group.POST("/exchange", h.Exchange)                             // 兑换商品。
+		group.GET("/exchanges", h.ListExchanges)                        // 获取可兑换商品列表。
+		group.GET("/:user_id/exchanges/records", h.ListExchangeRecords) // 获取用户兑换记录。
+
+		// 管理接口 (TODO: 应该有权限控制)
+		group.POST("/configs", h.CreateTierConfig)            // 创建/更新等级配置。
+		group.GET("/configs", h.ListTierConfigs)              // 获取等级配置列表。
+		group.POST("/exchanges", h.CreateExchange)            // 创建兑换商品。
+		group.POST("/:user_id/score/add", h.AddScore)         // 增加成长值。
+		group.POST("/:user_id/points/add", h.AddPoints)       // 增加积分。
+		group.POST("/:user_id/points/deduct", h.DeductPoints) // 扣除积分。
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/financial_settlement/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/financial_settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/financial_settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/financial_settlement/infrastructure/persistence"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/financial_settlement/interfaces/grpc"

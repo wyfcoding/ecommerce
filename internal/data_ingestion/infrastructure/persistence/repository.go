@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/entity"     // 导入数据摄取模块的领域实体定义。
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/repository" // 导入数据摄取模块的领域仓储接口。
 
@@ -109,4 +110,16 @@ func (r *dataIngestionRepository) ListJobs(ctx context.Context, sourceID uint64,
 // UpdateJob 更新数据库中的摄取任务记录。
 func (r *dataIngestionRepository) UpdateJob(ctx context.Context, job *entity.IngestionJob) error {
 	return r.db.WithContext(ctx).Save(job).Error
+}
+
+// --- Event methods ---
+
+// SaveEvent 保存单个事件到数据库。
+func (r *dataIngestionRepository) SaveEvent(ctx context.Context, event *entity.IngestedEvent) error {
+	return r.db.WithContext(ctx).Save(event).Error
+}
+
+// SaveEvents 批量保存事件到数据库。
+func (r *dataIngestionRepository) SaveEvents(ctx context.Context, events []*entity.IngestedEvent) error {
+	return r.db.WithContext(ctx).Create(events).Error
 }

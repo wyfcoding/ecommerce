@@ -5,7 +5,7 @@ package api.auth.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/auth/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/auth/v1;v1";
 
 // Auth 认证服务定义了所有与用户认证和授权相关的RPC接口。
 service Auth {

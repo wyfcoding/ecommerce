@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application" // 导入仓库模块的应用服务。
 	"github.com/wyfcoding/ecommerce/pkg/response"                   // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Warehouse模块的HTTP处理层。
@@ -79,6 +80,33 @@ func (h *Handler) ListWarehouses(c *gin.Context) {
 	})
 }
 
+// GetWarehouse 处理获取仓库详情的HTTP请求。
+// Method: GET
+// Path: /warehouse/:id
+func (h *Handler) GetWarehouse(c *gin.Context) {
+	// 从URL路径中解析仓库ID。
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	// 调用应用服务层获取仓库详情。
+	warehouse, err := h.service.GetWarehouse(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("Failed to get warehouse", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get warehouse", err.Error())
+		return
+	}
+	if warehouse == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Warehouse not found", "")
+		return
+	}
+
+	// 返回成功的响应。
+	response.SuccessWithStatus(c, http.StatusOK, "Warehouse retrieved successfully", warehouse)
+}
+
 // UpdateStock 处理更新库存的HTTP请求。
 // Method: POST
 // Path: /warehouse/stock
@@ -105,6 +133,38 @@ func (h *Handler) UpdateStock(c *gin.Context) {
 
 	// 返回成功的响应。
 	response.SuccessWithStatus(c, http.StatusOK, "Stock updated successfully", nil)
+}
+
+// GetStock 处理获取库存详情的HTTP请求。
+// Method: GET
+// Path: /warehouse/stock
+func (h *Handler) GetStock(c *gin.Context) {
+	// 从查询参数中获取仓库ID和SKU ID。
+	warehouseID, err := strconv.ParseUint(c.Query("warehouse_id"), 10, 64)
+	if err != nil || warehouseID == 0 {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid or missing warehouse_id", "")
+		return
+	}
+	skuID, err := strconv.ParseUint(c.Query("sku_id"), 10, 64)
+	if err != nil || skuID == 0 {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid or missing sku_id", "")
+		return
+	}
+
+	// 调用应用服务层获取库存详情。
+	stock, err := h.service.GetStock(c.Request.Context(), warehouseID, skuID)
+	if err != nil {
+		h.logger.Error("Failed to get stock", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get stock", err.Error())
+		return
+	}
+	if stock == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Stock not found", "")
+		return
+	}
+
+	// 返回成功的响应。
+	response.SuccessWithStatus(c, http.StatusOK, "Stock retrieved successfully", stock)
 }
 
 // CreateTransfer 处理创建库存调拨单的HTTP请求。
@@ -160,6 +220,67 @@ func (h *Handler) CompleteTransfer(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Transfer completed successfully", nil)
 }
 
+// GetTransfer 处理获取调拨单详情的HTTP请求。
+// Method: GET
+// Path: /warehouse/transfer/:id
+func (h *Handler) GetTransfer(c *gin.Context) {
+	// 从URL路径中解析调拨单ID。
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	// 调用应用服务层获取调拨单详情。
+	transfer, err := h.service.GetTransfer(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("Failed to get transfer", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get transfer", err.Error())
+		return
+	}
+	if transfer == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Transfer not found", "")
+		return
+	}
+
+	// 返回成功的响应。
+	response.SuccessWithStatus(c, http.StatusOK, "Transfer retrieved successfully", transfer)
+}
+
+// ListTransfers 处理获取调拨单列表的HTTP请求。
+// Method: GET
+// Path: /warehouse/transfer
+func (h *Handler) ListTransfers(c *gin.Context) {
+	// 从查询参数中获取过滤条件和分页参数。
+	var fromID, toID uint64
+	if fromStr := c.Query("from_warehouse_id"); fromStr != "" {
+		fromID, _ = strconv.ParseUint(fromStr, 10, 64)
+	}
+	if toStr := c.Query("to_warehouse_id"); toStr != "" {
+		toID, _ = strconv.ParseUint(toStr, 10, 64)
+	}
+
+	// 获取分页参数。
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	// 调用应用服务层获取调拨单列表（暂不过滤状态，传nil）。
+	list, total, err := h.service.ListTransfers(c.Request.Context(), fromID, toID, nil, page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to list transfers", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list transfers", err.Error())
+		return
+	}
+
+	// 返回包含分页信息的成功响应。
+	response.SuccessWithStatus(c, http.StatusOK, "Transfers listed successfully", gin.H{
+		"data":      list,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Warehouse模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -168,9 +289,12 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	{
 		group.POST("", h.CreateWarehouse)                        // 创建仓库。
 		group.GET("", h.ListWarehouses)                          // 获取仓库列表。
+		group.GET("/:id", h.GetWarehouse)                        // 获取仓库详情。
 		group.POST("/stock", h.UpdateStock)                      // 更新库存。
+		group.GET("/stock", h.GetStock)                          // 获取库存详情。
 		group.POST("/transfer", h.CreateTransfer)                // 创建调拨单。
+		group.GET("/transfer", h.ListTransfers)                  // 获取调拨单列表。
+		group.GET("/transfer/:id", h.GetTransfer)                // 获取调拨单详情。
 		group.POST("/transfer/:id/complete", h.CompleteTransfer) // 完成调拨单。
-		// TODO: 补充获取仓库详情、获取库存详情、获取调拨单详情、列出调拨单等接口。
 	}
 }

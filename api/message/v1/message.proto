@@ -4,7 +4,7 @@ package api.message.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "ecommerce/api/message/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/message/v1;v1";
 
 // MessageService 定义了消息服务接口
 service MessageService {

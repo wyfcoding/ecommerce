@@ -4,7 +4,7 @@ import (
 	"context" // 导入上下文。
 	"fmt"     // 导入格式化库。
 
-	pb "github.com/wyfcoding/ecommerce/api/scheduler/v1"              // 导入调度模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/scheduler/v1"              // 导入调度模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/scheduler/application"   // 导入调度模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain/entity" // 导入调度模块的领域实体。
 

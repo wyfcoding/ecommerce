@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/api/review/v1"              // 导入评论模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/review/v1"              // 导入评论模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/review/application"   // 导入评论模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/review/domain/entity" // 导入评论模块的领域实体。
 
@@ -103,9 +103,38 @@ func (s *Server) ListProductReviews(ctx context.Context, req *pb.ListProductRevi
 }
 
 // ListUserReviews 处理列出用户评论的gRPC请求。
-// 当前未实现。
 func (s *Server) ListUserReviews(ctx context.Context, req *pb.ListUserReviewsRequest) (*pb.ListUserReviewsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "ListUserReviews not implemented")
+	// 将字符串类型的用户ID转换为uint64。
+	userID, err := strconv.ParseUint(req.UserId, 10, 64)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid user_id: %v", err))
+	}
+
+	// 将PageToken作为页码进行简单处理。
+	page := int(req.PageToken)
+	if page < 1 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	reviews, total, err := s.app.ListUserReviews(ctx, userID, page, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list user reviews: %v", err))
+	}
+
+	// 将领域实体列表转换为protobuf响应格式的列表。
+	pbReviews := make([]*pb.ReviewInfo, len(reviews))
+	for i, r := range reviews {
+		pbReviews[i] = s.toProto(r)
+	}
+
+	return &pb.ListUserReviewsResponse{
+		Reviews:    pbReviews,
+		TotalCount: int32(total),
+	}, nil
 }
 
 // GetProductRating 处理获取商品评分的gRPC请求。

@@ -184,3 +184,50 @@ func (s *SubscriptionService) ListSubscriptions(ctx context.Context, userID uint
 	// nil表示不按状态过滤，获取所有状态的订阅。
 	return s.repo.ListSubscriptions(ctx, userID, nil, offset, pageSize)
 }
+
+// GetPlan retrieves a subscription plan by ID.
+func (s *SubscriptionService) GetPlan(ctx context.Context, id uint64) (*entity.SubscriptionPlan, error) {
+	return s.repo.GetPlan(ctx, id)
+}
+
+// UpdatePlan updates an existing subscription plan.
+func (s *SubscriptionService) UpdatePlan(ctx context.Context, id uint64, name, desc *string, price *uint64, duration *int32, features []string, enabled *bool) (*entity.SubscriptionPlan, error) {
+	plan, err := s.repo.GetPlan(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if plan == nil {
+		return nil, errors.New("plan not found")
+	}
+
+	if name != nil {
+		plan.Name = *name
+	}
+	if desc != nil {
+		plan.Description = *desc
+	}
+	if price != nil {
+		plan.Price = *price
+	}
+	if duration != nil {
+		plan.Duration = *duration
+	}
+	if features != nil {
+		plan.Features = features
+	}
+	if enabled != nil {
+		plan.Enabled = *enabled
+	}
+
+	if err := s.repo.SavePlan(ctx, plan); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update plan", "plan_id", id, "error", err)
+		return nil, err
+	}
+	s.logger.InfoContext(ctx, "plan updated successfully", "plan_id", id)
+	return plan, nil
+}
+
+// GetSubscription retrieves a subscription by ID.
+func (s *SubscriptionService) GetSubscription(ctx context.Context, id uint64) (*entity.Subscription, error) {
+	return s.repo.GetSubscription(ctx, id)
+}

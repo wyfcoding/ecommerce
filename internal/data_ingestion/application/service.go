@@ -111,3 +111,36 @@ func (s *DataIngestionService) ListJobs(ctx context.Context, sourceID uint64, pa
 	offset := (page - 1) * pageSize
 	return s.repo.ListJobs(ctx, sourceID, offset, pageSize)
 }
+
+// IngestEvent 摄取单个事件。
+// ctx: 上下文。
+// eventType: 事件类型。
+// eventData: 事件数据（JSON字符串）。
+// source: 来源。
+// timestamp: 事件时间戳。
+// 返回可能发生的错误。
+func (s *DataIngestionService) IngestEvent(ctx context.Context, eventType, eventData, source string, timestamp time.Time) error {
+	event := entity.NewIngestedEvent(eventType, eventData, source, timestamp)
+	if err := s.repo.SaveEvent(ctx, event); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save event", "event_type", eventType, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "event ingested successfully", "event_id", event.ID, "event_type", eventType)
+	return nil
+}
+
+// IngestBatch 批量摄取事件。
+// ctx: 上下文。
+// events: 待摄取的事件列表。
+// 返回可能发生的错误。
+func (s *DataIngestionService) IngestBatch(ctx context.Context, events []*entity.IngestedEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+	if err := s.repo.SaveEvents(ctx, events); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save batch events", "count", len(events), "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "batch events ingested successfully", "count", len(events))
+	return nil
+}

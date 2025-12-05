@@ -5,7 +5,7 @@ package api.data_processing.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/data_processing/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/data_processing/v1;v1";
 
 // DataProcessing 数据处理服务定义了所有与数据处理相关的RPC接口。
 service DataProcessing {

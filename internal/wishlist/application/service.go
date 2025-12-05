@@ -81,6 +81,20 @@ func (s *WishlistService) Remove(ctx context.Context, userID, id uint64) error {
 	return nil
 }
 
+// RemoveByProduct 将指定商品从用户的收藏夹中移除。
+// ctx: 上下文。
+// userID: 用户ID。
+// skuID: SKU ID。
+// 返回可能发生的错误。
+func (s *WishlistService) RemoveByProduct(ctx context.Context, userID, skuID uint64) error {
+	if err := s.repo.DeleteByProduct(ctx, userID, skuID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to remove from wishlist by product", "user_id", userID, "sku_id", skuID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "removed from wishlist by product successfully", "user_id", userID, "sku_id", skuID)
+	return nil
+}
+
 // List 获取指定用户的收藏夹列表。
 // ctx: 上下文。
 // userID: 用户ID。
@@ -102,4 +116,17 @@ func (s *WishlistService) CheckStatus(ctx context.Context, userID, skuID uint64)
 		return false, err
 	}
 	return item != nil, nil // 如果 item 不为nil，则表示商品在收藏夹中。
+}
+
+// Clear 清空指定用户的收藏夹。
+// ctx: 上下文。
+// userID: 用户ID。
+// 返回可能发生的错误。
+func (s *WishlistService) Clear(ctx context.Context, userID uint64) error {
+	if err := s.repo.Clear(ctx, userID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to clear wishlist", "user_id", userID, "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "wishlist cleared successfully", "user_id", userID)
+	return nil
 }

@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "ecommerce/api/payment/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/payment/v1;v1";
 
 // PaymentStatus 支付交易状态枚举
 enum PaymentStatus {

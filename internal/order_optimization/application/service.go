@@ -138,3 +138,18 @@ func (s *OrderOptimizationService) AllocateWarehouse(ctx context.Context, orderI
 
 	return plan, nil
 }
+
+// GetMergedOrder 获取合并订单详情。
+func (s *OrderOptimizationService) GetMergedOrder(ctx context.Context, id uint64) (*entity.MergedOrder, error) {
+	return s.repo.GetMergedOrder(ctx, id)
+}
+
+// ListSplitOrders 获取拆分订单列表。
+func (s *OrderOptimizationService) ListSplitOrders(ctx context.Context, originalOrderID uint64) ([]*entity.SplitOrder, error) {
+	return s.repo.ListSplitOrders(ctx, originalOrderID)
+}
+
+// GetAllocationPlan 获取仓库分配计划详情。
+func (s *OrderOptimizationService) GetAllocationPlan(ctx context.Context, orderID uint64) (*entity.WarehouseAllocationPlan, error) {
+	return s.repo.GetAllocationPlan(ctx, orderID)
+}

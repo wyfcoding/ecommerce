@@ -146,3 +146,99 @@ func (s *CartService) ClearCart(ctx context.Context, userID uint64) error {
 	s.logger.InfoContext(ctx, "cart cleared successfully", "user_id", userID, "cart_id", cart.ID)
 	return nil
 }
+
+// MergeCarts 合并两个购物车,将源购物车的商品全部合并到目标购物车中。
+// 常用于用户登录后,将匿名购物车合并到已登录用户的购物车。
+// ctx: 上下文。
+// sourceUserID: 源用户ID(通常是匿名用户)。
+// targetUserID: 目标用户ID(登录用户)。
+// 返回可能发生的错误。
+func (s *CartService) MergeCarts(ctx context.Context, sourceUserID, targetUserID uint64) error {
+	// 获取源购物车。
+	sourceCart, err := s.repo.GetByUserID(ctx, sourceUserID)
+	if err != nil {
+		return err
+	}
+	// 如果源购物车不存在或为空,则无需合并。
+	if sourceCart == nil || len(sourceCart.Items) == 0 {
+		s.logger.InfoContext(ctx, "source cart is empty, no merge needed", "source_user_id", sourceUserID, "target_user_id", targetUserID)
+		return nil
+	}
+
+	// 获取目标购物车(或自动创建)。
+	targetCart, err := s.GetCart(ctx, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	// 将源购物车中的所有商品添加到目标购物车。
+	for _, item := range sourceCart.Items {
+		targetCart.AddItem(item.ProductID, item.SkuID, item.ProductName, item.SkuName, item.Price, item.Quantity, item.ProductImageURL)
+	}
+
+	// 保存目标购物车。
+	if err := s.repo.Save(ctx, targetCart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save target cart after merge", "target_user_id", targetUserID, "error", err)
+		return err
+	}
+
+	// 清空源购物车。
+	if err := s.repo.Clear(ctx, uint64(sourceCart.ID)); err != nil {
+		s.logger.ErrorContext(ctx, "failed to clear source cart after merge", "source_user_id", sourceUserID, "error", err)
+		// 注意: 这里即使清空失败,也不影响合并的核心功能,仅记录错误。
+	}
+
+	s.logger.InfoContext(ctx, "carts merged successfully", "source_user_id", sourceUserID, "target_user_id", targetUserID)
+	return nil
+}
+
+// ApplyCoupon 为购物车应用优惠券。
+// 此方法需要调用优惠券服务验证优惠券并计算折扣金额。
+// ctx: 上下文。
+// userID: 用户ID。
+// couponCode: 优惠券码。
+// 返回可能发生的错误。
+func (s *CartService) ApplyCoupon(ctx context.Context, userID uint64, couponCode string) error {
+	// 获取用户购物车。
+	cart, err := s.GetCart(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// TODO: 调用优惠券服务验证优惠券码并获取折扣信息。
+	// 当前实现为占位符,仅存储优惠券码。
+	cart.AppliedCouponCode = couponCode
+
+	// 保存购物车。
+	if err := s.repo.Save(ctx, cart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to apply coupon to cart", "user_id", userID, "coupon_code", couponCode, "error", err)
+		return err
+	}
+
+	s.logger.InfoContext(ctx, "coupon applied to cart successfully", "user_id", userID, "coupon_code", couponCode)
+	return nil
+}
+
+// RemoveCoupon 从购物车中移除已应用的优惠券。
+// ctx: 上下文。
+// userID: 用户ID。
+// 返回可能发生的错误。
+func (s *CartService) RemoveCoupon(ctx context.Context, userID uint64) error {
+	// 获取用户购物车。
+	cart, err := s.GetCart(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// 移除优惠券码。
+	cart.AppliedCouponCode = ""
+
+	// 保存购物车。
+	if err := s.repo.Save(ctx, cart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to remove coupon from cart", "user_id", userID, "error", err)
+		return err
+	}
+
+	s.logger.InfoContext(ctx, "coupon removed from cart successfully", "user_id", userID)
+	return nil
+}

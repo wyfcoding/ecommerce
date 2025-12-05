@@ -5,7 +5,7 @@ package api.risk_security.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/api/risk_security/v1;risksecurityv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/risk_security/v1;risksecurityv1";
 
 service RiskSecurityService {
   // Risk Evaluation

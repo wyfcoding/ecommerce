@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity"     // 导入物流模块的领域实体定义。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain/repository" // 导入物流模块的领域仓储接口。
 
@@ -21,7 +22,7 @@ func NewLogisticsRepository(db *gorm.DB) repository.LogisticsRepository {
 
 // Save 将物流实体保存到数据库。
 // 如果物流单已存在（通过ID），则更新其信息；如果不存在，则创建。
-// 此方法在一个事务中保存物流主实体及其关联的新增轨迹。
+// 此方法在一个事务中保存物流主实体及其关联的新增轨迹和配送路线。
 func (r *logisticsRepository) Save(ctx context.Context, logistics *entity.Logistics) error {
 	// 使用事务确保物流主实体和轨迹的更新操作的原子性。
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -38,18 +39,25 @@ func (r *logisticsRepository) Save(ctx context.Context, logistics *entity.Logist
 				}
 			}
 		}
-		// TODO: 关联的 DeliveryRoute 实体也需要保存。
-		// GORM的Save方法对于嵌套结构体（非has many）默认不会自动保存或更新，需要显式处理。
+
+		// 保存关联的 DeliveryRoute 实体
+		if logistics.Route != nil {
+			logistics.Route.LogisticsID = uint64(logistics.ID)
+			if err := tx.Save(logistics.Route).Error; err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
 
-// GetByID 根据ID从数据库获取物流记录，并预加载其关联的轨迹。
+// GetByID 根据ID从数据库获取物流记录，并预加载其关联的轨迹和路线。
 // 如果记录未找到，则返回 entity.ErrLogisticsNotFound 错误。
 func (r *logisticsRepository) GetByID(ctx context.Context, id uint64) (*entity.Logistics, error) {
 	var logistics entity.Logistics
-	// Preload "Traces" 确保在获取物流单时，同时加载所有关联的轨迹记录。
-	if err := r.db.WithContext(ctx).Preload("Traces").First(&logistics, id).Error; err != nil {
+	// Preload "Traces" and "Route" 确保在获取物流单时，同时加载所有关联的轨迹记录和路线。
+	if err := r.db.WithContext(ctx).Preload("Traces").Preload("Route").First(&logistics, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entity.ErrLogisticsNotFound // 返回自定义的“未找到”错误。
 		}
@@ -58,11 +66,11 @@ func (r *logisticsRepository) GetByID(ctx context.Context, id uint64) (*entity.L
 	return &logistics, nil
 }
 
-// GetByTrackingNo 根据运单号从数据库获取物流记录，并预加载其关联的轨迹。
+// GetByTrackingNo 根据运单号从数据库获取物流记录，并预加载其关联的轨迹和路线。
 // 如果记录未找到，则返回 entity.ErrLogisticsNotFound 错误。
 func (r *logisticsRepository) GetByTrackingNo(ctx context.Context, trackingNo string) (*entity.Logistics, error) {
 	var logistics entity.Logistics
-	if err := r.db.WithContext(ctx).Preload("Traces").Where("tracking_no = ?", trackingNo).First(&logistics).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Traces").Preload("Route").Where("tracking_no = ?", trackingNo).First(&logistics).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entity.ErrLogisticsNotFound // 返回自定义的“未找到”错误。
 		}
@@ -71,11 +79,11 @@ func (r *logisticsRepository) GetByTrackingNo(ctx context.Context, trackingNo st
 	return &logistics, nil
 }
 
-// GetByOrderID 根据订单ID从数据库获取物流记录，并预加载其关联的轨迹。
+// GetByOrderID 根据订单ID从数据库获取物流记录，并预加载其关联的轨迹和路线。
 // 如果记录未找到，则返回 entity.ErrLogisticsNotFound 错误。
 func (r *logisticsRepository) GetByOrderID(ctx context.Context, orderID uint64) (*entity.Logistics, error) {
 	var logistics entity.Logistics
-	if err := r.db.WithContext(ctx).Preload("Traces").Where("order_id = ?", orderID).First(&logistics).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Traces").Preload("Route").Where("order_id = ?", orderID).First(&logistics).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entity.ErrLogisticsNotFound // 返回自定义的“未找到”错误。
 		}
@@ -96,8 +104,8 @@ func (r *logisticsRepository) List(ctx context.Context, offset, limit int) ([]*e
 		return nil, 0, err
 	}
 
-	// 应用分页和排序。
-	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+	// 应用分页和排序，并预加载关联数据
+	if err := db.Preload("Traces").Preload("Route").Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
 

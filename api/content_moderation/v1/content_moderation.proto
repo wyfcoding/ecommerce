@@ -5,7 +5,7 @@ package api.content_moderation.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/content_moderation/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/content_moderation/v1;v1";
 
 // ContentModeration 内容审核服务定义了所有与内容审核相关的RPC接口。
 service ContentModeration {

@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化库。
 	"time"    // 导入时间库。
 
-	pb "github.com/wyfcoding/ecommerce/api/risk_security/v1"              // 导入风控安全模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/risk_security/v1"              // 导入风控安全模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/risk_security/application"   // 导入风控安全模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/risk_security/domain/entity" // 导入风控安全模块的领域实体。
 

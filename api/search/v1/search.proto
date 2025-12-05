@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package search.v1;
 
-option go_package = "ecommerce/api/search/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/search/v1;v1";
 
 service SearchService {
   // 定义搜索服务的接口

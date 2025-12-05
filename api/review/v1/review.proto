@@ -4,7 +4,7 @@ package api.review.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "ecommerce/api/review/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/review/v1;v1";
 
 // Review Service
 service Review {

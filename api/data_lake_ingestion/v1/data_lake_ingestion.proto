@@ -5,7 +5,7 @@ package api.data_lake_ingestion.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/data_lake_ingestion/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/data_lake_ingestion/v1;v1";
 
 // DataLakeIngestion 数据湖摄取服务定义了所有与数据湖摄取相关的RPC接口。
 service DataLakeIngestion {

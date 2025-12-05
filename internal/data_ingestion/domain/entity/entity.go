@@ -108,3 +108,22 @@ func (j *IngestionJob) Fail(errorMessage string) {
 	now := time.Now()
 	j.EndTime = &now // 记录结束时间。
 }
+
+// IngestedEvent 实体代表一个被摄取的原始事件。
+type IngestedEvent struct {
+	gorm.Model
+	EventType string    `gorm:"type:varchar(255);index;comment:事件类型" json:"event_type"`
+	EventData string    `gorm:"type:text;comment:事件数据(JSON)" json:"event_data"`
+	Source    string    `gorm:"type:varchar(255);comment:来源" json:"source"`
+	Timestamp time.Time `gorm:"index;comment:事件时间戳" json:"timestamp"`
+}
+
+// NewIngestedEvent 创建一个新的 IngestedEvent 实体。
+func NewIngestedEvent(eventType, eventData, source string, timestamp time.Time) *IngestedEvent {
+	return &IngestedEvent{
+		EventType: eventType,
+		EventData: eventData,
+		Source:    source,
+		Timestamp: timestamp,
+	}
+}

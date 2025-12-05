@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt" // 用于格式化错误信息。
 
-	pb "github.com/wyfcoding/ecommerce/api/admin/v1"              // 导入Admin模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/admin/v1"              // 导入Admin模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/admin/application"   // 导入Admin模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity" // 导入Admin模块的领域实体。
 
@@ -81,16 +81,23 @@ func (s *Server) GetAdminUser(ctx context.Context, req *pb.GetAdminUserRequest) 
 
 // UpdateAdminUser 处理更新管理员用户信息的gRPC请求。
 // 此方法尚未实现。
+// UpdateAdminUser 处理更新管理员用户信息的gRPC请求。
 func (s *Server) UpdateAdminUser(ctx context.Context, req *pb.UpdateAdminUserRequest) (*pb.UpdateAdminUserResponse, error) {
-	// TODO: 实现UpdateAdminUser逻辑。
-	return nil, status.Error(codes.Unimplemented, "UpdateAdminUser not implemented")
+	admin, err := s.app.UpdateAdmin(ctx, req.Id, req.Email, req.Nickname, "", req.RoleIds)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update admin user: %v", err))
+	}
+	return &pb.UpdateAdminUserResponse{
+		AdminUser: s.adminToProto(admin),
+	}, nil
 }
 
 // DeleteAdminUser 处理删除管理员用户的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) DeleteAdminUser(ctx context.Context, req *pb.DeleteAdminUserRequest) (*emptypb.Empty, error) {
-	// TODO: 实现DeleteAdminUser逻辑。
-	return nil, status.Error(codes.Unimplemented, "DeleteAdminUser not implemented")
+	if err := s.app.DeleteAdmin(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete admin user: %v", err))
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // ListAdminUsers 处理列出管理员用户的gRPC请求，支持分页。
@@ -156,24 +163,36 @@ func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb
 }
 
 // GetRole 处理获取单个角色信息的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.GetRoleResponse, error) {
-	// TODO: 实现GetRole逻辑。
-	return nil, status.Error(codes.Unimplemented, "GetRole not implemented")
+	role, err := s.app.GetRole(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get role: %v", err))
+	}
+	if role == nil {
+		return nil, status.Error(codes.NotFound, "role not found")
+	}
+	return &pb.GetRoleResponse{
+		Role: s.roleToProto(role),
+	}, nil
 }
 
 // UpdateRole 处理更新角色信息的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb.UpdateRoleResponse, error) {
-	// TODO: 实现UpdateRole逻辑。
-	return nil, status.Error(codes.Unimplemented, "UpdateRole not implemented")
+	role, err := s.app.UpdateRole(ctx, req.Id, req.Name, req.Description, req.PermissionIds)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update role: %v", err))
+	}
+	return &pb.UpdateRoleResponse{
+		Role: s.roleToProto(role),
+	}, nil
 }
 
 // DeleteRole 处理删除角色的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*emptypb.Empty, error) {
-	// TODO: 实现DeleteRole逻辑。
-	return nil, status.Error(codes.Unimplemented, "DeleteRole not implemented")
+	if err := s.app.DeleteRole(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete role: %v", err))
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // ListRoles 处理列出角色列表的gRPC请求，支持分页。
@@ -230,10 +249,17 @@ func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionR
 }
 
 // GetPermission 处理获取单个权限信息的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) GetPermission(ctx context.Context, req *pb.GetPermissionRequest) (*pb.GetPermissionResponse, error) {
-	// TODO: 实现GetPermission逻辑。
-	return nil, status.Error(codes.Unimplemented, "GetPermission not implemented")
+	perm, err := s.app.GetPermission(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get permission: %v", err))
+	}
+	if perm == nil {
+		return nil, status.Error(codes.NotFound, "permission not found")
+	}
+	return &pb.GetPermissionResponse{
+		Permission: s.permissionToProto(perm),
+	}, nil
 }
 
 // ListPermissions 处理列出权限列表的gRPC请求。
@@ -260,26 +286,75 @@ func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsReq
 // --- AuditLog ---
 
 // ListAuditLogs 处理列出审计日志的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest) (*pb.ListAuditLogsResponse, error) {
-	// TODO: 实现ListAuditLogs逻辑。
-	return nil, status.Error(codes.Unimplemented, "ListAuditLogs not implemented")
+	page := int(req.PageToken)
+	if page < 1 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	logs, total, err := s.app.ListAuditLogs(ctx, req.AdminUserId, page, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list audit logs: %v", err))
+	}
+
+	pbLogs := make([]*pb.AuditLog, len(logs))
+	for i, l := range logs {
+		pbLogs[i] = &pb.AuditLog{
+			Id:          uint64(l.ID),
+			AdminUserId: l.AdminID,
+			Action:      l.Action,
+			EntityType:  l.Module,  // Mapping Module to EntityType
+			Details:     l.Request, // Mapping Request to Details (simplified)
+			IpAddress:   l.IP,
+			CreatedAt:   timestamppb.New(l.CreatedAt),
+		}
+	}
+
+	return &pb.ListAuditLogsResponse{
+		AuditLogs:  pbLogs,
+		TotalCount: int32(total),
+	}, nil
 }
 
 // --- SystemSetting ---
 
 // GetSystemSetting 处理获取系统设置的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) GetSystemSetting(ctx context.Context, req *pb.GetSystemSettingRequest) (*pb.GetSystemSettingResponse, error) {
-	// TODO: 实现GetSystemSetting逻辑。
-	return nil, status.Error(codes.Unimplemented, "GetSystemSetting not implemented")
+	setting, err := s.app.GetSystemSetting(ctx, req.Key)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get system setting: %v", err))
+	}
+	if setting == nil {
+		return nil, status.Error(codes.NotFound, "setting not found")
+	}
+	return &pb.GetSystemSettingResponse{
+		Setting: &pb.SystemSetting{
+			Key:         setting.Key,
+			Value:       setting.Value,
+			Description: setting.Description,
+			UpdatedAt:   timestamppb.New(setting.UpdatedAt),
+		},
+	}, nil
 }
 
 // UpdateSystemSetting 处理更新系统设置的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) UpdateSystemSetting(ctx context.Context, req *pb.UpdateSystemSettingRequest) (*pb.UpdateSystemSettingResponse, error) {
-	// TODO: 实现UpdateSystemSetting逻辑。
-	return nil, status.Error(codes.Unimplemented, "UpdateSystemSetting not implemented")
+	setting, err := s.app.UpdateSystemSetting(ctx, req.Key, req.Value, req.Description)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update system setting: %v", err))
+	}
+	return &pb.UpdateSystemSettingResponse{
+		Setting: &pb.SystemSetting{
+			Key:         setting.Key,
+			Value:       setting.Value,
+			Description: setting.Description,
+			UpdatedAt:   timestamppb.New(setting.UpdatedAt),
+		},
+	}, nil
 }
 
 // --- Helpers ---

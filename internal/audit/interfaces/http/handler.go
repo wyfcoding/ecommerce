@@ -10,8 +10,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/audit/domain/repository" // 导入审计模块的领域仓储查询对象。
 	"github.com/wyfcoding/ecommerce/pkg/response"                     // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Audit模块的HTTP处理层。
@@ -196,12 +197,60 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	{
 		group.GET("/logs", h.QueryLogs) // 查询审计日志。
 
-		group.POST("/policies", h.CreatePolicy) // 创建审计策略。
-		group.GET("/policies", h.ListPolicies)  // 获取审计策略列表。
-		// TODO: 补充更新、删除审计策略的接口。
+		group.POST("/policies", h.CreatePolicy)    // 创建审计策略。
+		group.GET("/policies", h.ListPolicies)     // 获取审计策略列表。
+		group.PUT("/policies/:id", h.UpdatePolicy) // 更新审计策略。
 
-		group.POST("/reports", h.CreateReport) // 创建审计报告。
-		group.GET("/reports", h.ListReports)   // 获取审计报告列表。
-		// TODO: 补充生成、更新、删除审计报告的接口。
+		group.POST("/reports", h.CreateReport)                // 创建审计报告。
+		group.GET("/reports", h.ListReports)                  // 获取审计报告列表。
+		group.POST("/reports/:id/generate", h.GenerateReport) // 生成审计报告内容。
 	}
+}
+
+// UpdatePolicy 处理更新审计策略的HTTP请求。
+// Method: PUT
+// Path: /audit/policies/:id
+func (h *Handler) UpdatePolicy(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	var req struct {
+		EventTypes []string `json:"event_types"`
+		Modules    []string `json:"modules"`
+		Enabled    bool     `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := h.service.UpdatePolicy(c.Request.Context(), id, req.EventTypes, req.Modules, req.Enabled); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to update audit policy", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update audit policy", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Audit policy updated successfully", nil)
+}
+
+// GenerateReport 处理生成审计报告内容的HTTP请求。
+// Method: POST
+// Path: /audit/reports/:id/generate
+func (h *Handler) GenerateReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.GenerateReport(c.Request.Context(), id); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to generate audit report", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to generate audit report", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Audit report generated successfully", nil)
 }

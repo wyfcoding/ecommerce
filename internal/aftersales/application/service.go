@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后领域的实体定义。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后领域的仓储接口。
@@ -164,4 +165,143 @@ func (s *AfterSalesService) logOperation(ctx context.Context, asID uint64, opera
 	if err := s.repo.CreateLog(ctx, log); err != nil {
 		s.logger.WarnContext(ctx, "failed to create after-sales log", "after_sales_id", asID, "error", err)
 	}
+}
+
+// ProcessRefund 处理退款流程。
+// ctx: 上下文。
+// id: 售后申请ID。
+// 返回可能发生的错误。
+func (s *AfterSalesService) ProcessRefund(ctx context.Context, id uint64) error {
+	afterSales, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if afterSales.Status != entity.AfterSalesStatusApproved {
+		return fmt.Errorf("invalid status for refund: %v", afterSales.Status)
+	}
+
+	// Mock refund process
+	afterSales.Status = entity.AfterSalesStatusCompleted
+	now := time.Now()
+	afterSales.CompletedAt = &now
+
+	if err := s.repo.Update(ctx, afterSales); err != nil {
+		return err
+	}
+
+	s.logOperation(ctx, id, "System", "ProcessRefund", "Approved", "Completed", "Refund processed successfully")
+	return nil
+}
+
+// ProcessExchange 处理换货流程。
+// ctx: 上下文。
+// id: 售后申请ID。
+// 返回可能发生的错误。
+func (s *AfterSalesService) ProcessExchange(ctx context.Context, id uint64) error {
+	afterSales, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if afterSales.Status != entity.AfterSalesStatusApproved {
+		return fmt.Errorf("invalid status for exchange: %v", afterSales.Status)
+	}
+
+	// Mock exchange process
+	afterSales.Status = entity.AfterSalesStatusCompleted
+	now := time.Now()
+	afterSales.CompletedAt = &now
+
+	if err := s.repo.Update(ctx, afterSales); err != nil {
+		return err
+	}
+
+	s.logOperation(ctx, id, "System", "ProcessExchange", "Approved", "Completed", "Exchange processed successfully")
+	return nil
+}
+
+// --- Support Ticket Service Methods ---
+
+// CreateSupportTicket 创建工单。
+func (s *AfterSalesService) CreateSupportTicket(ctx context.Context, userID, orderID uint64, subject, description, category string, priority int8) (*entity.SupportTicket, error) {
+	ticketNo := fmt.Sprintf("TCK%d", s.idGenerator.Generate())
+	ticket := &entity.SupportTicket{
+		TicketNo:    ticketNo,
+		UserID:      userID,
+		OrderID:     orderID,
+		Subject:     subject,
+		Description: description,
+		Status:      entity.SupportTicketStatusOpen,
+		Priority:    priority,
+		Category:    category,
+		Messages:    []*entity.SupportTicketMessage{},
+	}
+
+	if err := s.repo.CreateSupportTicket(ctx, ticket); err != nil {
+		return nil, err
+	}
+	return ticket, nil
+}
+
+// GetSupportTicket 获取工单详情。
+func (s *AfterSalesService) GetSupportTicket(ctx context.Context, id uint64) (*entity.SupportTicket, error) {
+	return s.repo.GetSupportTicket(ctx, id)
+}
+
+// UpdateSupportTicketStatus 更新工单状态。
+func (s *AfterSalesService) UpdateSupportTicketStatus(ctx context.Context, id uint64, status entity.SupportTicketStatus) error {
+	ticket, err := s.repo.GetSupportTicket(ctx, id)
+	if err != nil {
+		return err
+	}
+	if ticket == nil {
+		return fmt.Errorf("ticket not found")
+	}
+
+	ticket.Status = status
+	return s.repo.UpdateSupportTicket(ctx, ticket)
+}
+
+// ListSupportTickets 获取工单列表。
+func (s *AfterSalesService) ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*entity.SupportTicket, int64, error) {
+	return s.repo.ListSupportTickets(ctx, userID, status, page, pageSize)
+}
+
+// CreateSupportTicketMessage 创建工单消息。
+func (s *AfterSalesService) CreateSupportTicketMessage(ctx context.Context, ticketID, senderID uint64, senderType, content string) (*entity.SupportTicketMessage, error) {
+	msg := &entity.SupportTicketMessage{
+		TicketID:   ticketID,
+		SenderID:   senderID,
+		SenderType: senderType,
+		Content:    content,
+		IsRead:     false,
+	}
+	if err := s.repo.CreateSupportTicketMessage(ctx, msg); err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
+// ListSupportTicketMessages 获取工单消息列表。
+func (s *AfterSalesService) ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*entity.SupportTicketMessage, error) {
+	return s.repo.ListSupportTicketMessages(ctx, ticketID)
+}
+
+// --- AfterSales Config Service Methods ---
+
+// GetConfig 获取配置。
+func (s *AfterSalesService) GetConfig(ctx context.Context, key string) (*entity.AfterSalesConfig, error) {
+	return s.repo.GetConfig(ctx, key)
+}
+
+// SetConfig 设置配置。
+func (s *AfterSalesService) SetConfig(ctx context.Context, key, value, description string) (*entity.AfterSalesConfig, error) {
+	config := &entity.AfterSalesConfig{
+		Key:         key,
+		Value:       value,
+		Description: description,
+	}
+	if err := s.repo.SetConfig(ctx, config); err != nil {
+		return nil, err
+	}
+	return config, nil
 }

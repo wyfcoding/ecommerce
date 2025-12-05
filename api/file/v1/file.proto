@@ -5,7 +5,7 @@ package api.file.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/file/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/file/v1;v1";
 
 // FileService 定义了文件服务接口
 service FileService {

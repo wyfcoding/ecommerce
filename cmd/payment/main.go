@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
-	v1 "github.com/wyfcoding/ecommerce/api/payment/v1"
+	v1 "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"

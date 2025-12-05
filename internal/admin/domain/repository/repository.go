@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity" // 导入领域实体定义。
 )
 
@@ -83,4 +84,11 @@ type AdminRepository interface {
 	CreateOperationLog(ctx context.Context, log *entity.OperationLog) error
 	// ListOperationLogs 列出指定管理员的操作日志，支持分页。
 	ListOperationLogs(ctx context.Context, adminID uint64, page, pageSize int) ([]*entity.OperationLog, int64, error)
+
+	// --- SystemSetting methods ---
+
+	// GetSystemSetting 获取系统设置。
+	GetSystemSetting(ctx context.Context, key string) (*entity.SystemSetting, error)
+	// SaveSystemSetting 保存系统设置。
+	SaveSystemSetting(ctx context.Context, setting *entity.SystemSetting) error
 }

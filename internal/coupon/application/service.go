@@ -190,3 +190,42 @@ func (s *CouponService) CreateActivity(ctx context.Context, name, description st
 func (s *CouponService) ListActiveActivities(ctx context.Context) ([]*entity.CouponActivity, error) {
 	return s.repo.ListActiveActivities(ctx, time.Now())
 }
+
+// GetCoupon retrieves a coupon by ID.
+func (s *CouponService) GetCoupon(ctx context.Context, id uint64) (*entity.Coupon, error) {
+	return s.repo.GetCoupon(ctx, id)
+}
+
+// UpdateCoupon updates an existing coupon.
+func (s *CouponService) UpdateCoupon(ctx context.Context, id uint64, name, description *string, validFrom, validUntil *time.Time, totalQuantity *int32) (*entity.Coupon, error) {
+	coupon, err := s.repo.GetCoupon(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if name != nil {
+		coupon.Name = *name
+	}
+	if description != nil {
+		coupon.Description = *description
+	}
+	if validFrom != nil {
+		coupon.ValidFrom = *validFrom
+	}
+	if validUntil != nil {
+		coupon.ValidTo = *validUntil
+	}
+	if totalQuantity != nil {
+		coupon.UsageLimit = *totalQuantity
+	}
+
+	if err := s.repo.UpdateCoupon(ctx, coupon); err != nil {
+		return nil, err
+	}
+	return coupon, nil
+}
+
+// DeleteCoupon deletes a coupon by ID.
+func (s *CouponService) DeleteCoupon(ctx context.Context, id uint64) error {
+	return s.repo.DeleteCoupon(ctx, id)
+}

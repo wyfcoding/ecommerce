@@ -4,7 +4,7 @@ package api.gateway.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/gateway/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/gateway/v1;v1";
 
 // Gateway 网关服务定义了所有与API网关相关的RPC接口。
 service Gateway {

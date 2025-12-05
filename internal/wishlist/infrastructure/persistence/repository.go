@@ -31,6 +31,11 @@ func (r *wishlistRepository) Delete(ctx context.Context, userID, id uint64) erro
 	return r.db.WithContext(ctx).Where("user_id = ? AND id = ?", userID, id).Delete(&entity.Wishlist{}).Error
 }
 
+// DeleteByProduct 从数据库删除指定用户ID和商品ID（SKUID）的记录。
+func (r *wishlistRepository) DeleteByProduct(ctx context.Context, userID, skuID uint64) error {
+	return r.db.WithContext(ctx).Where("user_id = ? AND sku_id = ?", userID, skuID).Delete(&entity.Wishlist{}).Error
+}
+
 // Get 获取指定用户ID和SKUID的收藏夹实体。
 // 如果记录未找到，则返回nil。
 func (r *wishlistRepository) Get(ctx context.Context, userID, skuID uint64) (*entity.Wishlist, error) {
@@ -71,4 +76,9 @@ func (r *wishlistRepository) Count(ctx context.Context, userID uint64) (int64, e
 		return 0, err
 	}
 	return total, nil
+}
+
+// Clear 清空指定用户的收藏夹。
+func (r *wishlistRepository) Clear(ctx context.Context, userID uint64) error {
+	return r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&entity.Wishlist{}).Error
 }

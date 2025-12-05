@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/api/notification/v1"              // 导入通知模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/notification/v1"              // 导入通知模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/notification/application"   // 导入通知模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/notification/domain/entity" // 导入通知模块的领域实体。
 

@@ -5,7 +5,7 @@ package api.data_ingestion.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/data_ingestion/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/data_ingestion/v1;v1";
 
 // DataIngestion 数据摄取服务定义了所有与数据摄取相关的RPC接口。
 service DataIngestion {

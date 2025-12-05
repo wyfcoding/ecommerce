@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
-	pb "github.com/wyfcoding/ecommerce/api/permission/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/permission/v1"
 	"github.com/wyfcoding/ecommerce/internal/permission/application"
 	"github.com/wyfcoding/ecommerce/internal/permission/infrastructure/persistence/mysql"
 	permissiongrpc "github.com/wyfcoding/ecommerce/internal/permission/interfaces/grpc"

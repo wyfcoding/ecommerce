@@ -47,6 +47,11 @@ func (s *WarehouseService) CreateWarehouse(ctx context.Context, code, name strin
 	return warehouse, nil
 }
 
+// GetWarehouse 根据ID获取仓库详情。
+func (s *WarehouseService) GetWarehouse(ctx context.Context, id uint64) (*entity.Warehouse, error) {
+	return s.repo.GetWarehouse(ctx, id)
+}
+
 // UpdateStock 更新指定仓库和SKU的库存数量。
 // quantity为正表示增加库存，为负表示减少库存。
 // ctx: 上下文。
@@ -198,6 +203,17 @@ func (s *WarehouseService) CompleteTransfer(ctx context.Context, transferID uint
 	}
 	s.logger.InfoContext(ctx, "stock transfer completed successfully", "transfer_id", transferID)
 	return nil
+}
+
+// GetTransfer 根据ID获取调拨单详情。
+func (s *WarehouseService) GetTransfer(ctx context.Context, id uint64) (*entity.StockTransfer, error) {
+	return s.repo.GetTransfer(ctx, id)
+}
+
+// ListTransfers 获取调拨单列表。
+func (s *WarehouseService) ListTransfers(ctx context.Context, fromID, toID uint64, status *entity.StockTransferStatus, page, pageSize int) ([]*entity.StockTransfer, int64, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListTransfers(ctx, fromID, toID, status, offset, pageSize)
 }
 
 // ListWarehouses 获取仓库列表。

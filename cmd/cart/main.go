@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/cart/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/cart/v1"
 	"github.com/wyfcoding/ecommerce/internal/cart/application"
 	"github.com/wyfcoding/ecommerce/internal/cart/infrastructure/persistence"
 	cartgrpc "github.com/wyfcoding/ecommerce/internal/cart/interfaces/grpc"

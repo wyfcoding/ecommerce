@@ -2,6 +2,8 @@ package persistence
 
 import (
 	"context"
+	"errors"
+
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后模块的领域实体定义。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后模块的领域仓储接口。
 
@@ -100,4 +102,99 @@ func (r *afterSalesRepository) ListLogs(ctx context.Context, afterSalesID uint64
 		return nil, err
 	}
 	return logs, nil
+}
+
+// --- Support Ticket methods ---
+
+// CreateSupportTicket 创建客服工单。
+func (r *afterSalesRepository) CreateSupportTicket(ctx context.Context, ticket *entity.SupportTicket) error {
+	return r.db.WithContext(ctx).Create(ticket).Error
+}
+
+// GetSupportTicket 获取客服工单详情。
+func (r *afterSalesRepository) GetSupportTicket(ctx context.Context, id uint64) (*entity.SupportTicket, error) {
+	var ticket entity.SupportTicket
+	if err := r.db.WithContext(ctx).Preload("Messages").First(&ticket, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ticket, nil
+}
+
+// UpdateSupportTicket 更新客服工单。
+func (r *afterSalesRepository) UpdateSupportTicket(ctx context.Context, ticket *entity.SupportTicket) error {
+	return r.db.WithContext(ctx).Save(ticket).Error
+}
+
+// ListSupportTickets 列出客服工单。
+func (r *afterSalesRepository) ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*entity.SupportTicket, int64, error) {
+	var list []*entity.SupportTicket
+	var total int64
+
+	db := r.db.WithContext(ctx).Model(&entity.SupportTicket{})
+	if userID > 0 {
+		db = db.Where("user_id = ?", userID)
+	}
+	if status != nil {
+		db = db.Where("status = ?", *status)
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	if err := db.Offset(offset).Limit(pageSize).Order("created_at desc").Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
+}
+
+// CreateSupportTicketMessage 创建客服工单消息。
+func (r *afterSalesRepository) CreateSupportTicketMessage(ctx context.Context, msg *entity.SupportTicketMessage) error {
+	return r.db.WithContext(ctx).Create(msg).Error
+}
+
+// ListSupportTicketMessages 列出客服工单消息。
+func (r *afterSalesRepository) ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*entity.SupportTicketMessage, error) {
+	var list []*entity.SupportTicketMessage
+	if err := r.db.WithContext(ctx).Where("ticket_id = ?", ticketID).Order("created_at asc").Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// --- Config methods ---
+
+// GetConfig 获取售后配置。
+func (r *afterSalesRepository) GetConfig(ctx context.Context, key string) (*entity.AfterSalesConfig, error) {
+	var config entity.AfterSalesConfig
+	if err := r.db.WithContext(ctx).Where("`key` = ?", key).First(&config).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &config, nil
+}
+
+// SetConfig 设置售后配置。
+func (r *afterSalesRepository) SetConfig(ctx context.Context, config *entity.AfterSalesConfig) error {
+	// Upsert: check if exists, then update or create.
+	// Or use simple Save but ensure ID is set if exists.
+	// Better: Use OnConflict clause if DB supports, or manual check.
+	// Here simple implementation: check exist by key
+	existing, err := r.GetConfig(ctx, config.Key)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		config.ID = existing.ID
+		config.CreatedAt = existing.CreatedAt
+		return r.db.WithContext(ctx).Save(config).Error
+	}
+	return r.db.WithContext(ctx).Create(config).Error
 }

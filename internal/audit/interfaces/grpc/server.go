@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/api/audit/v1"                  // 导入审计模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/audit/v1"                  // 导入审计模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/audit/application"       // 导入审计模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/audit/domain/entity"     // 导入审计模块的领域实体。
 	"github.com/wyfcoding/ecommerce/internal/audit/domain/repository" // 导入审计模块的仓储层查询对象。

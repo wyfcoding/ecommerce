@@ -5,12 +5,13 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/api/wishlist/v1"              // 导入收藏夹模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/wishlist/v1"              // 导入收藏夹模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/wishlist/application"   // 导入收藏夹模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/entity" // 导入收藏夹模块的领域实体。
 
 	"google.golang.org/grpc/codes"  // gRPC状态码。
 	"google.golang.org/grpc/status" // gRPC状态处理。
+
 	// "google.golang.org/protobuf/types/known/emptypb"      // 导入空消息类型，此文件中未直接使用。
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
@@ -67,15 +68,14 @@ func (s *Server) RemoveItemFromWishlist(ctx context.Context, req *pb.RemoveItemF
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid user_id: %v", err))
 	}
-	// 备注：Proto请求中的 ProductId 字段在此处被映射为应用服务层 Remove 方法的 id 参数。
-	// 而应用服务层的 Remove 方法期望的是收藏夹条目本身的 ID，而不是 ProductID 或 SkuID。
-	// 这可能导致功能不符或错误。如果需要按 ProductID 或 SkuID 移除，应用服务层需要提供对应的方法。
-	idToRemove, err := strconv.ParseUint(req.ProductId, 10, 64) // 假设这里的ProductId是收藏夹条目的ID。
+	// 备注：Proto请求中的 ProductId 字段在此处被映射为应用服务层 RemoveByProduct 方法的 skuID 参数。
+	// 假设 Proto 中的 ProductId 实际上是指 SKU ID（或者我们只支持按 SKU 移除）。
+	skuID, err := strconv.ParseUint(req.ProductId, 10, 64)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid product_id for removal: %v", err))
 	}
 
-	err = s.app.Remove(ctx, userID, idToRemove)
+	err = s.app.RemoveByProduct(ctx, userID, skuID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove item from wishlist: %v", err))
 	}

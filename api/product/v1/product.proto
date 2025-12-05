@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "ecommerce/api/product/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/product/v1;v1";
 
 // Product 商品服务定义了所有与商品、分类、品牌和SKU相关的RPC接口。
 service Product {

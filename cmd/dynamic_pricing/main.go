@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/api/dynamic_pricing/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/dynamic_pricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/application"
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/infrastructure/persistence"
 	pricinggrpc "github.com/wyfcoding/ecommerce/internal/dynamic_pricing/interfaces/grpc"

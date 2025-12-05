@@ -4,7 +4,7 @@ import (
 	"context" // 导入标准错误处理包。
 	"fmt"     // 导入格式化包。
 
-	pb "github.com/wyfcoding/ecommerce/api/aftersales/v1"                  // 导入售后模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/aftersales/v1"                  // 导入售后模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"       // 导入售后模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后模块的领域实体。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后模块的仓储层查询对象。
@@ -163,60 +163,220 @@ func (s *Server) ListReturnRequests(ctx context.Context, req *pb.ListReturnReque
 }
 
 // ProcessRefund 处理退款流程的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) ProcessRefund(ctx context.Context, req *pb.ProcessRefundRequest) (*pb.RefundResponse, error) {
-	// TODO: 实现退款处理逻辑。
-	return nil, status.Error(codes.Unimplemented, "ProcessRefund not implemented")
+	if err := s.app.ProcessRefund(ctx, req.ReturnRequestId); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process refund: %v", err))
+	}
+	return &pb.RefundResponse{
+		ReturnRequestId: req.ReturnRequestId,
+		Status:          "SUCCESS",
+		// Amount, Currency etc could be filled if available from app service response
+	}, nil
 }
 
 // ProcessExchange 处理换货流程的gRPC请求。
-// 此方法尚未实现。
 func (s *Server) ProcessExchange(ctx context.Context, req *pb.ProcessExchangeRequest) (*pb.ExchangeResponse, error) {
-	// TODO: 实现换货处理逻辑。
-	return nil, status.Error(codes.Unimplemented, "ProcessExchange not implemented")
+	if err := s.app.ProcessExchange(ctx, req.ReturnRequestId); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process exchange: %v", err))
+	}
+	return &pb.ExchangeResponse{
+		ReturnRequestId: req.ReturnRequestId,
+		Status:          "SUCCESS",
+	}, nil
 }
 
 // --- Support Ticket methods ---
-// 以下是关于客服工单的gRPC方法，均未实现。
 
 // CreateSupportTicket 创建客服工单。
 func (s *Server) CreateSupportTicket(ctx context.Context, req *pb.CreateSupportTicketRequest) (*pb.SupportTicketResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SupportTicket not implemented")
+	// Map proto enum to int8
+	var priority int8 = 2 // Default Medium
+	if req.Priority != nil {
+		switch *req.Priority {
+		case pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_LOW:
+			priority = 1
+		case pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_MEDIUM:
+			priority = 2
+		case pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_HIGH:
+			priority = 3
+		case pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_URGENT:
+			priority = 4
+		}
+	}
+
+	orderID := uint64(0)
+	if req.OrderId != nil {
+		orderID = *req.OrderId
+	}
+
+	// Application service expects Description, map InitialMessage to it.
+	// Category is missing in proto, pass empty.
+	ticket, err := s.app.CreateSupportTicket(ctx, req.UserId, orderID, req.Subject, req.InitialMessage, "", priority)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create support ticket: %v", err))
+	}
+	return &pb.SupportTicketResponse{
+		Ticket: s.toSupportTicketProto(ticket),
+	}, nil
 }
 
 // GetSupportTicket 获取客服工单详情。
 func (s *Server) GetSupportTicket(ctx context.Context, req *pb.GetSupportTicketRequest) (*pb.SupportTicketResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SupportTicket not implemented")
+	ticket, err := s.app.GetSupportTicket(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get support ticket: %v", err))
+	}
+	if ticket == nil {
+		return nil, status.Error(codes.NotFound, "support ticket not found")
+	}
+	return &pb.SupportTicketResponse{
+		Ticket: s.toSupportTicketProto(ticket),
+	}, nil
 }
 
 // UpdateSupportTicketStatus 更新客服工单状态。
 func (s *Server) UpdateSupportTicketStatus(ctx context.Context, req *pb.UpdateSupportTicketStatusRequest) (*pb.SupportTicketResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SupportTicket not implemented")
+	var st entity.SupportTicketStatus
+	switch req.Status {
+	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_OPEN:
+		st = entity.SupportTicketStatusOpen
+	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_IN_PROGRESS:
+		st = entity.SupportTicketStatusPending // Map InProgress to Pending or similar
+	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_RESOLVED:
+		st = entity.SupportTicketStatusResolved
+	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_CLOSED:
+		st = entity.SupportTicketStatusClosed
+	default:
+		st = entity.SupportTicketStatusOpen
+	}
+
+	if err := s.app.UpdateSupportTicketStatus(ctx, req.Id, st); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update support ticket status: %v", err))
+	}
+	// Return updated ticket
+	ticket, err := s.app.GetSupportTicket(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get updated ticket: %v", err))
+	}
+	return &pb.SupportTicketResponse{
+		Ticket: s.toSupportTicketProto(ticket),
+	}, nil
 }
 
 // AddSupportTicketMessage 为客服工单添加消息。
 func (s *Server) AddSupportTicketMessage(ctx context.Context, req *pb.AddSupportTicketMessageRequest) (*pb.SupportTicketMessageResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SupportTicket not implemented")
+	senderType := "User"
+	if req.IsAdminSender {
+		senderType = "Agent"
+	}
+	msg, err := s.app.CreateSupportTicketMessage(ctx, req.TicketId, req.SenderId, senderType, req.Content)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add message: %v", err))
+	}
+	return &pb.SupportTicketMessageResponse{
+		Message: s.toSupportTicketMessageProto(msg),
+	}, nil
 }
 
 // ListSupportTickets 列出客服工单。
 func (s *Server) ListSupportTickets(ctx context.Context, req *pb.ListSupportTicketsRequest) (*pb.ListSupportTicketsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SupportTicket not implemented")
+	page := int(req.PageToken)
+	if page < 1 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	// Status filtering logic
+	var statusPtr *int
+	if req.Status != nil && *req.Status != pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_UNSPECIFIED {
+		// Map proto status to entity status int
+		var sVal int
+		switch *req.Status {
+		case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_OPEN:
+			sVal = int(entity.SupportTicketStatusOpen)
+		case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_IN_PROGRESS:
+			sVal = int(entity.SupportTicketStatusPending)
+		case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_RESOLVED:
+			sVal = int(entity.SupportTicketStatusResolved)
+		case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_CLOSED:
+			sVal = int(entity.SupportTicketStatusClosed)
+		default:
+			sVal = int(entity.SupportTicketStatusOpen)
+		}
+		statusPtr = &sVal
+	}
+
+	userID := uint64(0)
+	if req.UserId != nil {
+		userID = *req.UserId
+	}
+
+	list, total, err := s.app.ListSupportTickets(ctx, userID, statusPtr, page, pageSize)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list tickets: %v", err))
+	}
+
+	pbList := make([]*pb.SupportTicket, len(list))
+	for i, t := range list {
+		pbList[i] = s.toSupportTicketProto(t)
+	}
+
+	return &pb.ListSupportTicketsResponse{
+		Tickets:    pbList,
+		TotalCount: int32(total),
+	}, nil
 }
 
 // ListSupportTicketMessages 列出客服工单消息。
 func (s *Server) ListSupportTicketMessages(ctx context.Context, req *pb.ListSupportTicketMessagesRequest) (*pb.ListSupportTicketMessagesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SupportTicket not implemented")
+	list, err := s.app.ListSupportTicketMessages(ctx, req.TicketId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list messages: %v", err))
+	}
+
+	pbList := make([]*pb.SupportTicketMessage, len(list))
+	for i, m := range list {
+		pbList[i] = s.toSupportTicketMessageProto(m)
+	}
+
+	return &pb.ListSupportTicketMessagesResponse{
+		Messages: pbList,
+	}, nil
 }
 
 // GetAftersalesConfig 获取售后配置。
 func (s *Server) GetAftersalesConfig(ctx context.Context, req *pb.GetAftersalesConfigRequest) (*pb.AftersalesConfigResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Config not implemented")
+	config, err := s.app.GetConfig(ctx, req.Key)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get config: %v", err))
+	}
+	if config == nil {
+		return nil, status.Error(codes.NotFound, "config not found")
+	}
+	return &pb.AftersalesConfigResponse{
+		Config: &pb.AftersalesConfig{
+			Key:         config.Key,
+			Value:       config.Value,
+			Description: config.Description,
+		},
+	}, nil
 }
 
 // SetAftersalesConfig 设置售后配置。
 func (s *Server) SetAftersalesConfig(ctx context.Context, req *pb.SetAftersalesConfigRequest) (*pb.AftersalesConfigResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Config not implemented")
+	config, err := s.app.SetConfig(ctx, req.Key, req.Value, req.Description)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to set config: %v", err))
+	}
+	return &pb.AftersalesConfigResponse{
+		Config: &pb.AftersalesConfig{
+			Key:         config.Key,
+			Value:       config.Value,
+			Description: config.Description,
+		},
+	}, nil
 }
 
 // --- Helpers ---
@@ -267,5 +427,73 @@ func (s *Server) toProto(as *entity.AfterSales) *pb.ReturnRequest {
 		CreatedAt:    timestamppb.New(as.CreatedAt),    // 创建时间。
 		UpdatedAt:    timestamppb.New(as.UpdatedAt),    // 更新时间。
 		// Proto中还包含一些其他字段如 AdminNote, TrackingNumber 等，但实体中没有对应，此处未映射。
+	}
+}
+
+func (s *Server) toSupportTicketProto(t *entity.SupportTicket) *pb.SupportTicket {
+	if t == nil {
+		return nil
+	}
+	var status pb.SupportTicketStatus
+	switch t.Status {
+	case entity.SupportTicketStatusOpen:
+		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_OPEN
+	case entity.SupportTicketStatusPending:
+		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_IN_PROGRESS // Map Pending to InProgress
+	case entity.SupportTicketStatusResolved:
+		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_RESOLVED
+	case entity.SupportTicketStatusClosed:
+		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_CLOSED
+	default:
+		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_UNSPECIFIED
+	}
+
+	var priority pb.SupportTicketPriority
+	switch t.Priority {
+	case 1:
+		priority = pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_LOW
+	case 2:
+		priority = pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_MEDIUM
+	case 3:
+		priority = pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_HIGH
+	case 4:
+		priority = pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_URGENT
+	default:
+		priority = pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_MEDIUM
+	}
+
+	orderID := uint64(0)
+	if t.OrderID > 0 {
+		orderID = t.OrderID
+	}
+
+	// Exclude TicketNo, Description, Category as they are not in proto
+	return &pb.SupportTicket{
+		Id:        uint64(t.ID),
+		UserId:    t.UserID,
+		OrderId:   &orderID,
+		Subject:   t.Subject,
+		Status:    status,
+		Priority:  priority,
+		CreatedAt: timestamppb.New(t.CreatedAt),
+		UpdatedAt: timestamppb.New(t.UpdatedAt),
+	}
+}
+
+func (s *Server) toSupportTicketMessageProto(m *entity.SupportTicketMessage) *pb.SupportTicketMessage {
+	if m == nil {
+		return nil
+	}
+	isAdmin := false
+	if m.SenderType != "User" {
+		isAdmin = true
+	}
+	return &pb.SupportTicketMessage{
+		Id:            uint64(m.ID),
+		TicketId:      m.TicketID,
+		SenderId:      m.SenderID,
+		IsAdminSender: isAdmin,
+		Content:       m.Content,
+		CreatedAt:     timestamppb.New(m.CreatedAt),
 	}
 }

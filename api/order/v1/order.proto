@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "ecommerce/api/order/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/order/v1;v1";
 
 // OrderStatus 订单状态枚举
 enum OrderStatus {

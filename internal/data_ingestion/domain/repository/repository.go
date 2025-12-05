@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain/entity" // 导入数据摄取领域的实体定义。
 )
 
@@ -35,4 +36,11 @@ type DataIngestionRepository interface {
 	ListJobs(ctx context.Context, sourceID uint64, offset, limit int) ([]*entity.IngestionJob, int64, error)
 	// UpdateJob 更新摄取任务实体的信息。
 	UpdateJob(ctx context.Context, job *entity.IngestionJob) error
+
+	// --- Event methods ---
+
+	// SaveEvent 保存单个事件。
+	SaveEvent(ctx context.Context, event *entity.IngestedEvent) error
+	// SaveEvents 批量保存事件。
+	SaveEvents(ctx context.Context, events []*entity.IngestedEvent) error
 }

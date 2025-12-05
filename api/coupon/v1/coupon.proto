@@ -5,7 +5,7 @@ package api.coupon.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "ecommerce/api/coupon/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/coupon/v1;v1";
 
 // Coupon 优惠券服务定义了所有与优惠券管理相关的RPC接口。
 service Coupon {

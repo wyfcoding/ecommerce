@@ -10,8 +10,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository" // 导入分析模块的领域仓储查询对象。
 	"github.com/wyfcoding/ecommerce/pkg/response"                         // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Analytics模块的HTTP处理层。
@@ -198,6 +199,96 @@ func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Metric added to dashboard successfully", nil)
 }
 
+// UpdateDashboard 处理更新仪表板的HTTP请求。
+// Method: PUT
+// Path: /analytics/dashboards/:id
+func (h *Handler) UpdateDashboard(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	dashboard, err := h.service.UpdateDashboard(c.Request.Context(), id, req.Name, req.Description)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update dashboard", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Dashboard updated successfully", dashboard)
+}
+
+// DeleteDashboard 处理删除仪表板的HTTP请求。
+// Method: DELETE
+// Path: /analytics/dashboards/:id
+func (h *Handler) DeleteDashboard(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.DeleteDashboard(c.Request.Context(), id); err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete dashboard", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Dashboard deleted successfully", nil)
+}
+
+// ListDashboards 处理列出仪表板的HTTP请求。
+// Method: GET
+// Path: /analytics/dashboards
+func (h *Handler) ListDashboards(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	dashboards, total, err := h.service.ListDashboards(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list dashboards", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Dashboards listed successfully", gin.H{
+		"data":      dashboards,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// PublishDashboard 处理发布仪表板的HTTP请求。
+// Method: POST
+// Path: /analytics/dashboards/:id/publish
+func (h *Handler) PublishDashboard(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.PublishDashboard(c.Request.Context(), id); err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to publish dashboard", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Dashboard published successfully", nil)
+}
+
 // CreateReport 处理创建报告的HTTP请求。
 // Method: POST
 // Path: /analytics/reports
@@ -228,6 +319,119 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusCreated, "Report created successfully", report)
 }
 
+// GetReport 处理获取报告详情的HTTP请求。
+// Method: GET
+// Path: /analytics/reports/:id
+func (h *Handler) GetReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	report, err := h.service.GetReport(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get report", err.Error())
+		return
+	}
+	if report == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Report not found", "report not found")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Report retrieved successfully", report)
+}
+
+// UpdateReport 处理更新报告的HTTP请求。
+// Method: PUT
+// Path: /analytics/reports/:id
+func (h *Handler) UpdateReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	report, err := h.service.UpdateReport(c.Request.Context(), id, req.Title, req.Description)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update report", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Report updated successfully", report)
+}
+
+// DeleteReport 处理删除报告的HTTP请求。
+// Method: DELETE
+// Path: /analytics/reports/:id
+func (h *Handler) DeleteReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.DeleteReport(c.Request.Context(), id); err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete report", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Report deleted successfully", nil)
+}
+
+// ListReports 处理列出报告的HTTP请求。
+// Method: GET
+// Path: /analytics/reports
+func (h *Handler) ListReports(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	reports, total, err := h.service.ListReports(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list reports", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Reports listed successfully", gin.H{
+		"data":      reports,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// PublishReport 处理发布报告的HTTP请求。
+// Method: POST
+// Path: /analytics/reports/:id/publish
+func (h *Handler) PublishReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.service.PublishReport(c.Request.Context(), id); err != nil {
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to publish report", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Report published successfully", nil)
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Analytics模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -240,11 +444,19 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 
 		// Dashboards 接口。
 		group.POST("/dashboards", h.CreateDashboard)                  // 创建仪表板。
+		group.GET("/dashboards", h.ListDashboards)                    // 列出仪表板。
 		group.GET("/dashboards/:id", h.GetDashboard)                  // 获取仪表板详情。
+		group.PUT("/dashboards/:id", h.UpdateDashboard)               // 更新仪表板。
+		group.DELETE("/dashboards/:id", h.DeleteDashboard)            // 删除仪表板。
 		group.POST("/dashboards/:id/metrics", h.AddMetricToDashboard) // 添加指标到仪表板。
+		group.POST("/dashboards/:id/publish", h.PublishDashboard)     // 发布仪表板。
 
 		// Reports 接口。
-		group.POST("/reports", h.CreateReport) // 创建报告。
-		// TODO: 补充获取、更新、删除报告以及发布仪表板/报告的接口。
+		group.POST("/reports", h.CreateReport)              // 创建报告。
+		group.GET("/reports", h.ListReports)                // 列出报告。
+		group.GET("/reports/:id", h.GetReport)              // 获取报告详情。
+		group.PUT("/reports/:id", h.UpdateReport)           // 更新报告。
+		group.DELETE("/reports/:id", h.DeleteReport)        // 删除报告。
+		group.POST("/reports/:id/publish", h.PublishReport) // 发布报告。
 	}
 }

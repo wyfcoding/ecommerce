@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化包，用于错误信息。
 	"strconv" // 导入字符串和数字转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/api/data_processing/v1"            // 导入数据处理模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/data_processing/v1"            // 导入数据处理模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/data_processing/application" // 导入数据处理模块的应用服务。
 
 	"google.golang.org/grpc/codes"  // gRPC状态码。

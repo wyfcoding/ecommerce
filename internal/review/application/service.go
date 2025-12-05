@@ -116,6 +116,16 @@ func (s *ReviewService) ListReviews(ctx context.Context, productID uint64, statu
 	return s.repo.List(ctx, productID, st, offset, pageSize)
 }
 
+// ListUserReviews 获取用户的评论列表。
+// ctx: 上下文。
+// userID: 筛选评论的用户ID。
+// page, pageSize: 分页参数。
+// 返回评论列表、总数和可能发生的错误。
+func (s *ReviewService) ListUserReviews(ctx context.Context, userID uint64, page, pageSize int) ([]*entity.Review, int64, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListByUser(ctx, userID, offset, pageSize)
+}
+
 // GetProductStats 获取指定商品的评分统计数据。
 // ctx: 上下文。
 // productID: 商品ID。

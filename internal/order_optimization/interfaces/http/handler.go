@@ -7,8 +7,9 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/application" // 导入订单优化模块的应用服务。
 	"github.com/wyfcoding/ecommerce/pkg/response"                            // 导入统一的响应处理工具。
 
+	"log/slog" // 导入结构化日志库。
+
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了OrderOptimization模块的HTTP处理层。
@@ -104,6 +105,74 @@ func (h *Handler) AllocateWarehouse(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusCreated, "Warehouse allocated successfully", plan)
 }
 
+// GetMergedOrder handles the request to get a merged order by ID.
+// Method: GET
+// Path: /order-optimization/merge/:id
+func (h *Handler) GetMergedOrder(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	order, err := h.service.GetMergedOrder(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("Failed to get merged order", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get merged order", err.Error())
+		return
+	}
+	if order == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Merged order not found", "order not found")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Merged order retrieved successfully", order)
+}
+
+// ListSplitOrders handles the request to list split orders for an original order.
+// Method: GET
+// Path: /order-optimization/split/:order_id
+func (h *Handler) ListSplitOrders(c *gin.Context) {
+	orderID, err := strconv.ParseUint(c.Param("order_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid Order ID", err.Error())
+		return
+	}
+
+	orders, err := h.service.ListSplitOrders(c.Request.Context(), orderID)
+	if err != nil {
+		h.logger.Error("Failed to list split orders", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list split orders", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Split orders retrieved successfully", orders)
+}
+
+// GetAllocationPlan handles the request to get an allocation plan by order ID.
+// Method: GET
+// Path: /order-optimization/allocations/:order_id
+func (h *Handler) GetAllocationPlan(c *gin.Context) {
+	orderID, err := strconv.ParseUint(c.Param("order_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid Order ID", err.Error())
+		return
+	}
+
+	plan, err := h.service.GetAllocationPlan(c.Request.Context(), orderID)
+	if err != nil {
+		h.logger.Error("Failed to get allocation plan", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get allocation plan", err.Error())
+		return
+	}
+	if plan == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Allocation plan not found", "plan not found")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Allocation plan retrieved successfully", plan)
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册OrderOptimization模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -111,8 +180,10 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	group := r.Group("/order-optimization")
 	{
 		group.POST("/merge", h.MergeOrders)                       // 合并订单。
+		group.GET("/merge/:id", h.GetMergedOrder)                 // 获取合并订单详情。
 		group.POST("/split", h.SplitOrder)                        // 拆分订单。
+		group.GET("/split/:order_id", h.ListSplitOrders)          // 获取拆分订单列表。
 		group.POST("/allocations/:order_id", h.AllocateWarehouse) // 分配仓库。
-		// TODO: 补充获取合并订单详情、获取拆分订单列表、获取仓库分配计划详情等接口。
+		group.GET("/allocations/:order_id", h.GetAllocationPlan)  // 获取仓库分配计划详情。
 	}
 }

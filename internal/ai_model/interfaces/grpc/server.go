@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化包。
 	"strconv" // 导入字符串和数字转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/api/ai_model/v1"            // 导入AI模型模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/ai_model/v1"            // 导入AI模型模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/ai_model/application" // 导入AI模型模块的应用服务。
 
 	// 导入AI模型模块的领域实体。
@@ -116,46 +116,141 @@ func (s *Server) RetrainModel(ctx context.Context, req *pb.RetrainModelRequest) 
 
 // GetProductRecommendations 获取产品推荐。
 func (s *Server) GetProductRecommendations(ctx context.Context, req *pb.GetProductRecommendationsRequest) (*pb.GetProductRecommendationsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetProductRecommendations not implemented")
+	recs, err := s.app.GetProductRecommendations(ctx, req.UserId, req.GetContextPage())
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get product recommendations: %v", err))
+	}
+
+	var pbRecs []*pb.ProductRecommendation
+	for _, r := range recs {
+		pbRecs = append(pbRecs, &pb.ProductRecommendation{
+			ProductId: r.ProductID,
+			Score:     r.Score,
+			Reason:    &r.Reason,
+		})
+	}
+	return &pb.GetProductRecommendationsResponse{Recommendations: pbRecs}, nil
 }
 
-// GetRelatedProducts 获取相关产品。
+// GetRelatedProducts 获取相关商品。
 func (s *Server) GetRelatedProducts(ctx context.Context, req *pb.GetRelatedProductsRequest) (*pb.GetRelatedProductsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetRelatedProducts not implemented")
+	recs, err := s.app.GetRelatedProducts(ctx, req.ProductId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get related products: %v", err))
+	}
+
+	var pbRecs []*pb.ProductRecommendation
+	for _, r := range recs {
+		pbRecs = append(pbRecs, &pb.ProductRecommendation{
+			ProductId: r.ProductID,
+			Score:     r.Score,
+			Reason:    &r.Reason,
+		})
+	}
+	return &pb.GetRelatedProductsResponse{RelatedProducts: pbRecs}, nil
 }
 
-// GetPersonalizedFeed 获取个性化信息流。
+// GetPersonalizedFeed 获取个性化内容流。
 func (s *Server) GetPersonalizedFeed(ctx context.Context, req *pb.GetPersonalizedFeedRequest) (*pb.GetPersonalizedFeedResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetPersonalizedFeed not implemented")
+	items, err := s.app.GetPersonalizedFeed(ctx, req.UserId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get personalized feed: %v", err))
+	}
+
+	var pbItems []*pb.FeedItem
+	for _, item := range items {
+		pbItems = append(pbItems, &pb.FeedItem{
+			ItemType:  item.ItemType,
+			ItemId:    item.ItemID,
+			Title:     item.Title,
+			ImageUrl:  item.ImageURL,
+			TargetUrl: item.TargetURL,
+			Score:     item.Score,
+		})
+	}
+	return &pb.GetPersonalizedFeedResponse{FeedItems: pbItems}, nil
 }
 
-// RecognizeImageContent 识别图像内容。
+// RecognizeImageContent 识别图片内容。
 func (s *Server) RecognizeImageContent(ctx context.Context, req *pb.RecognizeImageContentRequest) (*pb.RecognizeImageContentResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "RecognizeImageContent not implemented")
+	labels, err := s.app.RecognizeImageContent(ctx, req.ImageUrl)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to recognize image content: %v", err))
+	}
+
+	var tags []*pb.ImageTag
+	for _, label := range labels {
+		tags = append(tags, &pb.ImageTag{Name: label, Confidence: 0.9})
+	}
+
+	return &pb.RecognizeImageContentResponse{Tags: tags}, nil
 }
 
-// SearchImageByImage 通过图片搜索图片。
+// SearchImageByImage 通过图片搜索相似商品。
 func (s *Server) SearchImageByImage(ctx context.Context, req *pb.SearchImageByImageRequest) (*pb.SearchImageByImageResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SearchImageByImage not implemented")
+	results, err := s.app.SearchImageByImage(ctx, req.ImageUrl)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to search image by image: %v", err))
+	}
+
+	var pbResults []*pb.ProductSearchResult
+	for _, r := range results {
+		pbResults = append(pbResults, &pb.ProductSearchResult{ProductId: r.ProductID, SimilarityScore: r.SimilarityScore})
+	}
+
+	return &pb.SearchImageByImageResponse{Results: pbResults}, nil
 }
 
-// AnalyzeReviewSentiment 分析评论情感。
+// AnalyzeReviewSentiment 分析用户评论情感。
 func (s *Server) AnalyzeReviewSentiment(ctx context.Context, req *pb.AnalyzeReviewSentimentRequest) (*pb.AnalyzeReviewSentimentResponse, error) {
-	// TODO: 如果有情感分析模型ID，可以调用 s.app.Predict。
-	return nil, status.Error(codes.Unimplemented, "AnalyzeReviewSentiment not implemented")
+	score, explanation, err := s.app.AnalyzeReviewSentiment(ctx, req.ReviewText)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to analyze review sentiment: %v", err))
+	}
+
+	var sentiment pb.Sentiment
+	if score > 0.5 {
+		sentiment = pb.Sentiment_SENTIMENT_POSITIVE
+	} else if score < -0.5 {
+		sentiment = pb.Sentiment_SENTIMENT_NEGATIVE
+	} else {
+		sentiment = pb.Sentiment_SENTIMENT_NEUTRAL
+	}
+
+	return &pb.AnalyzeReviewSentimentResponse{
+		Sentiment:   sentiment,
+		Score:       score,
+		Explanation: &explanation,
+	}, nil
 }
 
 // ExtractKeywordsFromText 从文本中提取关键词。
 func (s *Server) ExtractKeywordsFromText(ctx context.Context, req *pb.ExtractKeywordsFromTextRequest) (*pb.ExtractKeywordsFromTextResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "ExtractKeywordsFromText not implemented")
+	keywords, err := s.app.ExtractKeywordsFromText(ctx, req.Text)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to extract keywords: %v", err))
+	}
+	return &pb.ExtractKeywordsFromTextResponse{Keywords: keywords}, nil
 }
 
-// SummarizeText 总结文本。
+// SummarizeText 总结长文本内容。
 func (s *Server) SummarizeText(ctx context.Context, req *pb.SummarizeTextRequest) (*pb.SummarizeTextResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "SummarizeText not implemented")
+	summary, err := s.app.SummarizeText(ctx, req.Text)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to summarize text: %v", err))
+	}
+	return &pb.SummarizeTextResponse{Summary: summary}, nil
 }
 
-// GetFraudScore 获取欺诈分数。
+// GetFraudScore 获取欺诈评分。
 func (s *Server) GetFraudScore(ctx context.Context, req *pb.GetFraudScoreRequest) (*pb.GetFraudScoreResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetFraudScore not implemented")
+	result, err := s.app.GetFraudScore(ctx, req.UserId, req.TransactionAmount, req.IpAddress)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get fraud score: %v", err))
+	}
+	return &pb.GetFraudScoreResponse{
+		FraudScore:   result.FraudScore,
+		IsFraudulent: result.IsFraudulent,
+		Reasons:      result.Reasons,
+	}, nil
 }

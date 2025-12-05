@@ -7,9 +7,10 @@ import (
 // Cart 实体是购物车模块的聚合根。
 // 它代表一个用户的购物车，包含了用户ID和购物车中的所有商品项。
 type Cart struct {
-	gorm.Model             // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	UserID     uint64      `gorm:"not null;uniqueIndex;comment:用户ID" json:"user_id"` // 用户ID，唯一索引，不允许为空，确保每个用户只有一个购物车。
-	Items      []*CartItem `gorm:"foreignKey:CartID" json:"items"`                   // 购物车中的商品项列表，一对多关系。
+	gorm.Model                    // 嵌入gorm.Model,包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
+	UserID            uint64      `gorm:"not null;uniqueIndex;comment:用户ID" json:"user_id"`              // 用户ID,唯一索引,不允许为空,确保每个用户只有一个购物车。
+	AppliedCouponCode string      `gorm:"type:varchar(100);comment:已应用的优惠券码" json:"applied_coupon_code"` // 已应用的优惠券码。
+	Items             []*CartItem `gorm:"foreignKey:CartID" json:"items"`                                // 购物车中的商品项列表,一对多关系。
 }
 
 // CartItem 实体代表购物车中的一个商品项。
