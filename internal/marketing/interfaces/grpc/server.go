@@ -5,7 +5,7 @@ import (
 	"encoding/json" // 导入JSON编码/解码库。
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/marketing/v1"              // 导入营销模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/marketing/v1"           // 导入营销模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"   // 导入营销模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain/entity" // 导入营销模块的领域实体。
 

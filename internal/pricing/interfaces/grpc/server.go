@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/pricing/v1"              // 导入定价模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/pricing/v1"           // 导入定价模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/pricing/application"   // 导入定价模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain/entity" // 导入定价模块的领域实体。
 

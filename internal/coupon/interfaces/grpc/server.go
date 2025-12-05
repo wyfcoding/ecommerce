@@ -6,7 +6,7 @@ import (
 	"strconv" // 导入字符串和数字转换工具。
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/coupon/v1"              // 导入优惠券模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/coupon/v1"           // 导入优惠券模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/coupon/application"   // 导入优惠券模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity" // 导入优惠券模块的领域实体。
 

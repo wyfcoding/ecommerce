@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/permission/v1"              // 导入权限模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/permission/v1"           // 导入权限模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/permission/application"   // 导入权限模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/permission/domain/entity" // 导入权限模块的领域实体。
 

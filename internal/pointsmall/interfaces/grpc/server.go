@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1"              // 导入积分商城模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1"           // 导入积分商城模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"   // 导入积分商城模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain/entity" // 导入积分商城模块的领域实体。
 

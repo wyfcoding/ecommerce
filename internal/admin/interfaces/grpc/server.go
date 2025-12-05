@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt" // 用于格式化错误信息。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/admin/v1"              // 导入Admin模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/admin/v1"           // 导入Admin模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/admin/application"   // 导入Admin模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity" // 导入Admin模块的领域实体。
 

@@ -7,7 +7,7 @@ import (
 
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"              // 导入搜索模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"           // 导入搜索模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/search/application"   // 导入搜索模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/search/domain/entity" // 导入搜索模块的领域实体。
 

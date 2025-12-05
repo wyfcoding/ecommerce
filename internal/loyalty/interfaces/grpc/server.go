@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/loyalty/v1"              // 导入忠诚度模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/loyalty/v1"           // 导入忠诚度模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/loyalty/application"   // 导入忠诚度模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/loyalty/domain/entity" // 导入忠诚度模块的领域实体。
 

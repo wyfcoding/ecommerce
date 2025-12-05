@@ -4,7 +4,7 @@ import (
 	"context" // 导入上下文。
 	"fmt"     // 导入格式化库。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/user_tier/v1"              // 导入用户等级模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/user_tier/v1"           // 导入用户等级模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/user_tier/application"   // 导入用户等级模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/user_tier/domain/entity" // 导入用户等级模块的领域实体。
 

@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化包，用于错误信息。
 	"strings" // 导入字符串操作包。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/customer_service/v1"              // 导入客户服务模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/customer_service/v1"           // 导入客户服务模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/customer_service/application"   // 导入客户服务模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain/entity" // 导入客户服务模块的领域实体。
 

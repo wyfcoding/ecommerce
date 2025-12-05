@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"              // 导入库存模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"           // 导入库存模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"   // 导入库存模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain/entity" // 导入库存模块的领域实体。
 

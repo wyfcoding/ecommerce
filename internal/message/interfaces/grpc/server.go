@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/message/v1"              // 导入消息模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/message/v1"           // 导入消息模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/message/application"   // 导入消息模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/message/domain/entity" // 导入消息模块的领域实体。
 

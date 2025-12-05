@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化包。
 	"strconv" // 导入字符串和数字转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/ai_model/v1"            // 导入AI模型模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/ai_model/v1"         // 导入AI模型模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/ai_model/application" // 导入AI模型模块的应用服务。
 
 	// 导入AI模型模块的领域实体。

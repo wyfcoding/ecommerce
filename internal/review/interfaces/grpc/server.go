@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/review/v1"              // 导入评论模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/review/v1"           // 导入评论模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/review/application"   // 导入评论模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/review/domain/entity" // 导入评论模块的领域实体。
 

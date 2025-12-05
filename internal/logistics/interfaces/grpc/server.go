@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"              // 导入物流模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"           // 导入物流模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/logistics/application"   // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity" // 导入物流模块的领域实体。
 	"github.com/wyfcoding/ecommerce/pkg/algorithm"                    // 导入算法包，用于路线优化。

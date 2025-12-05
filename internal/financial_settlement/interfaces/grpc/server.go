@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/financial_settlement/v1"              // 导入财务结算模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/financial_settlement/v1"           // 导入财务结算模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/financial_settlement/application"   // 导入财务结算模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/financial_settlement/domain/entity" // 导入财务结算模块的领域实体。
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/content_moderation/v1"              // 导入内容审核模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/content_moderation/v1"           // 导入内容审核模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/application"   // 导入内容审核模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain/entity" // 导入内容审核模块的领域实体。
 

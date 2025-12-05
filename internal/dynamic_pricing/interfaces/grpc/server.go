@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/dynamic_pricing/v1"              // 导入动态定价模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/dynamic_pricing/v1"           // 导入动态定价模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/application"   // 导入动态定价模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain/entity" // 导入动态定价模块的领域实体。
 

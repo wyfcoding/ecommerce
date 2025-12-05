@@ -6,7 +6,7 @@ import (
 	"fmt"    // 导入格式化库。
 	"time"   // 导入时间库。
 
-	warehousev1 "github.com/wyfcoding/ecommerce/go-api/warehouse/v1"     // 导入仓库服务的protobuf定义。
+	warehousev1 "github.com/wyfcoding/ecommerce/go-api/warehouse/v1"  // 导入仓库服务的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/order/domain/entity"     // 导入订单领域的实体定义。
 	"github.com/wyfcoding/ecommerce/internal/order/domain/repository" // 导入订单领域的仓储接口。
 

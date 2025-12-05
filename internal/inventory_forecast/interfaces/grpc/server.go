@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/inventory_forecast/v1"              // 导入库存预测模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/inventory_forecast/v1"           // 导入库存预测模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/application"   // 导入库存预测模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/entity" // 导入库存预测模块的领域实体。
 

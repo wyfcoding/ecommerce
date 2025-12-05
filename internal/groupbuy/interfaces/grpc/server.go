@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/groupbuy/v1"              // 导入拼团模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/groupbuy/v1"           // 导入拼团模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/application"   // 导入拼团模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain/entity" // 导入拼团模块的领域实体。
 
