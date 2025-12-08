@@ -4,19 +4,18 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/pkg/response"
-
-	"github.com/gin-gonic/gin"
 )
 
-// Handler 处理支付服务的 HTTP 请求。
+// Handler 支付HTTP处理器
 type Handler struct {
 	app    *application.PaymentApplicationService
 	logger *slog.Logger
 }
 
-// NewHandler 创建一个新的 HTTP 处理器。
+// NewHandler 创建HTTP处理器
 func NewHandler(app *application.PaymentApplicationService, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
@@ -24,7 +23,7 @@ func NewHandler(app *application.PaymentApplicationService, logger *slog.Logger)
 	}
 }
 
-// RegisterRoutes 注册支付相关的路由。
+// RegisterRoutes 注册路由
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	payments := router.Group("/payments")
 	{
@@ -42,7 +41,7 @@ type initiatePaymentRequest struct {
 	PaymentMethod string `json:"payment_method" binding:"required"`
 }
 
-// InitiatePayment 处理支付发起请求。
+// InitiatePayment 发起支付
 func (h *Handler) InitiatePayment(c *gin.Context) {
 	var req initiatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -50,14 +49,20 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
-	payment, err := h.app.InitiatePayment(c.Request.Context(), req.OrderID, req.UserID, req.Amount, req.PaymentMethod)
+	payment, gatewayResp, err := h.app.InitiatePayment(c.Request.Context(), req.OrderID, req.UserID, req.Amount, req.PaymentMethod)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to initiate payment", "error", err)
-		response.InternalError(c, "failed to initiate payment: "+err.Error())
+		// Log detailed error but return generic message if sensitive
+		h.logger.ErrorContext(c.Request.Context(), "initiate payment failed", "error", err)
+		response.InternalError(c, "initiate payment failed: "+err.Error())
 		return
 	}
 
-	response.Success(c, payment)
+	resp := map[string]interface{}{
+		"payment":          payment,
+		"gateway_response": gatewayResp,
+	}
+
+	response.Success(c, resp)
 }
 
 type paymentCallbackRequest struct {
@@ -67,7 +72,7 @@ type paymentCallbackRequest struct {
 	ThirdPartyNo  string `json:"third_party_no"`
 }
 
-// HandlePaymentCallback 处理来自第三方支付提供商的支付回调。
+// HandlePaymentCallback 处理支付回调
 func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 	var req paymentCallbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,28 +80,36 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.HandlePaymentCallback(c.Request.Context(), req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to handle payment callback", "error", err)
-		response.InternalError(c, "failed to handle payment callback: "+err.Error())
+	// 尝试将所有请求字段作为回调数据传递
+	callbackData := map[string]string{
+		"payment_no":     req.PaymentNo,
+		"status":         strconv.FormatBool(req.Success),
+		"transaction_id": req.TransactionID,
+		"third_party_no": req.ThirdPartyNo,
+	}
+
+	if err := h.app.HandlePaymentCallback(c.Request.Context(), req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "handle callback failed", "error", err)
+		response.InternalError(c, "handle callback failed: "+err.Error())
 		return
 	}
 
 	response.Success(c, nil)
 }
 
-// GetPaymentStatus 处理获取支付状态的请求。
+// GetPaymentStatus 查询支付状态
 func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid payment id: "+err.Error())
+		response.BadRequest(c, "invalid payment id")
 		return
 	}
 
 	payment, err := h.app.GetPaymentStatus(c.Request.Context(), id)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to get payment status", "id", id, "error", err)
-		response.InternalError(c, "failed to get payment status: "+err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "get status failed", "id", id, "error", err)
+		response.InternalError(c, "get status failed")
 		return
 	}
 	if payment == nil {
@@ -112,25 +125,25 @@ type requestRefundRequest struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
-// RequestRefund 处理退款请求。
+// RequestRefund 申请退款
 func (h *Handler) RequestRefund(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid payment id: "+err.Error())
+		response.BadRequest(c, "invalid payment id")
 		return
 	}
 
 	var req requestRefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.BadRequest(c, "invalid body: "+err.Error())
 		return
 	}
 
 	refund, err := h.app.RequestRefund(c.Request.Context(), id, req.Amount, req.Reason)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to request refund", "id", id, "error", err)
-		response.InternalError(c, "failed to request refund: "+err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "refund request failed", "id", id, "error", err)
+		response.InternalError(c, "refund request failed: "+err.Error())
 		return
 	}
 

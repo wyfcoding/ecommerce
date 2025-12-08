@@ -15,6 +15,9 @@ service SettlementService {
   rpc CompleteSettlement(CompleteSettlementRequest) returns (google.protobuf.Empty);
   rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
 
+  // Accounting / Ledger Integration
+  rpc RecordPaymentSuccess(RecordPaymentSuccessRequest) returns (google.protobuf.Empty);
+
   // Account Management
   rpc GetMerchantAccount(GetMerchantAccountRequest) returns (GetMerchantAccountResponse);
 }
@@ -93,4 +96,12 @@ message GetMerchantAccountRequest {
 
 message GetMerchantAccountResponse {
   MerchantAccount account = 1;
+}
+
+message RecordPaymentSuccessRequest {
+  uint64 order_id = 1;
+  string order_no = 2;
+  uint64 merchant_id = 3;
+  int64 amount = 4;
+  int64 channel_cost = 5;
 }

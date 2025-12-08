@@ -5,8 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	v1 "github.com/wyfcoding/ecommerce/go-api/payment/v1"
+	settlementv1 "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
+	"github.com/wyfcoding/ecommerce/internal/payment/domain"
+	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/risk"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
 	"github.com/wyfcoding/ecommerce/pkg/app"
 	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
@@ -52,6 +56,7 @@ func main() {
 			// Repositories
 			paymentRepo := persistence.NewPaymentRepository(shardingManager)
 			refundRepo := persistence.NewRefundRepository(shardingManager)
+			channelRepo := persistence.NewChannelRepository(shardingManager)
 
 			// ID Generator
 			idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
@@ -60,8 +65,37 @@ func main() {
 				return nil, nil, err
 			}
 
-			// Application Service
-			appService := application.NewPaymentApplicationService(paymentRepo, refundRepo, idGenerator, logger.Logger)
+			// Domain Services
+			riskService := risk.NewRiskService()
+
+			// Gateways
+			gateways := map[domain.GatewayType]domain.PaymentGateway{
+				domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),
+				domain.GatewayTypeWechat: gateway.NewWechatGateway(),
+				domain.GatewayTypeStripe: gateway.NewStripeGateway(),
+				domain.GatewayTypeMock:   gateway.NewAlipayGateway(), // Default to Alipay for mock
+			}
+
+			// Settlement Client (Direct Call)
+			// TODO: Use Service Discovery / Config
+			conn, err := grpc.Dial("localhost:9006", grpc.WithInsecure())
+			if err != nil {
+				cleanupDB()
+				return nil, nil, err
+			}
+			settlementCli := settlementv1.NewSettlementServiceClient(conn)
+
+			// Applicatopn Service
+			appService := application.NewPaymentApplicationService(
+				paymentRepo,
+				refundRepo,
+				channelRepo,
+				riskService,
+				idGenerator,
+				gateways,
+				settlementCli,
+				logger.Logger,
+			)
 
 			// gRPC Server
 			srv := grpcServer.NewServer(appService)
@@ -79,7 +113,7 @@ func main() {
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.PaymentApplicationService)
+	service := srv.(*grpcServer.Server).App
 	handler := paymenthttp.NewHandler(service, slog.Default())
 
 	api := e.Group("/api/v1")

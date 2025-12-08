@@ -11,63 +11,77 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Server gRPC 服务实现
 type Server struct {
 	pb.UnimplementedPaymentServer
-	app *application.PaymentApplicationService
+	App *application.PaymentApplicationService
 }
 
+// NewServer 创建 gRPC 服务
 func NewServer(app *application.PaymentApplicationService) *Server {
-	return &Server{app: app}
+	return &Server{App: app}
 }
 
+// InitiatePayment 发起支付
 func (s *Server) InitiatePayment(ctx context.Context, req *pb.InitiatePaymentRequest) (*pb.PaymentResponse, error) {
-	payment, err := s.app.InitiatePayment(ctx, req.OrderId, req.UserId, req.Amount, req.PaymentMethod)
+	payment, gatewayResp, err := s.App.InitiatePayment(ctx, req.OrderId, req.UserId, req.Amount, req.PaymentMethod)
 	if err != nil {
 		return nil, err
 	}
 
-	// Mock response for now
 	return &pb.PaymentResponse{
-		PaymentUrl:    "http://mock-payment-gateway.com/pay?id=" + payment.PaymentNo,
+		PaymentUrl:    gatewayResp.PaymentURL,
+		PrepayId:      gatewayResp.TransactionID,
 		TransactionNo: payment.PaymentNo,
 	}, nil
 }
 
+// HandlePaymentCallback 处理支付回调
 func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymentCallbackRequest) (*emptypb.Empty, error) {
-	// Extract data from callback_data
+	// 尝试从 callback_data 中提取关键信息
 	paymentNo := req.CallbackData["payment_no"]
-	success := req.CallbackData["status"] == "success"
-	transactionID := req.CallbackData["transaction_id"]
+	if paymentNo == "" {
+		paymentNo = req.CallbackData["out_trade_no"]
+	}
 
-	if err := s.app.HandlePaymentCallback(ctx, paymentNo, success, transactionID, ""); err != nil {
+	success := req.CallbackData["status"] == "success" ||
+		req.CallbackData["trade_status"] == "TRADE_SUCCESS" ||
+		req.CallbackData["result_code"] == "SUCCESS"
+
+	transactionID := req.CallbackData["trade_no"]
+	if transactionID == "" {
+		transactionID = req.CallbackData["transaction_id"]
+	}
+
+	if err := s.App.HandlePaymentCallback(ctx, paymentNo, success, transactionID, "", req.CallbackData); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
 }
 
+// GetPaymentStatus 查询支付状态
 func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusRequest) (*pb.PaymentTransaction, error) {
-	payment, err := s.app.GetPaymentStatus(ctx, req.PaymentTransactionId)
+	payment, err := s.App.GetPaymentStatus(ctx, req.PaymentTransactionId)
 	if err != nil {
 		return nil, err
 	}
 	return convertPaymentToProto(payment), nil
 }
 
+// RequestRefund 申请退款
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.RefundTransaction, error) {
-	refund, err := s.app.RequestRefund(ctx, req.PaymentTransactionId, req.RefundAmount, req.Reason)
+	refund, err := s.App.RequestRefund(ctx, req.PaymentTransactionId, req.RefundAmount, req.Reason)
 	if err != nil {
 		return nil, err
 	}
 	return convertRefundToProto(refund), nil
 }
 
-// 辅助函数
-
+// 辅助函数：转换实体到 Proto
 func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	if p == nil {
 		return nil
 	}
-
 	var paidAt *timestamppb.Timestamp
 	if p.PaidAt != nil {
 		paidAt = timestamppb.New(*p.PaidAt)
@@ -99,7 +113,7 @@ func convertRefundToProto(r *domain.Refund) *pb.RefundTransaction {
 		OrderId:              r.OrderID,
 		UserId:               r.UserID,
 		RefundAmount:         r.RefundAmount,
-		Status:               pb.RefundStatus(r.Status), // Map status correctly if needed
+		Status:               pb.RefundStatus(r.Status),
 		Reason:               r.Reason,
 		CreatedAt:            timestamppb.New(r.CreatedAt),
 		UpdatedAt:            timestamppb.New(r.UpdatedAt),

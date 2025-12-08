@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
+	"github.com/wyfcoding/ecommerce/internal/settlement/domain/ledger"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
 	settlementhttp "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/http"
@@ -74,9 +75,13 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// Infrastructure Layer
 	repo := persistence.NewSettlementRepository(db)
+	ledgerRepo := persistence.NewLedgerRepository(db)
+
+	// Domain/Service Layer
+	ledgerService := ledger.NewLedgerService(ledgerRepo)
 
 	// Application Layer
-	service := application.NewSettlementService(repo, logger.Logger)
+	service := application.NewSettlementService(repo, ledgerService, logger.Logger)
 
 	cleanup := func() {
 		slog.Default().Info("cleaning up settlement service resources (DDD)...")

@@ -1,128 +1,136 @@
 package domain
 
 import (
-	"fmt"  // 导入格式化库，用于错误信息和编号生成。
-	"time" // 导入时间库。
+	"fmt"
+	"time"
 )
 
-// PaymentStatus 支付状态
+// PaymentStatus 支付状态枚举
 type PaymentStatus int
 
 const (
-	PaymentPending   PaymentStatus = 1 // 待处理/待支付：支付已发起但尚未完成。
-	PaymentSuccess   PaymentStatus = 2 // 成功：支付已成功完成。
-	PaymentFailed    PaymentStatus = 3 // 失败：支付处理失败。
-	PaymentCancelled PaymentStatus = 4 // 取消：支付被取消。
-	PaymentRefunding PaymentStatus = 5 // 退款中：正在处理退款。
-	PaymentRefunded  PaymentStatus = 6 // 已退款：退款已成功完成。
+	PaymentPending   PaymentStatus = 1 // 待支付：支付已创建但未完成
+	PaymentSuccess   PaymentStatus = 2 // 支付成功：交易已确认
+	PaymentFailed    PaymentStatus = 3 // 支付失败：交易被拒绝或发生错误
+	PaymentCancelled PaymentStatus = 4 // 已取消：交易被用户或系统取消
+	PaymentRefunding PaymentStatus = 5 // 退款中：部分或全部退款正在处理
+	PaymentRefunded  PaymentStatus = 6 // 已退款：全额退款完成
 )
 
-// String 返回 PaymentStatus 的字符串表示。
+// String 返回状态的英文标识
 func (s PaymentStatus) String() string {
-	names := map[PaymentStatus]string{
-		PaymentPending:   "Pending",
-		PaymentSuccess:   "Success",
-		PaymentFailed:    "Failed",
-		PaymentCancelled: "Cancelled",
-		PaymentRefunding: "Refunding",
-		PaymentRefunded:  "Refunded",
+	switch s {
+	case PaymentPending:
+		return "Pending"
+	case PaymentSuccess:
+		return "Success"
+	case PaymentFailed:
+		return "Failed"
+	case PaymentCancelled:
+		return "Cancelled"
+	case PaymentRefunding:
+		return "Refunding"
+	case PaymentRefunded:
+		return "Refunded"
+	default:
+		return "Unknown"
 	}
-	return names[s] // 根据状态值返回对应的字符串。
 }
 
-// Payment 实体是支付模块的聚合根。
-// 它代表一个支付单的完整生命周期，包含支付编号、关联订单、用户、金额、状态、交易详情和日志等。
+// Payment 支付聚合根
+// 核心实体，负责管理支付生命周期、状态流转及退款记录
 type Payment struct {
-	ID            uint64        // 支付ID。
-	PaymentNo     string        // 支付单号，唯一标识一笔支付。
-	OrderID       uint64        // 关联的订单ID。
-	OrderNo       string        // 关联的订单编号。
-	UserID        uint64        // 支付用户ID。
-	Amount        int64         // 支付金额（单位：分）。
-	PaymentMethod string        // 支付方式（例如，支付宝，微信支付，银行卡）。
-	Status        PaymentStatus // 当前支付状态。
-	TransactionID string        // 第三方支付平台返回的交易流水号。
-	ThirdPartyNo  string        // 第三方支付平台返回的支付单号。
-	CallbackData  string        // 支付回调的原始数据，可能为JSON字符串。
-	FailureReason string        // 支付失败或取消的原因。
-	CreatedAt     time.Time     // 支付记录创建时间。
-	UpdatedAt     time.Time     // 支付记录最后更新时间。
-	PaidAt        *time.Time    // 实际支付成功时间。
-	CancelledAt   *time.Time    // 支付取消时间。
-	RefundedAt    *time.Time    // 支付全额退款时间。
-	Logs          []*PaymentLog // 关联的支付操作日志列表。
-	Refunds       []*Refund     // 关联的退款记录列表。
+	ID            uint64        // 内部唯一ID
+	PaymentNo     string        // 业务支付单号（全局唯一）
+	OrderID       uint64        // 关联业务订单ID
+	OrderNo       string        // 关联业务订单号
+	UserID        uint64        // 用户ID
+	Amount        int64         // 支付金额（单位：分）
+	PaymentMethod string        // 支付方式标识（如 "alipay", "wechat"）
+	GatewayType   GatewayType   // 实际通过的网关类型
+	Status        PaymentStatus // 当前支付状态
+	TransactionID string        // 第三方支付网关的交易流水号
+	ThirdPartyNo  string        // 第三方支付网关的订单号
+	CallbackData  string        // 原始回调数据快照
+	FailureReason string        // 失败或取消原因
+	CreatedAt     time.Time     // 创建时间
+	UpdatedAt     time.Time     // 更新时间
+	PaidAt        *time.Time    // 支付成功时间
+	CancelledAt   *time.Time    // 取消时间
+	RefundedAt    *time.Time    // 退款完成时间
+	Logs          []*PaymentLog // 操作日志集合
+	Refunds       []*Refund     // 退款记录集合
 }
 
-// Refund 实体代表一笔退款记录。
-// 它是Payment聚合根的一部分。
+// Refund 退款实体
+// 隶属于 Payment 聚合根
 type Refund struct {
-	ID            uint64        // 退款ID。
-	RefundNo      string        // 退款单号，唯一标识一笔退款。
-	PaymentID     uint64        // 关联的支付ID。
-	PaymentNo     string        // 关联的支付单号。
-	OrderID       uint64        // 关联的订单ID。
-	OrderNo       string        // 关联的订单编号。
-	UserID        uint64        // 退款用户ID。
-	RefundAmount  int64         // 退款金额（单位：分）。
-	Reason        string        // 退款原因。
-	Status        PaymentStatus // 退款状态（PaymentRefunding, PaymentRefunded, PaymentFailed）。
-	ThirdPartyNo  string        // 第三方支付平台返回的退款流水号。
-	FailureReason string        // 退款失败的原因。
-	CreatedAt     time.Time     // 退款记录创建时间。
-	UpdatedAt     time.Time     // 退款记录最后更新时间。
-	RefundedAt    *time.Time    // 实际退款成功时间。
+	ID              uint64        // 内部唯一ID
+	RefundNo        string        // 退款单号（全局唯一）
+	PaymentID       uint64        // 关联支付ID
+	PaymentNo       string        // 关联支付单号
+	OrderID         uint64        // 关联订单ID
+	OrderNo         string        // 关联订单号
+	UserID          uint64        // 用户ID
+	RefundAmount    int64         // 退款金额（单位：分）
+	Reason          string        // 退款原因
+	Status          PaymentStatus // 退款状态
+	ThirdPartyNo    string        // 网关退款流水号
+	GatewayRefundID string        // 网关返回的退款ID
+	FailureReason   string        // 失败原因
+	CreatedAt       time.Time     // 创建时间
+	UpdatedAt       time.Time     // 更新时间
+	RefundedAt      *time.Time    // 退款成功时间
 }
 
-// PaymentLog 值对象定义了支付的操作日志记录。
+// PaymentLog 支付操作日志（值对象）
 type PaymentLog struct {
-	ID        uint64    // 日志ID。
-	PaymentID uint64    // 关联的支付ID。
-	Action    string    // 操作动作（例如，"Initiated", "Processed", "Cancelled", "Refunded"）。
-	OldStatus string    // 操作前的支付状态。
-	NewStatus string    // 操作后的支付状态。
-	Remark    string    // 备注信息。
-	CreatedAt time.Time // 日志创建时间。
+	ID        uint64    // 内部ID
+	PaymentID uint64    // 关联支付ID
+	Action    string    // 动作名称
+	OldStatus string    // 变更前状态
+	NewStatus string    // 变更后状态
+	Remark    string    // 备注
+	CreatedAt time.Time // 记录时间
 }
 
-// NewPayment 创建并返回一个新的 Payment 实体实例。
-// orderID: 关联的订单ID。
-// orderNo: 关联的订单编号。
-// userID: 支付用户ID。
-// amount: 支付金额。
-// paymentMethod: 支付方式。
-func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string) *Payment {
+// NewPayment 创建新的支付实体
+func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string, gatewayType GatewayType) *Payment {
 	now := time.Now()
 	payment := &Payment{
-		PaymentNo:     generatePaymentNo(), // 生成唯一的支付单号。
+		PaymentNo:     generatePaymentNo(),
 		OrderID:       orderID,
 		OrderNo:       orderNo,
 		UserID:        userID,
 		Amount:        amount,
 		PaymentMethod: paymentMethod,
-		Status:        PaymentPending, // 初始状态为待处理。
+		GatewayType:   gatewayType,
+		Status:        PaymentPending,
 		CreatedAt:     now,
 		UpdatedAt:     now,
-		Logs:          []*PaymentLog{}, // 初始化日志列表。
-		Refunds:       []*Refund{},     // 初始化退款列表。
+		Logs:          make([]*PaymentLog, 0),
+		Refunds:       make([]*Refund, 0),
 	}
-	payment.AddLog("Payment Initiated", "", PaymentPending.String(), fmt.Sprintf("Amount: %d, Method: %s", amount, paymentMethod))
+	payment.AddLog("Payment Initiated", "", PaymentPending.String(), fmt.Sprintf("Amount: %d, Gateway: %s", amount, gatewayType))
 	return payment
 }
 
-// CanProcess 检查支付是否可以进行处理（从待处理状态）。
+// CanProcess 检查是否处于可支付状态
 func (p *Payment) CanProcess() error {
 	if p.Status != PaymentPending {
-		return fmt.Errorf("payment status must be Pending, current: %s", p.Status.String())
+		return fmt.Errorf("invalid status for processing: %s", p.Status)
 	}
 	return nil
 }
 
-// Process 处理支付回调的结果。
-// success: 支付是否成功。
-// transactionID: 第三方交易ID。
-// thirdPartyNo: 第三方支付流水号。
+// Process 处理支付结果回调
+// 幂等处理：若已成功且流水号一致，视为成功
 func (p *Payment) Process(success bool, transactionID, thirdPartyNo string) error {
+	// 幂等性检查
+	if p.Status == PaymentSuccess && p.TransactionID == transactionID {
+		return nil
+	}
+
 	if err := p.CanProcess(); err != nil {
 		return err
 	}
@@ -133,42 +141,40 @@ func (p *Payment) Process(success bool, transactionID, thirdPartyNo string) erro
 	p.UpdatedAt = time.Now()
 
 	if success {
-		p.Status = PaymentSuccess // 支付成功。
+		p.Status = PaymentSuccess
 		now := time.Now()
-		p.PaidAt = &now // 记录支付成功时间。
-		p.AddLog("Payment Success", oldStatus.String(), p.Status.String(), fmt.Sprintf("TransactionID: %s", transactionID))
+		p.PaidAt = &now
+		p.AddLog("Payment Success", oldStatus.String(), p.Status.String(), "TransID: "+transactionID)
 	} else {
-		p.Status = PaymentFailed // 支付失败。
-		p.FailureReason = "Payment processing failed"
+		p.Status = PaymentFailed
+		p.FailureReason = "Payment processing reported failure"
 		p.AddLog("Payment Failed", oldStatus.String(), p.Status.String(), p.FailureReason)
 	}
-
 	return nil
 }
 
-// CanRefund 检查支付是否可以进行退款。
+// CanRefund 检查是否可发起退款
 func (p *Payment) CanRefund() error {
-	// 只有支付成功的订单才能退款。
-	if p.Status != PaymentSuccess {
-		return fmt.Errorf("payment status must be Success, current: %s", p.Status.String())
+	if p.Status != PaymentSuccess && p.Status != PaymentRefunding && p.Status != PaymentRefunded {
+		return fmt.Errorf("payment not successful, current status: %s", p.Status)
+	}
+	if p.Status == PaymentRefunded {
+		return fmt.Errorf("payment fully refunded already")
 	}
 	return nil
 }
 
-// CreateRefund 创建一笔退款请求。
-// refundAmount: 退款金额。
-// reason: 退款原因。
+// CreateRefund 创建退款请求
 func (p *Payment) CreateRefund(refundAmount int64, reason string) (*Refund, error) {
 	if err := p.CanRefund(); err != nil {
 		return nil, err
 	}
-
 	if refundAmount <= 0 || refundAmount > p.Amount {
-		return nil, fmt.Errorf("invalid refund amount")
+		return nil, fmt.Errorf("invalid refund amount: %d", refundAmount)
 	}
 
 	refund := &Refund{
-		RefundNo:     generateRefundNo(), // 生成唯一的退款单号。
+		RefundNo:     generateRefundNo(),
 		PaymentID:    p.ID,
 		PaymentNo:    p.PaymentNo,
 		OrderID:      p.OrderID,
@@ -176,104 +182,92 @@ func (p *Payment) CreateRefund(refundAmount int64, reason string) (*Refund, erro
 		UserID:       p.UserID,
 		RefundAmount: refundAmount,
 		Reason:       reason,
-		Status:       PaymentRefunding, // 初始状态为退款中。
+		Status:       PaymentRefunding,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
-	p.Refunds = append(p.Refunds, refund) // 将退款添加到支付的退款列表中。
-	p.Status = PaymentRefunding           // 支付状态变更为退款中。
+	p.Refunds = append(p.Refunds, refund)
+	p.Status = PaymentRefunding // 标记主状态为退款中
 	p.UpdatedAt = time.Now()
-
-	p.AddLog("Refund Created", "", "", fmt.Sprintf("Refund amount: %d, Reason: %s", refundAmount, reason))
+	p.AddLog("Refund Created", "", "", fmt.Sprintf("Amt: %d, Reason: %s", refundAmount, reason))
 
 	return refund, nil
 }
 
-// ProcessRefund 处理退款回调的结果。
-// refundNo: 退款单号。
-// success: 退款是否成功。
-func (p *Payment) ProcessRefund(refundNo string, success bool) error {
+// ProcessRefund 处理退款结果回调
+func (p *Payment) ProcessRefund(refundNo string, success bool, gatewayRefundID string) error {
 	var refund *Refund
-	// 查找对应的退款记录。
 	for _, r := range p.Refunds {
 		if r.RefundNo == refundNo {
 			refund = r
 			break
 		}
 	}
-
 	if refund == nil {
-		return fmt.Errorf("refund not found for payment %s", p.PaymentNo)
+		return fmt.Errorf("refund not found: %s", refundNo)
+	}
+
+	// 幂等
+	if refund.Status == PaymentRefunded && success {
+		return nil
 	}
 
 	refund.UpdatedAt = time.Now()
+	refund.GatewayRefundID = gatewayRefundID
 
 	if success {
-		refund.Status = PaymentRefunded // 退款成功。
+		refund.Status = PaymentRefunded
 		now := time.Now()
-		refund.RefundedAt = &now // 记录退款成功时间。
-		// 如果是全额退款，可以将支付状态也标记为已退款。
-		// 这里简化处理，直接标记支付状态为已退款。
+		refund.RefundedAt = &now
+
+		// 简化逻辑：一次退款成功则标记整单退款成功（需根据实际业务调整为部分退款逻辑）
 		p.Status = PaymentRefunded
 		p.RefundedAt = &now
-		p.AddLog("Refund Success", "", PaymentRefunded.String(), fmt.Sprintf("RefundNo: %s", refundNo))
+		p.AddLog("Refund Success", "", PaymentRefunded.String(), "RefundNo: "+refundNo)
 	} else {
-		refund.Status = PaymentFailed // 退款失败。
-		refund.FailureReason = "Refund processing failed"
-		p.AddLog("Refund Failed", "", PaymentFailed.String(), fmt.Sprintf("RefundNo: %s, Reason: %s", refundNo, refund.FailureReason))
+		refund.Status = PaymentFailed
+		refund.FailureReason = "Gateway rejected refund"
+		// 退款失败回滚主状态
+		p.Status = PaymentSuccess
+		p.AddLog("Refund Failed", "", PaymentFailed.String(), "RefundNo: "+refundNo)
 	}
-
 	p.UpdatedAt = time.Now()
-
 	return nil
 }
 
-// Cancel 取消支付。
-// reason: 取消原因。
+// Cancel 取消支付
 func (p *Payment) Cancel(reason string) error {
-	// 只有待处理状态的支付才能取消。
 	if p.Status != PaymentPending {
-		return fmt.Errorf("payment cannot be cancelled in current status: %s", p.Status.String())
+		return fmt.Errorf("cannot cancel from status: %s", p.Status)
 	}
 
 	oldStatus := p.Status
-	p.Status = PaymentCancelled // 状态变更为已取消。
+	p.Status = PaymentCancelled
 	now := time.Now()
-	p.CancelledAt = &now // 记录取消时间。
+	p.CancelledAt = &now
 	p.UpdatedAt = now
 	p.FailureReason = reason
-
 	p.AddLog("Payment Cancelled", oldStatus.String(), p.Status.String(), reason)
-
 	return nil
 }
 
-// AddLog 添加支付操作日志。
-// action: 操作动作。
-// oldStatus: 旧状态。
-// newStatus: 新状态。
-// remark: 备注信息。
+// AddLog 内部辅助：添加日志
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
-	log := &PaymentLog{
+	p.Logs = append(p.Logs, &PaymentLog{
 		PaymentID: p.ID,
 		Action:    action,
 		OldStatus: oldStatus,
 		NewStatus: newStatus,
 		Remark:    remark,
 		CreatedAt: time.Now(),
-	}
-	p.Logs = append(p.Logs, log) // 将新日志添加到日志列表中。
+	})
 }
 
-// generatePaymentNo 生成唯一的支付单号。
-// 格式为 PYYYYMMDDHHMMSS。
+// 辅助函数
 func generatePaymentNo() string {
 	return fmt.Sprintf("P%s", time.Now().Format("20060102150405"))
 }
-
-// generateRefundNo 生成唯一的退款单号。
-// 格式为 RYYYYMMDDHHMMSS。
 func generateRefundNo() string {
 	return fmt.Sprintf("R%s", time.Now().Format("20060102150405"))
 }
