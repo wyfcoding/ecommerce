@@ -8,7 +8,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/segmentio/kafka-go v0.4.49
-	github.com/wyfcoding/pkg v0.0.0-00010101000000-000000000000
+	github.com/wyfcoding/pkg v0.0.0-20251219021539-7fddd8628f99
 	golang.org/x/crypto v0.46.0
 	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.11
@@ -123,5 +123,3 @@ require (
 	gorm.io/driver/postgres v1.6.0 // indirect
 	gorm.io/plugin/opentelemetry v0.1.16 // indirect
 )
-
-replace github.com/wyfcoding/pkg => ../pkg
