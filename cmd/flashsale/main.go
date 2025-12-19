@@ -1,125 +1,136 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"
-	flashsalegrpc "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/grpc"
-	flashsalehttp "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/http"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/mq"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/databases/redis"
-	"github.com/wyfcoding/ecommerce/pkg/idgen"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
-
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+
+	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
+	flashCache "github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"
+	grpcServer "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/grpc"
+	httpServer "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/http"
+	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+const BootstrapName = "flashsale"
+
+type AppContext struct {
+	Config     *configpkg.Config
+	AppService *application.FlashsaleService
+	Clients    *ServiceClients
 }
 
-const serviceName = "flashsale"
+type ServiceClients struct {
+	Product *grpc.ClientConn
+}
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9110").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.FlashSaleService)
-	pb.RegisterFlashSaleServer(s, flashsalegrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for flashsale service (DDD)")
+func registerGRPC(s *grpc.Server, svc interface{}) {
+	ctx := svc.(*AppContext)
+	pb.RegisterFlashSaleServer(s, grpcServer.NewServer(ctx.AppService))
 }
 
-func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.FlashSaleService)
-	handler := flashsalehttp.NewHandler(service, slog.Default())
-
+func registerGin(e *gin.Engine, svc interface{}) {
+	ctx := svc.(*AppContext)
+	handler := httpServer.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
-
-	slog.Default().Info("HTTP routes registered for flashsale service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
+	c := cfg.(*configpkg.Config)
+	slog.Info("initializing service dependencies...")
 
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
-
-	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	// 1. Database
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	sqlDB, err := db.DB()
+	// 2. Redis
+	redisClient, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	// Initialize Redis Client
-	redisClient, cleanupRedis, err := redis.NewRedisClient(&config.Data.Redis, logger)
-	if err != nil {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// Initialize Redis Cache
-	flashSaleCache := cache.NewRedisFlashSaleCache(redisClient)
+	// 3. Kafka Producer
+	producer := kafka.NewProducer(c.MessageQueue.Kafka, logging.Default())
 
-	// Initialize Kafka Producer
-	producer := kafka.NewProducer(config.MessageQueue.Kafka, logger)
-
-	// Initialize ID Generator
-	idGen, err := idgen.NewSnowflakeGenerator(config.Snowflake)
+	// 4. Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create id generator: %w", err)
+		producer.Close()
+		redisClient.Close()
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// Infrastructure Layer
-	repo := persistence.NewFlashSaleRepository(db)
-
-	// Application Layer
-	service := application.NewFlashSaleService(repo, flashSaleCache, producer, idGen, logger.Logger)
-
-	// Initialize and Start Order Consumer
-	kafkaConsumer := kafka.NewConsumer(config.MessageQueue.Kafka, logger)
-	orderConsumer := mq.NewOrderConsumer(kafkaConsumer, repo, logger.Logger)
-
-	go func() {
-		if err := orderConsumer.Start(context.Background()); err != nil {
-			logger.Error("OrderConsumer failed", "error", err)
+	// 5. ID Generator
+	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
+	if err != nil {
+		clientCleanup()
+		producer.Close()
+		redisClient.Close()
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
 		}
-	}()
+		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
+	}
+
+	// 6. Infrastructure & Application
+	repo := persistence.NewFlashSaleRepository(db)
+	flashSaleCache := flashCache.NewRedisFlashSaleCache(redisClient.GetClient())
+
+	manager := application.NewFlashsaleManager(repo, flashSaleCache, producer, idGen, logging.Default().Logger)
+	query := application.NewFlashsaleQuery(repo)
+	service := application.NewFlashsaleService(manager, query)
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up flashsale service resources (DDD)...")
-		// Stop consumer first to stop accepting new messages
-		_ = orderConsumer.Stop(context.Background())
-		sqlDB.Close()
-		cleanupRedis()
+		slog.Info("cleaning up resources...")
+		clientCleanup()
 		producer.Close()
+		redisClient.Close()
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
 	}
 
-	return service, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/permission/application"
-	"github.com/wyfcoding/ecommerce/pkg/response"
+	"github.com/wyfcoding/pkg/response"
 )
 
 type Handler struct {

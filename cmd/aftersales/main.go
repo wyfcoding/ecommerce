@@ -4,88 +4,113 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/aftersales/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/persistence"
-	aftersalesgrpc "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"
-	aftersaleshttp "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/idgen"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
-
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
+	grpcServer "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"
+	httpServer "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/http"
+	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+const BootstrapName = "aftersales"
+
+type AppContext struct {
+	Config     *configpkg.Config
+	AppService *application.AfterSalesService
+	Clients    *ServiceClients
 }
 
-const serviceName = "aftersales-service"
+type ServiceClients struct {
+	// Add dependencies here if needed
+}
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9097").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.AfterSalesService)
-	pb.RegisterAftersalesServiceServer(s, aftersalesgrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for aftersales service (DDD)")
+func registerGRPC(s *grpc.Server, svc interface{}) {
+	ctx := svc.(*AppContext)
+	pb.RegisterAftersalesServiceServer(s, grpcServer.NewServer(ctx.AppService))
 }
 
-func registerGin(e *gin.Engine, srv interface{}) {
-	aftersalesService := srv.(*application.AfterSalesService)
-	handler := aftersaleshttp.NewHandler(aftersalesService, slog.Default())
-
+func registerGin(e *gin.Engine, svc interface{}) {
+	ctx := svc.(*AppContext)
+	handler := httpServer.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
-
-	slog.Default().Info("HTTP routes registered for aftersales service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
+	c := cfg.(*configpkg.Config)
+	slog.Info("initializing service dependencies...")
 
-	// 初始化 Logger
-	logger := logging.NewLogger("serviceName", "app")
-
-	// 初始化数据库
-	db, err := databases.NewDB(config.Data.Database, logger)
+	// 1. Database
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	sqlDB, err := db.DB()
+	// 2. Redis
+	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		return nil, nil, err
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// 初始化 ID 生成器
-	idGenerator, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{MachineID: 1}) // NodeID 应该是可配置的
+	// 3. Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
+		redisCache.Close()
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
+	// 4. ID Generator
+	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
+	if err != nil {
+		clientCleanup()
+		redisCache.Close()
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
-	aftersalesRepo := persistence.NewAfterSalesRepository(db)
-	aftersalesService := application.NewAfterSalesService(aftersalesRepo, idGenerator, logger.Logger)
+	// 5. Infrastructure & Application
+	repo := persistence.NewAfterSalesRepository(db)
+	service := application.NewAfterSalesService(repo, idGen, logging.Default().Logger)
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up aftersales service resources (DDD)...")
+		slog.Info("cleaning up resources...")
+		clientCleanup()
+		redisCache.Close()
+		sqlDB, _ := db.DB()
 		sqlDB.Close()
 	}
 
-	return aftersalesService, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

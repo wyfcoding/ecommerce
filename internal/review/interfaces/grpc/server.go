@@ -5,9 +5,9 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/review/v1"           // 导入评论模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/review/application"   // 导入评论模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/review/domain/entity" // 导入评论模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/review/v1"         // 导入评论模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/review/application" // 导入评论模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/review/domain"      // 导入评论模块的领域层。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -40,10 +40,9 @@ func (s *Server) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) 
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid product_id: %v", err))
 	}
 
-	// 注意：Proto请求（pb.CreateReviewRequest）中没有包含 OrderID 和 SkuID，但应用服务层期望这些字段。
-	// 这里暂时传递0。如果应用服务层严格验证这些ID的有效性，则可能导致错误。
-	// 生产环境中，通常会从请求上下文或通过其他服务获取这些ID。
-	review, err := s.app.CreateReview(ctx, userID, productID, 0, 0, int(req.Rating), req.Content, nil) // 0 for OrderID, 0 for SkuID, nil for images.
+	// 映射 Proto 字段到应用服务层.
+	// Proto 暂时不包含 OrderID/SkuID/Images, 此处传默认值.
+	review, err := s.app.CreateReview(ctx, userID, productID, 0, 0, int(req.Rating), req.Content, nil)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create review: %v", err))
 	}
@@ -75,7 +74,7 @@ func (s *Server) ListProductReviews(ctx context.Context, req *pb.ListProductRevi
 	}
 
 	// 评论列表通常只显示已通过审核的评论给用户。
-	approvedStatus := int(entity.ReviewStatusApproved)
+	approvedStatus := int(domain.ReviewStatusApproved)
 	reviews, total, err := s.app.ListReviews(ctx, productID, &approvedStatus, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list reviews: %v", err))
@@ -160,7 +159,7 @@ func (s *Server) GetProductRating(ctx context.Context, req *pb.GetProductRatingR
 }
 
 // toProto 是一个辅助函数，将领域层的 Review 实体转换为 protobuf 的 ReviewInfo 消息。
-func (s *Server) toProto(r *entity.Review) *pb.ReviewInfo {
+func (s *Server) toProto(r *domain.Review) *pb.ReviewInfo {
 	if r == nil {
 		return nil
 	}
@@ -173,6 +172,5 @@ func (s *Server) toProto(r *entity.Review) *pb.ReviewInfo {
 		Content:   r.Content,                            // 内容。
 		// Images 字段需要单独处理，如果Proto中有此字段。
 		CreatedAt: timestamppb.New(r.CreatedAt), // 创建时间。
-		UpdatedAt: timestamppb.New(r.UpdatedAt), // 更新时间。
 	}
 }

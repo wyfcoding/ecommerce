@@ -1,3 +1,7 @@
+[server]
+name = "logistics"
+environment = "dev"
+
 # 物流服务配置
 [server.http]
 addr = "0.0.0.0"
@@ -27,3 +31,7 @@ output = "stdout"
 # Snowflake ID生成器配置
 [snowflake]
 machine_id = 6
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

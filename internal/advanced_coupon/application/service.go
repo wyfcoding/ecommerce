@@ -7,7 +7,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/repository"
-	"github.com/wyfcoding/ecommerce/pkg/algorithm"
+	"github.com/wyfcoding/pkg/algorithm"
 
 	"log/slog"
 )

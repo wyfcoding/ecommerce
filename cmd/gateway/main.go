@@ -7,107 +7,91 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/gateway/application"
 	"github.com/wyfcoding/ecommerce/internal/gateway/infrastructure/persistence"
 	gatewayhttp "github.com/wyfcoding/ecommerce/internal/gateway/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/middleware"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
+	"github.com/wyfcoding/pkg/app"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
-	RateLimit        struct {
-		Enabled bool    `mapstructure:"enabled"`
-		Rate    float64 `mapstructure:"rate"`
-		Burst   int     `mapstructure:"burst"`
-	} `mapstructure:"rate_limit"`
-	CircuitBreaker struct {
-		Enabled bool `mapstructure:"enabled"`
-	} `mapstructure:"circuit_breaker"`
+type AppContext struct {
+	AppService *application.GatewayService
+	Config     *configpkg.Config
+	Clients    *ServiceClients
 }
 
-const serviceName = "gateway"
+type ServiceClients struct {
+	User              *grpc.ClientConn
+	Product           *grpc.ClientConn
+	Order             *grpc.ClientConn
+	Cart              *grpc.ClientConn
+	Payment           *grpc.ClientConn
+	Inventory         *grpc.ClientConn
+	Marketing         *grpc.ClientConn
+	Notification      *grpc.ClientConn
+	Search            *grpc.ClientConn
+	Recommendation    *grpc.ClientConn
+	Review            *grpc.ClientConn
+	Wishlist          *grpc.ClientConn
+	Logistics         *grpc.ClientConn
+	Aftersales        *grpc.ClientConn
+	CustomerService   *grpc.ClientConn
+	ContentModeration *grpc.ClientConn
+	Message           *grpc.ClientConn
+	File              *grpc.ClientConn
+}
 
-var globalConfig *Config
+const BootstrapName = "gateway"
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
-		WithGin(func(e *gin.Engine, srv interface{}) {
-			// We need to access config here, but WithGin signature doesn't pass it.
-			// However, we can use a closure or change how we register.
-			// The Builder pattern in pkg/app might need adjustment or we can just register default middleware here if we can't access config.
-			// Wait, initService returns the service, but main() creates the builder.
-			// The config is loaded in Builder.Build().
-			// Actually, `WithGin` callback is called during `Run`.
-			// Let's check `pkg/app/builder.go` or `pkg/app/app.go`.
-			// Assuming we can't easily pass config to `registerGin` without changing `pkg/app`.
-			// But `registerGin` is a function defined in `main.go`.
-			// We can capture `config` if we move `registerGin` inside `main` or make `config` a global/closure variable.
-			// But `config` is loaded inside `Builder`.
-			// Let's modify `registerGin` to just use hardcoded or default values if we can't access config, OR
-			// better, let's look at `initService`. It receives `cfg`.
-			// But `initService` returns the *service instance*, not the Gin engine.
-			// The Gin engine is set up in `app.Run`.
-
-			// Alternative: The `Builder` loads config.
-			// Maybe we can't access config in `registerGin` easily.
-			// Let's look at `pkg/app/builder.go` again? No, I can't view it now.
-
-			// Let's assume I can't change `pkg/app`.
-			// I will use a global variable for config in `main.go` and set it in `initService`.
-			// It's a bit hacky but works.
-			registerGin(e, srv)
-		}).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9111").
+		WithGin(registerGin).
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	slog.Default().Info("gRPC server registered for gateway service (DDD)")
+	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.GatewayService)
-	handler := gatewayhttp.NewHandler(service, slog.Default())
+	ctx := srv.(*AppContext)
+	cfg := ctx.Config
+	handler := gatewayhttp.NewHandler(ctx.AppService, slog.Default())
 
-	// Apply Middlewares
-	if globalConfig != nil {
-		if globalConfig.RateLimit.Enabled {
-			slog.Info("Enabling Rate Limit Middleware", "rate", globalConfig.RateLimit.Rate, "burst", globalConfig.RateLimit.Burst)
-			e.Use(middleware.RateLimit(int(globalConfig.RateLimit.Rate), globalConfig.RateLimit.Burst))
-		}
-		if globalConfig.CircuitBreaker.Enabled {
-			slog.Info("Enabling Circuit Breaker Middleware")
-			e.Use(middleware.CircuitBreaker())
-		}
+	// Apply Middlewares based on config
+	if cfg.RateLimit.Enabled {
+		slog.Info("Enabling Rate Limit Middleware", "rate", cfg.RateLimit.Rate, "burst", cfg.RateLimit.Burst)
+		e.Use(middleware.NewLocalRateLimitMiddleware(int(cfg.RateLimit.Rate), cfg.RateLimit.Burst))
+	}
+	if cfg.CircuitBreaker.Enabled {
+		slog.Info("Enabling Circuit Breaker Middleware")
+		e.Use(middleware.CircuitBreaker())
 	}
 
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for gateway service (DDD)")
+	slog.Default().Info("HTTP routes registered", "service", BootstrapName)
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
-	globalConfig = config
+	c := cfg.(*configpkg.Config)
 
 	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
 
-	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	// Initialize
+	slog.Info("initializing service dependencies...")
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
@@ -123,10 +107,26 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// Application Layer
 	service := application.NewGatewayService(repo, slog.Default())
 
+	// Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
 	cleanup := func() {
-		slog.Default().Info("cleaning up gateway service resources (DDD)...")
+		slog.Info("cleaning up resources...")
+		clientCleanup()
+		slog.Info("cleaning up gateway service resources...")
 		sqlDB.Close()
 	}
 
-	return service, cleanup, nil
+	return &AppContext{
+			AppService: service,
+			Config:     c,
+			Clients:    clients,
+		}, func() {
+			cleanup()
+		}, nil
 }

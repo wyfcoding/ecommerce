@@ -4,12 +4,13 @@ import (
 	"net/http" // 导入HTTP状态码。
 	"strconv"  // 导入字符串和数字转换工具。
 
-	"github.com/wyfcoding/ecommerce/internal/order/application"   // 导入订单模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/order/domain/entity" // 导入订单模块的领域实体。
-	"github.com/wyfcoding/ecommerce/pkg/response"                 // 导入统一的响应处理工具。
+	"github.com/wyfcoding/ecommerce/internal/order/application" // 导入订单模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/order/domain"      // 导入订单模块的领域实体。
+	"github.com/wyfcoding/pkg/response"                         // 导入统一的响应处理工具。
+
+	"log/slog" // 导入结构化日志库。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Order模块的HTTP处理层。
@@ -61,9 +62,9 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	// 将请求中的商品项转换为领域实体所需的 OrderItem 列表。
-	var items []*entity.OrderItem
+	var items []*domain.OrderItem
 	for _, item := range req.Items {
-		items = append(items, &entity.OrderItem{
+		items = append(items, &domain.OrderItem{
 			ProductID:       item.ProductID,
 			SkuID:           item.SkuID,
 			ProductName:     item.ProductName,
@@ -75,7 +76,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	// 将请求中的收货地址转换为领域实体所需的 ShippingAddress 值对象。
-	shippingAddr := &entity.ShippingAddress{
+	shippingAddr := &domain.ShippingAddress{
 		RecipientName:   req.ShippingAddress.RecipientName,
 		PhoneNumber:     req.ShippingAddress.PhoneNumber,
 		Province:        req.ShippingAddress.Province,

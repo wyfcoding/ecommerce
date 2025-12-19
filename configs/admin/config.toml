@@ -1,34 +1,27 @@
-# 管理后台 BFF (Backend-for-Frontend) 服务基础配置
-[server.http]
-# 这是给前端管理面板调用的主要接口
-addr = "0.0.0.0"
-port = 8090 # 使用一个新端口段
-timeout = "5s"
+[server]
+port = 8080
+name = "admin"
 
-# 本服务不直接拥有数据库，而是作为其他服务的客户端
+[data.database]
+driver = "mysql"
+dsn = "root:123456@tcp(127.0.0.1:3306)/admin_db?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = 3600
+slow_threshold = 200
 
-# 依赖的所有下游服务 gRPC 地址
-[dependencies]
-user_service_grpc_addr = "localhost:9090"
-cart_service_grpc_addr = "localhost:9091"
-product_service_grpc_addr = "localhost:9092"
-order_service_grpc_addr = "localhost:9093"
-payment_service_grpc_addr = "localhost:9094"
-notification_service_grpc_addr = "localhost:9095"
-inventory_service_grpc_addr = "localhost:9096"
-logistics_service_grpc_addr = "localhost:9097"
-auth_service_grpc_addr = "localhost:9098"
-coupon_service_grpc_addr = "localhost:9099"
-review_service_grpc_addr = "localhost:9100"
-wishlist_service_grpc_addr = "localhost:9101"
+[data.redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 0
 
-# 链路追踪配置
-[tracing]
-jaeger_endpoint = "http://localhost:14268/api/traces"
-service_name = "admin-bff-service"
+[services]
+user = "127.0.0.1:9001"
+product = "127.0.0.1:9002"
+order = "127.0.0.1:9003"
+payment = "127.0.0.1:9004"
+notification = "127.0.0.1:9005"
 
-# 日志配置
-[log]
-level = "debug"
-format = "json"
-output = "stdout"
+[metrics]
+enabled = true
+endpoint = "/metrics"

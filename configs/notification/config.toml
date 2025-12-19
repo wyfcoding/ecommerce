@@ -1,3 +1,7 @@
+[server]
+name = "notification"
+environment = "dev"
+
 [server.http]
 addr = "0.0.0.0"
 port = 8115
@@ -44,3 +48,8 @@ service_name = "notification-service"
 level = "debug"
 format = "json"
 output = "stdout"
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

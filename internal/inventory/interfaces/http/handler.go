@@ -5,24 +5,25 @@ import (
 	"strconv"  // 导入字符串和数字转换工具。
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
-	"github.com/wyfcoding/ecommerce/pkg/response"                   // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/response"                             // 导入统一的响应处理工具。
+
+	"log/slog" // 导入结构化日志库。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Inventory模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	service *application.InventoryService // 依赖Inventory应用服务，处理核心业务逻辑。
-	logger  *slog.Logger                  // 日志记录器，用于记录请求处理过程中的信息和错误。
+	app    *application.InventoryService // 依赖Inventory应用服务，处理核心业务逻辑。
+	logger *slog.Logger                  // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Inventory HTTP Handler 实例。
-func NewHandler(service *application.InventoryService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.InventoryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		app:    app,
+		logger: logger,
 	}
 }
 
@@ -46,7 +47,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 	}
 
 	// 调用应用服务层创建库存。
-	inventory, err := h.service.CreateInventory(c.Request.Context(), req.SkuID, req.ProductID, req.WarehouseID, req.TotalStock, req.WarningThreshold)
+	inventory, err := h.app.CreateInventory(c.Request.Context(), req.SkuID, req.ProductID, req.WarehouseID, req.TotalStock, req.WarningThreshold)
 	if err != nil {
 		h.logger.Error("Failed to create inventory", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create inventory", err.Error())
@@ -69,7 +70,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取库存信息。
-	inventory, err := h.service.GetInventory(c.Request.Context(), skuID)
+	inventory, err := h.app.GetInventory(c.Request.Context(), skuID)
 	if err != nil {
 		h.logger.Error("Failed to get inventory", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get inventory", err.Error())
@@ -115,15 +116,15 @@ func (h *Handler) UpdateStock(c *gin.Context) {
 	// 根据操作类型调用应用服务层的相应方法。
 	switch req.Action {
 	case "add":
-		opErr = h.service.AddStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.app.AddStock(ctx, skuID, req.Quantity, req.Reason)
 	case "deduct":
-		opErr = h.service.DeductStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.app.DeductStock(ctx, skuID, req.Quantity, req.Reason)
 	case "lock":
-		opErr = h.service.LockStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.app.LockStock(ctx, skuID, req.Quantity, req.Reason)
 	case "unlock":
-		opErr = h.service.UnlockStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.app.UnlockStock(ctx, skuID, req.Quantity, req.Reason)
 	case "confirm":
-		opErr = h.service.ConfirmDeduction(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.app.ConfirmDeduction(ctx, skuID, req.Quantity, req.Reason)
 	}
 
 	if opErr != nil {
@@ -145,7 +146,7 @@ func (h *Handler) ListInventories(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
 	// 调用应用服务层获取库存列表。
-	list, total, err := h.service.ListInventories(c.Request.Context(), page, pageSize)
+	list, total, err := h.app.ListInventories(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list inventories", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list inventories", err.Error())

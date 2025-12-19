@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
-	"github.com/wyfcoding/ecommerce/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/databases/sharding"
 	"gorm.io/gorm"
 )
 

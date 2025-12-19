@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"           // 导入订单模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/order/application"   // 导入订单模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/order/domain/entity" // 导入订单模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"         // 导入订单模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/order/application" // 导入订单模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/order/domain"
 
+	// 导入订单模块的领域实体。
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
@@ -31,9 +32,9 @@ func NewServer(app *application.OrderService) *Server {
 // 返回created successfully的订单信息响应和可能发生的gRPC错误。
 func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.OrderInfo, error) {
 	// 将Proto的OrderItem列表转换为领域实体所需的 OrderItem 列表。
-	items := make([]*entity.OrderItem, len(req.Items))
+	items := make([]*domain.OrderItem, len(req.Items))
 	for i, item := range req.Items {
-		items[i] = &entity.OrderItem{
+		items[i] = &domain.OrderItem{
 			ProductID: item.ProductId,
 			SkuID:     item.SkuId,
 			Quantity:  item.Quantity,
@@ -47,7 +48,7 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 	}
 
 	// 将Proto的ShippingAddress转换为领域实体所需的 ShippingAddress 值对象。
-	shippingAddr := &entity.ShippingAddress{
+	shippingAddr := &domain.ShippingAddress{
 		RecipientName:   req.ShippingAddress.RecipientName,
 		PhoneNumber:     req.ShippingAddress.PhoneNumber,
 		Province:        req.ShippingAddress.Province,
@@ -248,7 +249,7 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 }
 
 // toProto 是一个辅助函数，将领域层的 Order 实体转换为 protobuf 的 OrderInfo 消息。
-func (s *Server) toProto(o *entity.Order) *pb.OrderInfo {
+func (s *Server) toProto(o *domain.Order) *pb.OrderInfo {
 	if o == nil {
 		return nil
 	}
@@ -281,7 +282,7 @@ func (s *Server) toProto(o *entity.Order) *pb.OrderInfo {
 }
 
 // itemToProto 是一个辅助函数，将领域层的 OrderItem 实体转换为 protobuf 的 OrderItem 消息。
-func (s *Server) itemToProto(item *entity.OrderItem) *pb.OrderItem {
+func (s *Server) itemToProto(item *domain.OrderItem) *pb.OrderItem {
 	if item == nil {
 		return nil
 	}

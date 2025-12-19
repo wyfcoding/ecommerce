@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/cart/v1"           // 导入购物车模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/cart/application"   // 导入购物车模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/cart/domain/entity" // 导入购物车模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/cart/v1"         // 导入购物车模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/cart/application" // 导入购物车模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/cart/domain"      // 导入购物车模块的领域层。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -139,7 +139,7 @@ func (s *Server) RemoveCouponFromCart(ctx context.Context, req *pb.RemoveCouponF
 }
 
 // toProto 是一个辅助函数，将领域层的 Cart 实体转换为 protobuf 的 CartInfo 消息。
-func (s *Server) toProto(cart *entity.Cart) *pb.CartInfo {
+func (s *Server) toProto(cart *domain.Cart) *pb.CartInfo {
 	// 转换购物车中的商品项列表。
 	items := make([]*pb.CartItem, len(cart.Items))
 	var totalQuantity int64 // 总商品数量。

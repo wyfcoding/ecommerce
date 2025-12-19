@@ -1,3 +1,7 @@
+[server]
+name = "flashsale"
+environment = "dev"
+
 [server.http]
 addr = "0.0.0.0"
 port = 8088
@@ -36,3 +40,8 @@ max_attempts = 3
 commit_interval = "1s"
 required_acks = 1
 async = true
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

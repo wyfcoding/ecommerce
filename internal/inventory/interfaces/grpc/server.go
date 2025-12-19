@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"           // 导入库存模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/inventory/application"   // 导入库存模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/inventory/domain/entity" // 导入库存模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"         // 导入库存模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain"      // 导入库存模块的领域层。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -174,7 +174,7 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 }
 
 // convertInventoryToProto 是一个辅助函数，将领域层的 Inventory 实体转换为 protobuf 的 Inventory 消息。
-func convertInventoryToProto(inv *entity.Inventory) *pb.Inventory {
+func convertInventoryToProto(inv *domain.Inventory) *pb.Inventory {
 	if inv == nil {
 		return nil
 	}
@@ -195,7 +195,7 @@ func convertInventoryToProto(inv *entity.Inventory) *pb.Inventory {
 }
 
 // convertLogToProto 是一个辅助函数，将领域层的 InventoryLog 实体转换为 protobuf 的 InventoryLog 消息。
-func convertLogToProto(log *entity.InventoryLog) *pb.InventoryLog {
+func convertLogToProto(log *domain.InventoryLog) *pb.InventoryLog {
 	if log == nil {
 		return nil
 	}

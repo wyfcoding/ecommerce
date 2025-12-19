@@ -1,3 +1,7 @@
+[server]
+name = "product"
+environment = "dev"
+
 # 商品服务配置
 [server.http]
 addr = "0.0.0.0"
@@ -27,3 +31,8 @@ output = "stdout"
 # Snowflake ID生成器配置
 [snowflake]
 machine_id = 2 # 确保每个服务实例唯一
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

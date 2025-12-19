@@ -6,17 +6,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
-	"github.com/wyfcoding/ecommerce/pkg/response"
+	"github.com/wyfcoding/pkg/response"
 )
 
 // Handler 支付HTTP处理器
 type Handler struct {
-	app    *application.PaymentApplicationService
+	app    *application.PaymentService
 	logger *slog.Logger
 }
 
 // NewHandler 创建HTTP处理器
-func NewHandler(app *application.PaymentApplicationService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.PaymentService, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

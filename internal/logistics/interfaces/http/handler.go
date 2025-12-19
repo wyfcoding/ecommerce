@@ -5,26 +5,27 @@ import (
 	"strconv"  // 导入字符串和数字转换工具。
 	"time"     // 导入时间包，用于时间解析。
 
-	"github.com/wyfcoding/ecommerce/internal/logistics/application"   // 导入物流模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity" // 导入物流模块的领域实体。
-	"github.com/wyfcoding/ecommerce/pkg/response"                     // 导入统一的响应处理工具。
+	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域实体。
+	"github.com/wyfcoding/pkg/response"                             // 导入统一的响应处理工具。
+
+	"log/slog" // 导入结构化日志库。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Logistics模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	service *application.LogisticsService // 依赖Logistics应用服务，处理核心业务逻辑。
-	logger  *slog.Logger                  // 日志记录器，用于记录请求处理过程中的信息和错误。
+	app    *application.LogisticsService // 依赖Logistics应用服务，处理核心业务逻辑。
+	logger *slog.Logger                  // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Logistics HTTP Handler 实例。
-func NewHandler(service *application.LogisticsService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.LogisticsService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		app:    app,
+		logger: logger,
 	}
 }
 
@@ -58,7 +59,7 @@ func (h *Handler) CreateLogistics(c *gin.Context) {
 	}
 
 	// 调用应用服务层创建物流单。
-	logistics, err := h.service.CreateLogistics(c.Request.Context(), req.OrderID, req.OrderNo, req.TrackingNo, req.Carrier, req.CarrierCode,
+	logistics, err := h.app.CreateLogistics(c.Request.Context(), req.OrderID, req.OrderNo, req.TrackingNo, req.Carrier, req.CarrierCode,
 		req.SenderName, req.SenderPhone, req.SenderAddress, req.SenderLat, req.SenderLon,
 		req.ReceiverName, req.ReceiverPhone, req.ReceiverAddress, req.ReceiverLat, req.ReceiverLon)
 	if err != nil {
@@ -83,7 +84,7 @@ func (h *Handler) GetLogistics(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取物流单详情。
-	logistics, err := h.service.GetLogistics(c.Request.Context(), id)
+	logistics, err := h.app.GetLogistics(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logistics", err.Error())
@@ -119,7 +120,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	// 调用应用服务层更新物流状态。
-	if err := h.service.UpdateStatus(c.Request.Context(), id, entity.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
+	if err := h.app.UpdateStatus(c.Request.Context(), id, domain.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to update status", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update status", err.Error())
 		return
@@ -154,7 +155,7 @@ func (h *Handler) AddTrace(c *gin.Context) {
 	}
 
 	// 调用应用服务层添加物流轨迹。
-	if err := h.service.AddTrace(c.Request.Context(), id, req.Location, req.Description, req.Status); err != nil {
+	if err := h.app.AddTrace(c.Request.Context(), id, req.Location, req.Description, req.Status); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to add trace", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add trace", err.Error())
 		return
@@ -187,7 +188,7 @@ func (h *Handler) SetEstimatedTime(c *gin.Context) {
 	}
 
 	// 调用应用服务层设置预计送达时间。
-	if err := h.service.SetEstimatedTime(c.Request.Context(), id, req.EstimatedTime); err != nil {
+	if err := h.app.SetEstimatedTime(c.Request.Context(), id, req.EstimatedTime); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to set estimated time", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to set estimated time", err.Error())
 		return
@@ -206,7 +207,7 @@ func (h *Handler) ListLogistics(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
 	// 调用应用服务层获取物流单列表。
-	list, total, err := h.service.ListLogistics(c.Request.Context(), page, pageSize)
+	list, total, err := h.app.ListLogistics(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list logistics", err.Error())

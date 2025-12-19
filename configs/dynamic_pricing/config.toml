@@ -1,3 +1,7 @@
+[server]
+name = "dynamic_pricing"
+environment = "dev"
+
 [server.http]
 addr = "0.0.0.0"
 port = 8094
@@ -16,3 +20,8 @@ dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_dynamic_pricing?charset=
 level = "debug"
 format = "json"
 output = "stdout"
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

@@ -8,7 +8,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain/entity"     // 导入积分商城领域的实体定义。
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain/repository" // 导入积分商城领域的仓储接口。
-	"github.com/wyfcoding/ecommerce/pkg/idgen"                             // 导入ID生成器。
+	"github.com/wyfcoding/pkg/idgen"                                       // 导入ID生成器。
 
 	"log/slog" // 导入结构化日志库。
 )

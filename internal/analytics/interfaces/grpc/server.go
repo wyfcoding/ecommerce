@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/analytics/v1"               // 导入分析模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/analytics/application"       // 导入分析模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/analytics/domain/entity"     // 导入分析模块的领域实体。
-	"github.com/wyfcoding/ecommerce/internal/analytics/domain/repository" // 导入分析模块的仓储层查询对象。
+	pb "github.com/wyfcoding/ecommerce/go-api/analytics/v1"         // 导入分析模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/analytics/application" // 导入分析模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain"      // 导入分析模块的领域层。
 
 	"google.golang.org/grpc/codes"                   // gRPC状态码。
 	"google.golang.org/grpc/status"                  // gRPC状态处理。
@@ -16,10 +15,9 @@ import (
 )
 
 // Server 结构体实现了 AnalyticsService 的 gRPC 服务端接口。
-// 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedAnalyticsServiceServer                               // 嵌入生成的UnimplementedAnalyticsServiceServer，确保前向兼容性。
-	app                                    *application.AnalyticsService // 依赖Analytics应用服务，处理核心业务逻辑。
+	pb.UnimplementedAnalyticsServiceServer                               // 嵌入生成的UnimplementedAnalyticsServiceServer。
+	app                                    *application.AnalyticsService // 依赖Analytics应用服务 facade。
 }
 
 // NewServer 创建并返回一个新的 Analytics gRPC 服务端实例。
@@ -27,29 +25,20 @@ func NewServer(app *application.AnalyticsService) *Server {
 	return &Server{app: app}
 }
 
-// --- Event Tracking ---
-
 // TrackEvent 处理跟踪单个事件的gRPC请求。
-// req: 包含事件信息的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) TrackEvent(ctx context.Context, req *pb.TrackEventRequest) (*emptypb.Empty, error) {
 	if req.Event == nil {
 		return nil, status.Error(codes.InvalidArgument, "event is required")
 	}
 
-	// 将接收到的事件信息映射为内部的Metric实体进行记录。
-	// MetricType 设为 "event"。
-	// MetricName 使用事件的名称。
-	// Dimension 设为 "user_id"，DimensionVal 设为用户ID的字符串形式。
-	// Granularity 默认设置为 Hourly。
 	err := s.app.RecordMetric(
 		ctx,
-		entity.MetricType("event"), // 将原始事件视为一种特殊类型的指标。
+		domain.MetricType("event"),
 		req.Event.EventName,
-		1.0,                      // 每次事件发生，值累加1。
-		entity.GranularityHourly, // 默认按小时粒度记录。
+		1.0,
+		domain.GranularityHourly,
 		"user_id",
-		strconv.FormatUint(req.Event.UserId, 10), // 将用户ID转换为字符串作为维度值。
+		strconv.FormatUint(req.Event.UserId, 10),
 	)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to record event metric: %v", err))
@@ -59,39 +48,28 @@ func (s *Server) TrackEvent(ctx context.Context, req *pb.TrackEventRequest) (*em
 }
 
 // BatchTrackEvents 处理批量跟踪事件的gRPC请求。
-// req: 包含多个事件信息的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) BatchTrackEvents(ctx context.Context, req *pb.BatchTrackEventsRequest) (*emptypb.Empty, error) {
-	// 遍历所有事件并逐个记录。
 	for _, event := range req.Events {
 		err := s.app.RecordMetric(
 			ctx,
-			entity.MetricType("event"),
+			domain.MetricType("event"),
 			event.EventName,
 			1.0,
-			entity.GranularityHourly,
+			domain.GranularityHourly,
 			"user_id",
 			strconv.FormatUint(event.UserId, 10),
 		)
 		if err != nil {
-			// 如果单个事件记录失败，记录错误并继续处理其他事件（尽力而为策略）。
-			// 实际应用中，可以根据业务需求决定是否中断并返回错误。
-			// s.logger.WarnContext(ctx, "failed to record batch event", "event_name", event.EventName, "user_id", event.UserId, "error", err)
 			continue
 		}
 	}
 	return &emptypb.Empty{}, nil
 }
 
-// --- Reports ---
-
 // GetSalesOverviewReport 处理获取销售概览报告的gRPC请求。
-// req: 包含报告时间范围的请求体。
-// 返回销售概览报告响应和可能发生的gRPC错误。
 func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOverviewReportRequest) (*pb.SalesOverviewReportResponse, error) {
-	// 查询销售额指标。
-	salesQuery := &repository.MetricQuery{
-		MetricType: entity.MetricTypeSales,
+	salesQuery := &domain.MetricQuery{
+		MetricType: domain.MetricTypeSales,
 		StartTime:  req.StartDate.AsTime(),
 		EndTime:    req.EndDate.AsTime(),
 	}
@@ -100,9 +78,8 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to query sales metrics: %v", err))
 	}
 
-	// 查询订单数指标。
-	ordersQuery := &repository.MetricQuery{
-		MetricType: entity.MetricTypeOrders,
+	ordersQuery := &domain.MetricQuery{
+		MetricType: domain.MetricTypeOrders,
 		StartTime:  req.StartDate.AsTime(),
 		EndTime:    req.EndDate.AsTime(),
 	}
@@ -111,19 +88,16 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to query orders metrics: %v", err))
 	}
 
-	// 计算总销售额。
 	var totalSales float64
 	for _, m := range salesMetrics {
 		totalSales += m.Value
 	}
 
-	// 计算总订单数。
 	var totalOrders uint64
 	for _, m := range ordersMetrics {
-		totalOrders += uint64(m.Value) // 假设订单数指标的值是整数。
+		totalOrders += uint64(m.Value)
 	}
 
-	// 计算平均订单价值。
 	avgOrderValue := 0.0
 	if totalOrders > 0 {
 		avgOrderValue = totalSales / float64(totalOrders)
@@ -133,7 +107,6 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 		TotalSalesAmount:  totalSales,
 		TotalOrders:       totalOrders,
 		AverageOrderValue: avgOrderValue,
-		// Trends not implemented for now。
 	}, nil
 }
 

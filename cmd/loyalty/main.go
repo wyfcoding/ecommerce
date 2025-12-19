@@ -4,65 +4,71 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/wyfcoding/pkg/grpcclient"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/loyalty/v1"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/application"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/infrastructure/persistence"
 	loyaltygrpc "github.com/wyfcoding/ecommerce/internal/loyalty/interfaces/grpc"
 	loyaltyhttp "github.com/wyfcoding/ecommerce/internal/loyalty/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
+	"github.com/wyfcoding/pkg/app"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+type AppContext struct {
+	AppService *application.LoyaltyService
+	Config     *configpkg.Config
+	Clients    *ServiceClients
 }
 
-const serviceName = "loyalty-service"
+type ServiceClients struct {
+	// Add dependencies here if needed
+}
+
+const BootstrapName = "loyalty-service"
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9114").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.LoyaltyService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	pb.RegisterLoyaltyServiceServer(s, loyaltygrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for loyalty service (DDD)")
+	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.LoyaltyService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	handler := loyaltyhttp.NewHandler(service, slog.Default())
 
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for loyalty service (DDD)")
+	slog.Default().Info("HTTP routes registered (DDD)", "service", BootstrapName)
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
+	c := cfg.(*configpkg.Config)
 
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
-
+	slog.Info("initializing service dependencies...", "service", BootstrapName)
 	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
@@ -75,13 +81,32 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// Infrastructure Layer
 	repo := persistence.NewLoyaltyRepository(db)
 
-	// Application Layer
-	service := application.NewLoyaltyService(repo, slog.Default())
-
-	cleanup := func() {
-		slog.Default().Info("cleaning up loyalty service resources (DDD)...")
-		sqlDB.Close()
+	// Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	return service, cleanup, nil
+	// Application Layer
+	manager := application.NewLoyaltyManager(repo, slog.Default())
+	query := application.NewLoyaltyQuery(repo)
+	service := application.NewLoyaltyService(manager, query)
+
+	cleanup := func() {
+		slog.Info("cleaning up resources...")
+		clientCleanup()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
+	}
+
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

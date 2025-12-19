@@ -5,14 +5,12 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/wishlist/v1"           // 导入收藏夹模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/wishlist/application"   // 导入收藏夹模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/wishlist/domain/entity" // 导入收藏夹模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/wishlist/v1"         // 导入收藏夹模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/wishlist/application" // 导入收藏夹模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/wishlist/domain"      // 导入收藏夹模块的领域层。
 
-	"google.golang.org/grpc/codes"  // gRPC状态码。
-	"google.golang.org/grpc/status" // gRPC状态处理。
-
-	// "google.golang.org/protobuf/types/known/emptypb"      // 导入空消息类型，此文件中未直接使用。
+	"google.golang.org/grpc/codes"                       // gRPC状态码。
+	"google.golang.org/grpc/status"                      // gRPC状态处理。
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
 
@@ -42,12 +40,9 @@ func (s *Server) AddItemToWishlist(ctx context.Context, req *pb.AddItemToWishlis
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid product_id: %v", err))
 	}
 
-	// 备注：Proto请求（pb.AddItemToWishlistRequest）中缺少 SkuID, ProductName, SkuName, Price, ImageURL 等字段。
-	// 但应用服务层的 Add 方法需要这些字段。
-	// 当前实现暂时使用 ProductID 作为 SkuID，并使用占位符填充其他缺失字段。
-	// 这是Proto定义与应用服务层期望之间的一个重大差异，需要后续调整Proto或在接口层进行更复杂的数据获取。
-	skuID := productID // 假设SKUID与ProductID相同，或在此处根据ProductID查询SKU信息。
-
+	// 映射 Proto 字段到应用服务层.
+	// Proto 暂时不包含 SkuID/ProductName/Price/ImageURL, 此处传默认值.
+	skuID := productID
 	item, err := s.app.Add(ctx, userID, productID, skuID, "Unknown Product", "Unknown SKU", 0, "") // 0 for Price, "" for ImageURL。
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add item to wishlist: %v", err))
@@ -68,8 +63,6 @@ func (s *Server) RemoveItemFromWishlist(ctx context.Context, req *pb.RemoveItemF
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid user_id: %v", err))
 	}
-	// 备注：Proto请求中的 ProductId 字段在此处被映射为应用服务层 RemoveByProduct 方法的 skuID 参数。
-	// 假设 Proto 中的 ProductId 实际上是指 SKU ID（或者我们只支持按 SKU 移除）。
 	skuID, err := strconv.ParseUint(req.ProductId, 10, 64)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid product_id for removal: %v", err))
@@ -125,7 +118,7 @@ func (s *Server) ListWishlistItems(ctx context.Context, req *pb.ListWishlistItem
 }
 
 // toProto 是一个辅助函数，将领域层的 Wishlist 实体转换为 protobuf 的 WishlistItem 消息。
-func (s *Server) toProto(item *entity.Wishlist) *pb.WishlistItem {
+func (s *Server) toProto(item *domain.Wishlist) *pb.WishlistItem {
 	if item == nil {
 		return nil
 	}

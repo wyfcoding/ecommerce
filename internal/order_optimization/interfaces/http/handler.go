@@ -5,7 +5,7 @@ import (
 	"strconv"  // 导入字符串和数字转换工具。
 
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/application" // 导入订单优化模块的应用服务。
-	"github.com/wyfcoding/ecommerce/pkg/response"                            // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/response"                                      // 导入统一的响应处理工具。
 
 	"log/slog" // 导入结构化日志库。
 

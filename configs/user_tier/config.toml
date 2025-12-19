@@ -1,3 +1,7 @@
+[server]
+name = "user_tier"
+environment = "dev"
+
 [server.http]
 addr = "0.0.0.0"
 port = 8116
@@ -16,3 +20,8 @@ dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_user_tier?charset=utf8mb
 level = "debug"
 format = "json"
 output = "stdout"
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

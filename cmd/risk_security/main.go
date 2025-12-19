@@ -4,65 +4,71 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/wyfcoding/pkg/grpcclient"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/risk_security/v1"
 	"github.com/wyfcoding/ecommerce/internal/risk_security/application"
 	"github.com/wyfcoding/ecommerce/internal/risk_security/infrastructure/persistence"
 	riskgrpc "github.com/wyfcoding/ecommerce/internal/risk_security/interfaces/grpc"
 	riskhttp "github.com/wyfcoding/ecommerce/internal/risk_security/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
+	"github.com/wyfcoding/pkg/app"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+type AppContext struct {
+	AppService *application.RiskService
+	Config     *configpkg.Config
+	Clients    *ServiceClients
 }
 
-const serviceName = "risk-security-service"
+type ServiceClients struct {
+	// Add dependencies here if needed
+}
+
+const BootstrapName = "risk-security-service"
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9126").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.RiskService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	pb.RegisterRiskSecurityServiceServer(s, riskgrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for risk_security service (DDD)")
+	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.RiskService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	handler := riskhttp.NewHandler(service, slog.Default())
 
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for risk_security service (DDD)")
+	slog.Default().Info("HTTP routes registered", "service", BootstrapName)
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
-
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
+	c := cfg.(*configpkg.Config)
+	slog.Info("initializing service dependencies...")
 
 	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
@@ -75,13 +81,27 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// Infrastructure Layer
 	repo := persistence.NewRiskRepository(db)
 
-	// Application Layer
-	service := application.NewRiskService(repo, slog.Default())
+	// 3. Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
+	// 4. Infrastructure & Application & Payment Gateway
+	// repo is already initialized
+	service := application.NewRiskService(repo, logging.Default().Logger)
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up risk_security service resources (DDD)...")
+		slog.Info("cleaning up resources...")
+		clientCleanup()
 		sqlDB.Close()
 	}
 
-	return service, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

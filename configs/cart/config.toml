@@ -1,3 +1,7 @@
+[server]
+name = "cart"
+environment = "dev"
+
 # 购物车服务配置
 [server.http]
 addr = "0.0.0.0"
@@ -27,3 +31,8 @@ output = "stdout"
 # Snowflake ID生成器配置
 [snowflake]
 machine_id = 3
+
+[metrics]
+enabled = true
+port = "9101"
+path = "/metrics"

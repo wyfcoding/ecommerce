@@ -7,7 +7,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后领域的实体定义。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后领域的仓储接口。
-	"github.com/wyfcoding/ecommerce/pkg/idgen"                             // 导入ID生成器接口。
+	"github.com/wyfcoding/pkg/idgen"                                       // 导入ID生成器接口。
 
 	"log/slog" // 导入结构化日志库。
 )

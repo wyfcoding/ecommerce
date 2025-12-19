@@ -1,3 +1,7 @@
+[server]
+name = "gateway"
+environment = "dev"
+
 # 网关服务配置
 
 [server.http]
@@ -73,3 +77,8 @@ timeout_seconds = 3
 [services.recommendation]
 address = "localhost:9021"
 timeout_seconds = 3
+
+[metrics]
+enabled = true
+port = "9111"
+path = "/metrics"

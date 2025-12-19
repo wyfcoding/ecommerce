@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"           // 导入物流模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/logistics/application"   // 导入物流模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/logistics/domain/entity" // 导入物流模块的领域实体。
-	"github.com/wyfcoding/ecommerce/pkg/algorithm"                    // 导入算法包，用于路线优化。
+	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"         // 导入物流模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域层。
+	"github.com/wyfcoding/pkg/algorithm"                            // 导入算法包，用于路线优化。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -31,7 +31,7 @@ func NewServer(app *application.LogisticsService) *Server {
 // req: 包含订单信息、跟踪号、承运商和发收件人信息的请求体。
 // 返回created successfully的物流单响应和可能发生的gRPC错误。
 func (s *Server) CreateLogistics(ctx context.Context, req *pb.CreateLogisticsRequest) (*pb.CreateLogisticsResponse, error) {
-	// 调用应用服务层创建物流单。
+	// 调用应用服务层创建物流单.
 	logistics, err := s.app.CreateLogistics(
 		ctx,
 		req.OrderId,
@@ -66,7 +66,7 @@ func (s *Server) CreateLogistics(ctx context.Context, req *pb.CreateLogisticsReq
 func (s *Server) GetLogistics(ctx context.Context, req *pb.GetLogisticsRequest) (*pb.GetLogisticsResponse, error) {
 	logistics, err := s.app.GetLogistics(ctx, req.Id)
 	if err != nil {
-		// 如果物流单未找到，返回NotFound状态码。
+		// 如果物流单未找到,返回NotFound状态码。
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("logistics not found: %v", err))
 	}
 	return &pb.GetLogisticsResponse{
@@ -80,7 +80,7 @@ func (s *Server) GetLogistics(ctx context.Context, req *pb.GetLogisticsRequest) 
 func (s *Server) GetLogisticsByTrackingNo(ctx context.Context, req *pb.GetLogisticsByTrackingNoRequest) (*pb.GetLogisticsResponse, error) {
 	logistics, err := s.app.GetLogisticsByTrackingNo(ctx, req.TrackingNo)
 	if err != nil {
-		// 如果物流单未找到，返回NotFound状态码。
+		// 如果物流单未找到,返回NotFound状态码。
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("logistics not found by tracking no: %v", err))
 	}
 	return &pb.GetLogisticsResponse{
@@ -88,12 +88,12 @@ func (s *Server) GetLogisticsByTrackingNo(ctx context.Context, req *pb.GetLogist
 	}, nil
 }
 
-// UpdateStatus 处理更新物流状态的gRPC请求。
+// UpdateStatus 处理更新物流状态的gRPC请求.
 // req: 包含物流单ID、新的状态、位置和描述的请求体。
 // 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) UpdateStatus(ctx context.Context, req *pb.UpdateStatusRequest) (*emptypb.Empty, error) {
 	// 将Proto的Status（int32）转换为实体LogisticsStatus。
-	if err := s.app.UpdateStatus(ctx, req.Id, entity.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
+	if err := s.app.UpdateStatus(ctx, req.Id, domain.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update logistics status: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -109,7 +109,7 @@ func (s *Server) AddTrace(ctx context.Context, req *pb.AddTraceRequest) (*emptyp
 	return &emptypb.Empty{}, nil
 }
 
-// SetEstimatedTime 处理设置预计送达时间的gRPC请求。
+// SetEstimatedTime 处理设置预计送达时间的gRPC请求.
 // req: 包含物流单ID和预计时间的请求体。
 // 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) SetEstimatedTime(ctx context.Context, req *pb.SetEstimatedTimeRequest) (*emptypb.Empty, error) {
@@ -151,11 +151,11 @@ func (s *Server) ListLogistics(ctx context.Context, req *pb.ListLogisticsRequest
 	}, nil
 }
 
-// OptimizeDeliveryRoute 处理优化配送路线的gRPC请求。
+// OptimizeDeliveryRoute 处理优化配送路线的gRPC请求.
 // req: 包含物流单ID和目的地列表的请求体。
 // 返回优化后的配送路线响应和可能发生的gRPC错误。
 func (s *Server) OptimizeDeliveryRoute(ctx context.Context, req *pb.OptimizeDeliveryRouteRequest) (*pb.OptimizeDeliveryRouteResponse, error) {
-	// 将protobuf的目的地列表转换为算法层所需的 Location 结构体列表。
+	// 将protobuf的目的地列表转换为算法层所需的 Location 结构体列表.
 	destinations := make([]algorithm.Location, len(req.Destinations))
 	for i, d := range req.Destinations {
 		destinations[i] = algorithm.Location{
@@ -175,8 +175,8 @@ func (s *Server) OptimizeDeliveryRoute(ctx context.Context, req *pb.OptimizeDeli
 	}, nil
 }
 
-// convertLogisticsToProto 是一个辅助函数，将领域层的 Logistics 实体转换为 protobuf 的 Logistics 消息。
-func convertLogisticsToProto(l *entity.Logistics) *pb.Logistics {
+// convertLogisticsToProto 是一个辅助函数,将领域层的 Logistics 实体转换为 protobuf 的 Logistics 消息。
+func convertLogisticsToProto(l *domain.Logistics) *pb.Logistics {
 	if l == nil {
 		return nil
 	}
@@ -210,7 +210,7 @@ func convertLogisticsToProto(l *entity.Logistics) *pb.Logistics {
 		CreatedAt:       timestamppb.New(l.CreatedAt), // 创建时间。
 		UpdatedAt:       timestamppb.New(l.UpdatedAt), // 更新时间。
 	}
-	// 映射可选的时间字段。
+	// 映射可选的时间字段.
 	if l.EstimatedTime != nil {
 		resp.EstimatedTime = timestamppb.New(*l.EstimatedTime)
 	}
@@ -220,8 +220,8 @@ func convertLogisticsToProto(l *entity.Logistics) *pb.Logistics {
 	return resp
 }
 
-// convertTraceToProto 是一个辅助函数，将领域层的 LogisticsTrace 实体转换为 protobuf 的 LogisticsTrace 消息。
-func convertTraceToProto(t *entity.LogisticsTrace) *pb.LogisticsTrace {
+// convertTraceToProto 是一个辅助函数,将领域层的 LogisticsTrace 实体转换为 protobuf 的 LogisticsTrace 消息。
+func convertTraceToProto(t *domain.LogisticsTrace) *pb.LogisticsTrace {
 	if t == nil {
 		return nil
 	}
@@ -236,8 +236,8 @@ func convertTraceToProto(t *entity.LogisticsTrace) *pb.LogisticsTrace {
 	}
 }
 
-// convertRouteToProto 是一个辅助函数，将领域层的 DeliveryRoute 实体转换为 protobuf 的 DeliveryRoute 消息。
-func convertRouteToProto(r *entity.DeliveryRoute) *pb.DeliveryRoute {
+// convertRouteToProto 是一个辅助函数,将领域层的 DeliveryRoute 实体转换为 protobuf 的 DeliveryRoute 消息。
+func convertRouteToProto(r *domain.DeliveryRoute) *pb.DeliveryRoute {
 	if r == nil {
 		return nil
 	}

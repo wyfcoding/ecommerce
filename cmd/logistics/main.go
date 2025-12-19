@@ -4,84 +4,108 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"
 	"github.com/wyfcoding/ecommerce/internal/logistics/application"
 	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/persistence"
 	logisticsgrpc "github.com/wyfcoding/ecommerce/internal/logistics/interfaces/grpc"
 	logisticshttp "github.com/wyfcoding/ecommerce/internal/logistics/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
-
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
+	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+const BootstrapName = "logistics"
+
+type AppContext struct {
+	Config     *configpkg.Config
+	AppService *application.LogisticsService
+	Clients    *ServiceClients
 }
 
-const serviceName = "logistics-service"
+type ServiceClients struct {
+	// Add dependencies here if needed
+}
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9113").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.LogisticsService)
-	pb.RegisterLogisticsServiceServer(s, logisticsgrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for logistics service (DDD)")
+func registerGRPC(s *grpc.Server, svc interface{}) {
+	ctx := svc.(*AppContext)
+	pb.RegisterLogisticsServiceServer(s, logisticsgrpc.NewServer(ctx.AppService))
 }
 
-func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.LogisticsService)
-	handler := logisticshttp.NewHandler(service, slog.Default())
-
+func registerGin(e *gin.Engine, svc interface{}) {
+	ctx := svc.(*AppContext)
+	handler := logisticshttp.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
-
-	slog.Default().Info("HTTP routes registered for logistics service (DDD)")
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
+	c := cfg.(*configpkg.Config)
+	slog.Info("initializing service dependencies...")
 
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
-
-	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	// 1. Database
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	sqlDB, err := db.DB()
+	// 2. Redis
+	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		return nil, nil, err
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// Infrastructure Layer
+	// 3. Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		redisCache.Close()
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
+	// 4. Infrastructure & Application
 	repo := persistence.NewLogisticsRepository(db)
 
-	// Application Layer
-	service := application.NewLogisticsService(repo, logger.Logger)
+	// Create sub-services
+	logisticsQuery := application.NewLogisticsQuery(repo, logging.Default().Logger)
+	logisticsManager := application.NewLogisticsManager(repo, logging.Default().Logger)
+
+	// Create facade
+	service := application.NewLogisticsService(logisticsManager, logisticsQuery)
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up logistics service resources (DDD)...")
+		slog.Info("cleaning up resources...")
+		clientCleanup()
+		redisCache.Close()
+		sqlDB, _ := db.DB()
 		sqlDB.Close()
 	}
 
-	return service, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

@@ -5,24 +5,25 @@ import (
 	"strconv"  // 导入字符串和数字转换工具。
 
 	"github.com/wyfcoding/ecommerce/internal/cart/application" // 导入购物车模块的应用服务。
-	"github.com/wyfcoding/ecommerce/pkg/response"              // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/response"                        // 导入统一的响应处理工具。
+
+	"log/slog" // 导入结构化日志库。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了Cart模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	service *application.CartService // 依赖Cart应用服务，处理核心业务逻辑。
-	logger  *slog.Logger             // 日志记录器，用于记录请求处理过程中的信息和错误。
+	app    *application.CartService // 依赖Cart应用服务，处理核心业务逻辑。
+	logger *slog.Logger             // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Cart HTTP Handler 实例。
-func NewHandler(service *application.CartService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.CartService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		app:    app,
+		logger: logger,
 	}
 }
 
@@ -38,7 +39,7 @@ func (h *Handler) GetCart(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取购物车。
-	cart, err := h.service.GetCart(c.Request.Context(), userID)
+	cart, err := h.app.GetCart(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.Error("Failed to get cart", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get cart", err.Error())
@@ -72,7 +73,7 @@ func (h *Handler) AddItem(c *gin.Context) {
 	}
 
 	// 调用应用服务层添加商品到购物车。
-	err := h.service.AddItem(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.Quantity, req.ProductImageURL)
+	err := h.app.AddItem(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.Quantity, req.ProductImageURL)
 	if err != nil {
 		h.logger.Error("Failed to add item to cart", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add item to cart", err.Error())
@@ -101,7 +102,7 @@ func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 	}
 
 	// 调用应用服务层更新购物车商品数量。
-	err := h.service.UpdateItemQuantity(c.Request.Context(), req.UserID, req.SkuID, req.Quantity)
+	err := h.app.UpdateItemQuantity(c.Request.Context(), req.UserID, req.SkuID, req.Quantity)
 	if err != nil {
 		h.logger.Error("Failed to update item quantity", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update item quantity", err.Error())
@@ -129,7 +130,7 @@ func (h *Handler) RemoveItem(c *gin.Context) {
 	}
 
 	// 调用应用服务层移除购物车商品。
-	err := h.service.RemoveItem(c.Request.Context(), req.UserID, req.SkuID)
+	err := h.app.RemoveItem(c.Request.Context(), req.UserID, req.SkuID)
 	if err != nil {
 		h.logger.Error("Failed to remove item from cart", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to remove item from cart", err.Error())
@@ -156,7 +157,7 @@ func (h *Handler) ClearCart(c *gin.Context) {
 	}
 
 	// 调用应用服务层清空购物车。
-	err := h.service.ClearCart(c.Request.Context(), req.UserID)
+	err := h.app.ClearCart(c.Request.Context(), req.UserID)
 	if err != nil {
 		h.logger.Error("Failed to clear cart", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to clear cart", err.Error())

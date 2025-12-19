@@ -6,7 +6,7 @@ import (
 	"time"     // 导入时间包，用于时间解析。
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/application" // 导入结算模块的应用服务。
-	"github.com/wyfcoding/ecommerce/pkg/response"                    // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/response"                              // 导入统一的响应处理工具。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
 	"log/slog"                 // 导入结构化日志库。

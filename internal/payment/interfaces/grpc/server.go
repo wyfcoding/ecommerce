@@ -14,11 +14,11 @@ import (
 // Server gRPC 服务实现
 type Server struct {
 	pb.UnimplementedPaymentServer
-	App *application.PaymentApplicationService
+	App *application.PaymentService
 }
 
 // NewServer 创建 gRPC 服务
-func NewServer(app *application.PaymentApplicationService) *Server {
+func NewServer(app *application.PaymentService) *Server {
 	return &Server{App: app}
 }
 

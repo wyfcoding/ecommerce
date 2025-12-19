@@ -1,3 +1,7 @@
+[server]
+name = "ai_model"
+environment = "dev"
+
 # 服务基础配置
 [server.http]
 addr = "0.0.0.0"
@@ -29,3 +33,7 @@ jaeger_endpoint = "http://localhost:14268/api/traces"
 level = "debug"
 format = "json" # text 或 json
 output = "stdout" # stdout 或 stderr 或 文件路径
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

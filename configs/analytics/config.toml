@@ -1,3 +1,7 @@
+[server]
+name = "analytics"
+environment = "dev"
+
 # 分析服务基础配置
 [server.http]
 # 主要提供给内部仪表盘或数据可视化工具的查询接口
@@ -31,3 +35,8 @@ service_name = "analytics-service"
 level = "info" # 分析服务日志量可能很大，默认使用 info 级别
 format = "json"
 output = "stdout"
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

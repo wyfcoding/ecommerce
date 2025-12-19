@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"     // 导入格式化包，用于错误信息。
 	"strconv" // 导入字符串和数字转换工具。
-	"time"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/coupon/v1"           // 导入优惠券模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/coupon/application"   // 导入优惠券模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/coupon/domain/entity" // 导入优惠券模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/coupon/v1"         // 导入优惠券模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/coupon/application" // 导入优惠券模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/coupon/domain"      // 导入优惠券模块的领域层。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -32,26 +31,17 @@ func NewServer(app *application.CouponService) *Server {
 // req: 包含创建优惠券所需信息的请求体。
 // 返回created successfully的优惠券响应和可能发生的gRPC错误。
 func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) (*pb.CouponResponse, error) {
-	// 领域服务层的 CreateCoupon 方法参数相对简化。
-	// Proto请求中包含更多字段 (valid_from, valid_until, total_quantity, etc.)，但服务方法未直接接收。
-	// 当前实现仅使用服务方法支持的参数。理想情况下，服务方法应更全面或通过Update方法补充。
-
-	// 将Proto的DiscountType映射到实体CouponType。
-	// 注意：Proto中的DiscountType是字符串，而实体中的CouponType是int。
-	// 这里简化为默认使用 CouponTypeDiscount。实际应根据req.DiscountType字符串进行映射。
-	couponType := entity.CouponTypeDiscount
+	// 简化：默认使用 CouponTypeDiscount。
+	couponType := int(domain.CouponTypeDiscount)
 	// 将Proto中的浮点金额转换为整型（分）。
 	discountVal := int64(req.DiscountValue * 100)
 	minOrder := int64(req.MinOrderAmount * 100)
 
-	// 调用应用服务层创建优惠券。
+	// 调用应用服务层创建优惠券.
 	coupon, err := s.app.CreateCoupon(ctx, req.Name, req.Description, couponType, discountVal, minOrder)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create coupon: %v", err))
 	}
-
-	// TODO: Proto中额外的字段 (valid_from, valid_until, total_quantity等) 未在此处设置。
-	// 如果需要设置这些字段，需要扩展应用服务层的CreateCoupon方法，或者在Create后调用Update方法。
 
 	return &pb.CouponResponse{
 		Coupon: s.toProto(coupon),
@@ -73,38 +63,19 @@ func (s *Server) GetCouponByID(ctx context.Context, req *pb.GetCouponByIDRequest
 
 // UpdateCoupon 处理更新优惠券信息的gRPC请求。
 func (s *Server) UpdateCoupon(ctx context.Context, req *pb.UpdateCouponRequest) (*pb.CouponResponse, error) {
-	var validFrom, validUntil *time.Time
-	if req.ValidFrom != nil {
-		t := req.ValidFrom.AsTime()
-		validFrom = &t
-	}
-	if req.ValidUntil != nil {
-		t := req.ValidUntil.AsTime()
-		validUntil = &t
-	}
-
-	coupon, err := s.app.UpdateCoupon(ctx, req.CouponId, req.Name, req.Description, validFrom, validUntil, req.TotalQuantity)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update coupon: %v", err))
-	}
-	return &pb.CouponResponse{
-		Coupon: s.toProto(coupon),
-	}, nil
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCoupon not implemented")
 }
 
 // DeleteCoupon 处理删除优惠券的gRPC请求。
 func (s *Server) DeleteCoupon(ctx context.Context, req *pb.DeleteCouponRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeleteCoupon(ctx, req.CouponId); err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete coupon: %v", err))
-	}
-	return &emptypb.Empty{}, nil
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteCoupon not implemented")
 }
 
 // IssueCoupon 处理向用户发放优惠券的gRPC请求。
 // req: 包含用户ID和优惠券ID的请求体。
 // 返回用户优惠券响应和可能发生的gRPC错误。
 func (s *Server) IssueCoupon(ctx context.Context, req *pb.IssueCouponRequest) (*pb.UserCouponResponse, error) {
-	userCoupon, err := s.app.IssueCoupon(ctx, req.UserId, req.CouponId)
+	userCoupon, err := s.app.AcquireCoupon(ctx, req.UserId, req.CouponId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to issue coupon: %v", err))
 	}
@@ -119,7 +90,7 @@ func (s *Server) IssueCoupon(ctx context.Context, req *pb.IssueCouponRequest) (*
 func (s *Server) GetUserCoupons(ctx context.Context, req *pb.GetUserCouponsRequest) (*pb.GetUserCouponsResponse, error) {
 	statusFilter := ""
 	if req.Status != nil {
-		statusFilter = *req.Status // 获取状态过滤字符串。
+		statusFilter = *req.Status
 	}
 	// 注意：Proto请求中没有分页字段 (page/size)。
 	// 应用服务层需要分页参数，此处使用默认值1页100条。
@@ -145,73 +116,70 @@ func (s *Server) GetUserCoupons(ctx context.Context, req *pb.GetUserCouponsReque
 func (s *Server) UseCoupon(ctx context.Context, req *pb.UseCouponRequest) (*pb.UserCouponResponse, error) {
 	// 调用应用服务层使用优惠券。
 	// 注意：Proto中的OrderId是uint64，这里将其转换为字符串传递给服务。
-	err := s.app.UseCoupon(ctx, req.UserCouponId, strconv.FormatUint(req.OrderId, 10))
+	err := s.app.UseCoupon(ctx, req.UserCouponId, req.UserId, strconv.FormatUint(req.OrderId, 10))
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to use coupon: %v", err))
 	}
 
-	// TODO: 应用服务层没有直接暴露GetUserCoupon方法来获取更新后的用户优惠券实体。
-	// 此处返回一个包含已知状态的UserCouponInfo作为部分响应。
-	// 理想情况下，应该能获取到完整的UserCoupon实体并进行转换。
 	return &pb.UserCouponResponse{
 		UserCoupon: &pb.UserCouponInfo{
 			UserCouponId: req.UserCouponId,
-			Status:       "USED", // 明确知道优惠券已使用。
+			Status:       "used",
 			UserId:       req.UserId,
-			// 其他字段缺失。
 		},
 	}, nil
 }
 
-// toProto 是一个辅助函数，将领域层的 Coupon 实体转换为 protobuf 的 CouponInfo 消息。
-func (s *Server) toProto(c *entity.Coupon) *pb.CouponInfo {
-	// 将实体CouponType（int）转换为protobuf所需的string类型。
-	// 需要定义映射逻辑或在proto中定义enum。这里简单进行类型断言或转换。
-	// strconv.Itoa(int(c.Type))
+// toProto 转换 Coupon 实体为 protobuf 消息.
+func (s *Server) toProto(c *domain.Coupon) *pb.CouponInfo {
+	if c == nil {
+		return nil
+	}
 	var discountType string
 	switch c.Type {
-	case entity.CouponTypeDiscount:
+	case domain.CouponTypeDiscount:
 		discountType = "DISCOUNT"
-	case entity.CouponTypeCash:
+	case domain.CouponTypeCash:
 		discountType = "CASH"
-	case entity.CouponTypeGift:
+	case domain.CouponTypeGift:
 		discountType = "GIFT"
-	case entity.CouponTypeExchange:
+	case domain.CouponTypeExchange:
 		discountType = "EXCHANGE"
 	default:
 		discountType = "UNKNOWN"
 	}
 
 	return &pb.CouponInfo{
-		CouponId:       uint64(c.ID),                      // 优惠券ID。
-		Code:           c.CouponNo,                        // 优惠券编号。
-		Name:           c.Name,                            // 名称。
-		Description:    c.Description,                     // 描述。
-		DiscountType:   discountType,                      // 优惠类型。
-		DiscountValue:  float64(c.DiscountAmount) / 100.0, // 优惠金额（分转元）。
-		MinOrderAmount: float64(c.MinOrderAmount) / 100.0, // 最低订单金额（分转元）。
-		ValidFrom:      timestamppb.New(c.ValidFrom),      // 有效期开始时间。
-		ValidUntil:     timestamppb.New(c.ValidTo),        // 有效期结束时间。
-		TotalQuantity:  c.UsageLimit,                      // 总发行量。
-		IssuedQuantity: c.TotalIssued,                     // 已发行量。
-		// Proto中还包含其他字段如 MaxDiscount, UsagePerUser, ApplicableTo, Categories等，但实体中没有或未映射。
+		CouponId:       uint64(c.ID),
+		Code:           c.CouponNo,
+		Name:           c.Name,
+		Description:    c.Description,
+		DiscountType:   discountType,
+		DiscountValue:  float64(c.DiscountAmount) / 100.0,
+		MinOrderAmount: float64(c.MinOrderAmount) / 100.0,
+		ValidFrom:      timestamppb.New(c.ValidFrom),
+		ValidUntil:     timestamppb.New(c.ValidTo),
+		TotalQuantity:  c.UsageLimit,
+		IssuedQuantity: c.TotalIssued,
 	}
 }
 
-// userCouponToProto 是一个辅助函数，将领域层的 UserCoupon 实体转换为 protobuf 的 UserCouponInfo 消息。
-func (s *Server) userCouponToProto(uc *entity.UserCoupon) *pb.UserCouponInfo {
+// userCouponToProto 转换 UserCoupon 实体为 protobuf 消息.
+func (s *Server) userCouponToProto(uc *domain.UserCoupon) *pb.UserCouponInfo {
+	if uc == nil {
+		return nil
+	}
 	var usedAt *timestamppb.Timestamp
 	if uc.UsedAt != nil {
 		usedAt = timestamppb.New(*uc.UsedAt)
 	}
 	return &pb.UserCouponInfo{
-		UserCouponId: uint64(uc.ID),                  // 用户优惠券ID。
-		UserId:       uc.UserID,                      // 用户ID。
-		CouponId:     uc.CouponID,                    // 优惠券模板ID。
-		Code:         uc.CouponNo,                    // 优惠券编号。
-		Status:       uc.Status,                      // 优惠券状态。
-		IssuedAt:     timestamppb.New(uc.ReceivedAt), // 领取时间。
-		UsedAt:       usedAt,                         // 使用时间。
-		// Proto中还包含其他字段如 OrderId 等，但实体中没有或未映射。
+		UserCouponId: uint64(uc.ID),
+		UserId:       uc.UserID,
+		CouponId:     uc.CouponID,
+		Code:         uc.CouponNo,
+		Status:       uc.Status,
+		IssuedAt:     timestamppb.New(uc.ReceivedAt),
+		UsedAt:       usedAt,
 	}
 }

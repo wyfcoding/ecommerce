@@ -4,24 +4,30 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
 	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
-	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases/sharding"
-	"github.com/wyfcoding/ecommerce/pkg/idgen"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
-
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
+	httpServer "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
+	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 )
 
+const BootstrapName = "order"
+
+// Config extends the base configuration with service-specific settings
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 	DTM              struct {
@@ -32,53 +38,68 @@ type Config struct {
 	} `mapstructure:"warehouse"`
 }
 
-const serviceName = "order-service"
+type AppContext struct {
+	Config     *Config
+	AppService *application.OrderService
+	Clients    *ServiceClients
+}
+
+type ServiceClients struct {
+	User      *grpc.ClientConn
+	Product   *grpc.ClientConn
+	Inventory *grpc.ClientConn
+	Pricing   *grpc.ClientConn
+	Payment   *grpc.ClientConn
+	Marketing *grpc.ClientConn
+	Logistics *grpc.ClientConn
+	Cart      *grpc.ClientConn
+}
 
 func main() {
-	app.NewBuilder(serviceName).
+	app.NewBuilder(BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9093").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.OrderService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	pb.RegisterOrderServer(s, ordergrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for order service (DDD)")
+	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.OrderService)
-	handler := orderhttp.NewHandler(service, slog.Default())
-
+	ctx := srv.(*AppContext)
+	handler := httpServer.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for order service (DDD)")
+	slog.Default().Info("HTTP routes registered", "service", BootstrapName)
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
+	c := cfg.(*Config)
+	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
-
-	// Initialize Database Sharding Manager
-	shardingManager, err := sharding.NewManager(config.Data.Shards, logger)
+	// 1. Database Sharding Manager
+	slog.Info("initializing database sharding manager...")
+	shardingManager, err := sharding.NewManager(c.Data.Shards, logging.Default())
 	if err != nil {
-		// Fallback to single DB if shards not configured (backward compatibility or dev mode)
-		if len(config.Data.Shards) == 0 {
-			logger.Info("No shards configured, using single database connection")
-			// We need to wrap single DB into a manager or update repo to handle both.
-			// Since repo expects manager, let's create a manager with single DB config.
-			shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{config.Data.Database}, logger)
+		if len(c.Data.Shards) == 0 {
+			slog.Info("No shards configured, using single database connection")
+			db, err := databases.NewDB(c.Data.Database, logging.Default())
 			if err != nil {
+				return nil, nil, fmt.Errorf("failed to initialize single db manager: %w", err)
+			}
+			shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logging.Default())
+			if err != nil {
+				sqlDB, _ := db.DB()
+				sqlDB.Close()
 				return nil, nil, fmt.Errorf("failed to initialize single db manager: %w", err)
 			}
 		} else {
@@ -86,29 +107,49 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		}
 	}
 
-	// Initialize ID Generator
-	idGen, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{
-		MachineID: 1, // NodeID 1 for order service
-		StartTime: "2024-01-01",
-	})
+	// 2. Redis
+	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
+		shardingManager.Close()
+		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// Initialize Kafka Producer
-	producer := kafka.NewProducer(config.MessageQueue.Kafka, logger)
+	// 3. ID Generator
+	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
+	if err != nil {
+		redisCache.Close()
+		shardingManager.Close()
+		return nil, nil, fmt.Errorf("failed to init id generator: %w", err)
+	}
 
-	// Infrastructure Layer
+	// 4. Kafka Producer
+	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logging.Default())
+
+	// Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		kafkaProducer.Close()
+		redisCache.Close()
+		shardingManager.Close()
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
+	// 5. Infrastructure & Application
 	repo := persistence.NewOrderRepository(shardingManager)
 
-	// Application Layer
-	service := application.NewOrderService(repo, idGen, producer, slog.Default(), config.DTM.Server, config.Warehouse.GrpcAddr, m)
+	orderManager := application.NewOrderManager(repo, idGen, kafkaProducer, slog.Default(), c.DTM.Server, c.Warehouse.GrpcAddr, m)
+	orderQuery := application.NewOrderQuery(repo)
+
+	service := application.NewOrderService(orderManager, orderQuery, slog.Default())
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up order service resources (DDD)...")
-		producer.Close()
+		slog.Info("cleaning up resources...", "service", BootstrapName)
+		clientCleanup()
+		kafkaProducer.Close()
+		redisCache.Close()
 		shardingManager.Close()
 	}
 
-	return service, cleanup, nil
+	return &AppContext{AppService: service, Config: c, Clients: clients}, cleanup, nil
 }

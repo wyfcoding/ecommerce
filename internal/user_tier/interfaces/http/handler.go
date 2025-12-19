@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/user_tier/application" // 导入用户等级模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/user_tier/domain/entity"
-	"github.com/wyfcoding/ecommerce/pkg/response" // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/response" // 导入统一的响应处理工具。
 
 	"log/slog" // 导入结构化日志库。
 

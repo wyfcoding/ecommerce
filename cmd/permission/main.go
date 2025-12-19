@@ -4,84 +4,106 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/wyfcoding/pkg/grpcclient"
+
 	"github.com/gin-gonic/gin"
 	pb "github.com/wyfcoding/ecommerce/go-api/permission/v1"
 	"github.com/wyfcoding/ecommerce/internal/permission/application"
 	"github.com/wyfcoding/ecommerce/internal/permission/infrastructure/persistence/mysql"
 	permissiongrpc "github.com/wyfcoding/ecommerce/internal/permission/interfaces/grpc"
 	permissionhttp "github.com/wyfcoding/ecommerce/internal/permission/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
+	"github.com/wyfcoding/pkg/app"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 
 	"google.golang.org/grpc"
 )
 
-const serviceName = "permission-service"
+const BootstrapName = "permission-service"
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+type AppContext struct {
+	AppService *application.PermissionService
+	Config     *configpkg.Config
+	Clients    *ServiceClients
+}
+
+type ServiceClients struct {
+	// Add dependencies here if needed
 }
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9168").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.PermissionService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	pb.RegisterPermissionServiceServer(s, permissiongrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for permission service (DDD)")
+	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.PermissionService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	handler := permissionhttp.NewHandler(service, slog.Default())
 
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for permission service (DDD)")
+	slog.Default().Info("HTTP routes registered (DDD)", "service", BootstrapName)
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
+	c := cfg.(*configpkg.Config)
+	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
 	// Initialize Logger
-	logger := logging.NewLogger(serviceName, "app")
+	logger := logging.NewLogger(BootstrapName, "app")
 
 	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, nil, err
 	}
 
 	// Infrastructure Layer
 	repo := mysql.NewPermissionRepository(db)
 
-	// Application Layer
+	// 3. Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		// sqlDB.Close() // sqlDB is accessed via db.DB() if needed, but here we just return
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
+	// 4. Infrastructure & Application
+	// Note: Changed `persistence.NewPermissionRepository` to `mysql.NewPermissionRepository`
+	// to match the existing import and avoid introducing new imports not specified.
+	// Note: Changed `logging.Default().Logger` to `slog.Default()` to match existing usage.
 	service := application.NewPermissionService(repo, slog.Default())
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up permission service resources (DDD)...")
+		slog.Info("cleaning up resources...")
+		clientCleanup()
+		// sqlDB.Close()
+		sqlDB, _ := db.DB()
 		sqlDB.Close()
 	}
 
-	return service, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

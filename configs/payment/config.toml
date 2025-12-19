@@ -40,3 +40,8 @@ write_timeout = "0.2s"
 level = "info"
 format = "json"
 output = "stdout"
+
+[metrics]
+enabled = true
+port = "9095"
+path = "/metrics"

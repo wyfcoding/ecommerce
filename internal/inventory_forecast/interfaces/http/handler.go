@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/application"   // 导入库存预测模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain/entity" // 导入库存预测模块的领域实体。
-	"github.com/wyfcoding/ecommerce/pkg/response"                              // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/response"                                        // 导入统一的响应处理工具。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
 	"log/slog"                 // 导入结构化日志库。

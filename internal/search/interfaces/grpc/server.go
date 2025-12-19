@@ -7,9 +7,9 @@ import (
 
 	"log/slog"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"           // 导入搜索模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/search/application"   // 导入搜索模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/search/domain/entity" // 导入搜索模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"         // 导入搜索模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/search/application" // 导入搜索模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/search/domain"      // 导入搜索模块的领域层。
 
 	"google.golang.org/grpc/codes"  // gRPC状态码。
 	"google.golang.org/grpc/status" // gRPC状态处理。
@@ -48,7 +48,7 @@ func (s *Server) SearchProducts(ctx context.Context, req *pb.SearchProductsReque
 	}
 
 	// 构建SearchFilter实体。
-	filter := &entity.SearchFilter{
+	filter := &domain.SearchFilter{
 		Keyword:  req.Query,
 		Page:     page,
 		PageSize: pageSize,
@@ -88,5 +88,3 @@ func (s *Server) SearchProducts(ctx context.Context, req *pb.SearchProductsReque
 		NextPageToken: int32(page + 1),     // 建议的下一页页码。
 	}, nil
 }
-
-// TODO: 补充实现 GetHotKeywords, GetSearchHistory, ClearSearchHistory, Suggest 等搜索相关接口。

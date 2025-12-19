@@ -7,15 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/product/application"
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
-	"github.com/wyfcoding/ecommerce/pkg/response"
+	"github.com/wyfcoding/pkg/response"
 )
 
 type Handler struct {
-	app    *application.ProductApplicationService
+	app    *application.ProductService
 	logger *slog.Logger
 }
 
-func NewHandler(app *application.ProductApplicationService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.ProductService, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

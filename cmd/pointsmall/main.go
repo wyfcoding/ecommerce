@@ -4,50 +4,58 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idgen"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence"
 	pointsgrpc "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/grpc"
 	pointshttp "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/http"
-	"github.com/wyfcoding/ecommerce/pkg/app"
-	configpkg "github.com/wyfcoding/ecommerce/pkg/config"
-	"github.com/wyfcoding/ecommerce/pkg/databases"
-	"github.com/wyfcoding/ecommerce/pkg/idgen"
-	"github.com/wyfcoding/ecommerce/pkg/logging"
-	"github.com/wyfcoding/ecommerce/pkg/metrics"
-	"github.com/wyfcoding/ecommerce/pkg/tracing"
+	"github.com/wyfcoding/pkg/app"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 )
 
-type Config struct {
-	configpkg.Config `mapstructure:",squash"`
+type AppContext struct {
+	AppService *application.PointsService
+	Config     *configpkg.Config
+	Clients    *ServiceClients
 }
 
-const serviceName = "pointsmall-service"
+type ServiceClients struct {
+	// Add dependencies here if needed
+}
+
+const BootstrapName = "pointsmall-service"
 
 func main() {
-	app.NewBuilder(serviceName).
-		WithConfig(&Config{}).
+	app.NewBuilder(BootstrapName).
+		WithConfig(&configpkg.Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGRPCInterceptor(tracing.OtelGRPCUnaryInterceptor()).
-		WithGinMiddleware(tracing.OtelGinMiddleware(serviceName)).
-		WithMetrics("9123").
+		WithGinMiddleware(middleware.CORS()).
 		Build().
 		Run()
 }
 
 func registerGRPC(s *grpc.Server, srv interface{}) {
-	service := srv.(*application.PointsService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	pb.RegisterPointsmallServiceServer(s, pointsgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for pointsmall service (DDD)")
 }
 
 func registerGin(e *gin.Engine, srv interface{}) {
-	service := srv.(*application.PointsService)
+	ctx := srv.(*AppContext)
+	service := ctx.AppService
 	handler := pointshttp.NewHandler(service, slog.Default())
 
 	api := e.Group("/api/v1")
@@ -57,13 +65,11 @@ func registerGin(e *gin.Engine, srv interface{}) {
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
-	config := cfg.(*Config)
-
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
+	c := cfg.(*configpkg.Config)
+	slog.Info("initializing service dependencies...")
 
 	// Initialize Database
-	db, err := databases.NewDB(config.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
@@ -73,24 +79,40 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
+	// Infrastructure Layer
+	// Original repo declaration: repo := persistence.NewPointsRepository(db)
+
+	// 3. Downstream Clients
+	clients := &ServiceClients{}
+	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	if err != nil {
+		sqlDB.Close()
+		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+	}
+
+	// 4. Infrastructure & Application
 	// Initialize ID Generator
 	idGen, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{
 		MachineID: 1,
-	}) // You might want to configure workerID/datacenterID
+	})
 	if err != nil {
+		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
-	// Infrastructure Layer
+	// 4. Infrastructure & Application
 	repo := persistence.NewPointsRepository(db)
-
-	// Application Layer
-	service := application.NewPointsService(repo, idGen, slog.Default())
+	service := application.NewPointsService(repo, idGen, logging.Default().Logger)
 
 	cleanup := func() {
-		slog.Default().Info("cleaning up pointsmall service resources (DDD)...")
+		slog.Info("cleaning up resources...")
+		clientCleanup()
 		sqlDB.Close()
 	}
 
-	return service, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+	}, cleanup, nil
 }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/notification/v1"           // 导入通知模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/notification/application"   // 导入通知模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/notification/domain/entity" // 导入通知模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/notification/v1"         // 导入通知模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/notification/application" // 导入通知模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/notification/domain"      // 导入通知模块的领域层。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -30,14 +30,11 @@ func NewServer(app *application.NotificationService) *Server {
 // 返回发送成功的通知ID响应和可能发生的gRPC错误。
 func (s *Server) SendNotification(ctx context.Context, req *pb.SendNotificationRequest) (*pb.SendNotificationResponse, error) {
 	// 将Proto的Type（字符串）转换为实体NotificationType。
-	// 注意：这里进行了直接转换，如果req.Type是未知类型，可能导致错误或默认值。
-	// 应用服务层没有验证NotificationType的合法性。
-	nType := entity.NotificationType(req.Type)
+	nType := domain.NotificationType(req.Type)
 
 	// Proto请求中没有明确的通知渠道字段。这里默认使用应用内通知渠道。
-	channel := entity.NotificationChannelApp
-	// Proto请求中没有附加数据（data）字段。这里传递nil。
-	// 实际生产中，可能需要扩展Proto以支持更多字段。
+	channel := domain.NotificationChannelApp
+	// Proto请求中没有附加数据（data）字段。这里传递nil.
 	notif, err := s.app.SendNotification(ctx, req.UserId, nType, channel, req.Title, req.Content, nil)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send notification: %v", err))
@@ -52,14 +49,13 @@ func (s *Server) SendNotification(ctx context.Context, req *pb.SendNotificationR
 // req: 包含用户ID、是否包含已读消息和分页参数的请求体。
 // 返回通知列表响应和可能发生的gRPC错误。
 func (s *Server) ListNotifications(ctx context.Context, req *pb.ListNotificationsRequest) (*pb.ListNotificationsResponse, error) {
-	// 根据 req.IncludeRead 字段构建消息状态过滤器。
-	var filterStatus *int // 指向 int 的指针，如果为nil表示不按状态过滤。
+	// 根据 req.IncludeRead 字段构建消息状态过滤器.
+	var filterStatus *int // 指向 int 的指针，如果为nil表示不按状态过滤.
 	if !req.IncludeRead {
-		// 如果 IncludeRead 为 false，则只查询未读消息。
-		st := int(entity.NotificationStatusUnread)
+		// 如果 IncludeRead 为 false，则只查询未读消息.
+		st := int(domain.NotificationStatusUnread)
 		filterStatus = &st
 	}
-	// 如果 IncludeRead 为 true，则 filterStatus 保持为 nil，应用服务层可能会返回所有消息。
 
 	// 获取分页参数。
 	page := int(req.PageNum)
@@ -99,23 +95,8 @@ func (s *Server) MarkNotificationAsRead(ctx context.Context, req *pb.MarkNotific
 	return &pb.MarkNotificationAsReadResponse{}, nil
 }
 
-// GetUnreadCount 处理获取未读通知数量的gRPC请求。
-// req: 包含用户ID的请求体。
-// 返回未读通知数量响应和可能发生的gRPC错误。
-/*
-func (s *Server) GetUnreadCount(ctx context.Context, req *pb.GetUnreadCountRequest) (*pb.GetUnreadCountResponse, error) {
-	count, err := s.app.GetUnreadCount(ctx, req.UserId)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get unread count: %v", err))
-	}
-	return &pb.GetUnreadCountResponse{
-		Count: count, // 未读通知数量。
-	}, nil
-}
-*/
-
-// convertNotificationToProto 是一个辅助函数，将领域层的 Notification 实体转换为 protobuf 的 Notification 消息。
-func convertNotificationToProto(n *entity.Notification) *pb.Notification {
+// convertNotificationToProto 是一个辅助函数,将领域层的 Notification 实体转换为 protobuf 的 Notification 消息。
+func convertNotificationToProto(n *domain.Notification) *pb.Notification {
 	if n == nil {
 		return nil
 	}
@@ -125,7 +106,7 @@ func convertNotificationToProto(n *entity.Notification) *pb.Notification {
 		Type:           string(n.NotifType),                       // 类型。
 		Title:          n.Title,                                   // 标题。
 		Content:        n.Content,                                 // 内容。
-		IsRead:         n.Status == entity.NotificationStatusRead, // 是否已读。
+		IsRead:         n.Status == domain.NotificationStatusRead, // 是否已读。
 		CreatedAt:      timestamppb.New(n.CreatedAt),              // 创建时间。
 	}
 }

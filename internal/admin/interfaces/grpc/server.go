@@ -2,13 +2,13 @@ package grpc
 
 import (
 	"context"
-	"errors"
 	"fmt" // 用于格式化错误信息。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/admin/v1"           // 导入Admin模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/admin/application"   // 导入Admin模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/admin/domain/entity" // 导入Admin模块的领域实体。
+	pb "github.com/wyfcoding/ecommerce/go-api/admin/v1"         // 导入Admin模块的protobuf定义。
+	"github.com/wyfcoding/ecommerce/internal/admin/application" // 导入Admin模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/admin/domain"
 
+	// 导入Admin模块的领域实体。
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
 	"google.golang.org/protobuf/types/known/emptypb"     // 导入空消息类型。
@@ -34,13 +34,9 @@ func NewServer(app *application.AdminService) *Server {
 // 返回created successfully的管理员用户响应和可能发生的gRPC错误。
 func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserRequest) (*pb.CreateAdminUserResponse, error) {
 	// 调用应用服务层注册管理员用户。
-	// 注意：Proto中没有Phone字段，因此传递空字符串。Proto中Nickname映射为realName。
 	admin, err := s.app.RegisterAdmin(ctx, req.Username, req.Email, req.Password, req.Nickname, "")
 	if err != nil {
-		// 根据应用服务返回的错误类型，映射为gRPC状态码和错误信息。
-		if errors.Is(err, entity.ErrUsernameExists) || errors.Is(err, entity.ErrEmailExists) {
-			return nil, status.Error(codes.AlreadyExists, err.Error())
-		}
+		// 简单错误处理，生产环境应使用 status.Error 包装具体错误
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create admin user: %v", err))
 	}
 
@@ -48,18 +44,15 @@ func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserReq
 	if len(req.RoleIds) > 0 {
 		for _, roleID := range req.RoleIds {
 			if err := s.app.AssignRoleToAdmin(ctx, uint64(admin.ID), roleID); err != nil {
-				// 如果分配角色失败，可以选择回滚管理员创建或记录错误。
-				// 当前实现选择返回错误以保证数据一致性。
 				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign role to admin: %v", err))
 			}
 		}
-		// 分配角色后，重新获取管理员信息，以确保返回的AdminUser包含最新的角色信息。
+		// Refresh
 		if a, fetchErr := s.app.GetAdminProfile(ctx, uint64(admin.ID)); fetchErr == nil {
 			admin = a
 		}
 	}
 
-	// 将领域实体转换为protobuf响应格式。
 	return &pb.CreateAdminUserResponse{
 		AdminUser: s.adminToProto(admin),
 	}, nil
@@ -142,9 +135,6 @@ func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb
 	// 注意：Proto中没有Code字段，这里暂时使用Name作为Code。
 	role, err := s.app.CreateRole(ctx, req.Name, req.Name, req.Description)
 	if err != nil {
-		if errors.Is(err, entity.ErrRoleCodeExists) {
-			return nil, status.Error(codes.AlreadyExists, err.Error())
-		}
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create role: %v", err))
 	}
 
@@ -235,12 +225,8 @@ func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.L
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.CreatePermissionResponse, error) {
 	// 调用应用服务层创建权限。
 	// 注意：Proto定义与实体定义之间存在字段缺失，这里使用占位符或默认值填充。
-	// 例如，使用Name作为Code，Type默认为"api"，Path和Method为空字符串，ParentID为0。
 	perm, err := s.app.CreatePermission(ctx, req.Name, req.Name, "api", "", "", 0)
 	if err != nil {
-		if errors.Is(err, entity.ErrPermCodeExists) {
-			return nil, status.Error(codes.AlreadyExists, err.Error())
-		}
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create permission: %v", err))
 	}
 	return &pb.CreatePermissionResponse{
@@ -305,11 +291,11 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest
 	for i, l := range logs {
 		pbLogs[i] = &pb.AuditLog{
 			Id:          uint64(l.ID),
-			AdminUserId: l.AdminID,
+			AdminUserId: uint64(l.UserID), // domain has UserID type uint
 			Action:      l.Action,
-			EntityType:  l.Module,  // Mapping Module to EntityType
-			Details:     l.Request, // Mapping Request to Details (simplified)
-			IpAddress:   l.IP,
+			EntityType:  l.Resource, // Mapping Resource to EntityType
+			Details:     l.Payload,  // Mapping Payload to Details
+			IpAddress:   l.ClientIP,
 			CreatedAt:   timestamppb.New(l.CreatedAt),
 		}
 	}
@@ -360,18 +346,21 @@ func (s *Server) UpdateSystemSetting(ctx context.Context, req *pb.UpdateSystemSe
 // --- Helpers ---
 
 // adminToProto 将领域层的 Admin 实体转换为 protobuf 的 AdminUser 消息。
-func (s *Server) adminToProto(a *entity.Admin) *pb.AdminUser {
+func (s *Server) adminToProto(a *domain.AdminUser) *pb.AdminUser {
 	// 提取管理员的角色名称列表。
 	roles := make([]string, len(a.Roles))
 	for i, r := range a.Roles {
 		roles[i] = r.Name
 	}
+	// Proto expects IsActive bool, Entity has Status int. Map it.
+	isActive := a.Status == domain.UserStatusActive
+
 	return &pb.AdminUser{
 		Id:        uint64(a.ID),                 // 管理员ID。
 		Username:  a.Username,                   // 用户名。
 		Email:     a.Email,                      // 邮箱。
-		Nickname:  a.RealName,                   // 昵称（映射为真实姓名）。
-		IsActive:  a.IsActive(),                 // 是否激活。
+		Nickname:  a.FullName,                   // 昵称（映射为全名）。
+		IsActive:  isActive,                     // 是否激活。
 		Roles:     roles,                        // 角色名称列表。
 		CreatedAt: timestamppb.New(a.CreatedAt), // 创建时间。
 		UpdatedAt: timestamppb.New(a.UpdatedAt), // 更新时间。
@@ -379,7 +368,7 @@ func (s *Server) adminToProto(a *entity.Admin) *pb.AdminUser {
 }
 
 // roleToProto 将领域层的 Role 实体转换为 protobuf 的 Role 消息。
-func (s *Server) roleToProto(r *entity.Role) *pb.Role {
+func (s *Server) roleToProto(r *domain.Role) *pb.Role {
 	// 提取角色拥有的权限名称列表。
 	perms := make([]string, len(r.Permissions))
 	for i, p := range r.Permissions {
@@ -396,11 +385,10 @@ func (s *Server) roleToProto(r *entity.Role) *pb.Role {
 }
 
 // permissionToProto 将领域层的 Permission 实体转换为 protobuf 的 Permission 消息。
-func (s *Server) permissionToProto(p *entity.Permission) *pb.Permission {
+func (s *Server) permissionToProto(p *domain.Permission) *pb.Permission {
 	return &pb.Permission{
 		Id:          uint64(p.ID), // 权限ID。
 		Name:        p.Name,       // 权限名称。
-		Description: "",           // 领域实体中没有Description字段，因此这里为空字符串。
-		// Proto消息中可能期望Code, Type, Path, Method等，但此处未映射。
+		Description: p.Description,
 	}
 }

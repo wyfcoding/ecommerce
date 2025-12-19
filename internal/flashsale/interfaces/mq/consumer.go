@@ -7,18 +7,17 @@ import (
 	"log/slog"
 
 	kafkago "github.com/segmentio/kafka-go"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/entity"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/domain/repository"
-	"github.com/wyfcoding/ecommerce/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 )
 
 type OrderConsumer struct {
 	consumer *kafka.Consumer
-	repo     repository.FlashSaleRepository
+	repo     domain.FlashSaleRepository
 	logger   *slog.Logger
 }
 
-func NewOrderConsumer(consumer *kafka.Consumer, repo repository.FlashSaleRepository, logger *slog.Logger) *OrderConsumer {
+func NewOrderConsumer(consumer *kafka.Consumer, repo domain.FlashSaleRepository, logger *slog.Logger) *OrderConsumer {
 	return &OrderConsumer{
 		consumer: consumer,
 		repo:     repo,
@@ -35,10 +34,9 @@ func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) 
 	var event map[string]interface{}
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
 		c.logger.Error("failed to unmarshal message", "error", err)
-		return nil // Skip bad message
+		return nil
 	}
 
-	// Extract fields
 	orderID := uint64(event["order_id"].(float64))
 	flashsaleID := uint64(event["flashsale_id"].(float64))
 	userID := uint64(event["user_id"].(float64))
@@ -46,15 +44,11 @@ func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) 
 	skuID := uint64(event["sku_id"].(float64))
 	quantity := int32(event["quantity"].(float64))
 	price := int64(event["price"].(float64))
-	// createdAt := event["created_at"].(string) // Parse if needed
 
-	// Create Order
-	order := entity.NewFlashsaleOrder(flashsaleID, userID, productID, skuID, quantity, price)
+	order := domain.NewFlashsaleOrder(flashsaleID, userID, productID, skuID, quantity, price)
 	order.ID = uint(orderID)
-	order.Status = entity.FlashsaleOrderStatusPending // Or Paid if payment is integrated
+	order.Status = domain.FlashsaleOrderStatusPending
 
-	// Save to DB
-	// Note: We should check if order already exists (idempotency)
 	existing, err := c.repo.GetOrder(ctx, orderID)
 	if err == nil && existing != nil {
 		c.logger.Info("order already exists, skipping", "order_id", orderID)
@@ -63,7 +57,6 @@ func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) 
 
 	if err := c.repo.SaveOrder(ctx, order); err != nil {
 		c.logger.Error("failed to save order from mq", "error", err)
-		// Return error to retry
 		return err
 	}
 

@@ -1,3 +1,7 @@
+[server]
+name = "search"
+environment = "dev"
+
 [server.http]
 addr = "0.0.0.0"
 port = 8112
@@ -19,3 +23,8 @@ addr = "localhost:9091"
 level = "debug"
 format = "json"
 output = "stdout"
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"
