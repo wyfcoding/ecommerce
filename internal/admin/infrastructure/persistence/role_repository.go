@@ -11,6 +11,7 @@ type roleRepository struct {
 	db *gorm.DB
 }
 
+// NewRoleRepository 定义了数据持久层接口。
 func NewRoleRepository(db *gorm.DB) domain.RoleRepository {
 	return &roleRepository{db: db}
 }

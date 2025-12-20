@@ -18,6 +18,7 @@ type WorkflowService struct {
 	logger     *slog.Logger
 }
 
+// NewWorkflowService 定义了 NewWorkflow 相关的服务逻辑。
 func NewWorkflowService(repo domain.ApprovalRepository, ops *SystemOpsService, audit *AuditService, logger *slog.Logger) *WorkflowService {
 	return &WorkflowService{
 		repo:       repo,

@@ -16,17 +16,20 @@ type SystemOpsService struct {
 	deps   SystemOpsDependencies
 }
 
+// OrderClient 结构体定义。
 type OrderClient interface {
 	CancelOrder(ctx context.Context, orderID uint64, reason string) error
 	// ... 其他需要的接口
 }
 
+// SystemOpsDependencies 结构体定义。
 type SystemOpsDependencies struct {
 	OrderClient   *grpc.ClientConn
 	PaymentClient *grpc.ClientConn
 	UserClient    *grpc.ClientConn
 }
 
+// NewSystemOpsService 定义了 NewSystemOps 相关的服务逻辑。
 func NewSystemOpsService(deps SystemOpsDependencies, logger *slog.Logger) *SystemOpsService {
 	return &SystemOpsService{
 		logger: logger,

@@ -14,6 +14,7 @@ type InventoryQuery struct {
 	logger        *slog.Logger
 }
 
+// NewInventoryQuery 负责处理 NewInventory 相关的读操作和查询逻辑。
 func NewInventoryQuery(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) *InventoryQuery {
 	return &InventoryQuery{
 		repo:          repo,

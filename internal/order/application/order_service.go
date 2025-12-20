@@ -14,6 +14,7 @@ type OrderService struct {
 	logger  *slog.Logger
 }
 
+// NewOrderService 定义了 NewOrder 相关的服务逻辑。
 func NewOrderService(
 	manager *OrderManager,
 	query *OrderQuery,

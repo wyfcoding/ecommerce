@@ -17,6 +17,7 @@ type LogisticsManager struct {
 	logger    *slog.Logger
 }
 
+// NewLogisticsManager 负责处理 NewLogistics 相关的写操作和业务逻辑。
 func NewLogisticsManager(repo domain.LogisticsRepository, logger *slog.Logger) *LogisticsManager {
 	return &LogisticsManager{
 		repo:      repo,

@@ -11,6 +11,7 @@ type settingRepository struct {
 	db *gorm.DB
 }
 
+// NewSettingRepository 定义了数据持久层接口。
 func NewSettingRepository(db *gorm.DB) domain.SettingRepository {
 	return &settingRepository{db: db}
 }

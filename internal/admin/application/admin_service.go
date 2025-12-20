@@ -23,6 +23,7 @@ type AdminService struct {
 	logger *slog.Logger
 }
 
+// NewAdminService 定义了 NewAdmin 相关的服务逻辑。
 func NewAdminService(
 	userRepo domain.AdminRepository,
 	roleRepo domain.RoleRepository,
@@ -123,7 +124,7 @@ func (s *AdminService) AssignRoleToAdmin(ctx context.Context, adminID, roleID ui
 	// 该方法在旧版中是单角色？还是应该是数组。
 	// 适配单角色添加，但 Repo 期望数组替换。
 	// Assuming Facade just wraps Repo.
-	// Let's assume we append? Repo AssignRole is REPLACE in my implementation.
+	// 假设我们追加？在我的实现中，Repo AssignRole 是替换。
 	// 为简单起见，我们仅使用单项调用 Repo。
 	return s.userRepo.AssignRole(ctx, uint(adminID), []uint{uint(roleID)})
 }

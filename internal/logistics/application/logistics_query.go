@@ -13,6 +13,7 @@ type LogisticsQuery struct {
 	logger *slog.Logger
 }
 
+// NewLogisticsQuery 负责处理 NewLogistics 相关的读操作和查询逻辑。
 func NewLogisticsQuery(repo domain.LogisticsRepository, logger *slog.Logger) *LogisticsQuery {
 	return &LogisticsQuery{
 		repo:   repo,

@@ -17,6 +17,7 @@ type ProductService struct {
 	logger   *slog.Logger
 }
 
+// NewProductService 定义了 NewProduct 相关的服务逻辑。
 func NewProductService(
 	catalog *CatalogService,
 	category *CategoryService,

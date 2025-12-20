@@ -14,6 +14,7 @@ type LogisticsService struct {
 	Query   *LogisticsQuery
 }
 
+// NewLogisticsService 定义了 NewLogistics 相关的服务逻辑。
 func NewLogisticsService(manager *LogisticsManager, query *LogisticsQuery) *LogisticsService {
 	return &LogisticsService{
 		Manager: manager,

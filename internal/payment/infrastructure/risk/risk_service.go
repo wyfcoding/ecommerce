@@ -14,6 +14,7 @@ type RiskServiceImpl struct {
 	counters map[string]int
 }
 
+// NewRiskService 定义了 NewRisk 相关的服务逻辑。
 func NewRiskService() *RiskServiceImpl {
 	return &RiskServiceImpl{
 		counters: make(map[string]int),

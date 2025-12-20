@@ -11,6 +11,7 @@ type approvalRepository struct {
 	db *gorm.DB
 }
 
+// NewApprovalRepository 定义了数据持久层接口。
 func NewApprovalRepository(db *gorm.DB) domain.ApprovalRepository {
 	return &approvalRepository{db: db}
 }

@@ -14,11 +14,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Server 结构体定义。
 type Server struct {
 	pb.UnimplementedPointsmallServiceServer
 	app *application.PointsmallService
 }
 
+// NewServer 函数。
 func NewServer(app *application.PointsmallService) *Server {
 	return &Server{app: app}
 }

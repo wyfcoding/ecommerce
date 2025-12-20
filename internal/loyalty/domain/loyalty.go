@@ -12,6 +12,7 @@ var (
 	ErrPointsExpired      = errors.New("积分已过期")
 )
 
+// MemberLevel 结构体定义。
 type MemberLevel string
 
 const (
@@ -22,6 +23,7 @@ const (
 	MemberLevelDiamond  MemberLevel = "DIAMOND"
 )
 
+// MemberAccount 结构体定义。
 type MemberAccount struct {
 	gorm.Model
 	UserID          uint64      `gorm:"not null;uniqueIndex;comment:用户ID" json:"user_id"`
@@ -32,6 +34,7 @@ type MemberAccount struct {
 	TotalSpent      uint64      `gorm:"not null;default:0;comment:总消费金额" json:"total_spent"`
 }
 
+// NewMemberAccount 函数。
 func NewMemberAccount(userID uint64) *MemberAccount {
 	return &MemberAccount{
 		UserID:          userID,
@@ -92,6 +95,7 @@ func (a *MemberAccount) checkLevelUpgrade() {
 	}
 }
 
+// PointsTransaction 结构体定义。
 type PointsTransaction struct {
 	gorm.Model
 	UserID          uint64     `gorm:"not null;index;comment:用户ID" json:"user_id"`
@@ -103,6 +107,7 @@ type PointsTransaction struct {
 	ExpireAt        *time.Time `gorm:"comment:过期时间" json:"expire_at"`
 }
 
+// NewPointsTransaction 函数。
 func NewPointsTransaction(userID uint64, transactionType string, points, balance int64, orderID uint64, description string, expireAt *time.Time) *PointsTransaction {
 	return &PointsTransaction{
 		UserID:          userID,
@@ -122,6 +127,7 @@ func (t *PointsTransaction) IsExpired() bool {
 	return time.Now().After(*t.ExpireAt)
 }
 
+// MemberBenefit 结构体定义。
 type MemberBenefit struct {
 	gorm.Model
 	Level        MemberLevel `gorm:"type:varchar(32);not null;index;comment:会员等级" json:"level"`
@@ -132,6 +138,7 @@ type MemberBenefit struct {
 	Enabled      bool        `gorm:"default:true;comment:是否启用" json:"enabled"`
 }
 
+// NewMemberBenefit 函数。
 func NewMemberBenefit(level MemberLevel, name, description string, discountRate, pointsRate float64) *MemberBenefit {
 	return &MemberBenefit{
 		Level:        level,

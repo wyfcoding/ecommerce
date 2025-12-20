@@ -9,11 +9,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 )
 
+// CategoryService 定义了 Category 相关的服务逻辑。
 type CategoryService struct {
 	repo   domain.CategoryRepository
 	logger *slog.Logger
 }
 
+// NewCategoryService 定义了 NewCategory 相关的服务逻辑。
 func NewCategoryService(repo domain.CategoryRepository, logger *slog.Logger) *CategoryService {
 	return &CategoryService{
 		repo:   repo,

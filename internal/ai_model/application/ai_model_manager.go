@@ -146,12 +146,14 @@ func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input stri
 
 // --- DTOs ---
 
+// ProductRecommendationDTO 结构体定义。
 type ProductRecommendationDTO struct {
 	ProductID uint64
 	Score     float64
 	Reason    string
 }
 
+// FeedItemDTO 结构体定义。
 type FeedItemDTO struct {
 	ItemType  string
 	ItemID    string
@@ -161,11 +163,13 @@ type FeedItemDTO struct {
 	Score     float64
 }
 
+// ProductSearchResultDTO 结构体定义。
 type ProductSearchResultDTO struct {
 	ProductID       uint64
 	SimilarityScore float64
 }
 
+// FraudScoreDTO 结构体定义。
 type FraudScoreDTO struct {
 	FraudScore   float64
 	IsFraudulent bool

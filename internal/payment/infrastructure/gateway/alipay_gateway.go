@@ -10,6 +10,7 @@ import (
 // AlipayGateway 支付宝网关模拟实现
 type AlipayGateway struct{}
 
+// NewAlipayGateway 函数。
 func NewAlipayGateway() *AlipayGateway {
 	return &AlipayGateway{}
 }

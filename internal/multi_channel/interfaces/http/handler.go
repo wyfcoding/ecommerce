@@ -13,11 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
 	service *application.MultiChannelService
 	logger  *slog.Logger
 }
 
+// NewHandler 处理 HTTP 或 gRPC 请求。
 func NewHandler(service *application.MultiChannelService, logger *slog.Logger) *Handler {
 	return &Handler{
 		service: service,

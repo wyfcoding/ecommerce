@@ -14,11 +14,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Server 结构体定义。
 type Server struct {
 	pb.UnimplementedSchedulerServiceServer
 	app *application.SchedulerService
 }
 
+// NewServer 函数。
 func NewServer(app *application.SchedulerService) *Server {
 	return &Server{app: app}
 }

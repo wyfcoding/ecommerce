@@ -6,10 +6,12 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 )
 
+// OrderQuery 负责处理 Order 相关的读操作和查询逻辑。
 type OrderQuery struct {
 	repo domain.OrderRepository
 }
 
+// NewOrderQuery 负责处理 NewOrder 相关的读操作和查询逻辑。
 func NewOrderQuery(repo domain.OrderRepository) *OrderQuery {
 	return &OrderQuery{
 		repo: repo,

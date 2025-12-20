@@ -9,6 +9,7 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
+// PaymentProcessor 结构体定义。
 type PaymentProcessor struct {
 	paymentRepo domain.PaymentRepository
 	channelRepo domain.ChannelRepository
@@ -18,6 +19,7 @@ type PaymentProcessor struct {
 	logger      *slog.Logger
 }
 
+// NewPaymentProcessor 函数。
 func NewPaymentProcessor(
 	paymentRepo domain.PaymentRepository,
 	channelRepo domain.ChannelRepository,

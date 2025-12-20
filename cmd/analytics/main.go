@@ -23,14 +23,17 @@ import (
 	"github.com/wyfcoding/pkg/middleware"
 )
 
+// BootstrapName 服务名称常量。
 const BootstrapName = "analytics"
 
+// AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
 	AppService *application.AnalyticsService
 	Clients    *ServiceClients
 }
 
+// ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
 	// 如果需要，在此处添加依赖项
 }

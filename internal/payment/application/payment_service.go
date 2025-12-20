@@ -18,6 +18,7 @@ type PaymentService struct {
 	logger          *slog.Logger
 }
 
+// NewPaymentService 定义了 NewPayment 相关的服务逻辑。
 func NewPaymentService(
 	processor *PaymentProcessor,
 	callbackHandler *CallbackHandler,

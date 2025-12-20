@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Server 结构体定义。
 type Server struct {
 	pb.UnimplementedFinancialSettlementServiceServer
 	app *application.SettlementService

@@ -6,10 +6,12 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/loyalty/domain"
 )
 
+// LoyaltyQuery 负责处理 Loyalty 相关的读操作和查询逻辑。
 type LoyaltyQuery struct {
 	repo domain.LoyaltyRepository
 }
 
+// NewLoyaltyQuery 负责处理 NewLoyalty 相关的读操作和查询逻辑。
 func NewLoyaltyQuery(repo domain.LoyaltyRepository) *LoyaltyQuery {
 	return &LoyaltyQuery{
 		repo: repo,

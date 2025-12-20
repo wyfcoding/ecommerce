@@ -8,11 +8,13 @@ import (
 	"log/slog"
 )
 
+// LoyaltyManager 负责处理 Loyalty 相关的写操作和业务逻辑。
 type LoyaltyManager struct {
 	repo   domain.LoyaltyRepository
 	logger *slog.Logger
 }
 
+// NewLoyaltyManager 负责处理 NewLoyalty 相关的写操作和业务逻辑。
 func NewLoyaltyManager(repo domain.LoyaltyRepository, logger *slog.Logger) *LoyaltyManager {
 	return &LoyaltyManager{
 		repo:   repo,

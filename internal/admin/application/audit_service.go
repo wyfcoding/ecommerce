@@ -13,6 +13,7 @@ type AuditService struct {
 	logger *slog.Logger
 }
 
+// NewAuditService 定义了 NewAudit 相关的服务逻辑。
 func NewAuditService(repo domain.AuditRepository, logger *slog.Logger) *AuditService {
 	return &AuditService{repo: repo, logger: logger}
 }

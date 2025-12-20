@@ -14,6 +14,7 @@ type CartManager struct {
 	query  *CartQuery // 用于获取购物车实体进行内部操作
 }
 
+// NewCartManager 负责处理 NewCart 相关的写操作和业务逻辑。
 func NewCartManager(repo domain.CartRepository, logger *slog.Logger, query *CartQuery) *CartManager {
 	return &CartManager{
 		repo:   repo,

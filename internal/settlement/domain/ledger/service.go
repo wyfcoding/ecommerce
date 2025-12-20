@@ -11,6 +11,7 @@ type LedgerService struct {
 	repo LedgerRepository
 }
 
+// NewLedgerService 定义了 NewLedger 相关的服务逻辑。
 func NewLedgerService(repo LedgerRepository) *LedgerService {
 	return &LedgerService{repo: repo}
 }

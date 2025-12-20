@@ -11,6 +11,7 @@ type auditRepository struct {
 	db *gorm.DB
 }
 
+// NewAuditRepository 定义了数据持久层接口。
 func NewAuditRepository(db *gorm.DB) domain.AuditRepository {
 	return &auditRepository{db: db}
 }

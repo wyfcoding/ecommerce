@@ -17,6 +17,7 @@ type AdminAuthService struct {
 	logger   *slog.Logger
 }
 
+// NewAdminAuthService 定义了 NewAdminAuth 相关的服务逻辑。
 func NewAdminAuthService(userRepo domain.AdminRepository, roleRepo domain.RoleRepository, logger *slog.Logger) *AdminAuthService {
 	return &AdminAuthService{
 		userRepo: userRepo,

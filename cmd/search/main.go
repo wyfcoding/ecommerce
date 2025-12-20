@@ -23,17 +23,20 @@ import (
 	"google.golang.org/grpc"
 )
 
+// AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	AppService *application.SearchService
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
 
+// ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
 	Product *grpc.ClientConn
 	User    *grpc.ClientConn
 }
 
+// BootstrapName 服务名称常量。
 const BootstrapName = "search-service"
 
 func main() {

@@ -10,11 +10,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
 )
 
+// WorkflowHandler 处理 HTTP 或 gRPC 请求。
 type WorkflowHandler struct {
 	workflowService *application.WorkflowService
 	logger          *slog.Logger
 }
 
+// NewWorkflowHandler 处理 HTTP 或 gRPC 请求。
 func NewWorkflowHandler(workflowService *application.WorkflowService, logger *slog.Logger) *WorkflowHandler {
 	return &WorkflowHandler{
 		workflowService: workflowService,

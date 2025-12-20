@@ -12,11 +12,13 @@ import (
 	"log/slog"
 )
 
+// AdvancedCouponService 定义了 AdvancedCoupon 相关的服务逻辑。
 type AdvancedCouponService struct {
 	repo   repository.AdvancedCouponRepository
 	logger *slog.Logger
 }
 
+// NewAdvancedCouponService 定义了 NewAdvancedCoupon 相关的服务逻辑。
 func NewAdvancedCouponService(repo repository.AdvancedCouponRepository, logger *slog.Logger) *AdvancedCouponService {
 	return &AdvancedCouponService{
 		repo:   repo,

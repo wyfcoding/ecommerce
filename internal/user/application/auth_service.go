@@ -14,6 +14,7 @@ import (
 	"github.com/wyfcoding/pkg/security"
 )
 
+// AuthService 定义了 Auth 相关的服务逻辑。
 type AuthService struct {
 	userRepo  domain.UserRepository
 	jwtSecret string
@@ -23,6 +24,7 @@ type AuthService struct {
 	logger    *slog.Logger
 }
 
+// NewAuthService 定义了 NewAuth 相关的服务逻辑。
 func NewAuthService(
 	userRepo domain.UserRepository,
 	jwtSecret string,

@@ -11,12 +11,14 @@ import (
 	"log/slog"
 )
 
+// GroupbuyManager 负责处理 Groupbuy 相关的写操作和业务逻辑。
 type GroupbuyManager struct {
 	repo        domain.GroupbuyRepository
 	idGenerator idgen.Generator
 	logger      *slog.Logger
 }
 
+// NewGroupbuyManager 负责处理 NewGroupbuy 相关的写操作和业务逻辑。
 func NewGroupbuyManager(repo domain.GroupbuyRepository, idGenerator idgen.Generator, logger *slog.Logger) *GroupbuyManager {
 	return &GroupbuyManager{
 		repo:        repo,

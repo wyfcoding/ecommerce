@@ -6,10 +6,12 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 )
 
+// FlashsaleQuery 负责处理 Flashsale 相关的读操作和查询逻辑。
 type FlashsaleQuery struct {
 	repo domain.FlashSaleRepository
 }
 
+// NewFlashsaleQuery 负责处理 NewFlashsale 相关的读操作和查询逻辑。
 func NewFlashsaleQuery(repo domain.FlashSaleRepository) *FlashsaleQuery {
 	return &FlashsaleQuery{
 		repo: repo,

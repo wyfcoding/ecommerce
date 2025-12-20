@@ -27,6 +27,7 @@ type ApprovalRequest struct {
 	Logs []ApprovalLog `gorm:"foreignKey:RequestID"`
 }
 
+// ApprovalStatus 结构体定义。
 type ApprovalStatus int
 
 const (
@@ -46,6 +47,7 @@ type ApprovalLog struct {
 	Comment      string         `gorm:"column:comment;type:varchar(255);comment:审批意见"`
 }
 
+// ApprovalAction 结构体定义。
 type ApprovalAction int
 
 const (

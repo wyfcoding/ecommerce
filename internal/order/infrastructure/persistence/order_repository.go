@@ -14,6 +14,7 @@ type orderRepository struct {
 	sharding *sharding.Manager
 }
 
+// NewOrderRepository 定义了数据持久层接口。
 func NewOrderRepository(sharding *sharding.Manager) domain.OrderRepository {
 	return &orderRepository{sharding: sharding}
 }

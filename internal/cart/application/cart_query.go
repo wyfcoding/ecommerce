@@ -13,6 +13,7 @@ type CartQuery struct {
 	logger *slog.Logger
 }
 
+// NewCartQuery 负责处理 NewCart 相关的读操作和查询逻辑。
 func NewCartQuery(repo domain.CartRepository, logger *slog.Logger) *CartQuery {
 	return &CartQuery{
 		repo:   repo,

@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
 	app    *application.AuditService
 	logger *slog.Logger

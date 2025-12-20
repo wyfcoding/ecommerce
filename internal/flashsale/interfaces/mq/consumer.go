@@ -11,12 +11,14 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
 )
 
+// OrderConsumer 结构体定义。
 type OrderConsumer struct {
 	consumer *kafka.Consumer
 	repo     domain.FlashSaleRepository
 	logger   *slog.Logger
 }
 
+// NewOrderConsumer 函数。
 func NewOrderConsumer(consumer *kafka.Consumer, repo domain.FlashSaleRepository, logger *slog.Logger) *OrderConsumer {
 	return &OrderConsumer{
 		consumer: consumer,

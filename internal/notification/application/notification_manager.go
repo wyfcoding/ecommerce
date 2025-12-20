@@ -15,6 +15,7 @@ type NotificationManager struct {
 	logger *slog.Logger
 }
 
+// NewNotificationManager 负责处理 NewNotification 相关的写操作和业务逻辑。
 func NewNotificationManager(repo domain.NotificationRepository, logger *slog.Logger) *NotificationManager {
 	return &NotificationManager{
 		repo:   repo,

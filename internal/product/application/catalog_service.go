@@ -16,6 +16,7 @@ import (
 	"github.com/wyfcoding/pkg/metrics"
 )
 
+// CatalogService 定义了 Catalog 相关的服务逻辑。
 type CatalogService struct {
 	repo        domain.ProductRepository
 	cache       cache.Cache
@@ -24,6 +25,7 @@ type CatalogService struct {
 	cacheMisses *prometheus.CounterVec
 }
 
+// NewCatalogService 定义了 NewCatalog 相关的服务逻辑。
 func NewCatalogService(repo domain.ProductRepository, cache cache.Cache, logger *slog.Logger, m *metrics.Metrics) *CatalogService {
 	cacheHits := m.NewCounterVec(prometheus.CounterOpts{
 		Name: "product_cache_hits_total",

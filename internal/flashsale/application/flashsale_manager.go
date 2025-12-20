@@ -14,6 +14,7 @@ import (
 	"log/slog"
 )
 
+// FlashsaleManager 负责处理 Flashsale 相关的写操作和业务逻辑。
 type FlashsaleManager struct {
 	repo     domain.FlashSaleRepository
 	cache    domain.FlashSaleCache
@@ -22,6 +23,7 @@ type FlashsaleManager struct {
 	logger   *slog.Logger
 }
 
+// NewFlashsaleManager 负责处理 NewFlashsale 相关的写操作和业务逻辑。
 func NewFlashsaleManager(
 	repo domain.FlashSaleRepository,
 	cache domain.FlashSaleCache,

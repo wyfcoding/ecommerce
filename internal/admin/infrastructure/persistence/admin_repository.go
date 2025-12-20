@@ -12,6 +12,7 @@ type adminRepository struct {
 	db *gorm.DB
 }
 
+// NewAdminRepository 定义了数据持久层接口。
 func NewAdminRepository(db *gorm.DB) domain.AdminRepository {
 	return &adminRepository{db: db}
 }

@@ -9,11 +9,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 )
 
+// BrandService 定义了 Brand 相关的服务逻辑。
 type BrandService struct {
 	repo   domain.BrandRepository
 	logger *slog.Logger
 }
 
+// NewBrandService 定义了 NewBrand 相关的服务逻辑。
 func NewBrandService(repo domain.BrandRepository, logger *slog.Logger) *BrandService {
 	return &BrandService{
 		repo:   repo,

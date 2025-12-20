@@ -10,12 +10,14 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
+// AddressService 定义了 Address 相关的服务逻辑。
 type AddressService struct {
 	userRepo    domain.UserRepository
 	addressRepo domain.AddressRepository
 	logger      *slog.Logger
 }
 
+// NewAddressService 定义了 NewAddress 相关的服务逻辑。
 func NewAddressService(userRepo domain.UserRepository, addressRepo domain.AddressRepository, logger *slog.Logger) *AddressService {
 	return &AddressService{
 		userRepo:    userRepo,

@@ -13,6 +13,7 @@ type advancedCouponRepository struct {
 	db *gorm.DB
 }
 
+// NewAdvancedCouponRepository 定义了数据持久层接口。
 func NewAdvancedCouponRepository(db *gorm.DB) repository.AdvancedCouponRepository {
 	return &advancedCouponRepository{db: db}
 }

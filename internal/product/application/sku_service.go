@@ -9,12 +9,14 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 )
 
+// SKUService 定义了 SKU 相关的服务逻辑。
 type SKUService struct {
 	productRepo domain.ProductRepository
 	skuRepo     domain.SKURepository
 	logger      *slog.Logger
 }
 
+// NewSKUService 定义了 NewSKU 相关的服务逻辑。
 func NewSKUService(productRepo domain.ProductRepository, skuRepo domain.SKURepository, logger *slog.Logger) *SKUService {
 	return &SKUService{
 		productRepo: productRepo,

@@ -18,6 +18,7 @@ type UserService struct {
 	logger  *slog.Logger
 }
 
+// NewUserService 定义了 NewUser 相关的服务逻辑。
 func NewUserService(
 	auth *AuthService,
 	profile *ProfileService,

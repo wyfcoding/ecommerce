@@ -7,10 +7,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// LedgerRepositoryImpl 结构体定义。
 type LedgerRepositoryImpl struct {
 	db *gorm.DB
 }
 
+// NewLedgerRepository 定义了数据持久层接口。
 func NewLedgerRepository(db *gorm.DB) ledger.LedgerRepository {
 	return &LedgerRepositoryImpl{db: db}
 }

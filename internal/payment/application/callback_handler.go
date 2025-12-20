@@ -8,12 +8,14 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 
+// CallbackHandler 处理 HTTP 或 gRPC 请求。
 type CallbackHandler struct {
 	paymentRepo domain.PaymentRepository
 	gateways    map[domain.GatewayType]domain.PaymentGateway
 	logger      *slog.Logger
 }
 
+// NewCallbackHandler 处理 HTTP 或 gRPC 请求。
 func NewCallbackHandler(
 	paymentRepo domain.PaymentRepository,
 	gateways map[domain.GatewayType]domain.PaymentGateway,

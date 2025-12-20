@@ -13,6 +13,7 @@ type InventoryService struct {
 	Query   *InventoryQuery
 }
 
+// NewInventoryService 定义了 NewInventory 相关的服务逻辑。
 func NewInventoryService(manager *InventoryManager, query *InventoryQuery) *InventoryService {
 	return &InventoryService{
 		Manager: manager,

@@ -10,6 +10,7 @@ import (
 // WechatGateway 微信支付网关模拟实现
 type WechatGateway struct{}
 
+// NewWechatGateway 函数。
 func NewWechatGateway() *WechatGateway {
 	return &WechatGateway{}
 }

@@ -10,11 +10,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 )
 
+// ProfileService 定义了 Profile 相关的服务逻辑。
 type ProfileService struct {
 	userRepo domain.UserRepository
 	logger   *slog.Logger
 }
 
+// NewProfileService 定义了 NewProfile 相关的服务逻辑。
 func NewProfileService(userRepo domain.UserRepository, logger *slog.Logger) *ProfileService {
 	return &ProfileService{
 		userRepo: userRepo,

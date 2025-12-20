@@ -21,6 +21,7 @@ type AdminUser struct {
 	Roles []Role `gorm:"many2many:admin_user_roles;"`
 }
 
+// UserStatus 结构体定义。
 type UserStatus int
 
 const (

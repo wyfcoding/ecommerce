@@ -10,6 +10,7 @@ import (
 // StripeGateway Stripe网关模拟实现
 type StripeGateway struct{}
 
+// NewStripeGateway 函数。
 func NewStripeGateway() *StripeGateway {
 	return &StripeGateway{}
 }

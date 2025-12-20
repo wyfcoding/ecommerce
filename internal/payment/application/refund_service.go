@@ -9,6 +9,7 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
+// RefundService 定义了 Refund 相关的服务逻辑。
 type RefundService struct {
 	paymentRepo domain.PaymentRepository
 	refundRepo  domain.RefundRepository
@@ -17,6 +18,7 @@ type RefundService struct {
 	logger      *slog.Logger
 }
 
+// NewRefundService 定义了 NewRefund 相关的服务逻辑。
 func NewRefundService(
 	paymentRepo domain.PaymentRepository,
 	refundRepo domain.RefundRepository,

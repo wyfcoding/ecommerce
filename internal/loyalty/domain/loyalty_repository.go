@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// LoyaltyRepository 定义了数据持久层接口。
 type LoyaltyRepository interface {
 	SaveMemberAccount(ctx context.Context, account *MemberAccount) error
 	GetMemberAccount(ctx context.Context, userID uint64) (*MemberAccount, error)

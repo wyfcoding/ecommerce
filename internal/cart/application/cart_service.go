@@ -12,6 +12,7 @@ type CartService struct {
 	Query   *CartQuery
 }
 
+// NewCartService 定义了 NewCart 相关的服务逻辑。
 func NewCartService(manager *CartManager, query *CartQuery) *CartService {
 	return &CartService{
 		Manager: manager,

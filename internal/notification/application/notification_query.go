@@ -13,6 +13,7 @@ type NotificationQuery struct {
 	logger *slog.Logger
 }
 
+// NewNotificationQuery 负责处理 NewNotification 相关的读操作和查询逻辑。
 func NewNotificationQuery(repo domain.NotificationRepository, logger *slog.Logger) *NotificationQuery {
 	return &NotificationQuery{
 		repo:   repo,

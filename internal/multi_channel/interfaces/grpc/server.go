@@ -14,11 +14,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Server 结构体定义。
 type Server struct {
 	pb.UnimplementedMultiChannelServiceServer
 	app *application.MultiChannelService
 }
 
+// NewServer 函数。
 func NewServer(app *application.MultiChannelService) *Server {
 	return &Server{app: app}
 }

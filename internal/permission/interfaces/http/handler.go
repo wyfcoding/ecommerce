@@ -9,11 +9,13 @@ import (
 	"github.com/wyfcoding/pkg/response"
 )
 
+// Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
 	app    *application.PermissionService
 	logger *slog.Logger
 }
 
+// NewHandler 处理 HTTP 或 gRPC 请求。
 func NewHandler(app *application.PermissionService, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,

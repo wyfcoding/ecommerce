@@ -6,10 +6,12 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
 )
 
+// GroupbuyQuery 负责处理 Groupbuy 相关的读操作和查询逻辑。
 type GroupbuyQuery struct {
 	repo domain.GroupbuyRepository
 }
 
+// NewGroupbuyQuery 负责处理 NewGroupbuy 相关的读操作和查询逻辑。
 func NewGroupbuyQuery(repo domain.GroupbuyRepository) *GroupbuyQuery {
 	return &GroupbuyQuery{
 		repo: repo,

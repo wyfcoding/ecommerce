@@ -17,6 +17,7 @@ type InventoryManager struct {
 	logger        *slog.Logger
 }
 
+// NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
 func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) *InventoryManager {
 	return &InventoryManager{
 		repo:          repo,

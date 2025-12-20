@@ -18,6 +18,7 @@ import (
 	"github.com/wyfcoding/pkg/metrics"
 )
 
+// OrderManager 负责处理 Order 相关的写操作和业务逻辑。
 type OrderManager struct {
 	repo              domain.OrderRepository
 	idGen             idgen.Generator
@@ -30,6 +31,7 @@ type OrderManager struct {
 	orderCreatedCounter *prometheus.CounterVec
 }
 
+// NewOrderManager 负责处理 NewOrder 相关的写操作和业务逻辑。
 func NewOrderManager(
 	repo domain.OrderRepository,
 	idGen idgen.Generator,
@@ -69,11 +71,16 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 
 	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
 
+	// --- 启动 DTM Saga 分布式事务 ---
+	// 在电商场景中，创建订单和扣减库存通常不在同一个数据库或服务中。
+	// 为了保证最终一致性，我们使用 Saga 模式：
+	// 1. 正向操作 (Action)：DeductStock (扣减库存)
+	// 2. 逆向补偿 (Compensate)：RevertStock (回滚库存，用于事务失败时的补偿)
 	gid := orderNo
 	saga := dtmgrpc.NewSagaGrpc(s.dtmServer, gid).
 		Add(
-			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/DeductStock",
-			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/RevertStock",
+			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/DeductStock", // 调用库存服务的扣减接口
+			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/RevertStock", // 注册补偿接口
 			&warehousev1.DeductStockRequest{
 				OrderId:     uint64(order.ID),
 				SkuId:       items[0].SkuID,
@@ -82,11 +89,14 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 			},
 		)
 
+	// 提交 Saga 事务给 DTM 服务器。
+	// DTM 会负责根据定义的步骤进行编排，并在发生故障时执行补偿逻辑。
 	if err := saga.Submit(); err != nil {
 		s.logger.ErrorContext(ctx, "failed to submit saga", "error", err)
+		// 如果 Saga 提交失败，本地订单需要标记为取消。
 		_ = order.Cancel("System", "Saga Submit Failed")
 		_ = s.repo.Save(ctx, order)
-		return nil, fmt.Errorf("failed to submit saga: %w", err)
+		return nil, fmt.Errorf("提交分布式事务失败: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "order created successfully", "order_id", order.ID, "order_no", order.OrderNo)
