@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/domain"
 )
 
-// OptimizationQuery handles read operations for order optimization.
+// OptimizationQuery 处理订单优化的读操作。
 type OptimizationQuery struct {
 	repo domain.OrderOptimizationRepository
 }

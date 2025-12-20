@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/permission/domain"
 )
 
-// PermissionManager handles write operations for permissions and roles.
+// PermissionManager 处理权限和角色的写操作。
 type PermissionManager struct {
 	repo   domain.PermissionRepository
 	logger *slog.Logger

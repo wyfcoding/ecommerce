@@ -120,11 +120,11 @@ func (s *AdminService) ListAdmins(ctx context.Context, page, pageSize int) ([]*d
 }
 
 func (s *AdminService) AssignRoleToAdmin(ctx context.Context, adminID, roleID uint64) error {
-	// This method in legacy was single role? Or should be array.
-	// Adapting to single role add, but Repo expects array replace.
+	// 该方法在旧版中是单角色？还是应该是数组。
+	// 适配单角色添加，但 Repo 期望数组替换。
 	// Assuming Facade just wraps Repo.
 	// Let's assume we append? Repo AssignRole is REPLACE in my implementation.
-	// For simplicity, let's just call Repo with single item.
+	// 为简单起见，我们仅使用单项调用 Repo。
 	return s.userRepo.AssignRole(ctx, uint(adminID), []uint{uint(roleID)})
 }
 
@@ -188,13 +188,13 @@ func (s *AdminService) DeleteRole(ctx context.Context, id uint64) error {
 }
 
 func (s *AdminService) ListRoles(ctx context.Context, page, pageSize int) ([]*domain.Role, int64, error) {
-	// Repo ListRoles currently returns all roles (no pagination args in interface).
-	// We will just return all for now or modify repo later if needed.
+	// Repo ListRoles 目前返回所有角色（接口中无分页参数）。
+	// 我们目前仅返回所有，或稍后按需修改 repo。
 	roles, err := s.roleRepo.ListRoles(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	// Manual pagination if list is huge? For roles, usually small list.
+	// 如果列表很大，则手动分页？对于角色，通常列表很小。
 	// Let's simplified return all.
 	return roles, int64(len(roles)), nil
 }
@@ -206,11 +206,11 @@ func (s *AdminService) CreatePermission(ctx context.Context, name, code, permTyp
 		Name:     name,
 		Code:     code,
 		Type:     permType,
-		Resource: path,   // Mapping path to Resource
-		Action:   method, // Mapping method to Action
+		Resource: path,   // 将 path 映射到 Resource
+		Action:   method, // 将 method 映射到 Action
 		ParentID: uint(parentID),
 	}
-	// Assuming CreatePermission exists in repo logic
+	// 假设 CreatePermission 存在于 repo 逻辑中
 	if err := s.roleRepo.CreatePermission(ctx, perm); err != nil {
 		return nil, err
 	}

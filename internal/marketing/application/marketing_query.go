@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
 )
 
-// MarketingQuery handles read operations for marketing.
+// MarketingQuery 处理营销的读操作。
 type MarketingQuery struct {
 	repo domain.MarketingRepository
 }

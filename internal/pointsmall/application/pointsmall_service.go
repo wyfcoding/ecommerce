@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
 )
 
-// PointsmallService acts as a facade for pointsmall operations.
+// PointsmallService 作为积分商城操作的门面。
 type PointsmallService struct {
 	manager *PointsManager
 	query   *PointsQuery
@@ -20,7 +20,7 @@ func NewPointsmallService(manager *PointsManager, query *PointsQuery) *Pointsmal
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *PointsmallService) CreateProduct(ctx context.Context, product *domain.PointsProduct) error {
 	return s.manager.CreateProduct(ctx, product)
@@ -34,7 +34,7 @@ func (s *PointsmallService) AddPoints(ctx context.Context, userID uint64, points
 	return s.manager.AddPoints(ctx, userID, points, description, refID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *PointsmallService) ListProducts(ctx context.Context, status *int, page, pageSize int) ([]*domain.PointsProduct, int64, error) {
 	return s.query.ListProducts(ctx, status, page, pageSize)

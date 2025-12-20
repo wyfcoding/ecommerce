@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain"
 )
 
-// InventoryForecastQuery handles read operations for inventory forecast.
+// InventoryForecastQuery 处理库存预测的读操作。
 type InventoryForecastQuery struct {
 	repo domain.InventoryForecastRepository
 }

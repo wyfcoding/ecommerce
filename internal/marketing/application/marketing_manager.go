@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// MarketingManager handles write operations for marketing.
+// MarketingManager 处理营销的写操作。
 type MarketingManager struct {
 	repo   domain.MarketingRepository
 	logger *slog.Logger

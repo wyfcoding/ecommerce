@@ -28,8 +28,8 @@ func (s *WishlistService) Add(ctx context.Context, userID, productID, skuID uint
 
 // Remove 将商品从用户的收藏夹中移除。
 func (s *WishlistService) Remove(ctx context.Context, userID, id uint64) error {
-	// Note: In infrastructure, we have Delete(userID, id) and DeleteByProduct(userID, skuID).
-	// Here id is the wishlist entry primary key.
+	// 注意：在基础设施层，我们有 Delete(userID, id) 和 DeleteByProduct(userID, skuID)。
+	// 这里的 id 是心愿单条目的主键。
 	return s.manager.repo.Delete(ctx, userID, id)
 }
 

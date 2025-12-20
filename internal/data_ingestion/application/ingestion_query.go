@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain"
 )
 
-// DataIngestionQuery handles read operations for data ingestion.
+// DataIngestionQuery 处理数据采集的读操作。
 type DataIngestionQuery struct {
 	repo domain.DataIngestionRepository
 }

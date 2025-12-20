@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/admin/domain" // Assuming there is a password helper
+	"github.com/wyfcoding/ecommerce/internal/admin/domain" // 假设有一个密码助手
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -32,7 +32,7 @@ func NewUserService(
 	}
 }
 
-// --- Delegate Methods to Sub-Services ---
+// --- 委托给子服务的方法 ---
 // 这里的委托方法是为了兼容旧的接口调用，或者是为了提供一个统一的入口。
 // 如果 gRPC Server 还是直接调用 application.Register，那么我们可以在这里保留同名方法。
 

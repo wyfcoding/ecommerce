@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
 )
 
-// PricingQuery handles read operations and calculations.
+// PricingQuery 处理读操作和计算。
 type PricingQuery struct {
 	repo domain.PricingRepository
 }

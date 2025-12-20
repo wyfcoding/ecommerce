@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain"
 )
 
-// CustomerService acts as a facade for customer service operations.
+// CustomerService 作为客户服务操作的门面。
 type CustomerService struct {
 	manager *CustomerServiceManager
 	query   *CustomerServiceQuery
@@ -20,7 +20,7 @@ func NewCustomerService(manager *CustomerServiceManager, query *CustomerServiceQ
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *CustomerService) CreateTicket(ctx context.Context, userID uint64, subject, description, category string, priority domain.TicketPriority) (*domain.Ticket, error) {
 	return s.manager.CreateTicket(ctx, userID, subject, description, category, priority)
@@ -38,7 +38,7 @@ func (s *CustomerService) ResolveTicket(ctx context.Context, id uint64) error {
 	return s.manager.ResolveTicket(ctx, id)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *CustomerService) GetTicket(ctx context.Context, id uint64) (*domain.Ticket, error) {
 	return s.query.GetTicket(ctx, id)

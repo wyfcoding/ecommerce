@@ -184,7 +184,7 @@ func (r *afterSalesRepository) GetConfig(ctx context.Context, key string) (*enti
 // SetConfig 设置售后配置。
 func (r *afterSalesRepository) SetConfig(ctx context.Context, config *entity.AfterSalesConfig) error {
 	// Upsert: check if exists, then update or create.
-	// Or use simple Save but ensure ID is set if exists.
+	// 或者使用简单的 Save，但需确保 ID 已设置（如果存在）。
 	// Better: Use OnConflict clause if DB supports, or manual check.
 	// Here simple implementation: check exist by key
 	existing, err := r.GetConfig(ctx, config.Key)

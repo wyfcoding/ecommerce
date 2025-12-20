@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain"
 )
 
-// SubscriptionService acts as a facade for subscription operations.
+// SubscriptionService 作为订阅操作的门面。
 type SubscriptionService struct {
 	manager *SubscriptionManager
 	query   *SubscriptionQuery
@@ -20,7 +20,7 @@ func NewSubscriptionService(manager *SubscriptionManager, query *SubscriptionQue
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *SubscriptionService) CreatePlan(ctx context.Context, name, desc string, price uint64, duration int32, features []string) (*domain.SubscriptionPlan, error) {
 	return s.manager.CreatePlan(ctx, name, desc, price, duration, features)
@@ -42,7 +42,7 @@ func (s *SubscriptionService) UpdatePlan(ctx context.Context, id uint64, name, d
 	return s.manager.UpdatePlan(ctx, id, name, desc, price, duration, features, enabled)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *SubscriptionService) ListPlans(ctx context.Context) ([]*domain.SubscriptionPlan, error) {
 	return s.query.ListPlans(ctx)

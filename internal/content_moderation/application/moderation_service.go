@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain"
 )
 
-// ModerationService acts as a facade for content moderation operations.
+// ModerationService 作为内容审核操作的门面。
 type ModerationService struct {
 	manager *ModerationManager
 	query   *ModerationQuery
@@ -20,7 +20,7 @@ func NewModerationService(manager *ModerationManager, query *ModerationQuery) *M
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *ModerationService) SubmitContent(ctx context.Context, contentType domain.ContentType, contentID uint64, content string, userID uint64) (*domain.ModerationRecord, error) {
 	return s.manager.SubmitContent(ctx, contentType, contentID, content, userID)
@@ -38,7 +38,7 @@ func (s *ModerationService) DeleteSensitiveWord(ctx context.Context, id uint64) 
 	return s.manager.DeleteSensitiveWord(ctx, id)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *ModerationService) ListPendingRecords(ctx context.Context, page, pageSize int) ([]*domain.ModerationRecord, int64, error) {
 	return s.query.ListPendingRecords(ctx, page, pageSize)

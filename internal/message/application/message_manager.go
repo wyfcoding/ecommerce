@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// MessageManager handles write operations for messages.
+// MessageManager 处理消息的写操作。
 type MessageManager struct {
 	repo   domain.MessageRepository
 	logger *slog.Logger

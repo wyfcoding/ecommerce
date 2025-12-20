@@ -159,7 +159,7 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 	})
 }
 
-// GetPlan handles the request to get a subscription plan by ID.
+// GetPlan 处理通过 ID 获取订阅计划的请求。
 func (h *Handler) GetPlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -181,7 +181,7 @@ func (h *Handler) GetPlan(c *gin.Context) {
 	c.JSON(http.StatusOK, plan)
 }
 
-// UpdatePlan handles the request to update a subscription plan.
+// UpdatePlan 处理更新订阅计划的请求。
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -212,7 +212,7 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 	c.JSON(http.StatusOK, plan)
 }
 
-// GetSubscription handles the request to get a subscription by ID.
+// GetSubscription 处理通过 ID 获取订阅信息的请求。
 func (h *Handler) GetSubscription(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

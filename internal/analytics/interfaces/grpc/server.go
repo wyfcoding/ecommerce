@@ -171,7 +171,7 @@ func (s *Server) GetRealtimeVisitors(ctx context.Context, req *emptypb.Empty) (*
 	}, nil
 }
 
-// --- Dashboard & Report Management (Unimplemented in Proto) ---
+// --- 仪表盘与报表管理（Proto 中未实现）---
 
 /*
 // CreateDashboard 创建仪表板。

@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain"
 )
 
-// DynamicPricingService acts as a facade for dynamic pricing operations.
+// DynamicPricingService 作为动态定价操作的门面。
 type DynamicPricingService struct {
 	manager *DynamicPricingManager
 	query   *DynamicPricingQuery
@@ -20,7 +20,7 @@ func NewDynamicPricingService(manager *DynamicPricingManager, query *DynamicPric
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *DynamicPricingService) CalculatePrice(ctx context.Context, req *domain.PricingRequest) (*domain.DynamicPrice, error) {
 	return s.manager.CalculatePrice(ctx, req)
@@ -30,7 +30,7 @@ func (s *DynamicPricingService) SaveStrategy(ctx context.Context, strategy *doma
 	return s.manager.SaveStrategy(ctx, strategy)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *DynamicPricingService) GetLatestPrice(ctx context.Context, skuID uint64) (*domain.DynamicPrice, error) {
 	return s.query.GetLatestPrice(ctx, skuID)

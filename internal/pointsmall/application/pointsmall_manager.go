@@ -11,7 +11,7 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
-// PointsManager handles write operations for pointsmall.
+// PointsManager 处理积分商城的写操作。
 type PointsManager struct {
 	repo   domain.PointsRepository
 	idGen  idgen.Generator
@@ -71,7 +71,7 @@ func (m *PointsManager) ExchangeProduct(ctx context.Context, userID, productID u
 	product.Stock -= quantity
 	product.SoldCount += quantity
 	if err := m.repo.SaveProduct(ctx, product); err != nil {
-		// Rollback if needed (omitted for brevity)
+		// 如果需要回滚（为简洁起见省略）
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func (m *PointsManager) AddPoints(ctx context.Context, userID uint64, points int
 	if err != nil {
 		return err
 	}
-	// Note: GetAccount auto-creates if not exists in repo implementation
+	// 注意：如果 repo 实现中不存在，GetAccount 会自动创建
 
 	account.TotalPoints += points
 	if err := m.repo.SaveAccount(ctx, account); err != nil {

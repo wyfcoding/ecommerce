@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/message/domain"
 )
 
-// MessageQuery handles read operations for messages.
+// MessageQuery 处理消息的读操作。
 type MessageQuery struct {
 	repo domain.MessageRepository
 }

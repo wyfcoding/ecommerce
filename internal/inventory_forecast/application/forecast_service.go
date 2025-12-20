@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain"
 )
 
-// InventoryForecastService acts as a facade for inventory forecast operations.
+// InventoryForecastService 作为库存预测操作的门面。
 type InventoryForecastService struct {
 	manager *InventoryForecastManager
 	query   *InventoryForecastQuery
@@ -20,13 +20,13 @@ func NewInventoryForecastService(manager *InventoryForecastManager, query *Inven
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *InventoryForecastService) GenerateForecast(ctx context.Context, skuID uint64) (*domain.SalesForecast, error) {
 	return s.manager.GenerateForecast(ctx, skuID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *InventoryForecastService) GetForecast(ctx context.Context, skuID uint64) (*domain.SalesForecast, error) {
 	return s.query.GetForecast(ctx, skuID)

@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// DynamicPricingManager handles write operations for dynamic pricing.
+// DynamicPricingManager 处理动态定价的写操作。
 type DynamicPricingManager struct {
 	repo   domain.PricingRepository
 	logger *slog.Logger

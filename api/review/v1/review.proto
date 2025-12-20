@@ -11,13 +11,13 @@ service Review {
     // Submit a new product review
     rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse);
 
-    // Get reviews for a specific product
+    // 获取特定商品的评论
     rpc ListProductReviews(ListProductReviewsRequest) returns (ListProductReviewsResponse);
 
     // Get reviews by a specific user
     rpc ListUserReviews(ListUserReviewsRequest) returns (ListUserReviewsResponse);
 
-    // Get overall rating for a product
+    // 获取商品的总体评分
     rpc GetProductRating(GetProductRatingRequest) returns (GetProductRatingResponse);
 }
 
@@ -33,7 +33,7 @@ message ReviewInfo {
     google.protobuf.Timestamp updated_at = 8;
 }
 
-// Request to create a review
+// 创建评论请求
 message CreateReviewRequest {
     string product_id = 1;
     string user_id = 2;
@@ -42,44 +42,44 @@ message CreateReviewRequest {
     string content = 5;
 }
 
-// Response for creating a review
+// 创建评论响应
 message CreateReviewResponse {
     ReviewInfo review = 1;
 }
 
-// Request to list reviews for a product
+// 获取商品评论列表请求
 message ListProductReviewsRequest {
     string product_id = 1;
     int32 page_size = 2;
     int32 page_token = 3;
 }
 
-// Response for listing product reviews
+// 获取商品评论列表响应
 message ListProductReviewsResponse {
     repeated ReviewInfo reviews = 1;
     int32 total_count = 2;
     double average_rating = 3;
 }
 
-// Request to list reviews by a user
+// 获取用户评论列表请求
 message ListUserReviewsRequest {
     string user_id = 1;
     int32 page_size = 2;
     int32 page_token = 3;
 }
 
-// Response for listing user reviews
+// 获取用户评论列表响应
 message ListUserReviewsResponse {
     repeated ReviewInfo reviews = 1;
     int32 total_count = 2;
 }
 
-// Request to get product rating
+// 获取商品评分请求
 message GetProductRatingRequest {
     string product_id = 1;
 }
 
-// Response for getting product rating
+// 获取商品评分响应
 message GetProductRatingResponse {
     double average_rating = 1;
     int32 total_reviews = 2;

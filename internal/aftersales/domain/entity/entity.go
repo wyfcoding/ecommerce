@@ -207,7 +207,7 @@ type SupportTicket struct {
 type SupportTicketMessage struct {
 	gorm.Model
 	TicketID   uint64 `gorm:"not null;index;comment:工单ID"`
-	SenderID   uint64 `gorm:"not null;comment:发送者ID"`                  // 0 for system/agent, >0 for user
+	SenderID   uint64 `gorm:"not null;comment:发送者ID"`                  // 0 表示系统/客服，>0 表示用户
 	SenderType string `gorm:"type:varchar(32);not null;comment:发送者类型"` // User, Agent, System
 	Content    string `gorm:"type:text;not null;comment:消息内容"`
 	IsRead     bool   `gorm:"default:false;comment:是否已读"`

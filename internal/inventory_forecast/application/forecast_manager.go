@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// InventoryForecastManager handles write operations for inventory forecast.
+// InventoryForecastManager 处理库存预测的写操作。
 type InventoryForecastManager struct {
 	repo   domain.InventoryForecastRepository
 	logger *slog.Logger

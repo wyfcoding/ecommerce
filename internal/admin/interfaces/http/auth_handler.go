@@ -25,7 +25,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
 	{
 		auth.POST("/login", h.Login)
-		auth.POST("/register", h.Register) // Normally restricted, just for demo
+		auth.POST("/register", h.Register) // 通常受限，仅用于演示
 		auth.GET("/me", h.Me)              // TODO: Add Middleware
 	}
 }
@@ -43,7 +43,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Mock Token for now
+	// 暂时使用模拟 Token
 	c.JSON(http.StatusOK, application.UserInfo{
 		ID:       user.ID,
 		Username: user.Username,

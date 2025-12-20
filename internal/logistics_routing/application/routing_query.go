@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain"
 )
 
-// LogisticsRoutingQuery handles read operations for logistics routing.
+// LogisticsRoutingQuery 处理物流路由的读操作。
 type LogisticsRoutingQuery struct {
 	repo domain.LogisticsRoutingRepository
 }

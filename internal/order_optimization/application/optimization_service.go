@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/domain"
 )
 
-// OrderOptimizationService acts as a facade for order optimization operations.
+// OrderOptimizationService 作为订单优化操作的门面。
 type OrderOptimizationService struct {
 	manager *OptimizationManager
 	query   *OptimizationQuery
@@ -20,7 +20,7 @@ func NewOrderOptimizationService(manager *OptimizationManager, query *Optimizati
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *OrderOptimizationService) MergeOrders(ctx context.Context, userID uint64, orderIDs []uint64) (*domain.MergedOrder, error) {
 	return s.manager.MergeOrders(ctx, userID, orderIDs)
@@ -34,7 +34,7 @@ func (s *OrderOptimizationService) AllocateWarehouse(ctx context.Context, orderI
 	return s.manager.AllocateWarehouse(ctx, orderID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *OrderOptimizationService) GetMergedOrder(ctx context.Context, id uint64) (*domain.MergedOrder, error) {
 	return s.query.GetMergedOrder(ctx, id)

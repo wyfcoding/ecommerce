@@ -43,7 +43,7 @@ func (s *Server) AddItemToWishlist(ctx context.Context, req *pb.AddItemToWishlis
 	// 映射 Proto 字段到应用服务层.
 	// Proto 暂时不包含 SkuID/ProductName/Price/ImageURL, 此处传默认值.
 	skuID := productID
-	item, err := s.app.Add(ctx, userID, productID, skuID, "Unknown Product", "Unknown SKU", 0, "") // 0 for Price, "" for ImageURL。
+	item, err := s.app.Add(ctx, userID, productID, skuID, "Unknown Product", "Unknown SKU", 0, "") // Price 默认为 0，ImageURL 默认为空。
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add item to wishlist: %v", err))
 	}

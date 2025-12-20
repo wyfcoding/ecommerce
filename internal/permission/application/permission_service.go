@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/permission/domain"
 )
 
-// PermissionService acts as a facade for permission operations.
+// PermissionService 作为权限操作的门面。
 type PermissionService struct {
 	manager *PermissionManager
 	query   *PermissionQuery
@@ -20,7 +20,7 @@ func NewPermissionService(manager *PermissionManager, query *PermissionQuery) *P
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *PermissionService) CreateRole(ctx context.Context, name, description string, permissionIDs []uint64) (*domain.Role, error) {
 	return s.manager.CreateRole(ctx, name, description, permissionIDs)
@@ -42,7 +42,7 @@ func (s *PermissionService) RevokeRole(ctx context.Context, userID, roleID uint6
 	return s.manager.RevokeRole(ctx, userID, roleID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *PermissionService) GetRole(ctx context.Context, id uint64) (*domain.Role, error) {
 	return s.query.GetRole(ctx, id)

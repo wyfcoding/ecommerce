@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain"
 )
 
-// LogisticsRoutingService acts as a facade for logistics routing operations.
+// LogisticsRoutingService 作为物流路由操作的门面。
 type LogisticsRoutingService struct {
 	manager *LogisticsRoutingManager
 	query   *LogisticsRoutingQuery
@@ -20,7 +20,7 @@ func NewLogisticsRoutingService(manager *LogisticsRoutingManager, query *Logisti
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *LogisticsRoutingService) RegisterCarrier(ctx context.Context, carrier *domain.Carrier) error {
 	return s.manager.RegisterCarrier(ctx, carrier)
@@ -30,7 +30,7 @@ func (s *LogisticsRoutingService) OptimizeRoute(ctx context.Context, orderIDs []
 	return s.manager.OptimizeRoute(ctx, orderIDs)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *LogisticsRoutingService) GetRoute(ctx context.Context, id uint64) (*domain.OptimizedRoute, error) {
 	return s.query.GetRoute(ctx, id)

@@ -118,7 +118,7 @@ func (h *Handler) RecordBehavior(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Behavior recorded successfully", nil)
 }
 
-// GetRiskAnalysisResult handles the request to get risk analysis result.
+// GetRiskAnalysisResult 处理获取风险分析结果的请求。
 func (h *Handler) GetRiskAnalysisResult(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {
@@ -136,7 +136,7 @@ func (h *Handler) GetRiskAnalysisResult(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Risk analysis result retrieved", result)
 }
 
-// CheckBlacklist handles the request to check if a value is blacklisted.
+// CheckBlacklist 处理检查值是否在黑名单中的请求。
 func (h *Handler) CheckBlacklist(c *gin.Context) {
 	bType := c.Query("type")
 	value := c.Query("value")
@@ -161,7 +161,7 @@ func (h *Handler) CheckBlacklist(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Blacklisted", gin.H{"blacklisted": true, "entry": blacklist})
 }
 
-// GetUserBehavior handles the request to get user behavior.
+// GetUserBehavior 处理获取用户行为的请求。
 func (h *Handler) GetUserBehavior(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {

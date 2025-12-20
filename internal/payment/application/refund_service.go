@@ -81,7 +81,7 @@ func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amo
 		return nil, err
 	}
 	// TODO: Save refund separately if needed, depends on repo implementation.
-	// Currently paymentRepo.Save handles aggregates? Assuming yes for simplicity or strict DDD.
+	// 目前 paymentRepo.Save 处理聚合吗？为简单起见或严格 DDD，假设是的。
 
 	s.logger.InfoContext(ctx, "refund processed", "refund_no", refund.RefundNo, "success", success)
 	return refund, nil

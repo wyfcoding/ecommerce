@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain"
 )
 
-// DynamicPricingQuery handles read operations for dynamic pricing.
+// DynamicPricingQuery 处理动态定价的读操作。
 type DynamicPricingQuery struct {
 	repo domain.PricingRepository
 }

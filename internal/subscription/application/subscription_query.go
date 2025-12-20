@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain"
 )
 
-// SubscriptionQuery handles read operations for subscriptions.
+// SubscriptionQuery 处理订阅的读操作。
 type SubscriptionQuery struct {
 	repo domain.SubscriptionRepository
 }
@@ -23,7 +23,7 @@ func (q *SubscriptionQuery) ListPlans(ctx context.Context) ([]*domain.Subscripti
 	return q.repo.ListPlans(ctx, true)
 }
 
-// ListSubscriptions retrieves subscription list for a user.
+// ListSubscriptions 获取用户的订阅列表。
 func (q *SubscriptionQuery) ListSubscriptions(ctx context.Context, userID uint64, page, pageSize int) ([]*domain.Subscription, int64, error) {
 	offset := (page - 1) * pageSize
 	return q.repo.ListSubscriptions(ctx, userID, nil, offset, pageSize)

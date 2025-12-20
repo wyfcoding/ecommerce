@@ -293,8 +293,8 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest
 			Id:          uint64(l.ID),
 			AdminUserId: uint64(l.UserID), // domain has UserID type uint
 			Action:      l.Action,
-			EntityType:  l.Resource, // Mapping Resource to EntityType
-			Details:     l.Payload,  // Mapping Payload to Details
+			EntityType:  l.Resource, // 将 Resource 映射到 EntityType
+			Details:     l.Payload,  // 将 Payload 映射到 Details
 			IpAddress:   l.ClientIP,
 			CreatedAt:   timestamppb.New(l.CreatedAt),
 		}

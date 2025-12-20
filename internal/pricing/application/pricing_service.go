@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
 )
 
-// PricingService acts as a facade for pricing operations.
+// PricingService 作为定价操作的门面。
 type PricingService struct {
 	manager *PricingManager
 	query   *PricingQuery
@@ -20,7 +20,7 @@ func NewPricingService(manager *PricingManager, query *PricingQuery) *PricingSer
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *PricingService) CreateRule(ctx context.Context, rule *domain.PricingRule) error {
 	return s.manager.CreateRule(ctx, rule)
@@ -30,7 +30,7 @@ func (s *PricingService) RecordHistory(ctx context.Context, productID, skuID, pr
 	return s.manager.RecordHistory(ctx, productID, skuID, price, oldPrice, reason)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *PricingService) CalculatePrice(ctx context.Context, productID, skuID uint64, demand, competition float64) (uint64, error) {
 	return s.query.CalculatePrice(ctx, productID, skuID, demand, competition)

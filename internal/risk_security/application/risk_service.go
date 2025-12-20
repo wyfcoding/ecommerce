@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risk_security/domain"
 )
 
-// RiskService acts as a facade for risk security operations.
+// RiskService 作为风控安全操作的门面。
 type RiskService struct {
 	manager *RiskManager
 	query   *RiskQuery
@@ -21,7 +21,7 @@ func NewRiskService(manager *RiskManager, query *RiskQuery) *RiskService {
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *RiskService) EvaluateRisk(ctx context.Context, userID uint64, ip, deviceID string, amount int64) (*domain.RiskAnalysisResult, error) {
 	return s.manager.EvaluateRisk(ctx, userID, ip, deviceID, amount)
@@ -39,7 +39,7 @@ func (s *RiskService) RecordUserBehavior(ctx context.Context, userID uint64, ip,
 	return s.manager.RecordUserBehavior(ctx, userID, ip, deviceID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *RiskService) GetRiskAnalysisResult(ctx context.Context, userID uint64) (*domain.RiskAnalysisResult, error) {
 	return s.query.GetRiskAnalysisResult(ctx, userID)

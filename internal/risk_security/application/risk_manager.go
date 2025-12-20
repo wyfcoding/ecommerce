@@ -11,7 +11,7 @@ import (
 	"log/slog"
 )
 
-// RiskManager handles write operations for risk security.
+// RiskManager 处理风控安全的写操作。
 type RiskManager struct {
 	repo   domain.RiskRepository
 	logger *slog.Logger

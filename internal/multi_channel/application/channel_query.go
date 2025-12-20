@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/multi_channel/domain"
 )
 
-// ChannelQuery handles read operations for channels.
+// ChannelQuery 处理渠道的读操作。
 type ChannelQuery struct {
 	repo domain.MultiChannelRepository
 }

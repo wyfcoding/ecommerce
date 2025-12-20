@@ -10,7 +10,7 @@ import (
 	"log/slog"
 )
 
-// SubscriptionManager handles write operations for subscriptions.
+// SubscriptionManager 处理订阅的写操作。
 type SubscriptionManager struct {
 	repo   domain.SubscriptionRepository
 	logger *slog.Logger
@@ -42,7 +42,7 @@ func (m *SubscriptionManager) CreatePlan(ctx context.Context, name, desc string,
 	return plan, nil
 }
 
-// Subscribe subscribes a user to a plan.
+// Subscribe 为用户订阅计划。
 func (m *SubscriptionManager) Subscribe(ctx context.Context, userID, planID uint64) (*domain.Subscription, error) {
 	active, err := m.repo.GetActiveSubscription(ctx, userID)
 	if err != nil {

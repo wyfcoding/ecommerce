@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// LogisticsRoutingManager handles write operations for logistics routing.
+// LogisticsRoutingManager 处理物流路由的写操作。
 type LogisticsRoutingManager struct {
 	repo   domain.LogisticsRoutingRepository
 	logger *slog.Logger

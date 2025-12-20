@@ -17,7 +17,7 @@ service FlashSale {
     // List active flash sale events
     rpc ListActiveFlashSaleEvents(ListActiveFlashSaleEventsRequest) returns (ListActiveFlashSaleEventsResponse);
 
-    // Participate in a flash sale (e.g., place an order)
+    // 参与秒杀活动（例如：下订单）
     rpc ParticipateInFlashSale(ParticipateInFlashSaleRequest) returns (ParticipateInFlashSaleResponse);
 
     // Get flash sale product details (e.g., remaining stock)
@@ -46,7 +46,7 @@ message FlashSaleProduct {
     int32 max_per_user = 5;
 }
 
-// Request to create a flash sale event
+// 创建秒杀活动请求
 message CreateFlashSaleEventRequest {
     string name = 1;
     string description = 2;
@@ -55,33 +55,33 @@ message CreateFlashSaleEventRequest {
     repeated FlashSaleProduct products = 5;
 }
 
-// Response for creating a flash sale event
+// 创建秒杀活动响应
 message CreateFlashSaleEventResponse {
     FlashSaleEvent event = 1;
 }
 
-// Request to get a flash sale event
+// 获取秒杀活动请求
 message GetFlashSaleEventRequest {
     string id = 1;
 }
 
-// Response for getting a flash sale event
+// 获取秒杀活动响应
 message GetFlashSaleEventResponse {
     FlashSaleEvent event = 1;
 }
 
-// Request to list active flash sale events
+// 获取活跃秒杀活动列表请求
 message ListActiveFlashSaleEventsRequest {
-    // No specific fields needed for now
+    // 目前不需要特定字段
 }
 
-// Response for listing active flash sale events
+// 获取活跃秒杀活动列表响应
 message ListActiveFlashSaleEventsResponse {
     repeated FlashSaleEvent events = 1;
     int32 total_count = 2;
 }
 
-// Request to participate in a flash sale
+// 参与秒杀请求
 message ParticipateInFlashSaleRequest {
     string event_id = 1;
     string product_id = 2;
@@ -89,20 +89,20 @@ message ParticipateInFlashSaleRequest {
     int32 quantity = 4;
 }
 
-// Response for participating in a flash sale
+// 参与秒杀响应
 message ParticipateInFlashSaleResponse {
     string order_id = 1;
     string status = 2; // e.g., SUCCESS, FAILED_NO_STOCK, FAILED_TOO_MANY_ITEMS
     string message = 3;
 }
 
-// Request to get flash sale product details
+// 获取秒杀商品详情请求
 message GetFlashSaleProductDetailsRequest {
     string event_id = 1;
     string product_id = 2;
 }
 
-// Response for getting flash sale product details
+// 获取秒杀商品详情响应
 message GetFlashSaleProductDetailsResponse {
     FlashSaleProduct product = 1;
 }

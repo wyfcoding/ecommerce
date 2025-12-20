@@ -100,7 +100,7 @@ message ListWarehousesResponse {
 message UpdateStockRequest {
   uint64 warehouse_id = 1;
   uint64 sku_id = 2;
-  int32 quantity = 3; // Can be negative for deduction
+  int32 quantity = 3; // 数量 (扣减时可为负数)
 }
 
 message GetStockRequest {

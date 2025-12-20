@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
 )
 
-// SchedulerQuery handles read operations for scheduler jobs and logs.
+// SchedulerQuery 处理调度任务和日志的读操作。
 type SchedulerQuery struct {
 	repo domain.SchedulerRepository
 }

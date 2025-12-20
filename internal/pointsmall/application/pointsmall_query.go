@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
 )
 
-// PointsQuery handles read operations for pointsmall.
+// PointsQuery 处理积分商城的读操作。
 type PointsQuery struct {
 	repo domain.PointsRepository
 }

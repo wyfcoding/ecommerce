@@ -56,7 +56,7 @@ func (s *ReviewService) GetProductStats(ctx context.Context, productID uint64) (
 	return s.query.GetProductStats(ctx, productID)
 }
 
-// Legacy methods for compatibility if needed, but facade should prefer cleaner names.
+// 如果需要兼容旧方法，则保留，但门面应优先使用更清晰的名称。
 func (s *ReviewService) ApproveReview(ctx context.Context, id uint64) error {
 	return s.manager.AuditReview(ctx, id, true)
 }

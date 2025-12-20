@@ -410,7 +410,7 @@ func convertCategoryToProto(c *domain.Category) *pb.Category {
 		Name:      c.Name,
 		ParentId:  uint64(c.ParentID),
 		SortOrder: int32(c.Sort),
-		// IconUrl missing in domain entity
+		// 领域实体中缺少 IconUrl
 	}
 }
 
@@ -422,6 +422,6 @@ func convertBrandToProto(b *domain.Brand) *pb.Brand {
 		Id:      uint64(b.ID),
 		Name:    b.Name,
 		LogoUrl: b.Logo,
-		// Description missing in domain entity
+		// 领域实体中缺少 Description
 	}
 }

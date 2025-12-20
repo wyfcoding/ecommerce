@@ -17,7 +17,7 @@ type AnalyticsRepository interface {
 	CreateMetric(ctx context.Context, metric *Metric) error
 	// GetMetric 根据ID获取指标实体。
 	GetMetric(ctx context.Context, id uint64) (*Metric, error)
-	// ListMetrics 列出所有指标实体，支持通过查询条件进行过滤 and 分页。
+	// ListMetrics 列出所有指标实体，支持通过查询条件进行过滤和分页。
 	ListMetrics(ctx context.Context, query *MetricQuery) ([]*Metric, int64, error)
 	// DeleteMetric 根据ID删除指标实体。
 	DeleteMetric(ctx context.Context, id uint64) error

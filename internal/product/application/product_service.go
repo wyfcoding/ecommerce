@@ -33,7 +33,7 @@ func NewProductService(
 	}
 }
 
-// --- Delegate Methods to Sub-Services ---
+// --- 委托给子服务的方法 ---
 // 保留这些方法以兼容现有接口调用
 
 // Catalog Delegates

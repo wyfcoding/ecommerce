@@ -8,7 +8,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order_optimization/domain"
 )
 
-// OptimizationManager handles write operations for order optimization.
+// OptimizationManager 处理订单优化的写操作。
 type OptimizationManager struct {
 	repo   domain.OrderOptimizationRepository
 	logger *slog.Logger

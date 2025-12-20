@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risk_security/domain"
 )
 
-// RiskQuery handles read operations for risk security.
+// RiskQuery 处理风控安全的读操作。
 type RiskQuery struct {
 	repo domain.RiskRepository
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain"
 )
 
-// CustomerServiceQuery handles read operations for customer service.
+// CustomerServiceQuery 处理客户服务的读操作。
 type CustomerServiceQuery struct {
 	repo domain.CustomerServiceRepository
 }

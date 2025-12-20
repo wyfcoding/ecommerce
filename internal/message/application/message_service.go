@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/message/domain"
 )
 
-// MessageService acts as a facade for message operations.
+// MessageService 作为消息操作的门面。
 type MessageService struct {
 	manager *MessageManager
 	query   *MessageQuery
@@ -20,7 +20,7 @@ func NewMessageService(manager *MessageManager, query *MessageQuery) *MessageSer
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *MessageService) SendMessage(ctx context.Context, senderID, receiverID uint64, messageType domain.MessageType, title, content, link string) (*domain.Message, error) {
 	return s.manager.SendMessage(ctx, senderID, receiverID, messageType, title, content, link)
@@ -30,7 +30,7 @@ func (s *MessageService) MarkAsRead(ctx context.Context, id uint64, userID uint6
 	return s.manager.MarkAsRead(ctx, id, userID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *MessageService) GetMessage(ctx context.Context, id uint64) (*domain.Message, error) {
 	return s.query.GetMessage(ctx, id)

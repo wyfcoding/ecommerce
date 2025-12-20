@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/permission/domain"
 )
 
-// PermissionQuery handles read operations for permissions and roles.
+// PermissionQuery 处理权限和角色的读操作。
 type PermissionQuery struct {
 	repo domain.PermissionRepository
 }

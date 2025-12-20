@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/multi_channel/domain"
 )
 
-// MultiChannelService acts as a facade for multi-channel operations.
+// MultiChannelService 作为多渠道操作的门面。
 type MultiChannelService struct {
 	manager *ChannelManager
 	query   *ChannelQuery
@@ -20,7 +20,7 @@ func NewMultiChannelService(manager *ChannelManager, query *ChannelQuery) *Multi
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *MultiChannelService) RegisterChannel(ctx context.Context, channel *domain.Channel) error {
 	return s.manager.RegisterChannel(ctx, channel)
@@ -30,7 +30,7 @@ func (s *MultiChannelService) SyncOrders(ctx context.Context, channelID uint64) 
 	return s.manager.SyncOrders(ctx, channelID)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *MultiChannelService) ListChannels(ctx context.Context) ([]*domain.Channel, error) {
 	return s.query.ListChannels(ctx)

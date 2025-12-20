@@ -158,7 +158,7 @@ func (h *Handler) ListPointsLogs(c *gin.Context) {
 	})
 }
 
-// CreateTierConfig handles the request to create or update a tier config.
+// CreateTierConfig 处理创建或更新等级配置的请求。
 // Method: POST
 // Path: /user_tier/configs
 func (h *Handler) CreateTierConfig(c *gin.Context) {
@@ -173,7 +173,7 @@ func (h *Handler) CreateTierConfig(c *gin.Context) {
 		return
 	}
 
-	// Assuming entity.TierLevel is int compatible
+	// 假设 entity.TierLevel 是 int 兼容的
 	if err := h.service.CreateTierConfig(c.Request.Context(), entity.TierLevel(req.Level), req.Name, req.MinScore, req.Discount); err != nil {
 		h.logger.Error("Failed to create tier config", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -183,7 +183,7 @@ func (h *Handler) CreateTierConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-// ListTierConfigs handles the request to list all tier configs.
+// ListTierConfigs 处理列出所有等级配置的请求。
 // Method: GET
 // Path: /user_tier/configs
 func (h *Handler) ListTierConfigs(c *gin.Context) {
@@ -196,7 +196,7 @@ func (h *Handler) ListTierConfigs(c *gin.Context) {
 	c.JSON(http.StatusOK, configs)
 }
 
-// CreateExchange handles the request to create a new exchange item.
+// CreateExchange 处理创建新兑换商品的请求。
 // Method: POST
 // Path: /user_tier/exchanges
 func (h *Handler) CreateExchange(c *gin.Context) {
@@ -220,7 +220,7 @@ func (h *Handler) CreateExchange(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// ListExchangeRecords handles the request to list exchange records for a user.
+// ListExchangeRecords 处理列出用户兑换记录的请求。
 // Method: GET
 // Path: /user_tier/:user_id/exchanges/records
 func (h *Handler) ListExchangeRecords(c *gin.Context) {
@@ -247,7 +247,7 @@ func (h *Handler) ListExchangeRecords(c *gin.Context) {
 	})
 }
 
-// AddScore handles the request to add score to a user.
+// AddScore 处理给用户增加积分的请求。
 // Method: POST
 // Path: /user_tier/:user_id/score/add
 func (h *Handler) AddScore(c *gin.Context) {
@@ -272,7 +272,7 @@ func (h *Handler) AddScore(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-// AddPoints handles the request to add points to a user.
+// AddPoints 处理给用户增加积分的请求。
 // Method: POST
 // Path: /user_tier/:user_id/points/add
 func (h *Handler) AddPoints(c *gin.Context) {
@@ -298,7 +298,7 @@ func (h *Handler) AddPoints(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-// DeductPoints handles the request to deduct points from a user.
+// DeductPoints 处理从用户扣除积分的请求。
 // Method: POST
 // Path: /user_tier/:user_id/points/deduct
 func (h *Handler) DeductPoints(c *gin.Context) {

@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
 )
 
-// SchedulerService acts as a facade for scheduler operations.
+// SchedulerService 作为调度操作的门面。
 type SchedulerService struct {
 	manager *SchedulerManager
 	query   *SchedulerQuery
@@ -20,7 +20,7 @@ func NewSchedulerService(manager *SchedulerManager, query *SchedulerQuery) *Sche
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *SchedulerService) CreateJob(ctx context.Context, name, desc, cron, handler, params string) (*domain.Job, error) {
 	return s.manager.CreateJob(ctx, name, desc, cron, handler, params)
@@ -38,7 +38,7 @@ func (s *SchedulerService) RunJob(ctx context.Context, id uint64) error {
 	return s.manager.RunJob(ctx, id)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *SchedulerService) ListJobs(ctx context.Context, status *int, page, pageSize int) ([]*domain.Job, int64, error) {
 	return s.query.ListJobs(ctx, status, page, pageSize)

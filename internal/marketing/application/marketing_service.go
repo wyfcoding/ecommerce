@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
 )
 
-// MarketingService acts as a facade for marketing operations.
+// MarketingService 作为营销操作的门面。
 type MarketingService struct {
 	manager *MarketingManager
 	query   *MarketingQuery
@@ -21,7 +21,7 @@ func NewMarketingService(manager *MarketingManager, query *MarketingQuery) *Mark
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *MarketingService) CreateCampaign(ctx context.Context, name string, campaignType domain.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]interface{}) (*domain.Campaign, error) {
 	return s.manager.CreateCampaign(ctx, name, campaignType, description, startTime, endTime, budget, rules)
@@ -47,7 +47,7 @@ func (s *MarketingService) ClickBanner(ctx context.Context, id uint64) error {
 	return s.manager.ClickBanner(ctx, id)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *MarketingService) GetCampaign(ctx context.Context, id uint64) (*domain.Campaign, error) {
 	return s.query.GetCampaign(ctx, id)

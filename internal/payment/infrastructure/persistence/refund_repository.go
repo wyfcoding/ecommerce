@@ -19,9 +19,9 @@ func NewRefundRepository(sharding *sharding.Manager) domain.RefundRepository {
 }
 
 func (r *refundRepository) Save(ctx context.Context, refund *domain.Refund) error {
-	// TODO: Sharding logic for Refund. Currently using shard 0.
-	// Ideally, Refund should be sharded by UserID or OrderID, similar to Payment.
-	// Assuming Refund has a PaymentID, we might need to look up Payment to get UserID if not present.
+	// TODO: Refund 的分片逻辑。目前使用分片 0。
+	// 理想情况下，Refund 应按 UserID 或 OrderID 分片，类似于 Payment。
+	// 假设 Refund 有 PaymentID，如果不存在，我们可能需要查找 Payment 以获取 UserID。
 	db := r.sharding.GetDB(0)
 	return db.WithContext(ctx).Create(refund).Error
 }

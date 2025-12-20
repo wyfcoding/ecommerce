@@ -34,7 +34,7 @@ message Campaign {
   int64 target_users = 9;
   int64 reached_users = 10;
   int32 status = 11;
-  string rules_json = 12; // JSON string for rules
+  string rules_json = 12; // 规则的 JSON 字符串
   google.protobuf.Timestamp created_at = 13;
   google.protobuf.Timestamp updated_at = 14;
 }

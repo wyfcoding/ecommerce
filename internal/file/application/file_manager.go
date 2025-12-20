@@ -10,7 +10,7 @@ import (
 	"log/slog"
 )
 
-// FileManager handles write operations for file management.
+// FileManager 处理文件管理的写操作。
 type FileManager struct {
 	repo   domain.FileRepository
 	logger *slog.Logger

@@ -10,7 +10,7 @@ import (
 	"log/slog"
 )
 
-// CustomerServiceManager handles write operations for customer service.
+// CustomerServiceManager 处理客户服务的写操作。
 type CustomerServiceManager struct {
 	repo   domain.CustomerServiceRepository
 	logger *slog.Logger

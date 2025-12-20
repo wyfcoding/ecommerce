@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain"
 )
 
-// DataIngestionService acts as a facade for data ingestion operations.
+// DataIngestionService 作为数据采集操作的门面。
 type DataIngestionService struct {
 	manager *DataIngestionManager
 	query   *DataIngestionQuery
@@ -21,7 +21,7 @@ func NewDataIngestionService(manager *DataIngestionManager, query *DataIngestion
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *DataIngestionService) RegisterSource(ctx context.Context, name string, sourceType domain.SourceType, config, description string) (*domain.IngestionSource, error) {
 	return s.manager.RegisterSource(ctx, name, sourceType, config, description)
@@ -39,7 +39,7 @@ func (s *DataIngestionService) IngestBatch(ctx context.Context, events []*domain
 	return s.manager.IngestBatch(ctx, events)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *DataIngestionService) ListSources(ctx context.Context, page, pageSize int) ([]*domain.IngestionSource, int64, error) {
 	return s.query.ListSources(ctx, page, pageSize)

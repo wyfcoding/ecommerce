@@ -8,10 +8,10 @@ option go_package = "github.com/wyfcoding/ecommerce/go-api/fraud_detection/v1;v1
 
 // FraudDetection Service
 service FraudDetection {
-    // Submit a transaction for fraud evaluation
+    // 提交交易进行欺诈评估
     rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse);
 
-    // Get the status of a fraud evaluation
+    // 获取欺诈评估的状态
     rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse);
 
     // Report a suspected fraudulent activity
@@ -24,11 +24,11 @@ message FraudEvaluation {
     string user_id = 2;
     string status = 3; // e.g., PENDING, APPROVED, REJECTED, REVIEW
     double score = 4; // Fraud risk score
-    repeated string reasons = 5; // Reasons for the score/status
+    repeated string reasons = 5; // 评分/状态的原因
     google.protobuf.Timestamp evaluated_at = 6;
 }
 
-// Request to evaluate a transaction for fraud
+// 欺诈评估请求
 message EvaluateTransactionRequest {
     string transaction_id = 1;
     string user_id = 2;
@@ -40,22 +40,22 @@ message EvaluateTransactionRequest {
     map<string, string> additional_data = 8;
 }
 
-// Response for evaluating a transaction
+// 欺诈评估响应
 message EvaluateTransactionResponse {
     FraudEvaluation evaluation = 1;
 }
 
-// Request to get fraud evaluation status
+// 获取欺诈评估状态请求
 message GetEvaluationStatusRequest {
     string transaction_id = 1;
 }
 
-// Response for getting fraud evaluation status
+// 获取欺诈评估状态响应
 message GetEvaluationStatusResponse {
     FraudEvaluation evaluation = 1;
 }
 
-// Request to report fraud
+// 报告欺诈请求
 message ReportFraudRequest {
     string transaction_id = 1;
     string user_id = 2;
@@ -63,7 +63,7 @@ message ReportFraudRequest {
     map<string, string> evidence = 4;
 }
 
-// Response for reporting fraud
+// 报告欺诈响应
 message ReportFraudResponse {
     bool success = 1;
     string message = 2;

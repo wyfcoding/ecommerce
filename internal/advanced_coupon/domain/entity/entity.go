@@ -28,7 +28,7 @@ const (
 	CouponStatusExpired  CouponStatus = "expired"
 )
 
-// StringArray defines a slice of strings that implements the sql.Scanner and driver.Valuer interfaces
+// StringArray 定义了一个字符串切片，实现了 sql.Scanner 和 driver.Valuer 接口
 type StringArray []string
 
 func (a StringArray) Value() (driver.Value, error) {
@@ -50,7 +50,7 @@ func (a *StringArray) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, a)
 }
 
-// Uint64Array defines a slice of uint64 that implements the sql.Scanner and driver.Valuer interfaces
+// Uint64Array 定义了一个 uint64 切片，实现了 sql.Scanner 和 driver.Valuer 接口
 type Uint64Array []uint64
 
 func (a Uint64Array) Value() (driver.Value, error) {

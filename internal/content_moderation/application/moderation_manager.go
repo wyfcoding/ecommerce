@@ -8,7 +8,7 @@ import (
 	"log/slog"
 )
 
-// ModerationManager handles write operations for content moderation.
+// ModerationManager 处理内容审核的写操作。
 type ModerationManager struct {
 	repo   domain.ModerationRepository
 	logger *slog.Logger

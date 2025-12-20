@@ -70,7 +70,7 @@ func (r *orderRepository) FindByOrderNo(ctx context.Context, orderNo string) (*d
 }
 
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
-	// Same as Save for GORM, but logically explicit
+	// 与 GORM 的 Save 相同，但逻辑上更明确
 	return r.Save(ctx, order)
 }
 
@@ -81,8 +81,8 @@ func (r *orderRepository) Delete(ctx context.Context, id uint) error {
 
 func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
 	// Scan all shards? Or just shard 0?
-	// For now, listing all orders without UserID is expensive in sharding.
-	// We default to shard 0 or we might need to iterate all (not implemented here for simplicity).
+	// 目前，在分片中列出没有 UserID 的所有订单开销很大。
+	// 我们默认为分片 0，或者可能需要遍历所有分片（此处为简单起见未实现）。
 	db := r.sharding.GetDB(0).WithContext(ctx).Model(&domain.Order{})
 
 	var list []*domain.Order

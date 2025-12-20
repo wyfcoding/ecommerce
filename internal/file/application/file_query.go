@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/file/domain"
 )
 
-// FileQuery handles read operations for file management.
+// FileQuery 处理文件管理的读操作。
 type FileQuery struct {
 	repo domain.FileRepository
 }

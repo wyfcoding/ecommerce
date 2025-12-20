@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// ChannelManager handles write operations for channels.
+// ChannelManager 处理渠道的写操作。
 type ChannelManager struct {
 	repo   domain.MultiChannelRepository
 	logger *slog.Logger

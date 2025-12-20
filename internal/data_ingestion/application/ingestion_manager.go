@@ -9,7 +9,7 @@ import (
 	"log/slog"
 )
 
-// DataIngestionManager handles write operations for data ingestion.
+// DataIngestionManager 处理数据采集的写操作。
 type DataIngestionManager struct {
 	repo   domain.DataIngestionRepository
 	logger *slog.Logger

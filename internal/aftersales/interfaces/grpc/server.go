@@ -189,7 +189,7 @@ func (s *Server) ProcessExchange(ctx context.Context, req *pb.ProcessExchangeReq
 
 // CreateSupportTicket 创建客服工单。
 func (s *Server) CreateSupportTicket(ctx context.Context, req *pb.CreateSupportTicketRequest) (*pb.SupportTicketResponse, error) {
-	// Map proto enum to int8
+	// 将 proto 枚举映射为 int8
 	var priority int8 = 2 // Default Medium
 	if req.Priority != nil {
 		switch *req.Priority {
@@ -209,8 +209,8 @@ func (s *Server) CreateSupportTicket(ctx context.Context, req *pb.CreateSupportT
 		orderID = *req.OrderId
 	}
 
-	// Application service expects Description, map InitialMessage to it.
-	// Category is missing in proto, pass empty.
+	// 应用服务需要 Description，将 InitialMessage 映射给它。
+	// proto 中缺少 Category，传递空值。
 	ticket, err := s.app.CreateSupportTicket(ctx, req.UserId, orderID, req.Subject, req.InitialMessage, "", priority)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create support ticket: %v", err))
@@ -241,7 +241,7 @@ func (s *Server) UpdateSupportTicketStatus(ctx context.Context, req *pb.UpdateSu
 	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_OPEN:
 		st = entity.SupportTicketStatusOpen
 	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_IN_PROGRESS:
-		st = entity.SupportTicketStatusPending // Map InProgress to Pending or similar
+		st = entity.SupportTicketStatusPending // 将 InProgress 映射为 Pending 或类似状态
 	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_RESOLVED:
 		st = entity.SupportTicketStatusResolved
 	case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_CLOSED:
@@ -291,7 +291,7 @@ func (s *Server) ListSupportTickets(ctx context.Context, req *pb.ListSupportTick
 	// Status filtering logic
 	var statusPtr *int
 	if req.Status != nil && *req.Status != pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_UNSPECIFIED {
-		// Map proto status to entity status int
+		// 将 proto 状态映射为实体状态 int
 		var sVal int
 		switch *req.Status {
 		case pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_OPEN:
@@ -439,7 +439,7 @@ func (s *Server) toSupportTicketProto(t *entity.SupportTicket) *pb.SupportTicket
 	case entity.SupportTicketStatusOpen:
 		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_OPEN
 	case entity.SupportTicketStatusPending:
-		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_IN_PROGRESS // Map Pending to InProgress
+		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_IN_PROGRESS // 将 Pending 映射为 InProgress
 	case entity.SupportTicketStatusResolved:
 		status = pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_RESOLVED
 	case entity.SupportTicketStatusClosed:
@@ -467,7 +467,7 @@ func (s *Server) toSupportTicketProto(t *entity.SupportTicket) *pb.SupportTicket
 		orderID = t.OrderID
 	}
 
-	// Exclude TicketNo, Description, Category as they are not in proto
+	// 排除 TicketNo, Description, Category，因为它们不在 proto 中
 	return &pb.SupportTicket{
 		Id:        uint64(t.ID),
 		UserId:    t.UserID,

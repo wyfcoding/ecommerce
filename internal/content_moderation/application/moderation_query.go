@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain"
 )
 
-// ModerationQuery handles read operations for content moderation.
+// ModerationQuery 处理内容审核的读操作。
 type ModerationQuery struct {
 	repo domain.ModerationRepository
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
 )
 
-// PricingManager handles write operations for pricing rules and history.
+// PricingManager 处理定价规则和历史记录的写操作。
 type PricingManager struct {
 	repo   domain.PricingRepository
 	logger *slog.Logger

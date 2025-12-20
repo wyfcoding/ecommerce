@@ -6,7 +6,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/file/domain"
 )
 
-// FileService acts as a facade for file management operations.
+// FileService 作为文件管理操作的门面。
 type FileService struct {
 	manager *FileManager
 	query   *FileQuery
@@ -20,7 +20,7 @@ func NewFileService(manager *FileManager, query *FileQuery) *FileService {
 	}
 }
 
-// --- Write Operations (Delegated to Manager) ---
+// --- 写操作（委托给 Manager）---
 
 func (s *FileService) UploadFile(ctx context.Context, name string, size int64, fileType domain.FileType, content []byte) (*domain.FileMetadata, error) {
 	return s.manager.UploadFile(ctx, name, size, fileType, content)
@@ -30,7 +30,7 @@ func (s *FileService) DeleteFile(ctx context.Context, id uint64) error {
 	return s.manager.DeleteFile(ctx, id)
 }
 
-// --- Read Operations (Delegated to Query) ---
+// --- 读操作（委托给 Query）---
 
 func (s *FileService) GetFile(ctx context.Context, id uint64) (*domain.FileMetadata, error) {
 	return s.query.GetFile(ctx, id)

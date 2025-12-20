@@ -201,11 +201,11 @@ func convertAccountToProto(a *domain.PointsAccount) *pb.PointsAccount {
 	}
 }
 
-// Added this function manually since it wasn't present in the viewed file but likely needed or useful.
+// 手动添加此函数，因为它不在查看的文件中，但可能需要或有用。
 // If it's not used, it won't hurt much, but better safe.
 // Actually, timestamppb.New handles time.Time.
 // Wait, timestamppb.New takes *time.Time? No, it takes time.Time directly usually or pointer?
 // checking protobuf documentation... New takes time.Time.
-// So if CreatedAt is time.Time (gorm.Model), it's fine.
-// But if ShippedAt is *time.Time, we need to dereference it before passing to New, but handle nil check first.
-// I already handled nil checks in convertOrderToProto.
+// 所以如果 CreatedAt 是 time.Time (gorm.Model)，那就没问题。
+// 但如果 ShippedAt 是 *time.Time，我们需要在传递给 New 之前解引用，但要先检查 nil。
+// 我已经在 convertOrderToProto 中处理了 nil 检查。

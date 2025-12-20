@@ -9,7 +9,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
 )
 
-// SchedulerManager handles write operations for scheduler jobs and logs.
+// SchedulerManager 处理调度任务和日志的写操作。
 type SchedulerManager struct {
 	repo   domain.SchedulerRepository
 	logger *slog.Logger
