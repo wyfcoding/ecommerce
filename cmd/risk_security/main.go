@@ -65,7 +65,7 @@ func registerGin(e *gin.Engine, srv interface{}) {
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	c := cfg.(*configpkg.Config)
-	slog.Info("initializing service dependencies...")
+	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
 	// Initialize Database
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
@@ -81,7 +81,12 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// Infrastructure Layer
 	repo := persistence.NewRiskRepository(db)
 
-	// 3. Downstream Clients
+	// Application Layer
+	mgr := application.NewRiskManager(repo, logging.Default().Logger)
+	query := application.NewRiskQuery(repo)
+	service := application.NewRiskService(mgr, query)
+
+	// Downstream Clients
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -89,12 +94,8 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application & Payment Gateway
-	// repo is already initialized
-	service := application.NewRiskService(repo, logging.Default().Logger)
-
 	cleanup := func() {
-		slog.Info("cleaning up resources...")
+		slog.Info("cleaning up resources...", "service", BootstrapName)
 		clientCleanup()
 		sqlDB.Close()
 	}

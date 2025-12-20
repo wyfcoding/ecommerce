@@ -59,7 +59,7 @@ func registerGin(e *gin.Engine, svc interface{}) {
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	c := cfg.(*configpkg.Config)
-	slog.Info("initializing service dependencies...")
+	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
 	// 1. Database
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
@@ -87,10 +87,12 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// 4. Infrastructure & Application
 	repo := persistence.NewFileRepository(db)
-	service := application.NewFileService(repo, logging.Default().Logger)
+	mgr := application.NewFileManager(repo, logging.Default().Logger)
+	query := application.NewFileQuery(repo)
+	service := application.NewFileService(mgr, query)
 
 	cleanup := func() {
-		slog.Info("cleaning up resources...")
+		slog.Info("cleaning up resources...", "service", BootstrapName)
 		clientCleanup()
 		redisCache.Close()
 		sqlDB, _ := db.DB()
