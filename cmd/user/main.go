@@ -30,7 +30,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 func main() {
@@ -50,8 +50,8 @@ func registerGRPC(s *grpc.Server, svc interface{}) {
 }
 
 func registerGin(e *gin.Engine, svc interface{}) {
-	// User service currently has no HTTP routes in the original code,
-	// but we keep the callback for future use or health checks.
+	// 用户服务目前在原始代码中没有 HTTP 路由，
+	// 但我们保留此回调以备将来使用或用于健康检查。
 }
 
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
@@ -72,7 +72,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// 3. Downstream Clients
+	// 3. 下游客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -82,17 +82,17 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	repo := mysqlRepo.NewUserRepository(db)
 	addressRepo := mysqlRepo.NewAddressRepository(db)
 
-	// Services
+	// 服务层
 	logger := logging.Default().Logger
 	authService := application.NewAuthService(repo, c.JWT.Secret, c.JWT.Issuer, c.JWT.ExpireDuration, logger)
 	profileService := application.NewProfileService(repo, logger)
 	addressService := application.NewAddressService(repo, addressRepo, logger)
 
-	// Facade
+	// 门面层
 	svc := application.NewUserService(
 		authService,
 		profileService,

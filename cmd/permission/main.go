@@ -31,7 +31,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 func main() {
@@ -67,23 +67,23 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
-	// Initialize Logger
+	// 初始化日志
 	logger := logging.NewLogger(BootstrapName, "app")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewPermissionRepository(db)
 
 	// 3. Downstream Clients
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
-		// sqlDB.Close() // sqlDB is accessed via db.DB() if needed, but here we just return
+		// sqlDB.Close() // 如果需要，可以通过 db.DB() 访问 sqlDB，但这里我们直接返回
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 

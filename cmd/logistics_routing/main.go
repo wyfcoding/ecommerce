@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt" // This line is kept because the instruction was to remove 'reflect', which is not present. The provided 'Code Edit' snippet was misleading.
+	"fmt" // 保留此行，因为指令是移除不存在的 'reflect'。提供的 'Code Edit' 片段有误导性。
 	"log/slog"
 
 	"github.com/wyfcoding/pkg/grpcclient"
@@ -29,7 +29,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "logistics-routing-service"

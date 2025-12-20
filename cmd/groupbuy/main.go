@@ -30,7 +30,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "groupbuy-service"
@@ -68,7 +68,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -79,10 +79,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewGroupbuyRepository(db)
 
-	// Downstream Clients
+	// 下游客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -92,7 +92,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// ID Generator
+	// ID 生成器
 	idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
 	if err != nil {
 		clientCleanup()
@@ -102,7 +102,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to create id generator: %w", err)
 	}
 
-	// Application Layer
+	// 应用层
 	manager := application.NewGroupbuyManager(repo, idGenerator, slog.Default())
 	query := application.NewGroupbuyQuery(repo)
 	service := application.NewGroupbuyService(manager, query)

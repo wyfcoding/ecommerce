@@ -31,7 +31,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 func main() {
@@ -88,11 +88,11 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 4. Infrastructure & Application
 	repo := persistence.NewReviewRepository(db)
 
-	// Create sub-services
+	// 创建子服务
 	reviewQuery := application.NewReviewQuery(repo)
 	reviewManager := application.NewReviewManager(repo, logging.Default().Logger)
 
-	// Create facade
+	// 创建门面
 	service := application.NewReviewService(reviewManager, reviewQuery)
 
 	cleanup := func() {

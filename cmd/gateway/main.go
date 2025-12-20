@@ -68,7 +68,7 @@ func registerGin(e *gin.Engine, srv interface{}) {
 	cfg := ctx.Config
 	handler := gatewayhttp.NewHandler(ctx.AppService, slog.Default())
 
-	// Apply Middlewares based on config
+	// 根据配置应用中间件
 	if cfg.RateLimit.Enabled {
 		slog.Info("Enabling Rate Limit Middleware", "rate", cfg.RateLimit.Rate, "burst", cfg.RateLimit.Burst)
 		e.Use(middleware.NewLocalRateLimitMiddleware(int(cfg.RateLimit.Rate), cfg.RateLimit.Burst))
@@ -87,9 +87,9 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	c := cfg.(*configpkg.Config)
 
-	// Initialize Logger
+	// 初始化日志
 
-	// Initialize
+	// 初始化
 	slog.Info("initializing service dependencies...")
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
@@ -101,13 +101,13 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewGatewayRepository(db)
 
-	// Application Layer
+	// 应用层
 	service := application.NewGatewayService(repo, slog.Default())
 
-	// Downstream Clients
+	// 下游客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {

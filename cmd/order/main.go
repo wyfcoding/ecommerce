@@ -27,7 +27,7 @@ import (
 
 const BootstrapName = "order"
 
-// Config extends the base configuration with service-specific settings
+// Config 扩展了基础配置，增加了服务特定的设置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 	DTM              struct {
@@ -86,7 +86,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*Config)
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
-	// 1. Database Sharding Manager
+	// 1. 数据库分片管理器
 	slog.Info("initializing database sharding manager...")
 	shardingManager, err := sharding.NewManager(c.Data.Shards, logging.Default())
 	if err != nil {
@@ -114,7 +114,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// 3. ID Generator
+	// 3. ID 生成器
 	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
 	if err != nil {
 		redisCache.Close()
@@ -122,10 +122,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init id generator: %w", err)
 	}
 
-	// 4. Kafka Producer
+	// 4. Kafka 生产者
 	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logging.Default())
 
-	// Downstream Clients
+	// 下游客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -135,7 +135,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 5. Infrastructure & Application
+	// 5. 基础设施与应用层
 	repo := persistence.NewOrderRepository(shardingManager)
 
 	orderManager := application.NewOrderManager(repo, idGen, kafkaProducer, slog.Default(), c.DTM.Server, c.Warehouse.GrpcAddr, m)

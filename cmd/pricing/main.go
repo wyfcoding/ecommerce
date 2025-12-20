@@ -30,7 +30,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "pricing-service"
@@ -68,10 +68,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
-	// Initialize Logger
+	// 初始化日志
 	logger := logging.NewLogger(BootstrapName, "app")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -82,17 +82,17 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewPricingRepository(db)
 
-	// Downstream Clients
+	// 下游客户端
 	clients, clientCleanups, err := initClients(c)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// Application Layer
+	// 应用层
 	mgr := application.NewPricingManager(repo, logger.Logger)
 	query := application.NewPricingQuery(repo)
 	service := application.NewPricingService(mgr, query)

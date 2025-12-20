@@ -109,9 +109,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		domain.GatewayTypeMock:   gateway.NewAlipayGateway(),
 	}
 
-	// Create Settlement Client Wrapper
-	// Note: If clients.Settlement is nil, this will panic if used.
-	// Ensure Settlement service is configured or handle nil gracefully in ServiceClients.
+	// 创建结算客户端包装器
+	// 注意：如果 clients.Settlement 为 nil，使用时将 panic。
+	// 确保已配置结算服务，或在 ServiceClients 中优雅处理 nil。
 	var settlementCli settlementv1.SettlementServiceClient
 	if clients.Settlement != nil {
 		settlementCli = settlementv1.NewSettlementServiceClient(clients.Settlement)

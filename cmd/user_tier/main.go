@@ -29,7 +29,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "user-tier-service"
@@ -66,9 +66,9 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	c := cfg.(*configpkg.Config)
 
-	// Initialize Logger
+	// 初始化日志
 
-	// Initialize
+	// 初始化
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
@@ -80,7 +80,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	// 3. Downstream Clients
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)

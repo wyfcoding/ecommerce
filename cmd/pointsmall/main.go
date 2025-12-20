@@ -30,7 +30,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "pointsmall-service"
@@ -68,7 +68,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -79,8 +79,8 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
-	// Original repo declaration: repo := persistence.NewPointsRepository(db)
+	// 基础设施层
+	// 原始 repo 声明: repo := persistence.NewPointsRepository(db)
 
 	// 3. Downstream Clients
 	clients := &ServiceClients{}
@@ -91,7 +91,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// 4. Infrastructure & Application
-	// Initialize ID Generator
+	// 初始化 ID 生成器
 	idGen, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{
 		MachineID: 1,
 	})

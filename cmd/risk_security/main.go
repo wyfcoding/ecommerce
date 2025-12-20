@@ -29,7 +29,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "risk-security-service"
@@ -67,7 +67,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -78,15 +78,15 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewRiskRepository(db)
 
-	// Application Layer
+	// 应用层
 	mgr := application.NewRiskManager(repo, logging.Default().Logger)
 	query := application.NewRiskQuery(repo)
 	service := application.NewRiskService(mgr, query)
 
-	// Downstream Clients
+	// 下游客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {

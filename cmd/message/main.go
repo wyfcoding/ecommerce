@@ -29,7 +29,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "message-service"
@@ -66,7 +66,7 @@ func registerGin(e *gin.Engine, srv interface{}) {
 func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
 	c := cfg.(*configpkg.Config)
 
-	// Initialize Logger
+	// 初始化日志
 	logging.NewLogger(BootstrapName, "app") // Set default logger for the app
 
 	slog.Info("initializing service dependencies...", "service", BootstrapName)

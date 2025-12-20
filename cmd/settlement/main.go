@@ -30,7 +30,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "settlement-service"
@@ -68,10 +68,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// Initialize Logger
+	// 初始化日志
 	logger := logging.NewLogger("serviceName", "app")
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -82,11 +82,11 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewSettlementRepository(db)
 	ledgerRepo := persistence.NewLedgerRepository(db)
 
-	// Domain/Service Layer
+	// 领域/服务层
 	ledgerService := ledger.NewLedgerService(ledgerRepo)
 
 	// 3. Downstream Clients
@@ -98,7 +98,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// 4. Infrastructure & Application & Domain
-	// Note: ledgerService is already initialized above
+	// 注意：ledgerService 已在上方初始化
 	service := application.NewSettlementService(repo, ledgerService, logger.Logger)
 
 	cleanup := func() {

@@ -69,10 +69,10 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// Initialize Logger
-	// logger := logging.NewLogger("serviceName", "app") // Removed as per instruction
+	// 初始化日志
+	// logger := logging.NewLogger("serviceName", "app") // 根据指令移除
 
-	// Initialize Database
+	// 初始化数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -83,7 +83,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Initialize Redis
+	// 初始化 Redis
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		sqlDB.Close()
@@ -103,11 +103,11 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 4. Infrastructure & Application
 	repo := persistence.NewSearchRepository(db)
 
-	// Create sub-services
+	// 创建子服务
 	searchQuery := application.NewSearchQuery(repo)
 	searchManager := application.NewSearchManager(repo, logging.Default().Logger)
 
-	// Create facade
+	// 创建门面
 	service := application.NewSearchService(searchManager, searchQuery)
 
 	cleanup := func() {

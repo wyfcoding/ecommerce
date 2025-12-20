@@ -29,7 +29,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 const BootstrapName = "scheduler-service"
@@ -67,9 +67,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// Initialize Logger
+	// 初始化日志
 
-	// Initialize
+	// 初始化
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -80,7 +80,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
+	// 基础设施层
 	repo := persistence.NewSchedulerRepository(db)
 
 	// 3. Downstream Clients
@@ -92,7 +92,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// 4. Infrastructure & Application
-	// repo is already initialized
+	// repo 已经初始化
 	mgr := application.NewSchedulerManager(repo, logging.Default().Logger)
 	query := application.NewSchedulerQuery(repo)
 	service := application.NewSchedulerService(mgr, query)

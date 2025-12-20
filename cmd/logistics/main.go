@@ -31,7 +31,7 @@ type AppContext struct {
 }
 
 type ServiceClients struct {
-	// Add dependencies here if needed
+	// 如果需要，在此处添加依赖项
 }
 
 func main() {
@@ -88,11 +88,11 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 4. Infrastructure & Application
 	repo := persistence.NewLogisticsRepository(db)
 
-	// Create sub-services
+	// 创建子服务
 	logisticsQuery := application.NewLogisticsQuery(repo, logging.Default().Logger)
 	logisticsManager := application.NewLogisticsManager(repo, logging.Default().Logger)
 
-	// Create facade
+	// 创建门面
 	service := application.NewLogisticsService(logisticsManager, logisticsQuery)
 
 	cleanup := func() {

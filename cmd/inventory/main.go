@@ -92,11 +92,11 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	repo := persistence.NewInventoryRepository(db)
 	warehouseRepo := persistence.NewWarehouseRepository(db)
 
-	// Create sub-services
+	// 创建子服务
 	inventoryQuery := application.NewInventoryQuery(repo, warehouseRepo, logging.Default().Logger)
 	inventoryManager := application.NewInventoryManager(repo, warehouseRepo, logging.Default().Logger)
 
-	// Create facade
+	// 创建门面
 	service := application.NewInventoryService(inventoryManager, inventoryQuery)
 
 	cleanup := func() {

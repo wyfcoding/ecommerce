@@ -94,11 +94,11 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 4. Infrastructure & Application
 	repo := persistence.NewCartRepository(db)
 
-	// Create sub-services
+	// 创建子服务
 	cartQuery := application.NewCartQuery(repo, logging.Default().Logger)
 	cartManager := application.NewCartManager(repo, logging.Default().Logger, cartQuery)
 
-	// Create facade
+	// 创建门面
 	service := application.NewCartService(cartManager, cartQuery)
 
 	cleanup := func() {

@@ -70,7 +70,7 @@ func registerGin(e *gin.Engine, svc interface{}) {
 	ctx.WorkflowHandler.RegisterRoutes(api)
 }
 
-// Rewriting registerGin to use AppContext with Handlers
+// 重写 registerGin 以使用带有 Handlers 的 AppContext
 /*
 type AppContext struct {
     ...
@@ -90,8 +90,8 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// 2. Redis
-	// redisCache, err := cache.NewRedisCache(c.Data.Redis) // Not used yet but good to have
-	// Disabling for now unless needed to avoid unused var error
+	// redisCache, err := cache.NewRedisCache(c.Data.Redis) // 暂未使用，但保留备用
+	// 暂时禁用，除非需要避免未使用变量错误
 	_, err = cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		sqlDB, _ := db.DB()
