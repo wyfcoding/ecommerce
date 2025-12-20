@@ -24,7 +24,7 @@ import (
 )
 
 type AppContext struct {
-	AppService *application.PointsService
+	AppService *application.PointsmallService
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
@@ -102,7 +102,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// 4. Infrastructure & Application
 	repo := persistence.NewPointsRepository(db)
-	service := application.NewPointsService(repo, idGen, logging.Default().Logger)
+	mgr := application.NewPointsManager(repo, idGen, logging.Default().Logger)
+	query := application.NewPointsQuery(repo)
+	service := application.NewPointsmallService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

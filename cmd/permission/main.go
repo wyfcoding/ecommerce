@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	pb "github.com/wyfcoding/ecommerce/go-api/permission/v1"
 	"github.com/wyfcoding/ecommerce/internal/permission/application"
-	"github.com/wyfcoding/ecommerce/internal/permission/infrastructure/persistence/mysql"
+	"github.com/wyfcoding/ecommerce/internal/permission/infrastructure/persistence"
 	permissiongrpc "github.com/wyfcoding/ecommerce/internal/permission/interfaces/grpc"
 	permissionhttp "github.com/wyfcoding/ecommerce/internal/permission/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -77,7 +77,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// Infrastructure Layer
-	repo := mysql.NewPermissionRepository(db)
+	repo := persistence.NewPermissionRepository(db)
 
 	// 3. Downstream Clients
 	clients := &ServiceClients{}
@@ -88,10 +88,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// 4. Infrastructure & Application
-	// Note: Changed `persistence.NewPermissionRepository` to `mysql.NewPermissionRepository`
-	// to match the existing import and avoid introducing new imports not specified.
-	// Note: Changed `logging.Default().Logger` to `slog.Default()` to match existing usage.
-	service := application.NewPermissionService(repo, slog.Default())
+	mgr := application.NewPermissionManager(repo, slog.Default())
+	query := application.NewPermissionQuery(repo)
+	service := application.NewPermissionService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

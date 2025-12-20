@@ -97,7 +97,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// 4. Infrastructure & Application
 	repo := persistence.NewOrderOptimizationRepository(db)
-	service := application.NewOrderOptimizationService(repo, logging.Default().Logger)
+	mgr := application.NewOptimizationManager(repo, slog.Default())
+	query := application.NewOptimizationQuery(repo)
+	service := application.NewOrderOptimizationService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

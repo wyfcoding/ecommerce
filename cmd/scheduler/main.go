@@ -93,7 +93,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// 4. Infrastructure & Application
 	// repo is already initialized
-	service := application.NewSchedulerService(repo, logging.Default().Logger)
+	mgr := application.NewSchedulerManager(repo, logging.Default().Logger)
+	query := application.NewSchedulerQuery(repo)
+	service := application.NewSchedulerService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

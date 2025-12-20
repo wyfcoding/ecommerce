@@ -80,23 +80,22 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// 3. Downstream Clients
+	repo := persistence.NewMessageRepository(db)
+
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
-		// Assuming redisCache is not present in this context, removing its cleanup
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
-	repo := persistence.NewMessageRepository(db)
-	service := application.NewMessageService(repo, logging.Default().Logger)
+	mgr := application.NewMessageManager(repo, slog.Default())
+	query := application.NewMessageQuery(repo)
+	service := application.NewMessageService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")
 		clientCleanup()
-		// Assuming redisCache is not present in this context, removing its cleanup
 		sqlDB.Close()
 	}
 

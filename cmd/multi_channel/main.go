@@ -73,11 +73,6 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// sqlDB, err := db.DB()
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
 	// Infrastructure Layer
 	repo := persistence.NewMultiChannelRepository(db)
 
@@ -85,27 +80,18 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
-		// Assuming redisCache is initialized elsewhere or will be added.
-		// For now, just include the cleanup as per instruction.
-		// If redisCache is not defined, this will cause a compile error.
-		// The instruction implies its existence.
-		// redisCache.Close()
 		sqlDB, _ := db.DB()
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
-	service := application.NewMultiChannelService(repo, logging.Default().Logger)
+	mgr := application.NewChannelManager(repo, slog.Default())
+	query := application.NewChannelQuery(repo)
+	service := application.NewMultiChannelService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")
 		clientCleanup()
-		// Assuming redisCache is initialized elsewhere or will be added.
-		// For now, just include the cleanup as per instruction.
-		// If redisCache is not defined, this will cause a compile error.
-		// The instruction implies its existence.
-		// redisCache.Close()
 		sqlDB, _ := db.DB()
 		sqlDB.Close()
 	}

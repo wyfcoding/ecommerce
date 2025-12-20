@@ -70,10 +70,8 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 
-	// Initialize Logger
-	logger := logging.NewLogger("serviceName", "app")
+	logging.NewLogger(BootstrapName, "app")
 
-	// Initialize Database
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
@@ -84,10 +82,8 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, err
 	}
 
-	// Infrastructure Layer
 	repo := persistence.NewMarketingRepository(db)
 
-	// 3. Downstream Clients
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -95,8 +91,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
-	service := application.NewMarketingService(repo, logger.Logger)
+	mgr := application.NewMarketingManager(repo, slog.Default())
+	query := application.NewMarketingQuery(repo)
+	service := application.NewMarketingService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)

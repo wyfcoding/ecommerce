@@ -93,7 +93,9 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// Application Layer
-	service := application.NewPricingService(repo, logger.Logger)
+	mgr := application.NewPricingManager(repo, logger.Logger)
+	query := application.NewPricingQuery(repo)
+	service := application.NewPricingService(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)
