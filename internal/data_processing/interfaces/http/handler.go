@@ -28,8 +28,8 @@ func NewHandler(service *application.DataProcessingService, logger *slog.Logger)
 }
 
 // SubmitTask 处理提交数据处理任务的HTTP请求。
-// Method: POST
-// Path: /processing/tasks
+// HTTP 方法: POST
+// 请求路径: /processing/tasks
 func (h *Handler) SubmitTask(c *gin.Context) {
 	// 定义请求体结构，用于接收任务的提交信息。
 	var req struct {
@@ -58,8 +58,8 @@ func (h *Handler) SubmitTask(c *gin.Context) {
 }
 
 // ListTasks 处理获取数据处理任务列表的HTTP请求。
-// Method: GET
-// Path: /processing/tasks
+// HTTP 方法: GET
+// 请求路径: /processing/tasks
 func (h *Handler) ListTasks(c *gin.Context) {
 	// 从查询参数中获取工作流ID、任务状态、页码和每页大小，并设置默认值。
 	workflowID, _ := strconv.ParseUint(c.Query("workflow_id"), 10, 64)
@@ -85,8 +85,8 @@ func (h *Handler) ListTasks(c *gin.Context) {
 }
 
 // CreateWorkflow 处理创建工作流的HTTP请求。
-// Method: POST
-// Path: /processing/workflows
+// HTTP 方法: POST
+// 请求路径: /processing/workflows
 func (h *Handler) CreateWorkflow(c *gin.Context) {
 	// 定义请求体结构，用于接收工作流的创建信息。
 	var req struct {
@@ -114,8 +114,8 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 }
 
 // ListWorkflows 处理获取工作流列表的HTTP请求。
-// Method: GET
-// Path: /processing/workflows
+// HTTP 方法: GET
+// 请求路径: /processing/workflows
 func (h *Handler) ListWorkflows(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

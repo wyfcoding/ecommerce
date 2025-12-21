@@ -27,7 +27,7 @@ type OrderManager struct {
 	dtmServer         string
 	warehouseGrpcAddr string
 
-	// Metrics
+	// 指标统计
 	orderCreatedCounter *prometheus.CounterVec
 }
 
@@ -42,7 +42,7 @@ func NewOrderManager(
 ) *OrderManager {
 	orderCreatedCounter := m.NewCounterVec(prometheus.CounterOpts{
 		Name: "order_created_total",
-		Help: "Total number of orders created",
+		Help: "订单创建总数",
 	}, []string{"status"})
 
 	return &OrderManager{

@@ -101,7 +101,7 @@ func (s *WorkflowService) RejectRequest(ctx context.Context, requestID, approver
 		return errors.New("request is not pending")
 	}
 
-	// 记录 Log
+	// 记录日志
 	logEntry := &domain.ApprovalLog{
 		RequestID:  req.ID,
 		ApproverID: approverID,

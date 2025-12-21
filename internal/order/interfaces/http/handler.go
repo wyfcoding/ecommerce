@@ -29,8 +29,8 @@ func NewHandler(service *application.OrderService, logger *slog.Logger) *Handler
 }
 
 // CreateOrder 处理创建订单的HTTP请求。
-// Method: POST
-// Path: /orders
+// HTTP 方法: POST
+// 请求路径: /orders
 func (h *Handler) CreateOrder(c *gin.Context) {
 	// 定义请求体结构，用于接收订单的创建信息。
 	var req struct {
@@ -99,8 +99,8 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 }
 
 // GetOrder 处理获取订单详情的HTTP请求。
-// Method: GET
-// Path: /orders/:id
+// HTTP 方法: GET
+// 请求路径: /orders/:id
 func (h *Handler) GetOrder(c *gin.Context) {
 	// 从URL路径中解析订单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -126,8 +126,8 @@ func (h *Handler) GetOrder(c *gin.Context) {
 }
 
 // UpdateStatus 处理更新订单状态的HTTP请求。
-// Method: POST
-// Path: /orders/:id/status
+// HTTP 方法: POST
+// 请求路径: /orders/:id/status
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	// 从URL路径中解析订单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -182,8 +182,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 // ListOrders 处理获取订单列表的HTTP请求。
-// Method: GET
-// Path: /orders
+// HTTP 方法: GET
+// 请求路径: /orders
 func (h *Handler) ListOrders(c *gin.Context) {
 	// 从查询参数中获取用户ID、状态、页码和每页大小，并设置默认值。
 	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)

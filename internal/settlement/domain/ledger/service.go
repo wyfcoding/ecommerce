@@ -31,7 +31,7 @@ func (s *LedgerService) PostEntry(ctx context.Context, entry *JournalEntry) erro
 	// 为简化，我们假设 DB 事务在 Infrastructure 层处理
 	// 或在此处开启事务 (需要 TransactionManager 抽象)
 
-	// Step: 查找并锁定相关账户，更新余额
+	// 步骤: 查找并锁定相关账户，更新余额
 	// Debit (借) Asset/Expense -> 增加
 	// Debit (借) Liability/Equity/Income -> 减少
 	// Credit (贷) 反之

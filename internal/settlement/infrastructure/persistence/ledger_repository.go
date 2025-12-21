@@ -54,12 +54,12 @@ func (r *LedgerRepositoryImpl) CreateJournalEntry(entry *ledger.JournalEntry) er
 		}
 
 		// 2. 逐行更新账户余额
-		// 借(Debit) = 余额增加 (Asset/Expense) 或 减少 (Liability/Equity/Income)
+		// 借(Debit) = 余额增加 (资产/费用) 或 减少 (负债/所有者权益/收入)
 		// 贷(Credit) = 相反
 		// 这里我们简化模型：我们在 Subject 定义中应包含借贷方向属性（通常称借方余额科目/贷方余额科目）
 		// 为了简化，假设 Account Balance 代表 "该科目方向的净值"
-		// Asset: Debit +, Credit -
-		// Liability: Credit +, Debit -
+		// 资产: 借方 +, 贷方 -
+		// 负债: 贷方 +, 借方 -
 
 		for _, line := range entry.Lines {
 			var acc ledger.Account

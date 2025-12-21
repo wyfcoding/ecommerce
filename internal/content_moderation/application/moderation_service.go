@@ -12,7 +12,7 @@ type ModerationService struct {
 	query   *ModerationQuery
 }
 
-// NewModerationService creates a new ModerationService facade.
+// NewModerationService 创建并返回一个新的 ModerationService 门面实例。
 func NewModerationService(manager *ModerationManager, query *ModerationQuery) *ModerationService {
 	return &ModerationService{
 		manager: manager,

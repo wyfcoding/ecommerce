@@ -89,7 +89,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -98,7 +98,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	repo := persistence.NewOrderOptimizationRepository(db)
 	mgr := application.NewOptimizationManager(repo, slog.Default())
 	query := application.NewOptimizationQuery(repo)

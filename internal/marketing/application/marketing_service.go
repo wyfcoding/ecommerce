@@ -13,7 +13,7 @@ type MarketingService struct {
 	query   *MarketingQuery
 }
 
-// NewMarketingService creates a new MarketingService facade.
+// NewMarketingService 创建营销服务门面实例。
 func NewMarketingService(manager *MarketingManager, query *MarketingQuery) *MarketingService {
 	return &MarketingService{
 		manager: manager,

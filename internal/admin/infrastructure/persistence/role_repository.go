@@ -16,7 +16,7 @@ func NewRoleRepository(db *gorm.DB) domain.RoleRepository {
 	return &roleRepository{db: db}
 }
 
-// Role CRUD
+// 增删改查操作
 
 func (r *roleRepository) CreateRole(ctx context.Context, role *domain.Role) error {
 	return r.db.WithContext(ctx).Create(role).Error
@@ -54,7 +54,7 @@ func (r *roleRepository) DeleteRole(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&domain.Role{}, id).Error
 }
 
-// Permission CRUD
+// 增删改查操作
 
 func (r *roleRepository) CreatePermission(ctx context.Context, perm *domain.Permission) error {
 	return r.db.WithContext(ctx).Create(perm).Error

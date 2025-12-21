@@ -70,7 +70,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// 1. Database Sharding Manager
+	// 1. 数据库 Sharding Manager
 	shardingManager, err := sharding.NewManager(c.Data.Shards, logging.Default())
 	if err != nil {
 		if len(c.Data.Shards) == 0 {
@@ -84,14 +84,14 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		}
 	}
 
-	// 2. ID Generator
+	// 2. ID 生成器
 	idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -99,7 +99,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	paymentRepo := persistence.NewPaymentRepository(shardingManager)
 	refundRepo := persistence.NewRefundRepository(shardingManager)
 	channelRepo := persistence.NewChannelRepository(shardingManager)
@@ -120,7 +120,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		settlementCli = settlementv1.NewSettlementServiceClient(clients.Settlement)
 	}
 
-	// 5. Initialize Granular Application Services
+	// 5. 初始化细粒度应用服务
 	processor := application.NewPaymentProcessor(
 		paymentRepo,
 		channelRepo,
@@ -143,7 +143,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	)
 	paymentQuery := application.NewPaymentQuery(paymentRepo)
 
-	// 6. Create PaymentService Facade
+	// 6. 创建服务门面
 	appService := application.NewPaymentService(
 		processor,
 		callbackHandler,

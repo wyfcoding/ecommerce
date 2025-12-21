@@ -144,7 +144,7 @@ func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input stri
 	return output, confidence, nil
 }
 
-// --- DTOs ---
+// --- 模块分段 ---
 
 // ProductRecommendationDTO 结构体定义。
 type ProductRecommendationDTO struct {

@@ -79,7 +79,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 基础设施层
 	repo := persistence.NewMultiChannelRepository(db)
 
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {

@@ -33,7 +33,7 @@ func (r *UserRepository) Save(ctx context.Context, user *domain.User) error {
 // FindByID 根据ID从数据库获取用户记录，并预加载其关联的地址。
 func (r *UserRepository) FindByID(ctx context.Context, id uint) (*domain.User, error) {
 	var user domain.User
-	// Preload "Addresses" 确保在获取用户时，同时加载所有关联的地址。
+	// 预加载 "Addresses" 确保在获取用户时，同时加载所有关联的地址。
 	if err := r.db.WithContext(ctx).Preload("Addresses").First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
@@ -46,7 +46,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uint) (*domain.User, e
 // FindByUsername 根据用户名从数据库获取用户记录，并预加载其关联的地址。
 func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	var user domain.User
-	// Preload "Addresses" 确保在获取用户时，同时加载所有关联的地址。
+	// 预加载 "Addresses" 确保在获取用户时，同时加载所有关联的地址。
 	if err := r.db.WithContext(ctx).Preload("Addresses").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
@@ -59,7 +59,7 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 // FindByEmail 根据邮箱从数据库获取用户记录，并预加载其关联的地址。
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
-	// Preload "Addresses" 确保在获取用户时，同时加载所有关联的地址。
+	// 预加载 "Addresses" 确保在获取用户时，同时加载所有关联的地址。
 	if err := r.db.WithContext(ctx).Preload("Addresses").Where("email = ?", email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
@@ -72,7 +72,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 // FindByPhone 根据手机号从数据库获取用户记录，并预加载其关联的地址。
 func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domain.User, error) {
 	var user domain.User
-	// Preload "Addresses" 确保在获取用户时，同时加载所有关联的地址。
+	// 预加载 "Addresses" 确保在获取用户时，同时加载所有关联的地址。
 	if err := r.db.WithContext(ctx).Preload("Addresses").Where("phone = ?", phone).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
@@ -105,7 +105,7 @@ func (r *UserRepository) List(ctx context.Context, offset, limit int) ([]*domain
 		return nil, 0, err
 	}
 
-	// Preload "Addresses" 确保在获取用户列表时，同时加载所有关联的地址。
+	// 预加载 "Addresses" 确保在获取用户列表时，同时加载所有关联的地址。
 	if err := r.db.WithContext(ctx).Preload("Addresses").Offset(offset).Limit(limit).Find(&users).Error; err != nil { // 应用分页和查找。
 		return nil, 0, err
 	}

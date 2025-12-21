@@ -70,13 +70,13 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// 1. Database
+	// 1. 数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 2. Redis
+	// 2. Redis 缓存
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		sqlDB, _ := db.DB()
@@ -84,7 +84,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
 	}
 
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -94,7 +94,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	repo := persistence.NewCartRepository(db)
 
 	// 创建子服务

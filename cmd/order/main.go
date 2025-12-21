@@ -110,7 +110,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		}
 	}
 
-	// 2. Redis
+	// 2. Redis 缓存
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		shardingManager.Close()

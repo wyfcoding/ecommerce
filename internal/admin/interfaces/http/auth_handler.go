@@ -75,6 +75,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
-	// TODO: Get UserID from Context (Middleware)
+	// TODO: 获取 UserID from Context (Middleware)
 	c.JSON(http.StatusOK, gin.H{"message": "current user info"})
 }

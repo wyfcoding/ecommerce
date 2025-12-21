@@ -134,7 +134,7 @@ func (m *SchedulerManager) RunJob(ctx context.Context, id uint64) error {
 	m.logger.InfoContext(ctx, "job started execution (simulated)", "job_id", id)
 
 	go func() {
-		// Simulate job execution
+		// 模拟 execution
 		time.Sleep(1 * time.Second)
 
 		endTime := time.Now()

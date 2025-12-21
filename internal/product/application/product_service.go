@@ -37,7 +37,7 @@ func NewProductService(
 // --- 委托给子服务的方法 ---
 // 保留这些方法以兼容现有接口调用
 
-// Catalog Delegates
+// Catalog 委托方法
 
 // CreateProduct 创建商品。
 func (s *ProductService) CreateProduct(ctx context.Context, name, description string, categoryID, brandID uint64, price int64, stock int32) (*domain.Product, error) {
@@ -69,7 +69,7 @@ func (s *ProductService) CalculateProductPrice(ctx context.Context, productID ui
 	return s.Catalog.CalculateProductPrice(ctx, productID, userID)
 }
 
-// Category Delegates
+// 分类委托方法
 
 // CreateCategory 创建分类。
 func (s *ProductService) CreateCategory(ctx context.Context, name string, parentID uint64) (*domain.Category, error) {
@@ -96,7 +96,7 @@ func (s *ProductService) ListCategories(ctx context.Context, parentID uint64) ([
 	return s.Category.ListCategories(ctx, parentID)
 }
 
-// Brand Delegates
+// 品牌委托方法
 
 // CreateBrand 创建品牌。
 func (s *ProductService) CreateBrand(ctx context.Context, name, logo string) (*domain.Brand, error) {

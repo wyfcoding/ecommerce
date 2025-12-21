@@ -54,7 +54,7 @@ func (s *DataProcessingService) processTask(task *entity.ProcessingTask) {
 	task.Start()                 // 调用实体方法更新任务状态为运行中。
 	s.repo.UpdateTask(ctx, task) // 更新数据库中的任务状态。
 
-	// Simulate processing: 模拟数据处理过程。
+	// 模拟: 模拟数据处理过程。
 	time.Sleep(1 * time.Second)
 
 	// Success simulation: 模拟成功完成处理。

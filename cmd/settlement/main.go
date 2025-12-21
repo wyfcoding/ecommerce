@@ -92,7 +92,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 领域/服务层
 	ledgerService := ledger.NewLedgerService(ledgerRepo)
 
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -100,7 +100,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application & Domain
+	// 4. 基础设施与应用层 & Domain
 	// 注意：ledgerService 已在上方初始化
 	service := application.NewSettlementService(repo, ledgerService, logger.Logger)
 

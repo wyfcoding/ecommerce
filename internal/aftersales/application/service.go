@@ -180,7 +180,7 @@ func (s *AfterSalesService) ProcessRefund(ctx context.Context, id uint64) error 
 		return fmt.Errorf("invalid status for refund: %v", afterSales.Status)
 	}
 
-	// Mock refund process
+	// 模拟逻辑 process
 	afterSales.Status = entity.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now
@@ -206,7 +206,7 @@ func (s *AfterSalesService) ProcessExchange(ctx context.Context, id uint64) erro
 		return fmt.Errorf("invalid status for exchange: %v", afterSales.Status)
 	}
 
-	// Mock exchange process
+	// 模拟逻辑 process
 	afterSales.Status = entity.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now

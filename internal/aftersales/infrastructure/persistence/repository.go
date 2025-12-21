@@ -30,7 +30,7 @@ func (r *afterSalesRepository) Create(ctx context.Context, afterSales *entity.Af
 // GetByID 根据ID从数据库获取售后申请记录，并预加载其关联的商品项和操作日志。
 func (r *afterSalesRepository) GetByID(ctx context.Context, id uint64) (*entity.AfterSales, error) {
 	var afterSales entity.AfterSales
-	// Preload "Items" 和 "Logs" 关联数据。
+	// 预加载 "Items" 和 "Logs" 关联数据。
 	if err := r.db.WithContext(ctx).Preload("Items").Preload("Logs").First(&afterSales, id).Error; err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (r *afterSalesRepository) GetByID(ctx context.Context, id uint64) (*entity.
 // GetByNo 根据售后单号从数据库获取售后申请记录，并预加载其关联的商品项和操作日志。
 func (r *afterSalesRepository) GetByNo(ctx context.Context, no string) (*entity.AfterSales, error) {
 	var afterSales entity.AfterSales
-	// Preload "Items" 和 "Logs" 关联数据。
+	// 预加载 "Items" 和 "Logs" 关联数据。
 	if err := r.db.WithContext(ctx).Preload("Items").Preload("Logs").Where("after_sales_no = ?", no).First(&afterSales).Error; err != nil {
 		return nil, err
 	}

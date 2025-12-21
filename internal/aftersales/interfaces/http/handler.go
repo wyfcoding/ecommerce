@@ -29,8 +29,8 @@ func NewHandler(service *application.AfterSalesService, logger *slog.Logger) *Ha
 }
 
 // Create 处理创建售后申请的HTTP请求。
-// Method: POST
-// Path: /aftersales
+// HTTP 方法: POST
+// 请求路径: /aftersales
 func (h *Handler) Create(c *gin.Context) {
 	// 定义请求体结构，用于接收售后申请的详细信息。
 	var req struct {
@@ -63,8 +63,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 // Approve 处理批准售后申请的HTTP请求。
-// Method: POST
-// Path: /aftersales/:id/approve
+// HTTP 方法: POST
+// 请求路径: /aftersales/:id/approve
 func (h *Handler) Approve(c *gin.Context) {
 	// 从URL路径中解析售后申请ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -97,8 +97,8 @@ func (h *Handler) Approve(c *gin.Context) {
 }
 
 // Reject 处理拒绝售后申请的HTTP请求。
-// Method: POST
-// Path: /aftersales/:id/reject
+// HTTP 方法: POST
+// 请求路径: /aftersales/:id/reject
 func (h *Handler) Reject(c *gin.Context) {
 	// 从URL路径中解析售后申请ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -131,8 +131,8 @@ func (h *Handler) Reject(c *gin.Context) {
 }
 
 // List 处理列出售后申请的HTTP请求。
-// Method: GET
-// Path: /aftersales
+// HTTP 方法: GET
+// 请求路径: /aftersales
 // 支持分页和基于用户ID的过滤。
 func (h *Handler) List(c *gin.Context) {
 	// 从查询参数中获取页码、每页大小和用户ID，并设置默认值。
@@ -165,8 +165,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 // GetDetails 处理获取售后申请详情的HTTP请求。
-// Method: GET
-// Path: /aftersales/:id
+// HTTP 方法: GET
+// 请求路径: /aftersales/:id
 func (h *Handler) GetDetails(c *gin.Context) {
 	// 从URL路径中解析售后申请ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

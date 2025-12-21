@@ -27,7 +27,7 @@ func NewServer(app *application.AdminService) *Server {
 	return &Server{app: app}
 }
 
-// --- AdminUser ---
+// --- 模块分段 ---
 
 // CreateAdminUser 处理创建管理员用户的gRPC请求。
 // req: 包含创建管理员所需信息的请求体。
@@ -47,7 +47,7 @@ func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserReq
 				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign role to admin: %v", err))
 			}
 		}
-		// Refresh
+		// 刷新数据
 		if a, fetchErr := s.app.GetAdminProfile(ctx, uint64(admin.ID)); fetchErr == nil {
 			admin = a
 		}
@@ -125,11 +125,11 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 	}, nil
 }
 
-// --- Role ---
+// --- 角色 ---
 
 // CreateRole 处理创建角色的gRPC请求。
 // req: 包含创建角色所需信息的请求体。
-// 返回created successfully的角色响应和可能发生的gRPC错误。
+// 返回创建成功的角色响应和可能发生的gRPC错误。
 func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.CreateRoleResponse, error) {
 	// 调用应用服务层创建角色。
 	// 注意：Proto中没有Code字段，这里暂时使用Name作为Code。
@@ -217,11 +217,11 @@ func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.L
 	}, nil
 }
 
-// --- Permission ---
+// --- 权限 ---
 
 // CreatePermission 处理创建权限的gRPC请求。
 // req: 包含创建权限所需信息的请求体。
-// 返回created successfully的权限响应和可能发生的gRPC错误。
+// 返回创建成功的权限响应和可能发生的gRPC错误。
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.CreatePermissionResponse, error) {
 	// 调用应用服务层创建权限。
 	// 注意：Proto定义与实体定义之间存在字段缺失，这里使用占位符或默认值填充。
@@ -269,7 +269,7 @@ func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsReq
 	}, nil
 }
 
-// --- AuditLog ---
+// --- 审计日志 ---
 
 // ListAuditLogs 处理列出审计日志的gRPC请求。
 func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest) (*pb.ListAuditLogsResponse, error) {
@@ -291,7 +291,7 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest
 	for i, l := range logs {
 		pbLogs[i] = &pb.AuditLog{
 			Id:          uint64(l.ID),
-			AdminUserId: uint64(l.UserID), // domain has UserID type uint
+			AdminUserId: uint64(l.UserID), // 领域层 UserID 类型为 uint
 			Action:      l.Action,
 			EntityType:  l.Resource, // 将 Resource 映射到 EntityType
 			Details:     l.Payload,  // 将 Payload 映射到 Details
@@ -306,7 +306,7 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest
 	}, nil
 }
 
-// --- SystemSetting ---
+// --- 系统设置 ---
 
 // GetSystemSetting 处理获取系统设置的gRPC请求。
 func (s *Server) GetSystemSetting(ctx context.Context, req *pb.GetSystemSettingRequest) (*pb.GetSystemSettingResponse, error) {
@@ -343,7 +343,7 @@ func (s *Server) UpdateSystemSetting(ctx context.Context, req *pb.UpdateSystemSe
 	}, nil
 }
 
-// --- Helpers ---
+// --- 辅助函数 ---
 
 // adminToProto 将领域层的 Admin 实体转换为 protobuf 的 AdminUser 消息。
 func (s *Server) adminToProto(a *domain.AdminUser) *pb.AdminUser {
@@ -352,7 +352,7 @@ func (s *Server) adminToProto(a *domain.AdminUser) *pb.AdminUser {
 	for i, r := range a.Roles {
 		roles[i] = r.Name
 	}
-	// Proto expects IsActive bool, Entity has Status int. Map it.
+	// Proto 期望 IsActive 为 bool, 实体 Status 为 int。进行映射。
 	isActive := a.Status == domain.UserStatusActive
 
 	return &pb.AdminUser{

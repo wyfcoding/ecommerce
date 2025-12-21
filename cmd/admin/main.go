@@ -87,13 +87,13 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// 1. Database
+	// 1. 数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 2. Redis
+	// 2. Redis 缓存
 	// redisCache, err := cache.NewRedisCache(c.Data.Redis) // 暂未使用，但保留备用
 	// 暂时禁用，除非需要避免未使用变量错误
 	_, err = cache.NewRedisCache(c.Data.Redis)
@@ -114,7 +114,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 
 	// 4. Repositories
 	adminRepo := persistence.NewAdminRepository(db)
-	roleRepo := persistence.NewRoleRepository(db) // Fixed: Now exists
+	roleRepo := persistence.NewRoleRepository(db) // 修复：现在已存在
 	auditRepo := persistence.NewAuditRepository(db)
 	approvalRepo := persistence.NewApprovalRepository(db)
 	settingRepo := persistence.NewSettingRepository(db)

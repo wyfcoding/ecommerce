@@ -204,10 +204,10 @@ func convertAccountToProto(a *domain.PointsAccount) *pb.PointsAccount {
 }
 
 // 手动添加此函数，因为它不在查看的文件中，但可能需要或有用。
-// If it's not used, it won't hurt much, but better safe.
-// Actually, timestamppb.New handles time.Time.
-// Wait, timestamppb.New takes *time.Time? No, it takes time.Time directly usually or pointer?
-// checking protobuf documentation... New takes time.Time.
+// 如果它没被使用，也不会有什么坏处，但保险起见还是加上。
+// 实际上，timestamppb.New 处理的是 time.Time。
+// 等等，timestamppb.New 接受 *time.Time 吗？不，它通常直接接受 time.Time。
+// 查阅 protobuf 文档... New 接受 time.Time。
 // 所以如果 CreatedAt 是 time.Time (gorm.Model)，那就没问题。
 // 但如果 ShippedAt 是 *time.Time，我们需要在传递给 New 之前解引用，但要先检查 nil。
 // 我已经在 convertOrderToProto 中处理了 nil 检查。

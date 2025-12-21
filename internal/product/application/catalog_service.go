@@ -29,12 +29,12 @@ type CatalogService struct {
 func NewCatalogService(repo domain.ProductRepository, cache cache.Cache, logger *slog.Logger, m *metrics.Metrics) *CatalogService {
 	cacheHits := m.NewCounterVec(prometheus.CounterOpts{
 		Name: "product_cache_hits_total",
-		Help: "Total number of cache hits",
+		Help: "商品缓存命中总数",
 	}, []string{"layer"})
 
 	cacheMisses := m.NewCounterVec(prometheus.CounterOpts{
 		Name: "product_cache_misses_total",
-		Help: "Total number of cache misses",
+		Help: "商品缓存未命中总数",
 	}, []string{})
 
 	return &CatalogService{

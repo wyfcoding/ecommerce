@@ -67,13 +67,13 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 
-	// 1. Database
+	// 1. 数据库
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 2. Redis
+	// 2. Redis 缓存
 	redisClient, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		sqlDB, _ := db.DB()

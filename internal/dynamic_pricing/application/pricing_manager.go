@@ -15,7 +15,7 @@ type DynamicPricingManager struct {
 	logger *slog.Logger
 }
 
-// NewDynamicPricingManager creates a new DynamicPricingManager instance.
+// NewDynamicPricingManager 创建并返回一个新的 DynamicPricingManager 实例。
 func NewDynamicPricingManager(repo domain.PricingRepository, logger *slog.Logger) *DynamicPricingManager {
 	return &DynamicPricingManager{
 		repo:   repo,

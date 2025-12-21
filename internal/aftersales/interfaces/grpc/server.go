@@ -170,7 +170,7 @@ func (s *Server) ProcessRefund(ctx context.Context, req *pb.ProcessRefundRequest
 	return &pb.RefundResponse{
 		ReturnRequestId: req.ReturnRequestId,
 		Status:          "SUCCESS",
-		// Amount, Currency etc could be filled if available from app service response
+		// 金额、币种等字段可以从应用服务响应中填充（如果可用）
 	}, nil
 }
 
@@ -185,12 +185,12 @@ func (s *Server) ProcessExchange(ctx context.Context, req *pb.ProcessExchangeReq
 	}, nil
 }
 
-// --- Support Ticket methods ---
+// --- 客服工单方法 ---
 
 // CreateSupportTicket 创建客服工单。
 func (s *Server) CreateSupportTicket(ctx context.Context, req *pb.CreateSupportTicketRequest) (*pb.SupportTicketResponse, error) {
 	// 将 proto 枚举映射为 int8
-	var priority int8 = 2 // Default Medium
+	var priority int8 = 2 // 默认中等
 	if req.Priority != nil {
 		switch *req.Priority {
 		case pb.SupportTicketPriority_SUPPORT_TICKET_PRIORITY_LOW:
@@ -253,7 +253,7 @@ func (s *Server) UpdateSupportTicketStatus(ctx context.Context, req *pb.UpdateSu
 	if err := s.app.UpdateSupportTicketStatus(ctx, req.Id, st); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update support ticket status: %v", err))
 	}
-	// Return updated ticket
+	// 返回更新后的工单
 	ticket, err := s.app.GetSupportTicket(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get updated ticket: %v", err))
@@ -288,7 +288,7 @@ func (s *Server) ListSupportTickets(ctx context.Context, req *pb.ListSupportTick
 	if pageSize < 1 {
 		pageSize = 10
 	}
-	// Status filtering logic
+	// 状态过滤逻辑
 	var statusPtr *int
 	if req.Status != nil && *req.Status != pb.SupportTicketStatus_SUPPORT_TICKET_STATUS_UNSPECIFIED {
 		// 将 proto 状态映射为实体状态 int
@@ -379,7 +379,7 @@ func (s *Server) SetAftersalesConfig(ctx context.Context, req *pb.SetAftersalesC
 	}, nil
 }
 
-// --- Helpers ---
+// --- 模块分段 ---
 
 // toProto 是一个辅助函数，将领域层的 AfterSales 实体转换为 protobuf 的 ReturnRequest 消息。
 func (s *Server) toProto(as *entity.AfterSales) *pb.ReturnRequest {

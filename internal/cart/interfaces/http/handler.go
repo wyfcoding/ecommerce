@@ -28,8 +28,8 @@ func NewHandler(app *application.CartService, logger *slog.Logger) *Handler {
 }
 
 // GetCart 处理获取用户购物车信息的HTTP请求。
-// Method: GET
-// Path: /cart
+// HTTP 方法: GET
+// 请求路径: /cart
 func (h *Handler) GetCart(c *gin.Context) {
 	// 从查询参数中获取用户ID。
 	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
@@ -51,8 +51,8 @@ func (h *Handler) GetCart(c *gin.Context) {
 }
 
 // AddItem 处理添加商品到购物车的HTTP请求。
-// Method: POST
-// Path: /cart/items
+// HTTP 方法: POST
+// 请求路径: /cart/items
 func (h *Handler) AddItem(c *gin.Context) {
 	// 定义请求体结构，用于接收要添加到购物车的商品信息。
 	var req struct {
@@ -85,8 +85,8 @@ func (h *Handler) AddItem(c *gin.Context) {
 }
 
 // UpdateItemQuantity 处理更新购物车中商品数量的HTTP请求。
-// Method: PUT
-// Path: /cart/items
+// HTTP 方法: PUT
+// 请求路径: /cart/items
 func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 	// 定义请求体结构，用于接收要更新的商品信息。
 	var req struct {
@@ -114,8 +114,8 @@ func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 }
 
 // RemoveItem 处理从购物车中移除商品的HTTP请求。
-// Method: DELETE
-// Path: /cart/items
+// HTTP 方法: DELETE
+// 请求路径: /cart/items
 func (h *Handler) RemoveItem(c *gin.Context) {
 	// 定义请求体结构，用于接收要移除的商品信息。
 	var req struct {
@@ -142,8 +142,8 @@ func (h *Handler) RemoveItem(c *gin.Context) {
 }
 
 // ClearCart 处理清空购物车所有商品的HTTP请求。
-// Method: DELETE
-// Path: /cart
+// HTTP 方法: DELETE
+// 请求路径: /cart
 func (h *Handler) ClearCart(c *gin.Context) {
 	// 定义请求体结构，用于接收用户ID。
 	var req struct {

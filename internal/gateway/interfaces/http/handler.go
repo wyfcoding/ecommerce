@@ -27,8 +27,8 @@ func NewHandler(service *application.GatewayService, logger *slog.Logger) *Handl
 }
 
 // RegisterRoute 处理注册API路由的HTTP请求。
-// Method: POST
-// Path: /gateway/routes
+// HTTP 方法: POST
+// 请求路径: /gateway/routes
 func (h *Handler) RegisterRoute(c *gin.Context) {
 	// 定义请求体结构，用于接收路由注册信息。
 	var req struct {
@@ -60,8 +60,8 @@ func (h *Handler) RegisterRoute(c *gin.Context) {
 }
 
 // ListRoutes 处理获取路由列表的HTTP请求。
-// Method: GET
-// Path: /gateway/routes
+// HTTP 方法: GET
+// 请求路径: /gateway/routes
 func (h *Handler) ListRoutes(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -85,8 +85,8 @@ func (h *Handler) ListRoutes(c *gin.Context) {
 }
 
 // DeleteRoute 处理删除API路由的HTTP请求。
-// Method: DELETE
-// Path: /gateway/routes/:id
+// HTTP 方法: DELETE
+// 请求路径: /gateway/routes/:id
 func (h *Handler) DeleteRoute(c *gin.Context) {
 	// 从URL路径中解析路由ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -107,8 +107,8 @@ func (h *Handler) DeleteRoute(c *gin.Context) {
 }
 
 // AddRateLimitRule 处理添加限流规则的HTTP请求。
-// Method: POST
-// Path: /gateway/ratelimits
+// HTTP 方法: POST
+// 请求路径: /gateway/ratelimits
 func (h *Handler) AddRateLimitRule(c *gin.Context) {
 	// 定义请求体结构，用于接收限流规则信息。
 	var req struct {
@@ -139,8 +139,8 @@ func (h *Handler) AddRateLimitRule(c *gin.Context) {
 }
 
 // ListRateLimitRules 处理获取限流规则列表的HTTP请求。
-// Method: GET
-// Path: /gateway/ratelimits
+// HTTP 方法: GET
+// 请求路径: /gateway/ratelimits
 func (h *Handler) ListRateLimitRules(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -164,8 +164,8 @@ func (h *Handler) ListRateLimitRules(c *gin.Context) {
 }
 
 // DeleteRateLimitRule 处理删除限流规则的HTTP请求。
-// Method: DELETE
-// Path: /gateway/ratelimits/:id
+// HTTP 方法: DELETE
+// 请求路径: /gateway/ratelimits/:id
 func (h *Handler) DeleteRateLimitRule(c *gin.Context) {
 	// 从URL路径中解析限流规则ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

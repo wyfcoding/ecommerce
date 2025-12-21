@@ -14,7 +14,7 @@ type ModerationManager struct {
 	logger *slog.Logger
 }
 
-// NewModerationManager creates a new ModerationManager instance.
+// NewModerationManager 创建并返回一个新的 ModerationManager 实例。
 func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger) *ModerationManager {
 	return &ModerationManager{
 		repo:   repo,

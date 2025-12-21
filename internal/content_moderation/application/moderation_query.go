@@ -11,7 +11,7 @@ type ModerationQuery struct {
 	repo domain.ModerationRepository
 }
 
-// NewModerationQuery creates a new ModerationQuery instance.
+// NewModerationQuery 创建并返回一个新的 ModerationQuery 实例。
 func NewModerationQuery(repo domain.ModerationRepository) *ModerationQuery {
 	return &ModerationQuery{
 		repo: repo,

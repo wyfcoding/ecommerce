@@ -32,7 +32,7 @@ func (r *cartRepository) Save(ctx context.Context, cart *domain.Cart) error {
 // 如果找不到记录，则返回 nil 而不是错误，表示该用户还没有购物车。
 func (r *cartRepository) GetByUserID(ctx context.Context, userID uint64) (*domain.Cart, error) {
 	var cart domain.Cart
-	// Preload("Items") 确保在获取购物车时，同时加载所有关联的商品项。
+	// 预加载("Items") 确保在获取购物车时，同时加载所有关联的商品项。
 	if err := r.db.WithContext(ctx).Preload("Items").Where("user_id = ?", userID).First(&cart).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil // 如果记录未找到，返回nil而不是错误。

@@ -28,8 +28,8 @@ func NewHandler(app *application.InventoryService, logger *slog.Logger) *Handler
 }
 
 // CreateInventory 处理创建库存记录的HTTP请求。
-// Method: POST
-// Path: /inventory
+// HTTP 方法: POST
+// 请求路径: /inventory
 func (h *Handler) CreateInventory(c *gin.Context) {
 	// 定义请求体结构，用于接收库存创建信息。
 	var req struct {
@@ -59,8 +59,8 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 }
 
 // GetInventory 处理获取指定SKU库存信息的HTTP请求。
-// Method: GET
-// Path: /inventory/:sku_id
+// HTTP 方法: GET
+// 请求路径: /inventory/:sku_id
 func (h *Handler) GetInventory(c *gin.Context) {
 	// 从URL路径中解析SKU ID。
 	skuID, err := strconv.ParseUint(c.Param("sku_id"), 10, 64)
@@ -87,8 +87,8 @@ func (h *Handler) GetInventory(c *gin.Context) {
 }
 
 // UpdateStock 处理更新库存数量的HTTP请求（增加、扣减、锁定、解锁、确认扣减）。
-// Method: POST
-// Path: /inventory/:sku_id/stock
+// HTTP 方法: POST
+// 请求路径: /inventory/:sku_id/stock
 func (h *Handler) UpdateStock(c *gin.Context) {
 	// 从URL路径中解析SKU ID。
 	skuID, err := strconv.ParseUint(c.Param("sku_id"), 10, 64)
@@ -138,8 +138,8 @@ func (h *Handler) UpdateStock(c *gin.Context) {
 }
 
 // ListInventories 处理获取库存列表的HTTP请求。
-// Method: GET
-// Path: /inventory
+// HTTP 方法: GET
+// 请求路径: /inventory
 func (h *Handler) ListInventories(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

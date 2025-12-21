@@ -55,7 +55,7 @@ func (s *SystemOpsService) handleForceRefund(ctx context.Context, payload string
 	// payload 应该是 JSON: {"order_id": 123, "reason": "fraud"}
 	s.logger.InfoContext(ctx, "Mocking Force Refund (Real gRPC call pending)", "payload", payload)
 
-	// Example:
+	// 示例:
 	// client := orderpb.NewOrderServiceClient(s.deps.OrderClient)
 	// _, err := client.CancelOrder(ctx, &orderpb.CancelOrderRequest{Id: ...})
 	// return err

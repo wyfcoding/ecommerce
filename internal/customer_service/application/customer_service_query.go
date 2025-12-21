@@ -11,7 +11,7 @@ type CustomerServiceQuery struct {
 	repo domain.CustomerServiceRepository
 }
 
-// NewCustomerServiceQuery creates a new CustomerServiceQuery instance.
+// NewCustomerServiceQuery 创建并返回一个新的 CustomerServiceQuery 实例。
 func NewCustomerServiceQuery(repo domain.CustomerServiceRepository) *CustomerServiceQuery {
 	return &CustomerServiceQuery{
 		repo: repo,

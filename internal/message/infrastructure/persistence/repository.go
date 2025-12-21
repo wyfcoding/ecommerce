@@ -28,7 +28,7 @@ func (r *messageRepository) GetMessage(ctx context.Context, id uint64) (*domain.
 	var message domain.Message
 	if err := r.db.WithContext(ctx).First(&message, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // Return nil if not found, let application layer handle it? Or domain.ErrMessageNotFound?
+			return nil, nil // 如果未找到则返回 nil, let application layer handle it? Or domain.ErrMessageNotFound?
 			// 之前的实现返回 nil,nil。暂时保留或使用标准错误。
 			// 除非有严格定义，否则按照接口预期返回 nil, nil。
 		}

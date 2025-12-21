@@ -25,7 +25,7 @@ func (r *adminRepository) GetByID(ctx context.Context, id uint) (*domain.AdminUs
 	var user domain.AdminUser
 	if err := r.db.WithContext(ctx).Preload("Roles").First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // Not found
+			return nil, nil // 未找到
 		}
 		return nil, err
 	}

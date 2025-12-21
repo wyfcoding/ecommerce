@@ -50,7 +50,7 @@ func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 // FindByID 根据ID从数据库中查询订单。
 // 注意：当前实现暂不支持跨分片的主键查询优化。
 func (r *orderRepository) FindByID(ctx context.Context, id uint) (*domain.Order, error) {
-	// TODO: Support sharding by ID or UserID hint
+	// TODO: 支持按 ID 或用户 ID 提示进行分片
 	db := r.sharding.GetDB(0)
 	var order domain.Order
 	if err := db.WithContext(ctx).Preload("Items").Preload("Logs").First(&order, id).Error; err != nil {
@@ -84,14 +84,14 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 
 // Delete 根据ID物理删除订单记录。
 func (r *orderRepository) Delete(ctx context.Context, id uint) error {
-	db := r.sharding.GetDB(0) // TODO: Sharding support
+	db := r.sharding.GetDB(0) // TODO: 支持分片删除
 	return db.WithContext(ctx).Delete(&domain.Order{}, id).Error
 }
 
 // List 分页列出所有订单记录。
 // 当前实现仅扫描分片0，在大规模分片环境下需要优化。
 func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
-	// Scan all shards? Or just shard 0?
+	// 扫描所有分片？还是仅扫描分片 0？
 	// 目前，在分片中列出没有 UserID 的所有订单开销很大。
 	// 我们默认为分片 0，或者可能需要遍历所有分片（此处为简单起见未实现）。
 	db := r.sharding.GetDB(0).WithContext(ctx).Model(&domain.Order{})

@@ -85,7 +85,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	// 基础设施层
 	// 原始 repo 声明: repo := persistence.NewPointsRepository(db)
 
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -93,7 +93,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	// 初始化 ID 生成器
 	idGen, err := idgen.NewSnowflakeGenerator(configpkg.SnowflakeConfig{
 		MachineID: 1,
@@ -103,7 +103,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to initialize id generator: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	repo := persistence.NewPointsRepository(db)
 	mgr := application.NewPointsManager(repo, idGen, logging.Default().Logger)
 	query := application.NewPointsQuery(repo)

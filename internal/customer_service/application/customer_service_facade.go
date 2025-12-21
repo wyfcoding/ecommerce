@@ -12,7 +12,7 @@ type CustomerService struct {
 	query   *CustomerServiceQuery
 }
 
-// NewCustomerService creates a new CustomerService facade.
+// NewCustomerService 创建并返回一个新的 CustomerService 门面实例。
 func NewCustomerService(manager *CustomerServiceManager, query *CustomerServiceQuery) *CustomerService {
 	return &CustomerService{
 		manager: manager,

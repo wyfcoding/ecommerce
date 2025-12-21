@@ -16,7 +16,7 @@ type CustomerServiceManager struct {
 	logger *slog.Logger
 }
 
-// NewCustomerServiceManager creates a new CustomerServiceManager instance.
+// NewCustomerServiceManager 创建并返回一个新的 CustomerServiceManager 实例。
 func NewCustomerServiceManager(repo domain.CustomerServiceRepository, logger *slog.Logger) *CustomerServiceManager {
 	return &CustomerServiceManager{
 		repo:   repo,

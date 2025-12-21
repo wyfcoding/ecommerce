@@ -85,7 +85,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	}
 
 	// 基础设施层
-	// 3. Downstream Clients
+	// 3. 下游服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
 	if err != nil {
@@ -93,7 +93,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Infrastructure & Application
+	// 4. 基础设施与应用层
 	repo := persistence.NewWarehouseRepository(db)
 	query := application.NewWarehouseQuery(repo)
 	manager := application.NewWarehouseManager(repo, logger.Logger)

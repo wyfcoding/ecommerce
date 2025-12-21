@@ -29,8 +29,8 @@ func NewHandler(service *application.UserTierService, logger *slog.Logger) *Hand
 }
 
 // GetTier 处理获取用户等级信息的HTTP请求。
-// Method: GET
-// Path: /user_tier/:user_id
+// HTTP 方法: GET
+// 请求路径: /user_tier/:user_id
 func (h *Handler) GetTier(c *gin.Context) {
 	// 从URL路径中解析用户ID。
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
@@ -52,8 +52,8 @@ func (h *Handler) GetTier(c *gin.Context) {
 }
 
 // GetPoints 处理获取用户积分余额的HTTP请求。
-// Method: GET
-// Path: /user_tier/:user_id/points
+// HTTP 方法: GET
+// 请求路径: /user_tier/:user_id/points
 func (h *Handler) GetPoints(c *gin.Context) {
 	// 从URL路径中解析用户ID。
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
@@ -75,8 +75,8 @@ func (h *Handler) GetPoints(c *gin.Context) {
 }
 
 // Exchange 处理兑换商品的HTTP请求。
-// Method: POST
-// Path: /user_tier/exchange
+// HTTP 方法: POST
+// 请求路径: /user_tier/exchange
 func (h *Handler) Exchange(c *gin.Context) {
 	// 定义请求体结构，用于接收兑换商品的详细信息。
 	var req struct {
@@ -102,8 +102,8 @@ func (h *Handler) Exchange(c *gin.Context) {
 }
 
 // ListExchanges 处理获取可兑换商品列表的HTTP请求。
-// Method: GET
-// Path: /user_tier/exchanges
+// HTTP 方法: GET
+// 请求路径: /user_tier/exchanges
 func (h *Handler) ListExchanges(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -127,8 +127,8 @@ func (h *Handler) ListExchanges(c *gin.Context) {
 }
 
 // ListPointsLogs 处理获取用户积分日志列表的HTTP请求。
-// Method: GET
-// Path: /user_tier/:user_id/points/logs
+// HTTP 方法: GET
+// 请求路径: /user_tier/:user_id/points/logs
 func (h *Handler) ListPointsLogs(c *gin.Context) {
 	// 从URL路径中解析用户ID。
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
@@ -159,8 +159,8 @@ func (h *Handler) ListPointsLogs(c *gin.Context) {
 }
 
 // CreateTierConfig 处理创建或更新等级配置的请求。
-// Method: POST
-// Path: /user_tier/configs
+// HTTP 方法: POST
+// 请求路径: /user_tier/configs
 func (h *Handler) CreateTierConfig(c *gin.Context) {
 	var req struct {
 		Level    int     `json:"level"`
@@ -184,8 +184,8 @@ func (h *Handler) CreateTierConfig(c *gin.Context) {
 }
 
 // ListTierConfigs 处理列出所有等级配置的请求。
-// Method: GET
-// Path: /user_tier/configs
+// HTTP 方法: GET
+// 请求路径: /user_tier/configs
 func (h *Handler) ListTierConfigs(c *gin.Context) {
 	configs, err := h.service.ListTierConfigs(c.Request.Context())
 	if err != nil {
@@ -197,8 +197,8 @@ func (h *Handler) ListTierConfigs(c *gin.Context) {
 }
 
 // CreateExchange 处理创建新兑换商品的请求。
-// Method: POST
-// Path: /user_tier/exchanges
+// HTTP 方法: POST
+// 请求路径: /user_tier/exchanges
 func (h *Handler) CreateExchange(c *gin.Context) {
 	var req struct {
 		Name        string `json:"name"`
@@ -221,8 +221,8 @@ func (h *Handler) CreateExchange(c *gin.Context) {
 }
 
 // ListExchangeRecords 处理列出用户兑换记录的请求。
-// Method: GET
-// Path: /user_tier/:user_id/exchanges/records
+// HTTP 方法: GET
+// 请求路径: /user_tier/:user_id/exchanges/records
 func (h *Handler) ListExchangeRecords(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {
@@ -248,8 +248,8 @@ func (h *Handler) ListExchangeRecords(c *gin.Context) {
 }
 
 // AddScore 处理给用户增加积分的请求。
-// Method: POST
-// Path: /user_tier/:user_id/score/add
+// HTTP 方法: POST
+// 请求路径: /user_tier/:user_id/score/add
 func (h *Handler) AddScore(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {
@@ -273,8 +273,8 @@ func (h *Handler) AddScore(c *gin.Context) {
 }
 
 // AddPoints 处理给用户增加积分的请求。
-// Method: POST
-// Path: /user_tier/:user_id/points/add
+// HTTP 方法: POST
+// 请求路径: /user_tier/:user_id/points/add
 func (h *Handler) AddPoints(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {
@@ -299,8 +299,8 @@ func (h *Handler) AddPoints(c *gin.Context) {
 }
 
 // DeductPoints 处理从用户扣除积分的请求。
-// Method: POST
-// Path: /user_tier/:user_id/points/deduct
+// HTTP 方法: POST
+// 请求路径: /user_tier/:user_id/points/deduct
 func (h *Handler) DeductPoints(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {

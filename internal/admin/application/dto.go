@@ -10,7 +10,7 @@ type LoginRequest struct {
 
 // LoginResponse 定义了响应数据结构。
 type LoginResponse struct {
-	Token    string   `json:"token"` // TODO: Implement JWT
+	Token    string   `json:"token"` // TODO: 实现 JWT
 	UserInfo UserInfo `json:"userInfo"`
 }
 
@@ -29,14 +29,14 @@ type CreateUserRequest struct {
 	Password string `json:"password" binding:"required,min=6"`
 	Email    string `json:"email" binding:"required,email"`
 	FullName string `json:"fullName"`
-	Roles    []uint `json:"roles"` // Role IDs
+	Roles    []uint `json:"roles"` // 角色 ID 列表
 }
 
 // ApprovalCreateRequest 定义了请求参数结构。
 type ApprovalCreateRequest struct {
 	ActionType  string `json:"actionType" binding:"required"`
 	Description string `json:"description"`
-	Payload     string `json:"payload" binding:"required"` // JSON string
+	Payload     string `json:"payload" binding:"required"` // JSON 字符串
 }
 
 // ApprovalActionRequest 定义了请求参数结构。

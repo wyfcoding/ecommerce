@@ -28,8 +28,8 @@ func NewHandler(service *application.SettlementService, logger *slog.Logger) *Ha
 }
 
 // CreateSettlement 处理创建结算单的HTTP请求。
-// Method: POST
-// Path: /settlement
+// HTTP 方法: POST
+// 请求路径: /settlement
 func (h *Handler) CreateSettlement(c *gin.Context) {
 	// 定义请求体结构，用于接收结算单的创建信息。
 	var req struct {
@@ -70,8 +70,8 @@ func (h *Handler) CreateSettlement(c *gin.Context) {
 }
 
 // AddOrder 处理添加订单到结算单的HTTP请求。
-// Method: POST
-// Path: /settlement/:id/orders
+// HTTP 方法: POST
+// 请求路径: /settlement/:id/orders
 func (h *Handler) AddOrder(c *gin.Context) {
 	// 从URL路径中解析结算单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -105,8 +105,8 @@ func (h *Handler) AddOrder(c *gin.Context) {
 }
 
 // Process 处理结算单的HTTP请求。
-// Method: POST
-// Path: /settlement/:id/process
+// HTTP 方法: POST
+// 请求路径: /settlement/:id/process
 func (h *Handler) Process(c *gin.Context) {
 	// 从URL路径中解析结算单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -127,8 +127,8 @@ func (h *Handler) Process(c *gin.Context) {
 }
 
 // Complete 处理完成结算单的HTTP请求。
-// Method: POST
-// Path: /settlement/:id/complete
+// HTTP 方法: POST
+// 请求路径: /settlement/:id/complete
 func (h *Handler) Complete(c *gin.Context) {
 	// 从URL路径中解析结算单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -149,8 +149,8 @@ func (h *Handler) Complete(c *gin.Context) {
 }
 
 // List 处理获取结算单列表的HTTP请求。
-// Method: GET
-// Path: /settlement
+// HTTP 方法: GET
+// 请求路径: /settlement
 func (h *Handler) List(c *gin.Context) {
 	// 从查询参数中获取商户ID、状态、页码和每页大小，并设置默认值。
 	merchantID, _ := strconv.ParseUint(c.Query("merchant_id"), 10, 64)
@@ -184,8 +184,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 // GetAccount 处理获取商户账户信息的HTTP请求。
-// Method: GET
-// Path: /settlement/accounts/:merchant_id
+// HTTP 方法: GET
+// 请求路径: /settlement/accounts/:merchant_id
 func (h *Handler) GetAccount(c *gin.Context) {
 	// 从URL路径中解析商户ID。
 	merchantID, err := strconv.ParseUint(c.Param("merchant_id"), 10, 64)

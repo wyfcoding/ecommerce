@@ -39,7 +39,7 @@ func (h *WorkflowHandler) Apply(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get Requester ID from Auth Middleware
+	// TODO: 获取 Requester ID from Auth Middleware
 	requesterID := uint(1) // Mock
 
 	domainReq := &domain.ApprovalRequest{
@@ -67,7 +67,7 @@ func (h *WorkflowHandler) Action(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get Approver ID from Auth Middleware
+	// TODO: 获取 Approver ID from Auth Middleware
 	approverID := uint(2) // Mock
 
 	var err error

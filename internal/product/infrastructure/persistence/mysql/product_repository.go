@@ -45,7 +45,7 @@ func (r *ProductRepository) Save(ctx context.Context, product *domain.Product) e
 // FindByID 根据ID从数据库获取商品记录，并预加载其关联的SKU列表。
 func (r *ProductRepository) FindByID(ctx context.Context, id uint) (*domain.Product, error) {
 	var product domain.Product
-	// Preload "SKUs" 确保在获取商品时，同时加载所有关联的SKU。
+	// 预加载 "SKUs" 确保在获取商品时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").First(&product, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
@@ -58,7 +58,7 @@ func (r *ProductRepository) FindByID(ctx context.Context, id uint) (*domain.Prod
 // FindByName 根据名称从数据库获取商品记录，并预加载其关联的SKU列表。
 func (r *ProductRepository) FindByName(ctx context.Context, name string) (*domain.Product, error) {
 	var product domain.Product
-	// Preload "SKUs" 确保在获取商品时，同时加载所有关联的SKU。
+	// 预加载 "SKUs" 确保在获取商品时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Where("name = ?", name).First(&product).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
@@ -100,7 +100,7 @@ func (r *ProductRepository) List(ctx context.Context, offset, limit int) ([]*dom
 		return nil, 0, err
 	}
 
-	// Preload "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
+	// 预加载 "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Offset(offset).Limit(limit).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
@@ -118,7 +118,7 @@ func (r *ProductRepository) ListByCategory(ctx context.Context, categoryID uint,
 		return nil, 0, err
 	}
 
-	// Preload "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
+	// 预加载 "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Where("category_id = ?", categoryID).Offset(offset).Limit(limit).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
@@ -136,7 +136,7 @@ func (r *ProductRepository) ListByBrand(ctx context.Context, brandID uint, offse
 		return nil, 0, err
 	}
 
-	// Preload "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
+	// 预加载 "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Where("brand_id = ?", brandID).Offset(offset).Limit(limit).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}

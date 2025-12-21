@@ -70,7 +70,7 @@ func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), erro
 	c := cfg.(*configpkg.Config)
 
 	// 初始化日志
-	logging.NewLogger(BootstrapName, "app") // Set default logger for the app
+	logging.NewLogger(BootstrapName, "app") // 为应用设置默认日志记录器
 
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 	db, err := databases.NewDB(c.Data.Database, logging.Default())

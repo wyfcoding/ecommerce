@@ -44,7 +44,7 @@ func (m *ChannelManager) SyncOrders(ctx context.Context, channelID uint64) error
 
 	startTime := time.Now()
 
-	// Simulate 1 new order
+	// 模拟1 new order
 	mockOrder := &domain.LocalOrder{
 		ChannelID:      uint64(channel.ID),
 		ChannelName:    channel.Name,

@@ -11,7 +11,7 @@ type DynamicPricingQuery struct {
 	repo domain.PricingRepository
 }
 
-// NewDynamicPricingQuery creates a new DynamicPricingQuery instance.
+// NewDynamicPricingQuery 创建并返回一个新的 DynamicPricingQuery 实例。
 func NewDynamicPricingQuery(repo domain.PricingRepository) *DynamicPricingQuery {
 	return &DynamicPricingQuery{
 		repo: repo,

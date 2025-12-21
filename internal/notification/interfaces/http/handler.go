@@ -29,8 +29,8 @@ func NewHandler(app *application.NotificationService, logger *slog.Logger) *Hand
 }
 
 // SendNotification 处理发送通知的HTTP请求。
-// Method: POST
-// Path: /notifications
+// HTTP 方法: POST
+// 请求路径: /notifications
 func (h *Handler) SendNotification(c *gin.Context) {
 	// 定义请求体结构，用于接收通知发送信息.
 	var req struct {
@@ -61,8 +61,8 @@ func (h *Handler) SendNotification(c *gin.Context) {
 }
 
 // SendNotificationByTemplate 处理使用模板发送通知的HTTP请求.
-// Method: POST
-// Path: /notifications/template
+// HTTP 方法: POST
+// 请求路径: /notifications/template
 func (h *Handler) SendNotificationByTemplate(c *gin.Context) {
 	// 定义请求体结构，用于接收模板发送信息.
 	var req struct {
@@ -91,8 +91,8 @@ func (h *Handler) SendNotificationByTemplate(c *gin.Context) {
 }
 
 // ListNotifications 处理获取用户通知列表的HTTP请求.
-// Method: GET
-// Path: /notifications
+// HTTP 方法: GET
+// 请求路径: /notifications
 func (h *Handler) ListNotifications(c *gin.Context) {
 	// 从查询参数中获取用户ID.
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
@@ -132,8 +132,8 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 }
 
 // MarkAsRead 处理标记通知为已读的HTTP请求.
-// Method: PUT
-// Path: /notifications/:id/read
+// HTTP 方法: PUT
+// 请求路径: /notifications/:id/read
 func (h *Handler) MarkAsRead(c *gin.Context) {
 	// 从URL路径中解析通知ID.
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -164,8 +164,8 @@ func (h *Handler) MarkAsRead(c *gin.Context) {
 }
 
 // GetUnreadCount 处理获取用户未读通知数量的HTTP请求.
-// Method: GET
-// Path: /notifications/unread-count
+// HTTP 方法: GET
+// 请求路径: /notifications/unread-count
 func (h *Handler) GetUnreadCount(c *gin.Context) {
 	// 从查询参数中获取用户ID.
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
@@ -187,8 +187,8 @@ func (h *Handler) GetUnreadCount(c *gin.Context) {
 }
 
 // CreateTemplate 处理创建通知模板的HTTP请求.
-// Method: POST
-// Path: /notifications/templates
+// HTTP 方法: POST
+// 请求路径: /notifications/templates
 func (h *Handler) CreateTemplate(c *gin.Context) {
 	// 定义请求体结构，使用 domain.NotificationTemplate 结构体直接绑定.
 	var req domain.NotificationTemplate

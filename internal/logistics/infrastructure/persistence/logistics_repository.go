@@ -55,7 +55,7 @@ func (r *logisticsRepository) Save(ctx context.Context, logistics *domain.Logist
 // 如果记录未找到，则返回 domain.ErrLogisticsNotFound 错误。
 func (r *logisticsRepository) GetByID(ctx context.Context, id uint64) (*domain.Logistics, error) {
 	var logistics domain.Logistics
-	// Preload "Traces" and "Route" 确保在获取物流单时，同时加载所有关联的轨迹记录和路线。
+	// 预加载 "Traces" and "Route" 确保在获取物流单时，同时加载所有关联的轨迹记录和路线。
 	if err := r.db.WithContext(ctx).Preload("Traces").Preload("Route").First(&logistics, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrLogisticsNotFound // 返回自定义的“未找到”错误。

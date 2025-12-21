@@ -82,7 +82,7 @@ func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amo
 	if err := s.paymentRepo.Update(ctx, payment); err != nil {
 		return nil, err
 	}
-	// TODO: Save refund separately if needed, depends on repo implementation.
+	// TODO: 保存 refund separately if needed, depends on repo implementation.
 	// 目前 paymentRepo.Save 处理聚合吗？为简单起见或严格 DDD，假设是的。
 
 	s.logger.InfoContext(ctx, "refund processed", "refund_no", refund.RefundNo, "success", success)

@@ -30,8 +30,8 @@ func NewHandler(app *application.LogisticsService, logger *slog.Logger) *Handler
 }
 
 // CreateLogistics 处理创建物流单的HTTP请求。
-// Method: POST
-// Path: /logistics
+// HTTP 方法: POST
+// 请求路径: /logistics
 func (h *Handler) CreateLogistics(c *gin.Context) {
 	// 定义请求体结构，用于接收物流单的创建信息。
 	var req struct {
@@ -73,8 +73,8 @@ func (h *Handler) CreateLogistics(c *gin.Context) {
 }
 
 // GetLogistics 处理获取物流单详情的HTTP请求。
-// Method: GET
-// Path: /logistics/:id
+// HTTP 方法: GET
+// 请求路径: /logistics/:id
 func (h *Handler) GetLogistics(c *gin.Context) {
 	// 从URL路径中解析物流单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -96,8 +96,8 @@ func (h *Handler) GetLogistics(c *gin.Context) {
 }
 
 // UpdateStatus 处理更新物流状态的HTTP请求。
-// Method: PUT
-// Path: /logistics/:id/status
+// HTTP 方法: PUT
+// 请求路径: /logistics/:id/status
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	// 从URL路径中解析物流单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -131,8 +131,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 // AddTrace 处理添加物流轨迹记录的HTTP请求。
-// Method: POST
-// Path: /logistics/:id/traces
+// HTTP 方法: POST
+// 请求路径: /logistics/:id/traces
 func (h *Handler) AddTrace(c *gin.Context) {
 	// 从URL路径中解析物流单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -166,8 +166,8 @@ func (h *Handler) AddTrace(c *gin.Context) {
 }
 
 // SetEstimatedTime 处理设置预计送达时间的HTTP请求。
-// Method: PUT
-// Path: /logistics/:id/estimated_time
+// HTTP 方法: PUT
+// 请求路径: /logistics/:id/estimated_time
 func (h *Handler) SetEstimatedTime(c *gin.Context) {
 	// 从URL路径中解析物流单ID。
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -199,8 +199,8 @@ func (h *Handler) SetEstimatedTime(c *gin.Context) {
 }
 
 // ListLogistics 处理获取物流单列表的HTTP请求。
-// Method: GET
-// Path: /logistics
+// HTTP 方法: GET
+// 请求路径: /logistics
 func (h *Handler) ListLogistics(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

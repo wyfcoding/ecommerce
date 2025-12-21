@@ -24,7 +24,7 @@ func NewOptimizationManager(repo domain.OrderOptimizationRepository, logger *slo
 
 // MergeOrders 合并订单。
 func (m *OptimizationManager) MergeOrders(ctx context.Context, userID uint64, orderIDs []uint64) (*domain.MergedOrder, error) {
-	// Mock merge
+	// 模拟逻辑
 	mergedOrder := &domain.MergedOrder{
 		UserID:           userID,
 		OriginalOrderIDs: orderIDs,
@@ -51,7 +51,7 @@ func (m *OptimizationManager) MergeOrders(ctx context.Context, userID uint64, or
 
 // SplitOrder 拆分订单。
 func (m *OptimizationManager) SplitOrder(ctx context.Context, orderID uint64) ([]*domain.SplitOrder, error) {
-	// Mock splitting logic
+	// 模拟逻辑 logic
 	split1 := &domain.SplitOrder{
 		OriginalOrderID: orderID,
 		SplitIndex:      1,
@@ -88,7 +88,7 @@ func (m *OptimizationManager) SplitOrder(ctx context.Context, orderID uint64) ([
 
 // AllocateWarehouse 分配仓库。
 func (m *OptimizationManager) AllocateWarehouse(ctx context.Context, orderID uint64) (*domain.WarehouseAllocationPlan, error) {
-	// Mock logic
+	// 模拟逻辑
 	plan := &domain.WarehouseAllocationPlan{
 		OrderID: orderID,
 		Allocations: []*domain.WarehouseAllocation{

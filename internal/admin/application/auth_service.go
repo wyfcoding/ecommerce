@@ -74,7 +74,7 @@ func (s *AdminAuthService) CheckPermission(ctx context.Context, userID uint, req
 
 // CreateUser 创建新管理员
 func (s *AdminAuthService) CreateUser(ctx context.Context, user *domain.AdminUser, password string) error {
-	// Hash password
+	// 对密码进行哈希
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

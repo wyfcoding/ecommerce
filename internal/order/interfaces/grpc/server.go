@@ -111,7 +111,7 @@ func (s *Server) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrderStatu
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update order status: %v", err))
 	}
 
-	// 状态updated successfully后，重新获取订单详情并返回。
+	// 状态更新成功后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.Id})
 }
 
@@ -244,7 +244,7 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update order shipping status: %v", err))
 	}
 
-	// 配送状态updated successfully后，重新获取订单详情并返回。
+	// 配送状态更新成功后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.OrderId})
 }
 
