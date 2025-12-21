@@ -41,7 +41,7 @@ func (s *NotificationService) MarkAsRead(ctx context.Context, id uint64, userID 
 	return s.manager.MarkAsRead(ctx, id, userID)
 }
 
-// ListNotifications 获取用户通知列表。
+// ListNotifications 获取指定用户的通知列表。
 func (s *NotificationService) ListNotifications(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*domain.Notification, int64, error) {
 	return s.query.ListNotifications(ctx, userID, status, page, pageSize)
 }
@@ -51,7 +51,7 @@ func (s *NotificationService) GetUnreadCount(ctx context.Context, userID uint64)
 	return s.query.GetUnreadCount(ctx, userID)
 }
 
-// CreateTemplate 创建一个通知模板。
+// CreateTemplate 创建一个新的通知模板。
 func (s *NotificationService) CreateTemplate(ctx context.Context, template *domain.NotificationTemplate) error {
 	return s.manager.CreateTemplate(ctx, template)
 }

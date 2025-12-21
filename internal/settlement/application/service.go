@@ -33,7 +33,7 @@ func NewSettlementService(
 	}
 }
 
-// RecordPaymentSuccess 记录支付成功事件 (核心清分与记账逻辑)
+// RecordPaymentSuccess 记录支付成功事件 (核心清分与记账逻辑)。
 func (s *SettlementService) RecordPaymentSuccess(ctx context.Context, orderID uint64, orderNo string, merchantID uint64, amount int64, channelCost int64) error {
 	s.logger.InfoContext(ctx, "processing payment success for settlement", "order_no", orderNo, "amount", amount)
 
@@ -53,7 +53,7 @@ func (s *SettlementService) RecordPaymentSuccess(ctx context.Context, orderID ui
 	// 2. 清分计算 (Clearing)
 	// 平台收入 = 订单金额 * 商户费率
 	platformFee := int64(float64(amount) * feeRate)
-	// 商户应收 = 订单金额 - 平台收入
+	// 商户应收 = 订单金额 - platform收入
 	merchantReceivable := amount - platformFee
 
 	// 3. 构造会计分录 (Accounting) - 复式记账
@@ -97,7 +97,7 @@ func (s *SettlementService) RecordPaymentSuccess(ctx context.Context, orderID ui
 	return nil
 }
 
-// getAccountID 辅助方法
+// getAccountID 辅助方法，用于获取或创建账务账户。
 func (s *SettlementService) getAccountID(subjectCode, entityID string) uint64 {
 	acc, err := s.ledgerService.CreateAccount(context.Background(), subjectCode, entityID)
 	if err != nil {
@@ -107,7 +107,7 @@ func (s *SettlementService) getAccountID(subjectCode, entityID string) uint64 {
 	return uint64(acc.ID)
 }
 
-// CreateSettlement 创建结算单
+// CreateSettlement 创建结算单。
 func (s *SettlementService) CreateSettlement(ctx context.Context, merchantID uint64, cycle string, startDate, endDate time.Time) (*entity.Settlement, error) {
 	settlementNo := fmt.Sprintf("S%d%d", merchantID, time.Now().UnixNano())
 	settlement := &entity.Settlement{
@@ -124,7 +124,7 @@ func (s *SettlementService) CreateSettlement(ctx context.Context, merchantID uin
 	return settlement, nil
 }
 
-// AddOrderToSettlement 添加订单到结算单
+// AddOrderToSettlement 添加订单到结算单。
 func (s *SettlementService) AddOrderToSettlement(ctx context.Context, settlementID uint64, orderID uint64, orderNo string, amount uint64) error {
 	settlement, err := s.repo.GetSettlement(ctx, settlementID)
 	if err != nil {
@@ -171,7 +171,7 @@ func (s *SettlementService) AddOrderToSettlement(ctx context.Context, settlement
 	return s.repo.SaveSettlement(ctx, settlement)
 }
 
-// ProcessSettlement 处理结算单
+// ProcessSettlement 处理结算单（开始处理）。
 func (s *SettlementService) ProcessSettlement(ctx context.Context, id uint64) error {
 	settlement, err := s.repo.GetSettlement(ctx, id)
 	if err != nil {
@@ -189,7 +189,7 @@ func (s *SettlementService) ProcessSettlement(ctx context.Context, id uint64) er
 	return s.repo.SaveSettlement(ctx, settlement)
 }
 
-// CompleteSettlement 完成结算单
+// CompleteSettlement 完成结算单。
 func (s *SettlementService) CompleteSettlement(ctx context.Context, id uint64) error {
 	settlement, err := s.repo.GetSettlement(ctx, id)
 	if err != nil {
@@ -226,12 +226,12 @@ func (s *SettlementService) CompleteSettlement(ctx context.Context, id uint64) e
 	return s.repo.SaveSettlement(ctx, settlement)
 }
 
-// GetMerchantAccount 获取商户账户
+// GetMerchantAccount 获取商户账户信息。
 func (s *SettlementService) GetMerchantAccount(ctx context.Context, merchantID uint64) (*entity.MerchantAccount, error) {
 	return s.repo.GetMerchantAccount(ctx, merchantID)
 }
 
-// ListSettlements 获取结算列表
+// ListSettlements 获取结算单列表。
 func (s *SettlementService) ListSettlements(ctx context.Context, merchantID uint64, status *int, page, pageSize int) ([]*entity.Settlement, int64, error) {
 	offset := (page - 1) * pageSize
 	var st *entity.SettlementStatus

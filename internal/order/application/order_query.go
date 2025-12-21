@@ -11,7 +11,7 @@ type OrderQuery struct {
 	repo domain.OrderRepository
 }
 
-// NewOrderQuery 负责处理 NewOrder 相关的读操作和查询逻辑。
+// NewOrderQuery 创建 Order 查询服务实例。
 func NewOrderQuery(repo domain.OrderRepository) *OrderQuery {
 	return &OrderQuery{
 		repo: repo,

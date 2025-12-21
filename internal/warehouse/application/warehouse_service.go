@@ -16,7 +16,7 @@ type WarehouseService struct {
 	query   *WarehouseQuery
 }
 
-// NewWarehouseService 创建并返回一个新的 WarehouseService 实例。
+// NewWarehouseService 创建仓库服务门面实例。
 func NewWarehouseService(manager *WarehouseManager, query *WarehouseQuery) *WarehouseService {
 	return &WarehouseService{
 		manager: manager,
@@ -24,7 +24,7 @@ func NewWarehouseService(manager *WarehouseManager, query *WarehouseQuery) *Ware
 	}
 }
 
-// CreateWarehouse 创建一个新仓库。
+// CreateWarehouse 创建一个新仓库记录。
 func (s *WarehouseService) CreateWarehouse(ctx context.Context, code, name string) (*domain.Warehouse, error) {
 	warehouse := &domain.Warehouse{
 		Code:   code,
@@ -42,7 +42,7 @@ func (s *WarehouseService) GetWarehouse(ctx context.Context, id uint64) (*domain
 	return s.query.GetWarehouseByID(ctx, id)
 }
 
-// UpdateStock 更新指定仓库和SKU的库存数量。
+// UpdateStock 更新指定仓库和SKU的库存实物数量（全量或增量调整）。
 func (s *WarehouseService) UpdateStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
 	stock, err := s.query.GetStock(ctx, warehouseID, skuID)
 	if err != nil {
@@ -67,7 +67,7 @@ func (s *WarehouseService) UpdateStock(ctx context.Context, warehouseID, skuID u
 	return s.manager.AdjustStock(ctx, stock)
 }
 
-// CreateTransfer 创建一个库存调拨单。
+// CreateTransfer 创建一个库存调拨申请单。
 func (s *WarehouseService) CreateTransfer(ctx context.Context, fromID, toID, skuID uint64, quantity int32, createdBy uint64) (*domain.StockTransfer, error) {
 	stock, err := s.query.GetStock(ctx, fromID, skuID)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *WarehouseService) CreateTransfer(ctx context.Context, fromID, toID, sku
 	return transfer, nil
 }
 
-// CompleteTransfer 完成一个库存调拨单。
+// CompleteTransfer 确认并完成一个库存调拨流程。
 func (s *WarehouseService) CompleteTransfer(ctx context.Context, transferID uint64) error {
 	transfer, err := s.query.GetTransferByID(ctx, transferID)
 	if err != nil {
@@ -151,29 +151,29 @@ func (s *WarehouseService) CompleteTransfer(ctx context.Context, transferID uint
 	return s.manager.UpdateTransferStatus(ctx, transfer)
 }
 
-// GetTransfer 根据ID获取调拨单详情。
+// GetTransfer 获取指定调拨单的详细信息。
 func (s *WarehouseService) GetTransfer(ctx context.Context, id uint64) (*domain.StockTransfer, error) {
 	return s.query.GetTransferByID(ctx, id)
 }
 
-// ListTransfers 获取调拨单列表。
+// ListTransfers 获取调拨单列表（分页）。
 func (s *WarehouseService) ListTransfers(ctx context.Context, fromID, toID uint64, status *domain.StockTransferStatus, page, pageSize int) ([]*domain.StockTransfer, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.query.ListTransfers(ctx, fromID, toID, status, offset, pageSize)
 }
 
-// ListWarehouses 获取仓库列表。
+// ListWarehouses 分页列出所有仓库。
 func (s *WarehouseService) ListWarehouses(ctx context.Context, page, pageSize int) ([]*domain.Warehouse, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.query.SearchWarehouses(ctx, nil, offset, pageSize)
 }
 
-// GetStock 获取指定仓库和SKU的库存信息。
+// GetStock 获取指定SKU在指定仓库中的实时库存快照。
 func (s *WarehouseService) GetStock(ctx context.Context, warehouseID, skuID uint64) (*domain.WarehouseStock, error) {
 	return s.query.GetStock(ctx, warehouseID, skuID)
 }
 
-// DeductStock 扣减库存 (用于Saga分布式事务)。
+// DeductStock 核心交易接口：扣减库存 (支持 Saga 分布式事务的正向操作)。
 func (s *WarehouseService) DeductStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
 	stock, err := s.query.GetStock(ctx, warehouseID, skuID)
 	if err != nil {
@@ -190,7 +190,7 @@ func (s *WarehouseService) DeductStock(ctx context.Context, warehouseID, skuID u
 	return s.manager.AdjustStock(ctx, stock)
 }
 
-// RevertStock 回滚库存 (用于Saga分布式事务)。
+// RevertStock 核心交易接口：回滚库存 (支持 Saga 分布式事务的逆向补偿操作)。
 func (s *WarehouseService) RevertStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
 	stock, err := s.query.GetStock(ctx, warehouseID, skuID)
 	if err != nil {

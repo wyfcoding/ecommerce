@@ -96,7 +96,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		// 如果 Saga 提交失败，本地订单需要标记为取消。
 		_ = order.Cancel("System", "Saga Submit Failed")
 		_ = s.repo.Save(ctx, order)
-		return nil, fmt.Errorf("提交分布式事务失败: %w", err)
+		return nil, fmt.Errorf("failed to submit distributed transaction: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "order created successfully", "order_id", order.ID, "order_no", order.OrderNo)

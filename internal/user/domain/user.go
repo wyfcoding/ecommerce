@@ -41,13 +41,13 @@ type Address struct {
 // NewUser 是一个工厂方法，用于创建并返回一个新的 User 实体实例。
 func NewUser(username, email, password, phone string) (*User, error) {
 	if username == "" {
-		return nil, fmt.Errorf("用户名不能为空")
+		return nil, fmt.Errorf("username cannot be empty")
 	}
 	if email == "" {
-		return nil, fmt.Errorf("邮箱不能为空")
+		return nil, fmt.Errorf("email cannot be empty")
 	}
 	if password == "" {
-		return nil, fmt.Errorf("密码不能为空")
+		return nil, fmt.Errorf("password cannot be empty")
 	}
 
 	return &User{
@@ -87,7 +87,7 @@ func (u *User) UpdateProfile(nickname, avatar string, gender int8, birthday *tim
 // newPassword: 新密码（应为哈希后的密码）。
 func (u *User) ChangePassword(newPassword string) error {
 	if newPassword == "" {
-		return fmt.Errorf("新密码不能为空")
+		return fmt.Errorf("new password cannot be empty")
 	}
 	u.Password = newPassword // 更新密码。
 	return nil
@@ -138,7 +138,7 @@ func (u *User) UpdateAddress(addressID uint, address *Address) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("地址未找到")
+		return fmt.Errorf("address not found")
 	}
 	return nil
 }
@@ -152,7 +152,7 @@ func (u *User) RemoveAddress(addressID uint) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("地址未找到")
+	return fmt.Errorf("address not found")
 }
 
 // SetDefaultAddress 设置用户默认地址。
@@ -174,7 +174,7 @@ func (u *User) setDefaultAddress(addressID uint) error {
 
 	// 如果要设置的地址ID不存在于用户地址列表中，且不是设置为空默认，则报错。
 	if !found && addressID != 0 {
-		return fmt.Errorf("地址未找到")
+		return fmt.Errorf("address not found")
 	}
 
 	// 2. 设置新的默认地址。

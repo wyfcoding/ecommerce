@@ -21,46 +21,47 @@ func NewReviewService(manager *ReviewManager, query *ReviewQuery) *ReviewService
 	}
 }
 
-// CreateReview 提交一条新的评论。
+// CreateReview 提交一条针对商品或SKU的新评论。
 func (s *ReviewService) CreateReview(ctx context.Context, userID, productID, orderID, skuID uint64, rating int, content string, images []string) (*domain.Review, error) {
 	return s.manager.CreateReview(ctx, userID, productID, orderID, skuID, rating, content, images)
 }
 
-// AuditReview 审核评论。
+// AuditReview 审核评论（批准或驳回）。
 func (s *ReviewService) AuditReview(ctx context.Context, reviewID uint64, approved bool) error {
 	return s.manager.AuditReview(ctx, reviewID, approved)
 }
 
-// DeleteReview 删除评论。
+// DeleteReview 删除指定的评论（逻辑删除或物理删除）。
 func (s *ReviewService) DeleteReview(ctx context.Context, reviewID uint64, userID uint64) error {
 	return s.manager.DeleteReview(ctx, reviewID, userID)
 }
 
-// GetReview 获取评论详情。
+// GetReview 获取单条评论的详细信息。
 func (s *ReviewService) GetReview(ctx context.Context, id uint64) (*domain.Review, error) {
 	return s.query.GetReview(ctx, id)
 }
 
-// ListReviews 获取指定商品的评论列表。
+// ListReviews 分页获取指定商品的评论列表（可按审核状态筛选）。
 func (s *ReviewService) ListReviews(ctx context.Context, productID uint64, status *int, page, pageSize int) ([]*domain.Review, int64, error) {
 	return s.query.ListReviews(ctx, productID, status, page, pageSize)
 }
 
-// ListUserReviews 获取指定用户的评论列表。
+// ListUserReviews 分页获取指定用户发表的所有评论。
 func (s *ReviewService) ListUserReviews(ctx context.Context, userID uint64, page, pageSize int) ([]*domain.Review, int64, error) {
 	return s.query.ListUserReviews(ctx, userID, page, pageSize)
 }
 
-// GetProductStats 获取商品的评分统计。
+// GetProductStats 获取指定商品的历史平均评分及评价维度统计。
 func (s *ReviewService) GetProductStats(ctx context.Context, productID uint64) (*domain.ProductRatingStats, error) {
 	return s.query.GetProductStats(ctx, productID)
 }
 
-// 如果需要兼容旧方法，则保留，但门面应优先使用更清晰的名称。
+// ApproveReview 批准通过评论。
 func (s *ReviewService) ApproveReview(ctx context.Context, id uint64) error {
 	return s.manager.AuditReview(ctx, id, true)
 }
 
+// RejectReview 驳回违规评论。
 func (s *ReviewService) RejectReview(ctx context.Context, id uint64) error {
 	return s.manager.AuditReview(ctx, id, false)
 }

@@ -19,7 +19,7 @@ type PaymentProcessor struct {
 	logger      *slog.Logger
 }
 
-// NewPaymentProcessor 函数。
+// NewPaymentProcessor 创建支付处理服务实例。
 func NewPaymentProcessor(
 	paymentRepo domain.PaymentRepository,
 	channelRepo domain.ChannelRepository,
@@ -38,7 +38,7 @@ func NewPaymentProcessor(
 	}
 }
 
-// InitiatePayment 发起支付交易
+// InitiatePayment 发起支付交易。
 func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, userID uint64, amount int64, paymentMethodStr string) (*domain.Payment, *domain.PaymentGatewayResponse, error) {
 	// 1. 风控前置检查
 	if err := s.checkRisk(ctx, orderID, userID, amount, paymentMethodStr); err != nil {
@@ -106,6 +106,7 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 	return payment, gatewayResp, nil
 }
 
+// checkRisk 内部风控检查。
 func (s *PaymentProcessor) checkRisk(ctx context.Context, orderID, userID uint64, amount int64, method string) error {
 	riskRes, err := s.riskService.CheckPrePayment(ctx, &domain.RiskContext{
 		UserID:        userID,
@@ -124,6 +125,7 @@ func (s *PaymentProcessor) checkRisk(ctx context.Context, orderID, userID uint64
 	return nil
 }
 
+// routeChannel 路由到支付渠道。
 func (s *PaymentProcessor) routeChannel(ctx context.Context, method string) (domain.GatewayType, *domain.ChannelConfig) {
 	cfg, err := s.channelRepo.FindByCode(ctx, method)
 	if err == nil && cfg != nil {
@@ -132,6 +134,7 @@ func (s *PaymentProcessor) routeChannel(ctx context.Context, method string) (dom
 	return s.resolveGatewayType(method), nil
 }
 
+// resolveGatewayType 解析网关类型。
 func (s *PaymentProcessor) resolveGatewayType(method string) domain.GatewayType {
 	switch method {
 	case "alipay":
@@ -145,6 +148,7 @@ func (s *PaymentProcessor) resolveGatewayType(method string) domain.GatewayType 
 	}
 }
 
+// buildGatewayRequest 构建网关请求。
 func (s *PaymentProcessor) buildGatewayRequest(p *domain.Payment, cfg *domain.ChannelConfig) *domain.PaymentGatewayRequest {
 	req := &domain.PaymentGatewayRequest{
 		OrderID:     p.PaymentNo,

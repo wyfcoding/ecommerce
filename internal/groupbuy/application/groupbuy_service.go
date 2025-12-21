@@ -13,7 +13,7 @@ type GroupbuyService struct {
 	query   *GroupbuyQuery
 }
 
-// NewGroupbuyService 创建并返回一个新的 GroupbuyService 门面实例。
+// NewGroupbuyService 创建拼团服务门面实例。
 func NewGroupbuyService(manager *GroupbuyManager, query *GroupbuyQuery) *GroupbuyService {
 	return &GroupbuyService{
 		manager: manager,
@@ -27,22 +27,22 @@ func (s *GroupbuyService) CreateGroupbuy(ctx context.Context, name string, produ
 	return s.manager.CreateGroupbuy(ctx, name, productID, skuID, originalPrice, groupPrice, minPeople, maxPeople, totalStock, startTime, endTime)
 }
 
-// ListGroupbuys 获取拼团活动列表。
+// ListGroupbuys 获取拼团活动列表（分页）。
 func (s *GroupbuyService) ListGroupbuys(ctx context.Context, page, pageSize int) ([]*domain.Groupbuy, int64, error) {
 	return s.query.ListGroupbuys(ctx, page, pageSize)
 }
 
-// InitiateTeam 发起一个新的拼团。
+// InitiateTeam 发起一个新的拼团队伍。
 func (s *GroupbuyService) InitiateTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyTeam, *domain.GroupbuyOrder, error) {
 	return s.manager.InitiateTeam(ctx, groupbuyID, userID)
 }
 
-// JoinTeam 加入一个已存在的拼团。
+// JoinTeam 加入一个已存在的拼团队伍。
 func (s *GroupbuyService) JoinTeam(ctx context.Context, teamNo string, userID uint64) (*domain.GroupbuyOrder, error) {
 	return s.manager.JoinTeam(ctx, teamNo, userID)
 }
 
-// GetTeamDetails 获取指定ID的拼团团队详情。
+// GetTeamDetails 获取指定ID的拼团队伍详细信息及其订单。
 func (s *GroupbuyService) GetTeamDetails(ctx context.Context, teamID uint64) (*domain.GroupbuyTeam, []*domain.GroupbuyOrder, error) {
 	return s.query.GetTeamDetails(ctx, teamID)
 }

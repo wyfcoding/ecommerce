@@ -76,47 +76,47 @@ func (s *AIModelService) Predict(ctx context.Context, modelID uint64, input stri
 	return s.manager.Predict(ctx, modelID, input, userID)
 }
 
-// GetProductRecommendations 返回产品推荐。
+// GetProductRecommendations 获取针对用户的商品推荐。
 func (s *AIModelService) GetProductRecommendations(ctx context.Context, userID uint64, contextPage string) ([]ProductRecommendationDTO, error) {
 	return s.query.GetProductRecommendations(ctx, userID, contextPage)
 }
 
-// GetRelatedProducts 返回相关产品。
+// GetRelatedProducts 获取与指定商品相关的推荐商品。
 func (s *AIModelService) GetRelatedProducts(ctx context.Context, productID uint64) ([]ProductRecommendationDTO, error) {
 	return s.query.GetRelatedProducts(ctx, productID)
 }
 
-// GetPersonalizedFeed 返回个性化 Feed 流。
+// GetPersonalizedFeed 获取用户的个性化内容 Feed 流。
 func (s *AIModelService) GetPersonalizedFeed(ctx context.Context, userID uint64) ([]FeedItemDTO, error) {
 	return s.query.GetPersonalizedFeed(ctx, userID)
 }
 
-// RecognizeImageContent 返回图像标签。
+// RecognizeImageContent 识别图像内容并返回标签。
 func (s *AIModelService) RecognizeImageContent(ctx context.Context, imageURL string) ([]string, error) {
 	return s.query.RecognizeImageContent(ctx, imageURL)
 }
 
-// SearchImageByImage 返回以图搜图结果。
+// SearchImageByImage 执行以图搜图操作。
 func (s *AIModelService) SearchImageByImage(ctx context.Context, imageURL string) ([]ProductSearchResultDTO, error) {
 	return s.query.SearchImageByImage(ctx, imageURL)
 }
 
-// AnalyzeReviewSentiment 返回情感分析结果。
+// AnalyzeReviewSentiment 分析评价文本的情感倾向。
 func (s *AIModelService) AnalyzeReviewSentiment(ctx context.Context, text string) (float64, string, error) {
 	return s.query.AnalyzeReviewSentiment(ctx, text)
 }
 
-// ExtractKeywordsFromText 从文本中提取关键词。
+// ExtractKeywordsFromText 从指定文本中提取关键词。
 func (s *AIModelService) ExtractKeywordsFromText(ctx context.Context, text string) ([]string, error) {
 	return s.query.ExtractKeywordsFromText(ctx, text)
 }
 
-// SummarizeText 返回文本摘要。
+// SummarizeText 对长文本进行摘要提取。
 func (s *AIModelService) SummarizeText(ctx context.Context, text string) (string, error) {
 	return s.query.SummarizeText(ctx, text)
 }
 
-// GetFraudScore 返回欺诈评分。
+// GetFraudScore 获取用户交易的欺诈风险评分。
 func (s *AIModelService) GetFraudScore(ctx context.Context, userID uint64, amount float64, ip string) (FraudScoreDTO, error) {
 	return s.query.GetFraudScore(ctx, userID, amount, ip)
 }

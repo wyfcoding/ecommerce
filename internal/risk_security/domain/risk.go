@@ -24,28 +24,28 @@ const (
 type RiskType string
 
 const (
-	RiskTypeBlacklist            RiskType = "blacklist"
-	RiskTypeAnomalousTransaction RiskType = "anomalous_transaction"
-	RiskTypeDeviceRisk           RiskType = "device_risk"
-	RiskTypeIPRisk               RiskType = "ip_risk"
-	RiskTypeBehaviorAnomaly      RiskType = "behavior_anomaly"
+	RiskTypeBlacklist            RiskType = "blacklist"             // 黑名单风险。
+	RiskTypeAnomalousTransaction RiskType = "anomalous_transaction" // 异常交易风险。
+	RiskTypeDeviceRisk           RiskType = "device_risk"           // 设备风险。
+	RiskTypeIPRisk               RiskType = "ip_risk"               // IP风险。
+	RiskTypeBehaviorAnomaly      RiskType = "behavior_anomaly"      // 行为异常风险。
 )
 
 // BlacklistType 定义了黑名单的类型。
 type BlacklistType string
 
 const (
-	BlacklistTypeUser   BlacklistType = "user"
-	BlacklistTypeIP     BlacklistType = "ip"
-	BlacklistTypeDevice BlacklistType = "device"
-	BlacklistTypeEmail  BlacklistType = "email"
-	BlacklistTypePhone  BlacklistType = "phone"
+	BlacklistTypeUser   BlacklistType = "user"   // 用户ID黑名单。
+	BlacklistTypeIP     BlacklistType = "ip"     // IP地址黑名单。
+	BlacklistTypeDevice BlacklistType = "device" // 设备ID黑名单。
+	BlacklistTypeEmail  BlacklistType = "email"  // 邮箱黑名单。
+	BlacklistTypePhone  BlacklistType = "phone"  // 手机号黑名单。
 )
 
 // StringMap 定义了一个map[string]string类型，实现了 sql.Scanner 和 driver.Valuer 接口。
 type StringMap map[string]string
 
-// Value 实现 driver.Valuer 接口。
+// Value 实现 driver.Valuer 接口，用于数据库存储。
 func (m StringMap) Value() (driver.Value, error) {
 	if m == nil {
 		return nil, nil
@@ -53,7 +53,7 @@ func (m StringMap) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
-// Scan 实现 sql.Scanner 接口。
+// Scan 实现 sql.Scanner 接口，用于从数据库读取。
 func (m *StringMap) Scan(value interface{}) error {
 	if value == nil {
 		*m = nil
@@ -66,7 +66,7 @@ func (m *StringMap) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, m)
 }
 
-// RiskAnalysisResult 实体代表一次风险分析的结果。
+// RiskAnalysisResult 实体代表一次风险分析的综合结果。
 type RiskAnalysisResult struct {
 	gorm.Model
 	UserID    uint64    `gorm:"index;not null;comment:用户ID" json:"user_id"`
@@ -77,11 +77,11 @@ type RiskAnalysisResult struct {
 
 // RiskItem 值对象定义了具体的风险项。
 type RiskItem struct {
-	Type      RiskType  `json:"type"`
-	Level     RiskLevel `json:"level"`
-	Score     int32     `json:"score"`
-	Reason    string    `json:"reason"`
-	Timestamp time.Time `json:"timestamp"`
+	Type      RiskType  `json:"type"`      // 风险类型。
+	Level     RiskLevel `json:"level"`     // 风险等级。
+	Score     int32     `json:"score"`     // 风险评分。
+	Reason    string    `json:"reason"`    // 风险触发原因。
+	Timestamp time.Time `json:"timestamp"` // 风险识别时间。
 }
 
 // Blacklist 实体代表一个黑名单条目。
@@ -98,7 +98,7 @@ func (b *Blacklist) IsActive() bool {
 	return time.Now().Before(b.ExpiresAt)
 }
 
-// DeviceFingerprint 实体代表设备的指纹信息。
+// DeviceFingerprint 实体代表设备的指纹信息及关联用户。
 type DeviceFingerprint struct {
 	gorm.Model
 	UserID     uint64    `gorm:"index;not null;comment:用户ID" json:"user_id"`
@@ -106,7 +106,7 @@ type DeviceFingerprint struct {
 	DeviceInfo StringMap `gorm:"type:json;comment:设备信息" json:"device_info"`
 }
 
-// UserBehavior 实体记录了用户的行为数据。
+// UserBehavior 实体记录了用户的关键行为数据快照。
 type UserBehavior struct {
 	gorm.Model
 	UserID            uint64    `gorm:"uniqueIndex;not null;comment:用户ID" json:"user_id"`
@@ -116,7 +116,7 @@ type UserBehavior struct {
 	PurchasedCategory StringMap `gorm:"type:json;comment:已购类目" json:"purchased_category"`
 }
 
-// RiskRule 实体定义了一条风险评估规则。
+// RiskRule 实体定义了一条风险评估规则配置。
 type RiskRule struct {
 	gorm.Model
 	Name      string   `gorm:"type:varchar(128);uniqueIndex;not null;comment:规则名称" json:"name"`

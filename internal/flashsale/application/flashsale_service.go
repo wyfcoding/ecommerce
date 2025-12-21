@@ -14,7 +14,7 @@ type FlashsaleService struct {
 	query   *FlashsaleQuery
 }
 
-// NewFlashsaleService 创建并返回一个新的 FlashsaleService 实例。
+// NewFlashsaleService 创建秒杀服务门面实例。
 func NewFlashsaleService(manager *FlashsaleManager, query *FlashsaleQuery) *FlashsaleService {
 	return &FlashsaleService{
 		manager: manager,
@@ -32,37 +32,37 @@ func (s *FlashsaleService) GetFlashsale(ctx context.Context, id uint64) (*domain
 	return s.query.GetFlashsale(ctx, id)
 }
 
-// ListFlashsales 获取秒杀活动列表。
+// ListFlashsales 列出秒杀活动（按状态筛选）。
 func (s *FlashsaleService) ListFlashsales(ctx context.Context, status *domain.FlashsaleStatus, page, pageSize int) ([]*domain.Flashsale, int64, error) {
 	return s.query.ListFlashsales(ctx, status, page, pageSize)
 }
 
-// PlaceOrder 下达一个秒杀订单。
+// PlaceOrder 秒杀下单（包含库存预扣逻辑）。
 func (s *FlashsaleService) PlaceOrder(ctx context.Context, userID, flashsaleID uint64, quantity int32) (*domain.FlashsaleOrder, error) {
 	return s.manager.PlaceOrder(ctx, userID, flashsaleID, quantity)
 }
 
-// CancelOrder 取消一个秒杀订单。
+// CancelOrder 取消秒杀订单。
 func (s *FlashsaleService) CancelOrder(ctx context.Context, orderID uint64) error {
 	return s.manager.CancelOrder(ctx, orderID)
 }
 
-// GetOrder 获取订单。
+// GetOrder 获取秒杀订单详情。
 func (s *FlashsaleService) GetOrder(ctx context.Context, id uint64) (*domain.FlashsaleOrder, error) {
 	return s.query.GetOrder(ctx, id)
 }
 
-// SaveOrder 保存订单（内部或异步处理使用）。
+// SaveOrder 保存秒杀订单状态。
 func (s *FlashsaleService) SaveOrder(ctx context.Context, order *domain.FlashsaleOrder) error {
 	return s.manager.SaveOrder(ctx, order)
 }
 
-// UpdateStock 更新物理库存（内部或异步处理使用）。
+// UpdateStock 更新秒杀活动的库存数据。
 func (s *FlashsaleService) UpdateStock(ctx context.Context, id uint64, quantity int32) error {
 	return s.manager.UpdateStock(ctx, id, quantity)
 }
 
-// CountUserBought 统计用户已购买数量。
+// CountUserBought 获取指定用户在某次秒杀活动中已购买的商品数量。
 func (s *FlashsaleService) CountUserBought(ctx context.Context, userID, flashsaleID uint64) (int32, error) {
 	return s.query.CountUserBought(ctx, userID, flashsaleID)
 }

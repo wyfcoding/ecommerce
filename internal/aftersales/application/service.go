@@ -221,7 +221,7 @@ func (s *AfterSalesService) ProcessExchange(ctx context.Context, id uint64) erro
 
 // --- Support Ticket Service Methods ---
 
-// CreateSupportTicket 创建工单。
+// CreateSupportTicket 创建客服工单。
 func (s *AfterSalesService) CreateSupportTicket(ctx context.Context, userID, orderID uint64, subject, description, category string, priority int8) (*entity.SupportTicket, error) {
 	ticketNo := fmt.Sprintf("TCK%d", s.idGenerator.Generate())
 	ticket := &entity.SupportTicket{
@@ -261,12 +261,12 @@ func (s *AfterSalesService) UpdateSupportTicketStatus(ctx context.Context, id ui
 	return s.repo.UpdateSupportTicket(ctx, ticket)
 }
 
-// ListSupportTickets 获取工单列表。
+// ListSupportTickets 获取用户的工单列表。
 func (s *AfterSalesService) ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*entity.SupportTicket, int64, error) {
 	return s.repo.ListSupportTickets(ctx, userID, status, page, pageSize)
 }
 
-// CreateSupportTicketMessage 创建工单消息。
+// CreateSupportTicketMessage 为工单添加一条新消息（回复）。
 func (s *AfterSalesService) CreateSupportTicketMessage(ctx context.Context, ticketID, senderID uint64, senderType, content string) (*entity.SupportTicketMessage, error) {
 	msg := &entity.SupportTicketMessage{
 		TicketID:   ticketID,
@@ -281,19 +281,19 @@ func (s *AfterSalesService) CreateSupportTicketMessage(ctx context.Context, tick
 	return msg, nil
 }
 
-// ListSupportTicketMessages 获取工单消息列表。
+// ListSupportTicketMessages 获取指定工单的所有消息记录。
 func (s *AfterSalesService) ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*entity.SupportTicketMessage, error) {
 	return s.repo.ListSupportTicketMessages(ctx, ticketID)
 }
 
 // --- AfterSales Config Service Methods ---
 
-// GetConfig 获取配置。
+// GetConfig 根据键获取售后配置项。
 func (s *AfterSalesService) GetConfig(ctx context.Context, key string) (*entity.AfterSalesConfig, error) {
 	return s.repo.GetConfig(ctx, key)
 }
 
-// SetConfig 设置配置。
+// SetConfig 设置（保存或更新）售后配置项。
 func (s *AfterSalesService) SetConfig(ctx context.Context, key, value, description string) (*entity.AfterSalesConfig, error) {
 	config := &entity.AfterSalesConfig{
 		Key:         key,

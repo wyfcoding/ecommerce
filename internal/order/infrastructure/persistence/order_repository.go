@@ -19,6 +19,8 @@ func NewOrderRepository(sharding *sharding.Manager) domain.OrderRepository {
 	return &orderRepository{sharding: sharding}
 }
 
+// Save 将订单聚合根保存到对应的分库中。
+// 包含订单主表、商品项以及操作日志的原子性保存。
 func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 	db := r.sharding.GetDB(order.UserID)
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -45,6 +47,8 @@ func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 	})
 }
 
+// FindByID 根据ID从数据库中查询订单。
+// 注意：当前实现暂不支持跨分片的主键查询优化。
 func (r *orderRepository) FindByID(ctx context.Context, id uint) (*domain.Order, error) {
 	// TODO: Support sharding by ID or UserID hint
 	db := r.sharding.GetDB(0)
@@ -58,6 +62,8 @@ func (r *orderRepository) FindByID(ctx context.Context, id uint) (*domain.Order,
 	return &order, nil
 }
 
+// FindByOrderNo 根据订单编号查询订单。
+// 注意：由于订单编号未包含分片信息，当前仅默认查询分片0。
 func (r *orderRepository) FindByOrderNo(ctx context.Context, orderNo string) (*domain.Order, error) {
 	db := r.sharding.GetDB(0)
 	var order domain.Order
@@ -70,16 +76,20 @@ func (r *orderRepository) FindByOrderNo(ctx context.Context, orderNo string) (*d
 	return &order, nil
 }
 
+// Update 更新订单聚合根状态及相关信息。
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
-	// 与 GORM 的 Save 相同，但逻辑上更明确
+	// 与 GORM 的 Save 相同，但在逻辑上更明确
 	return r.Save(ctx, order)
 }
 
+// Delete 根据ID物理删除订单记录。
 func (r *orderRepository) Delete(ctx context.Context, id uint) error {
 	db := r.sharding.GetDB(0) // TODO: Sharding support
 	return db.WithContext(ctx).Delete(&domain.Order{}, id).Error
 }
 
+// List 分页列出所有订单记录。
+// 当前实现仅扫描分片0，在大规模分片环境下需要优化。
 func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
 	// Scan all shards? Or just shard 0?
 	// 目前，在分片中列出没有 UserID 的所有订单开销很大。
@@ -100,6 +110,7 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 	return list, total, nil
 }
 
+// ListByUserID 获取指定用户的订单列表（支持分片定位）。
 func (r *orderRepository) ListByUserID(ctx context.Context, userID uint, offset, limit int) ([]*domain.Order, int64, error) {
 	db := r.sharding.GetDB(uint64(userID)).WithContext(ctx).Model(&domain.Order{})
 

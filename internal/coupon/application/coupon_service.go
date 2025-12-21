@@ -31,32 +31,32 @@ func (s *CouponService) AcquireCoupon(ctx context.Context, userID, couponID uint
 	return s.manager.AcquireCoupon(ctx, userID, couponID)
 }
 
-// UseCoupon 使用优惠券。
+// UseCoupon 使用优惠券（核销）。
 func (s *CouponService) UseCoupon(ctx context.Context, userCouponID uint64, userID uint64, orderID string) error {
 	return s.manager.UseCoupon(ctx, userCouponID, userID, orderID)
 }
 
-// GetCoupon 获取优惠券详情。
+// GetCoupon 获取指定ID的优惠券模板详情。
 func (s *CouponService) GetCoupon(ctx context.Context, id uint64) (*domain.Coupon, error) {
 	return s.query.GetCoupon(ctx, id)
 }
 
-// ListCoupons 列出优惠券。
+// ListCoupons 列出所有优惠券模板。
 func (s *CouponService) ListCoupons(ctx context.Context, status int, page, pageSize int) ([]*domain.Coupon, int64, error) {
 	return s.query.ListCoupons(ctx, status, page, pageSize)
 }
 
-// ListUserCoupons 获取用户的优惠券。
+// ListUserCoupons 获取指定用户的所有领取后的优惠券。
 func (s *CouponService) ListUserCoupons(ctx context.Context, userID uint64, status string, page, pageSize int) ([]*domain.UserCoupon, int64, error) {
 	return s.query.ListUserCoupons(ctx, userID, status, page, pageSize)
 }
 
-// ListActiveActivities 列出进行中的活动。
+// ListActiveActivities 列出当前所有进行中的优惠券营销活动。
 func (s *CouponService) ListActiveActivities(ctx context.Context) ([]*domain.CouponActivity, error) {
 	return s.query.ListActiveActivities(ctx)
 }
 
-// CreateActivity 创建活动。
+// CreateActivity 创建一个新的优惠券营销活动。
 func (s *CouponService) CreateActivity(ctx context.Context, activity *domain.CouponActivity) error {
 	return s.manager.CreateActivity(ctx, activity)
 }

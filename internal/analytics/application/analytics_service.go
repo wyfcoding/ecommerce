@@ -116,19 +116,19 @@ func (s *AnalyticsService) PublishReport(ctx context.Context, id uint64) error {
 	return s.manager.SaveReport(ctx, report)
 }
 
-// ListDashboards 获取仪表板列表。
+// ListDashboards 获取用户的仪表板列表。
 func (s *AnalyticsService) ListDashboards(ctx context.Context, userID uint64, page, pageSize int) ([]*domain.Dashboard, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.query.ListUserDashboards(ctx, userID, offset, pageSize)
 }
 
-// ListReports 获取数据报告列表。
+// ListReports 获取用户的数据报告列表。
 func (s *AnalyticsService) ListReports(ctx context.Context, userID uint64, page, pageSize int) ([]*domain.Report, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.query.ListUserReports(ctx, userID, offset, pageSize)
 }
 
-// UpdateDashboard 更新仪表板信息。
+// UpdateDashboard 更新仪表板的基础信息。
 func (s *AnalyticsService) UpdateDashboard(ctx context.Context, id uint64, name, description string) (*domain.Dashboard, error) {
 	dashboard, err := s.query.GetDashboardByID(ctx, id)
 	if err != nil {
@@ -151,12 +151,12 @@ func (s *AnalyticsService) UpdateDashboard(ctx context.Context, id uint64, name,
 	return dashboard, nil
 }
 
-// DeleteDashboard 删除仪表板。
+// DeleteDashboard 删除指定的仪表板。
 func (s *AnalyticsService) DeleteDashboard(ctx context.Context, id uint64) error {
 	return s.manager.DeleteDashboard(ctx, id)
 }
 
-// UpdateReport 更新报告信息。
+// UpdateReport 更新报告的基础信息。
 func (s *AnalyticsService) UpdateReport(ctx context.Context, id uint64, title, description string) (*domain.Report, error) {
 	report, err := s.query.GetReportByID(ctx, id)
 	if err != nil {
@@ -179,12 +179,12 @@ func (s *AnalyticsService) UpdateReport(ctx context.Context, id uint64, title, d
 	return report, nil
 }
 
-// DeleteReport 删除报告。
+// DeleteReport 删除指定的数据报告。
 func (s *AnalyticsService) DeleteReport(ctx context.Context, id uint64) error {
 	return s.manager.DeleteReport(ctx, id)
 }
 
-// GetUserActivityReport 获取用户活动报告 (简化的示例)。
+// GetUserActivityReport 获取用户活动概览报告。
 func (s *AnalyticsService) GetUserActivityReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
 	query := &domain.MetricQuery{
 		MetricType: domain.MetricTypeActiveUsers,
@@ -200,27 +200,27 @@ func (s *AnalyticsService) GetUserActivityReport(ctx context.Context, startTime,
 	}, nil
 }
 
-// GetProductPerformanceReport 获取产品性能报告。
+// GetProductPerformanceReport 获取商品销售性能分析报告。
 func (s *AnalyticsService) GetProductPerformanceReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
 	return map[string]interface{}{"top_products": []string{}}, nil
 }
 
-// GetConversionFunnelReport 获取转化漏斗报告。
+// GetConversionFunnelReport 获取用户转化漏斗分析报告。
 func (s *AnalyticsService) GetConversionFunnelReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
 	return map[string]interface{}{"funnel_steps": []string{}}, nil
 }
 
-// GetCustomReport 获取自定义报告。
+// GetCustomReport 获取自定义报告数据。
 func (s *AnalyticsService) GetCustomReport(ctx context.Context, reportID uint64, startTime, endTime time.Time) (map[string]interface{}, error) {
 	return map[string]interface{}{"custom_data": "data"}, nil
 }
 
-// GetUserBehaviorPath 获取用户行为路径。
+// GetUserBehaviorPath 获取用户的行为路径追踪数据。
 func (s *AnalyticsService) GetUserBehaviorPath(ctx context.Context, userID uint64, startTime, endTime time.Time) (map[string]interface{}, error) {
 	return map[string]interface{}{"path": []string{}}, nil
 }
 
-// GetUserSegments 获取用户细分。
+// GetUserSegments 获取用户细分群体分析数据。
 func (s *AnalyticsService) GetUserSegments(ctx context.Context) (map[string]interface{}, error) {
 	return map[string]interface{}{"segments": []string{}}, nil
 }

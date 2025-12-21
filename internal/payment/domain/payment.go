@@ -94,7 +94,7 @@ type PaymentLog struct {
 	CreatedAt time.Time // 记录时间
 }
 
-// NewPayment 创建新的支付实体
+// NewPayment 创建一个新的支付实体。
 func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string, gatewayType GatewayType) *Payment {
 	now := time.Now()
 	payment := &Payment{
@@ -115,7 +115,7 @@ func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, pay
 	return payment
 }
 
-// CanProcess 检查是否处于可支付状态
+// CanProcess 检查当前支付单是否处于可处理状态（待支付）。
 func (p *Payment) CanProcess() error {
 	if p.Status != PaymentPending {
 		return fmt.Errorf("invalid status for processing: %s", p.Status)
@@ -123,8 +123,7 @@ func (p *Payment) CanProcess() error {
 	return nil
 }
 
-// Process 处理支付结果回调
-// 幂等处理：若已成功且流水号一致，视为成功
+// Process 处理支付回调结果，更新支付单状态及第三方交易信息。
 func (p *Payment) Process(success bool, transactionID, thirdPartyNo string) error {
 	// 幂等性检查
 	if p.Status == PaymentSuccess && p.TransactionID == transactionID {
@@ -153,7 +152,7 @@ func (p *Payment) Process(success bool, transactionID, thirdPartyNo string) erro
 	return nil
 }
 
-// CanRefund 检查是否可发起退款
+// CanRefund 检查当前支付单是否允许发起退款（已成功支付且未完全退款）。
 func (p *Payment) CanRefund() error {
 	if p.Status != PaymentSuccess && p.Status != PaymentRefunding && p.Status != PaymentRefunded {
 		return fmt.Errorf("payment not successful, current status: %s", p.Status)
@@ -164,7 +163,7 @@ func (p *Payment) CanRefund() error {
 	return nil
 }
 
-// CreateRefund 创建退款请求
+// CreateRefund 创建一个新的退款申请记录。
 func (p *Payment) CreateRefund(refundAmount int64, reason string) (*Refund, error) {
 	if err := p.CanRefund(); err != nil {
 		return nil, err
@@ -195,7 +194,7 @@ func (p *Payment) CreateRefund(refundAmount int64, reason string) (*Refund, erro
 	return refund, nil
 }
 
-// ProcessRefund 处理退款结果回调
+// ProcessRefund 处理退款回调结果，更新对应的退款记录和支付单状态。
 func (p *Payment) ProcessRefund(refundNo string, success bool, gatewayRefundID string) error {
 	var refund *Refund
 	for _, r := range p.Refunds {
@@ -236,7 +235,7 @@ func (p *Payment) ProcessRefund(refundNo string, success bool, gatewayRefundID s
 	return nil
 }
 
-// Cancel 取消支付
+// Cancel 取消支付单（仅限待支付状态）。
 func (p *Payment) Cancel(reason string) error {
 	if p.Status != PaymentPending {
 		return fmt.Errorf("cannot cancel from status: %s", p.Status)
@@ -252,7 +251,7 @@ func (p *Payment) Cancel(reason string) error {
 	return nil
 }
 
-// AddLog 内部辅助：添加日志
+// AddLog 记录支付操作日志。
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 	p.Logs = append(p.Logs, &PaymentLog{
 		PaymentID: p.ID,

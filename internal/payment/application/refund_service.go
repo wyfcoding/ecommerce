@@ -18,7 +18,7 @@ type RefundService struct {
 	logger      *slog.Logger
 }
 
-// NewRefundService 定义了 NewRefund 相关的服务逻辑。
+// NewRefundService 创建退款服务实例。
 func NewRefundService(
 	paymentRepo domain.PaymentRepository,
 	refundRepo domain.RefundRepository,
@@ -35,7 +35,7 @@ func NewRefundService(
 	}
 }
 
-// RequestRefund 发起退款申请
+// RequestRefund 发起退款申请。
 func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amount int64, reason string) (*domain.Refund, error) {
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil || payment == nil {

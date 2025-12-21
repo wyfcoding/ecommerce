@@ -27,7 +27,7 @@ func (s *AuditService) LogEvent(ctx context.Context, userID uint64, username str
 	return s.manager.LogEvent(ctx, userID, username, eventType, module, action, opts...)
 }
 
-// QueryLogs 查询审计日志。
+// QueryLogs 根据条件查询审计日志记录。
 func (s *AuditService) QueryLogs(ctx context.Context, query *domain.AuditLogQuery) ([]*domain.AuditLog, int64, error) {
 	return s.query.ListLogs(ctx, query)
 }
@@ -37,34 +37,34 @@ func (s *AuditService) CreatePolicy(ctx context.Context, name, description strin
 	return s.manager.CreatePolicy(ctx, name, description)
 }
 
-// UpdatePolicy 更新审计策略。
+// UpdatePolicy 更新现有的审计策略配置。
 func (s *AuditService) UpdatePolicy(ctx context.Context, id uint64, eventTypes, modules []string, enabled bool) error {
 	return s.manager.UpdatePolicy(ctx, id, eventTypes, modules, enabled)
 }
 
-// ListPolicies 获取审计策略列表。
+// ListPolicies 获取审计策略列表（分页）。
 func (s *AuditService) ListPolicies(ctx context.Context, page, pageSize int) ([]*domain.AuditPolicy, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.query.ListPolicies(ctx, offset, pageSize)
 }
 
-// CreateReport 创建一个新的审计报告。
+// CreateReport 创建一个新的审计报告任务。
 func (s *AuditService) CreateReport(ctx context.Context, title, description string) (*domain.AuditReport, error) {
 	return s.manager.CreateReport(ctx, title, description)
 }
 
-// GenerateReport 生成指定ID的审计报告内容。
+// GenerateReport 触发审计报告的内容生成过程。
 func (s *AuditService) GenerateReport(ctx context.Context, id uint64) error {
 	return s.manager.GenerateReport(ctx, id)
 }
 
-// ListReports 获取审计报告列表。
+// ListReports 获取所有审计报告列表。
 func (s *AuditService) ListReports(ctx context.Context, page, pageSize int) ([]*domain.AuditReport, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.query.ListReports(ctx, offset, pageSize)
 }
 
-// DeleteLogsBefore 清理历史日志。
+// DeleteLogsBefore 清理指定时间之前的历史审计日志。
 func (s *AuditService) DeleteLogsBefore(ctx context.Context, beforeTime time.Time) error {
 	return s.manager.DeleteLogsBefore(ctx, beforeTime)
 }

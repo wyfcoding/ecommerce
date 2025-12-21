@@ -16,7 +16,7 @@ type ProfileService struct {
 	logger   *slog.Logger
 }
 
-// NewProfileService 定义了 NewProfile 相关的服务逻辑。
+// NewProfileService 创建 Profile 服务实例。
 func NewProfileService(userRepo domain.UserRepository, logger *slog.Logger) *ProfileService {
 	return &ProfileService{
 		userRepo: userRepo,
@@ -24,12 +24,12 @@ func NewProfileService(userRepo domain.UserRepository, logger *slog.Logger) *Pro
 	}
 }
 
-// GetUser 获取用户信息
+// GetUser 获取用户信息。
 func (s *ProfileService) GetUser(ctx context.Context, userID uint64) (*domain.User, error) {
 	return s.userRepo.FindByID(ctx, uint(userID))
 }
 
-// UpdateProfile 更新个人资料
+// UpdateProfile 更新用户个人资料。
 func (s *ProfileService) UpdateProfile(ctx context.Context, userID uint64, nickname, avatar string, gender int8, birthday *time.Time) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {

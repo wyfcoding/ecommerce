@@ -67,13 +67,13 @@ type Brand struct {
 // NewProduct 是一个工厂方法，用于创建并返回一个新的 Product 实体实例。
 func NewProduct(name, description string, categoryID, brandID uint, price int64, stock int32) (*Product, error) {
 	if name == "" {
-		return nil, fmt.Errorf("商品名称不能为空")
+		return nil, fmt.Errorf("product name cannot be empty")
 	}
 	if price <= 0 {
-		return nil, fmt.Errorf("价格必须大于0")
+		return nil, fmt.Errorf("price must be greater than 0")
 	}
 	if stock < 0 {
-		return nil, fmt.Errorf("库存不能为负数")
+		return nil, fmt.Errorf("stock cannot be negative")
 	}
 
 	return &Product{
@@ -92,7 +92,7 @@ func NewProduct(name, description string, categoryID, brandID uint, price int64,
 // Publish 将商品状态变更为“已发布”。
 func (p *Product) Publish() error {
 	if p.Status != ProductStatusDraft {
-		return fmt.Errorf("只有草稿状态的商品可以发布")
+		return fmt.Errorf("only products in draft status can be published")
 	}
 	p.Status = ProductStatusPublished
 	return nil
@@ -101,7 +101,7 @@ func (p *Product) Publish() error {
 // Offline 将商品状态变更为“已下架”。
 func (p *Product) Offline() error {
 	if p.Status != ProductStatusPublished {
-		return fmt.Errorf("只有已发布的商品可以下架")
+		return fmt.Errorf("only published products can be taken offline")
 	}
 	p.Status = ProductStatusOffline
 	return nil
@@ -116,7 +116,7 @@ func (p *Product) Delete() error {
 // UpdateStock 更新商品的库存数量。
 func (p *Product) UpdateStock(stock int32) error {
 	if stock < 0 {
-		return fmt.Errorf("库存不能为负数")
+		return fmt.Errorf("stock cannot be negative")
 	}
 	p.Stock = stock
 	return nil
@@ -125,7 +125,7 @@ func (p *Product) UpdateStock(stock int32) error {
 // IncreaseSales 增加商品的销量。
 func (p *Product) IncreaseSales(quantity int32) error {
 	if quantity <= 0 {
-		return fmt.Errorf("增加的销量必须大于0")
+		return fmt.Errorf("increased sales must be greater than 0")
 	}
 	p.Sales += quantity
 	return nil
@@ -149,19 +149,19 @@ func (p *Product) RemoveSKU(skuID uint) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("SKU未找到")
+	return fmt.Errorf("SKU not found")
 }
 
 // NewSKU 是一个工厂方法，用于创建并返回一个新的 SKU 实体实例。
 func NewSKU(productID uint, name string, price int64, stock int32, image string, specs map[string]string) (*SKU, error) {
 	if name == "" {
-		return nil, fmt.Errorf("SKU名称不能为空")
+		return nil, fmt.Errorf("SKU name cannot be empty")
 	}
 	if price <= 0 {
-		return nil, fmt.Errorf("价格必须大于0")
+		return nil, fmt.Errorf("price must be greater than 0")
 	}
 	if stock < 0 {
-		return nil, fmt.Errorf("库存不能为负数")
+		return nil, fmt.Errorf("stock cannot be negative")
 	}
 
 	return &SKU{
@@ -178,7 +178,7 @@ func NewSKU(productID uint, name string, price int64, stock int32, image string,
 // NewCategory 是一个工厂方法，用于创建并返回一个新的 Category 实体实例。
 func NewCategory(name string, parentID uint) (*Category, error) {
 	if name == "" {
-		return nil, fmt.Errorf("分类名称不能为空")
+		return nil, fmt.Errorf("category name cannot be empty")
 	}
 
 	return &Category{
@@ -192,7 +192,7 @@ func NewCategory(name string, parentID uint) (*Category, error) {
 // NewBrand 是一个工厂方法，用于创建并返回一个新的 Brand 实体实例。
 func NewBrand(name, logo string) (*Brand, error) {
 	if name == "" {
-		return nil, fmt.Errorf("品牌名称不能为空")
+		return nil, fmt.Errorf("brand name cannot be empty")
 	}
 
 	return &Brand{

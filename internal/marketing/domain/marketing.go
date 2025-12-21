@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrCampaignNotFound = errors.New("营销活动不存在")
-	ErrCampaignEnded    = errors.New("营销活动已结束")
+	ErrCampaignNotFound = errors.New("campaign not found")
+	ErrCampaignEnded    = errors.New("campaign ended")
 )
 
 // CampaignType 定义了营销活动的类型。

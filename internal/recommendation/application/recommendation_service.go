@@ -23,7 +23,7 @@ func NewRecommendationService(manager *RecommendationManager, query *Recommendat
 	}
 }
 
-// GetRecommendations 获取指定用户ID的推荐列表。
+// GetRecommendations 获取指定用户ID的个性化推荐商品列表。
 func (s *RecommendationService) GetRecommendations(ctx context.Context, userID uint64, recType string, limit int) ([]*domain.Recommendation, error) {
 	var t *domain.RecommendationType
 	if recType != "" {
@@ -33,7 +33,7 @@ func (s *RecommendationService) GetRecommendations(ctx context.Context, userID u
 	return s.query.GetUserRecommendations(ctx, userID, t, limit)
 }
 
-// TrackBehavior 记录用户行为。
+// TrackBehavior 记录并权重化用户的实时行为，用于实时推荐更新。
 func (s *RecommendationService) TrackBehavior(ctx context.Context, userID, productID uint64, action string) error {
 	weight := 1.0
 	switch action {
@@ -58,7 +58,7 @@ func (s *RecommendationService) TrackBehavior(ctx context.Context, userID, produ
 	return s.manager.SaveUserBehavior(ctx, behavior)
 }
 
-// UpdateUserPreference 更新用户偏好设置。
+// UpdateUserPreference 更新用户的主动偏好设置或标签信息。
 func (s *RecommendationService) UpdateUserPreference(ctx context.Context, pref *domain.UserPreference) error {
 	existing, err := s.query.GetUserPreference(ctx, pref.UserID)
 	if err != nil {
@@ -71,12 +71,12 @@ func (s *RecommendationService) UpdateUserPreference(ctx context.Context, pref *
 	return s.manager.SaveUserPreference(ctx, pref)
 }
 
-// GetSimilarProducts 获取相似商品列表。
+// GetSimilarProducts 基于商品属性或协同过滤获取相似商品。
 func (s *RecommendationService) GetSimilarProducts(ctx context.Context, productID uint64, limit int) ([]*domain.ProductSimilarity, error) {
 	return s.query.GetSimilarProducts(ctx, productID, limit)
 }
 
-// GenerateRecommendations 生成推荐列表 (模拟业务流程)。
+// GenerateRecommendations 核心算法流程：为用户生成并缓存新的推荐商品列表。
 func (s *RecommendationService) GenerateRecommendations(ctx context.Context, userID uint64) error {
 	// 1. 清除旧的推荐数据。
 	if err := s.manager.DeleteRecommendations(ctx, userID, nil); err != nil {

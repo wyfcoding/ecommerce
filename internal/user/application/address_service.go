@@ -17,7 +17,7 @@ type AddressService struct {
 	logger      *slog.Logger
 }
 
-// NewAddressService 定义了 NewAddress 相关的服务逻辑。
+// NewAddressService 创建 Address 服务实例。
 func NewAddressService(userRepo domain.UserRepository, addressRepo domain.AddressRepository, logger *slog.Logger) *AddressService {
 	return &AddressService{
 		userRepo:    userRepo,
@@ -26,7 +26,7 @@ func NewAddressService(userRepo domain.UserRepository, addressRepo domain.Addres
 	}
 }
 
-// AddAddress 添加地址
+// AddAddress 添加用户地址。
 func (s *AddressService) AddAddress(ctx context.Context, userID uint64, name, phone, province, city, district, detail string, isDefault bool) (*domain.Address, error) {
 	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {
@@ -55,12 +55,12 @@ func (s *AddressService) AddAddress(ctx context.Context, userID uint64, name, ph
 	return address, nil
 }
 
-// ListAddresses 列出地址
+// ListAddresses 列出用户的所有地址。
 func (s *AddressService) ListAddresses(ctx context.Context, userID uint64) ([]*domain.Address, error) {
 	return s.addressRepo.FindByUserID(ctx, uint(userID))
 }
 
-// UpdateAddress 更新地址
+// UpdateAddress 更新用户地址信息。
 func (s *AddressService) UpdateAddress(ctx context.Context, userID, addressID uint64, name, phone, province, city, district, detail string, isDefault bool) (*domain.Address, error) {
 	address, err := s.addressRepo.FindByID(ctx, uint(addressID))
 	if err != nil {
@@ -105,7 +105,7 @@ func (s *AddressService) UpdateAddress(ctx context.Context, userID, addressID ui
 	return address, nil
 }
 
-// DeleteAddress 删除地址
+// DeleteAddress 删除用户地址。
 func (s *AddressService) DeleteAddress(ctx context.Context, userID, addressID uint64) error {
 	address, err := s.addressRepo.FindByID(ctx, uint(addressID))
 	if err != nil {
@@ -123,7 +123,7 @@ func (s *AddressService) DeleteAddress(ctx context.Context, userID, addressID ui
 	return nil
 }
 
-// GetAddress 获取地址
+// GetAddress 获取地址详情。
 func (s *AddressService) GetAddress(ctx context.Context, userID, addressID uint64) (*domain.Address, error) {
 	address, err := s.addressRepo.FindByID(ctx, uint(addressID))
 	if err != nil {
