@@ -35,7 +35,7 @@ const (
 )
 
 // JSONMap 定义了一个map类型，用于JSON存储。
-type JSONMap map[string]interface{}
+type JSONMap map[string]any
 
 func (m JSONMap) Value() (driver.Value, error) {
 	if m == nil {
@@ -44,7 +44,7 @@ func (m JSONMap) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
-func (m *JSONMap) Scan(value interface{}) error {
+func (m *JSONMap) Scan(value any) error {
 	if value == nil {
 		*m = nil
 		return nil
@@ -73,7 +73,7 @@ type Campaign struct {
 }
 
 // NewCampaign 创建并返回一个新的 Campaign 实体实例。
-func NewCampaign(name string, campaignType CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]interface{}) *Campaign {
+func NewCampaign(name string, campaignType CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]any) *Campaign {
 	return &Campaign{
 		Name:         name,
 		CampaignType: campaignType,

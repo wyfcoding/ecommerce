@@ -80,7 +80,7 @@ func (r *searchRepository) Search(ctx context.Context, filter *domain.SearchFilt
 	// 模拟实现，总是返回空结果。
 	return &domain.SearchResult{
 		Total: 0,
-		Items: []interface{}{},
+		Items: []any{},
 	}, nil
 }
 

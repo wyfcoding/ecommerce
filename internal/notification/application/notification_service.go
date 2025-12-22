@@ -22,12 +22,12 @@ func NewNotificationService(manager *NotificationManager, query *NotificationQue
 }
 
 // SendNotification 发送一条通知。
-func (s *NotificationService) SendNotification(ctx context.Context, userID uint64, notifType domain.NotificationType, channel domain.NotificationChannel, title, content string, data map[string]interface{}) (*domain.Notification, error) {
+func (s *NotificationService) SendNotification(ctx context.Context, userID uint64, notifType domain.NotificationType, channel domain.NotificationChannel, title, content string, data map[string]any) (*domain.Notification, error) {
 	return s.manager.SendNotification(ctx, userID, notifType, channel, title, content, data)
 }
 
 // SendNotificationByTemplate 使用指定的模板发送通知。
-func (s *NotificationService) SendNotificationByTemplate(ctx context.Context, userID uint64, templateCode string, variables map[string]string, data map[string]interface{}) (*domain.Notification, error) {
+func (s *NotificationService) SendNotificationByTemplate(ctx context.Context, userID uint64, templateCode string, variables map[string]string, data map[string]any) (*domain.Notification, error) {
 	return s.manager.SendNotificationByTemplate(ctx, userID, templateCode, variables, data)
 }
 

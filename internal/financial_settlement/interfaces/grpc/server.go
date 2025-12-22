@@ -66,10 +66,7 @@ func (s *Server) GetSettlement(ctx context.Context, req *pb.GetSettlementRequest
 
 // ListSettlements 处理列出结算单的gRPC请求。
 func (s *Server) ListSettlements(ctx context.Context, req *pb.ListSettlementsRequest) (*pb.ListSettlementsResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

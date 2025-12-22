@@ -31,6 +31,6 @@ func (s *AuditService) LogAction(ctx context.Context, log *domain.AuditLog) {
 	}()
 }
 
-func (s *AuditService) QueryLogs(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*domain.AuditLog, int64, error) {
+func (s *AuditService) QueryLogs(ctx context.Context, filter map[string]any, page, pageSize int) ([]*domain.AuditLog, int64, error) {
 	return s.repo.Find(ctx, filter, page, pageSize)
 }

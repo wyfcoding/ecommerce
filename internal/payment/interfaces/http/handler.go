@@ -57,7 +57,7 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"payment":          payment,
 		"gateway_response": gatewayResp,
 	}

@@ -50,10 +50,7 @@ func (s *Server) CreateGroupbuy(ctx context.Context, req *pb.CreateGroupbuyReque
 
 // ListGroupbuys 处理列出拼团活动的gRPC请求。
 func (s *Server) ListGroupbuys(ctx context.Context, req *pb.ListGroupbuysRequest) (*pb.ListGroupbuysResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

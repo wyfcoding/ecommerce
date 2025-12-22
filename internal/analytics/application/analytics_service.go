@@ -185,7 +185,7 @@ func (s *AnalyticsService) DeleteReport(ctx context.Context, id uint64) error {
 }
 
 // GetUserActivityReport 获取用户活动概览报告。
-func (s *AnalyticsService) GetUserActivityReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
+func (s *AnalyticsService) GetUserActivityReport(ctx context.Context, startTime, endTime time.Time) (map[string]any, error) {
 	query := &domain.MetricQuery{
 		MetricType: domain.MetricTypeActiveUsers,
 		StartTime:  startTime,
@@ -195,32 +195,32 @@ func (s *AnalyticsService) GetUserActivityReport(ctx context.Context, startTime,
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"active_users": len(metrics),
 	}, nil
 }
 
 // GetProductPerformanceReport 获取商品销售性能分析报告。
-func (s *AnalyticsService) GetProductPerformanceReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
-	return map[string]interface{}{"top_products": []string{}}, nil
+func (s *AnalyticsService) GetProductPerformanceReport(ctx context.Context, startTime, endTime time.Time) (map[string]any, error) {
+	return map[string]any{"top_products": []string{}}, nil
 }
 
 // GetConversionFunnelReport 获取用户转化漏斗分析报告。
-func (s *AnalyticsService) GetConversionFunnelReport(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
-	return map[string]interface{}{"funnel_steps": []string{}}, nil
+func (s *AnalyticsService) GetConversionFunnelReport(ctx context.Context, startTime, endTime time.Time) (map[string]any, error) {
+	return map[string]any{"funnel_steps": []string{}}, nil
 }
 
 // GetCustomReport 获取自定义报告数据。
-func (s *AnalyticsService) GetCustomReport(ctx context.Context, reportID uint64, startTime, endTime time.Time) (map[string]interface{}, error) {
-	return map[string]interface{}{"custom_data": "data"}, nil
+func (s *AnalyticsService) GetCustomReport(ctx context.Context, reportID uint64, startTime, endTime time.Time) (map[string]any, error) {
+	return map[string]any{"custom_data": "data"}, nil
 }
 
 // GetUserBehaviorPath 获取用户的行为路径追踪数据。
-func (s *AnalyticsService) GetUserBehaviorPath(ctx context.Context, userID uint64, startTime, endTime time.Time) (map[string]interface{}, error) {
-	return map[string]interface{}{"path": []string{}}, nil
+func (s *AnalyticsService) GetUserBehaviorPath(ctx context.Context, userID uint64, startTime, endTime time.Time) (map[string]any, error) {
+	return map[string]any{"path": []string{}}, nil
 }
 
 // GetUserSegments 获取用户细分群体分析数据。
-func (s *AnalyticsService) GetUserSegments(ctx context.Context) (map[string]interface{}, error) {
-	return map[string]interface{}{"segments": []string{}}, nil
+func (s *AnalyticsService) GetUserSegments(ctx context.Context) (map[string]any, error) {
+	return map[string]any{"segments": []string{}}, nil
 }

@@ -67,10 +67,7 @@ func (s *Server) AddSpent(ctx context.Context, req *pb.AddSpentRequest) (*emptyp
 
 // ListPointsTransactions 处理列出积分交易记录的gRPC请求。
 func (s *Server) ListPointsTransactions(ctx context.Context, req *pb.ListPointsTransactionsRequest) (*pb.ListPointsTransactionsResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

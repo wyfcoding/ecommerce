@@ -67,10 +67,7 @@ func (s *Server) SyncOrders(ctx context.Context, req *pb.SyncOrdersRequest) (*em
 }
 
 func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb.ListOrdersResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

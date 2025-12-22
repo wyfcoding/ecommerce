@@ -69,14 +69,14 @@ func main() {
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, srv interface{}) {
+func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
 	pb.RegisterOrderServer(s, ordergrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
-func registerGin(e *gin.Engine, srv interface{}) {
+func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
 	handler := httpServer.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
@@ -85,7 +85,7 @@ func registerGin(e *gin.Engine, srv interface{}) {
 	slog.Default().Info("HTTP routes registered", "service", BootstrapName)
 }
 
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	slog.Info("initializing service dependencies...", "service", BootstrapName)
 

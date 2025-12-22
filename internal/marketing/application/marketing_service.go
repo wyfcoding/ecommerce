@@ -24,7 +24,7 @@ func NewMarketingService(manager *MarketingManager, query *MarketingQuery) *Mark
 // --- 写操作（委托给 Manager）---
 
 // CreateCampaign 创建一个新的营销活动。
-func (s *MarketingService) CreateCampaign(ctx context.Context, name string, campaignType domain.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]interface{}) (*domain.Campaign, error) {
+func (s *MarketingService) CreateCampaign(ctx context.Context, name string, campaignType domain.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]any) (*domain.Campaign, error) {
 	return s.manager.CreateCampaign(ctx, name, campaignType, description, startTime, endTime, budget, rules)
 }
 

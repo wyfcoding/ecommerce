@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"slices"
 	"time"
 
 	"gorm.io/gorm" // 导入GORM库。
@@ -158,20 +159,16 @@ func NewAuditPolicy(name, description string) *AuditPolicy {
 
 // AddEventType 向审计策略中添加一个关注的事件类型。
 func (p *AuditPolicy) AddEventType(eventType string) {
-	for _, et := range p.EventTypes {
-		if et == eventType {
-			return // 避免重复添加。
-		}
+	if slices.Contains(p.EventTypes, eventType) {
+		return // 避免重复添加。
 	}
 	p.EventTypes = append(p.EventTypes, eventType)
 }
 
 // AddModule 向审计策略中添加一个关注的模块。
 func (p *AuditPolicy) AddModule(module string) {
-	for _, m := range p.Modules {
-		if m == module {
-			return // 避免重复添加。
-		}
+	if slices.Contains(p.Modules, module) {
+		return // 避免重复添加。
 	}
 	p.Modules = append(p.Modules, module)
 }

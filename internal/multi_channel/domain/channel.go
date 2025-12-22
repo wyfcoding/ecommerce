@@ -38,7 +38,7 @@ func (a OrderItemArray) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *OrderItemArray) Scan(value interface{}) error {
+func (a *OrderItemArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil
@@ -62,7 +62,7 @@ func (b BuyerInfo) Value() (driver.Value, error) {
 	return json.Marshal(b)
 }
 
-func (b *BuyerInfo) Scan(value interface{}) error {
+func (b *BuyerInfo) Scan(value any) error {
 	if value == nil {
 		return nil
 	}
@@ -86,7 +86,7 @@ func (s ShippingInfo) Value() (driver.Value, error) {
 	return json.Marshal(s)
 }
 
-func (s *ShippingInfo) Scan(value interface{}) error {
+func (s *ShippingInfo) Scan(value any) error {
 	if value == nil {
 		return nil
 	}

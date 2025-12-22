@@ -30,13 +30,13 @@ func NewHandler(app *application.MarketingService, logger *slog.Logger) *Handler
 
 func (h *Handler) CreateCampaign(c *gin.Context) {
 	var req struct {
-		Name        string                 `json:"name" binding:"required"`
-		Type        string                 `json:"type" binding:"required"`
-		Description string                 `json:"description"`
-		StartTime   time.Time              `json:"start_time" binding:"required"`
-		EndTime     time.Time              `json:"end_time" binding:"required"`
-		Budget      uint64                 `json:"budget" binding:"required"`
-		Rules       map[string]interface{} `json:"rules"`
+		Name        string         `json:"name" binding:"required"`
+		Type        string         `json:"type" binding:"required"`
+		Description string         `json:"description"`
+		StartTime   time.Time      `json:"start_time" binding:"required"`
+		EndTime     time.Time      `json:"end_time" binding:"required"`
+		Budget      uint64         `json:"budget" binding:"required"`
+		Rules       map[string]any `json:"rules"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -38,7 +38,7 @@ func (a StringArray) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil
@@ -60,7 +60,7 @@ func (a Uint64Array) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *Uint64Array) Scan(value interface{}) error {
+func (a *Uint64Array) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil

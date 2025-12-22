@@ -133,10 +133,7 @@ func (s *Server) CancelOrder(ctx context.Context, req *pb.CancelOrderRequest) (*
 // 返回订单列表响应和可能发生的gRPC错误。
 func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb.ListOrdersResponse, error) {
 	// 获取分页参数。
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

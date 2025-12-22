@@ -58,10 +58,7 @@ func (s *Server) ListNotifications(ctx context.Context, req *pb.ListNotification
 	}
 
 	// 获取分页参数。
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

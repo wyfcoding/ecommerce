@@ -38,10 +38,7 @@ func NewServer(app *application.SearchService, logger *slog.Logger) *Server {
 // 返回搜索结果响应和可能发生的gRPC错误。
 func (s *Server) SearchProducts(ctx context.Context, req *pb.SearchProductsRequest) (*pb.SearchProductsResponse, error) {
 	// 获取分页参数。PageToken在gRPC中常用于表示下一页的标识，这里简化为页码。
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

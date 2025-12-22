@@ -60,10 +60,7 @@ func (s *Server) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest) (*em
 
 // ListFiles 处理列出文件元数据的gRPC请求。
 func (s *Server) ListFiles(ctx context.Context, req *pb.ListFilesRequest) (*pb.ListFilesResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

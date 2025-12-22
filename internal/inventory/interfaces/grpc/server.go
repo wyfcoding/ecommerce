@@ -114,10 +114,7 @@ func (s *Server) ConfirmDeduction(ctx context.Context, req *pb.ConfirmDeductionR
 // 返回库存记录列表响应和可能发生的gRPC错误。
 func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesRequest) (*pb.ListInventoriesResponse, error) {
 	// 获取分页参数。
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -146,10 +143,7 @@ func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesReq
 // 返回库存日志列表响应和可能发生的gRPC错误。
 func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsRequest) (*pb.GetInventoryLogsResponse, error) {
 	// 获取分页参数。
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

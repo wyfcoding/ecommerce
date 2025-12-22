@@ -24,7 +24,7 @@ func NewNotificationManager(repo domain.NotificationRepository, logger *slog.Log
 }
 
 // SendNotification 发送一条通知。
-func (m *NotificationManager) SendNotification(ctx context.Context, userID uint64, notifType domain.NotificationType, channel domain.NotificationChannel, title, content string, data map[string]interface{}) (*domain.Notification, error) {
+func (m *NotificationManager) SendNotification(ctx context.Context, userID uint64, notifType domain.NotificationType, channel domain.NotificationChannel, title, content string, data map[string]any) (*domain.Notification, error) {
 	notification := domain.NewNotification(userID, notifType, channel, title, content, data)
 	if err := m.repo.SaveNotification(ctx, notification); err != nil {
 		m.logger.Error("failed to save notification", "error", err)
@@ -41,7 +41,7 @@ func (m *NotificationManager) SendNotification(ctx context.Context, userID uint6
 }
 
 // SendNotificationByTemplate 使用指定的模板发送通知。
-func (m *NotificationManager) SendNotificationByTemplate(ctx context.Context, userID uint64, templateCode string, variables map[string]string, data map[string]interface{}) (*domain.Notification, error) {
+func (m *NotificationManager) SendNotificationByTemplate(ctx context.Context, userID uint64, templateCode string, variables map[string]string, data map[string]any) (*domain.Notification, error) {
 	template, err := m.repo.GetTemplateByCode(ctx, templateCode)
 	if err != nil {
 		return nil, err

@@ -51,19 +51,19 @@ func main() {
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, svc interface{}) {
+func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
 	pb.RegisterInventoryServiceServer(s, inventorygrpc.NewServer(ctx.AppService))
 }
 
-func registerGin(e *gin.Engine, svc interface{}) {
+func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
 	handler := inventoryhttp.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 }
 
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 

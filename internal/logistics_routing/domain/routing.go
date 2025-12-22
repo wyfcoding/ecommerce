@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"slices"
 	"time"
 
 	"gorm.io/gorm"
@@ -19,7 +20,7 @@ func (a StringArray) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil
@@ -48,12 +49,7 @@ type Carrier struct {
 
 // SupportsRegion 检查配送商是否支持指定地区。
 func (c *Carrier) SupportsRegion(region string) bool {
-	for _, r := range c.SupportedRegions {
-		if r == region {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.SupportedRegions, region)
 }
 
 // RouteOrder 结构体定义了优化路由中的单个订单信息。
@@ -75,7 +71,7 @@ func (a RouteOrderArray) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *RouteOrderArray) Scan(value interface{}) error {
+func (a *RouteOrderArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil

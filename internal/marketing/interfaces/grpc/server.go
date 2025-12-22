@@ -27,7 +27,7 @@ func NewServer(app *application.MarketingService) *Server {
 }
 
 func (s *Server) CreateCampaign(ctx context.Context, req *pb.CreateCampaignRequest) (*pb.CreateCampaignResponse, error) {
-	var rules map[string]interface{}
+	var rules map[string]any
 	if req.RulesJson != "" {
 		if err := json.Unmarshal([]byte(req.RulesJson), &rules); err != nil {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid rules_json format: %v", err))
@@ -63,10 +63,7 @@ func (s *Server) UpdateCampaignStatus(ctx context.Context, req *pb.UpdateCampaig
 }
 
 func (s *Server) ListCampaigns(ctx context.Context, req *pb.ListCampaignsRequest) (*pb.ListCampaignsResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

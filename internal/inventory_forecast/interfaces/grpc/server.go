@@ -49,10 +49,7 @@ func (s *Server) GetForecast(ctx context.Context, req *pb.GetForecastRequest) (*
 
 // ListWarnings 处理列出库存预警的gRPC请求。
 func (s *Server) ListWarnings(ctx context.Context, req *pb.ListWarningsRequest) (*pb.ListWarningsResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -76,10 +73,7 @@ func (s *Server) ListWarnings(ctx context.Context, req *pb.ListWarningsRequest) 
 
 // ListSlowMovingItems 处理列出滞销品的gRPC请求。
 func (s *Server) ListSlowMovingItems(ctx context.Context, req *pb.ListSlowMovingItemsRequest) (*pb.ListSlowMovingItemsResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -103,10 +97,7 @@ func (s *Server) ListSlowMovingItems(ctx context.Context, req *pb.ListSlowMoving
 
 // ListReplenishmentSuggestions 处理列出补货建议的gRPC请求。
 func (s *Server) ListReplenishmentSuggestions(ctx context.Context, req *pb.ListReplenishmentSuggestionsRequest) (*pb.ListReplenishmentSuggestionsResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -130,10 +121,7 @@ func (s *Server) ListReplenishmentSuggestions(ctx context.Context, req *pb.ListR
 
 // ListStockoutRisks 处理列出缺货风险的gRPC请求。
 func (s *Server) ListStockoutRisks(ctx context.Context, req *pb.ListStockoutRisksRequest) (*pb.ListStockoutRisksResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

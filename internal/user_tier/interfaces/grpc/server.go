@@ -90,10 +90,7 @@ func (s *Server) DeductPoints(ctx context.Context, req *pb.DeductPointsRequest) 
 // 返回积分日志列表响应和可能发生的gRPC错误。
 func (s *Server) ListPointsLogs(ctx context.Context, req *pb.ListPointsLogsRequest) (*pb.ListPointsLogsResponse, error) {
 	// 获取分页参数。
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -132,10 +129,7 @@ func (s *Server) Exchange(ctx context.Context, req *pb.ExchangeRequest) (*emptyp
 // 返回可兑换商品列表响应和可能发生的gRPC错误。
 func (s *Server) ListExchanges(ctx context.Context, req *pb.ListExchangesRequest) (*pb.ListExchangesResponse, error) {
 	// 获取分页参数。
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

@@ -49,14 +49,14 @@ func main() {
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, srv interface{}) {
+func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
 	pb.RegisterGroupbuyServiceServer(s, groupbuygrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for groupbuy service (DDD)")
 }
 
-func registerGin(e *gin.Engine, srv interface{}) {
+func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
 	handler := groupbuyhttp.NewHandler(service, slog.Default())
@@ -67,7 +67,7 @@ func registerGin(e *gin.Engine, srv interface{}) {
 	slog.Default().Info("HTTP routes registered for groupbuy service (DDD)")
 }
 
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 

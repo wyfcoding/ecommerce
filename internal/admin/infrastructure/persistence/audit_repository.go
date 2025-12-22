@@ -20,7 +20,7 @@ func (r *auditRepository) Save(ctx context.Context, log *domain.AuditLog) error 
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-func (r *auditRepository) Find(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*domain.AuditLog, int64, error) {
+func (r *auditRepository) Find(ctx context.Context, filter map[string]any, page, pageSize int) ([]*domain.AuditLog, int64, error) {
 	var logs []*domain.AuditLog
 	var total int64
 	offset := (page - 1) * pageSize

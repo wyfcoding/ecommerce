@@ -43,7 +43,7 @@ func (a StringArray) Value() (driver.Value, error) {
 }
 
 // Scan 实现 sql.Scanner 接口，从数据库读取值并转换为 StringArray。
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil

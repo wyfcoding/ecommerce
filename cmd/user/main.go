@@ -47,17 +47,17 @@ func main() {
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, svc interface{}) {
+func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
 	pb.RegisterUserServer(s, usergrpc.NewServer(ctx.AppService))
 }
 
-func registerGin(e *gin.Engine, svc interface{}) {
+func registerGin(e *gin.Engine, svc any) {
 	// 用户服务目前在原始代码中没有 HTTP 路由，
 	// 但我们保留此回调以备将来使用或用于健康检查。
 }
 
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 

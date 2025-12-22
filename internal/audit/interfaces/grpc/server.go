@@ -115,10 +115,7 @@ func (s *Server) UpdatePolicy(ctx context.Context, req *pb.UpdatePolicyRequest) 
 
 // ListPolicies 处理列出审计策略的gRPC请求。
 func (s *Server) ListPolicies(ctx context.Context, req *pb.ListPoliciesRequest) (*pb.ListPoliciesResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -161,10 +158,7 @@ func (s *Server) GenerateReport(ctx context.Context, req *pb.GenerateReportReque
 
 // ListReports 处理列出审计报告的gRPC请求。
 func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*pb.ListReportsResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

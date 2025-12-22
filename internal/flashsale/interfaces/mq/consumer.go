@@ -33,7 +33,7 @@ func (c *OrderConsumer) Start(ctx context.Context) error {
 }
 
 func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) error {
-	var event map[string]interface{}
+	var event map[string]any
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
 		c.logger.Error("failed to unmarshal message", "error", err)
 		return nil

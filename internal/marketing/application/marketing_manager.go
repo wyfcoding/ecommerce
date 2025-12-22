@@ -24,7 +24,7 @@ func NewMarketingManager(repo domain.MarketingRepository, logger *slog.Logger) *
 }
 
 // CreateCampaign 创建一个新的营销活动。
-func (m *MarketingManager) CreateCampaign(ctx context.Context, name string, campaignType domain.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]interface{}) (*domain.Campaign, error) {
+func (m *MarketingManager) CreateCampaign(ctx context.Context, name string, campaignType domain.CampaignType, description string, startTime, endTime time.Time, budget uint64, rules map[string]any) (*domain.Campaign, error) {
 	campaign := domain.NewCampaign(name, campaignType, description, startTime, endTime, budget, rules)
 	if err := m.repo.SaveCampaign(ctx, campaign); err != nil {
 		m.logger.ErrorContext(ctx, "failed to create campaign", "name", name, "error", err)

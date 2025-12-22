@@ -58,10 +58,7 @@ func (s *Server) RunJob(ctx context.Context, req *pb.RunJobRequest) (*emptypb.Em
 }
 
 func (s *Server) ListJobs(ctx context.Context, req *pb.ListJobsRequest) (*pb.ListJobsResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -90,10 +87,7 @@ func (s *Server) ListJobs(ctx context.Context, req *pb.ListJobsRequest) (*pb.Lis
 }
 
 func (s *Server) ListJobLogs(ctx context.Context, req *pb.ListJobLogsRequest) (*pb.ListJobLogsResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

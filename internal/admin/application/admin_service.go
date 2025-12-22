@@ -247,7 +247,7 @@ func (s *AdminService) AssignPermissionToRole(ctx context.Context, roleID, permi
 
 // ListAuditLogs 获取审计日志列表（分页）。
 func (s *AdminService) ListAuditLogs(ctx context.Context, adminID uint64, page, pageSize int) ([]*domain.AuditLog, int64, error) {
-	filter := make(map[string]interface{})
+	filter := make(map[string]any)
 	if adminID > 0 {
 		filter["user_id"] = adminID
 	}

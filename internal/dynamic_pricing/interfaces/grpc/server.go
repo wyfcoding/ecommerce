@@ -83,10 +83,7 @@ func (s *Server) SaveStrategy(ctx context.Context, req *pb.SaveStrategyRequest) 
 
 // ListStrategies 处理列出定价策略的gRPC请求。
 func (s *Server) ListStrategies(ctx context.Context, req *pb.ListStrategiesRequest) (*pb.ListStrategiesResponse, error) {
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

@@ -280,10 +280,7 @@ func (s *Server) AddSupportTicketMessage(ctx context.Context, req *pb.AddSupport
 
 // ListSupportTickets 列出客服工单。
 func (s *Server) ListSupportTickets(ctx context.Context, req *pb.ListSupportTicketsRequest) (*pb.ListSupportTicketsResponse, error) {
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

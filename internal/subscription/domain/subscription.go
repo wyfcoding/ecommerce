@@ -31,7 +31,7 @@ func (a StringArray) Value() (driver.Value, error) {
 }
 
 // Scan 实现 sql.Scanner 接口。
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil

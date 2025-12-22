@@ -64,10 +64,7 @@ func (s *Server) ListProductReviews(ctx context.Context, req *pb.ListProductRevi
 	}
 
 	// 将PageToken作为页码进行简单处理。
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -110,10 +107,7 @@ func (s *Server) ListUserReviews(ctx context.Context, req *pb.ListUserReviewsReq
 	}
 
 	// 将PageToken作为页码进行简单处理。
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

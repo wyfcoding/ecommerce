@@ -84,10 +84,7 @@ func (s *Server) Renew(ctx context.Context, req *pb.RenewRequest) (*emptypb.Empt
 
 // ListSubscriptions 处理列出订阅的gRPC请求。
 func (s *Server) ListSubscriptions(ctx context.Context, req *pb.ListSubscriptionsRequest) (*pb.ListSubscriptionsResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

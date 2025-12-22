@@ -49,8 +49,8 @@ type SearchFilter struct {
 
 // SearchResult 值对象代表一次搜索操作的结果。
 type SearchResult struct {
-	Total int64         `json:"total"` // 搜索到的总记录数。
-	Items []interface{} `json:"items"` // 搜索到的商品或其他实体列表。使用interface{}表示结果类型可以多样化。
+	Total int64 `json:"total"` // 搜索到的总记录数。
+	Items []any `json:"items"` // 搜索到的商品或其他实体列表。使用interface{}表示结果类型可以多样化。
 }
 
 // Suggestion 值对象代表一个搜索建议。
@@ -73,7 +73,7 @@ func (a StringArray) Value() (driver.Value, error) {
 }
 
 // Scan 实现 sql.Scanner 接口，从数据库读取值并转换为 StringArray。
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil

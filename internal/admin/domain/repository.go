@@ -36,7 +36,7 @@ type RoleRepository interface {
 // AuditRepository 审计日志仓储
 type AuditRepository interface {
 	Save(ctx context.Context, log *AuditLog) error
-	Find(ctx context.Context, filter map[string]interface{}, page, pageSize int) ([]*AuditLog, int64, error)
+	Find(ctx context.Context, filter map[string]any, page, pageSize int) ([]*AuditLog, int64, error)
 }
 
 // ApprovalRepository 审批流程仓储

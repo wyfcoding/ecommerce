@@ -10,7 +10,7 @@ import (
 )
 
 // JSONMap 定义了一个map类型，实现了 sql.Scanner 和 driver.Valuer 接口。
-type JSONMap map[string]interface{}
+type JSONMap map[string]any
 
 func (m JSONMap) Value() (driver.Value, error) {
 	if m == nil {
@@ -19,7 +19,7 @@ func (m JSONMap) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
-func (m *JSONMap) Scan(value interface{}) error {
+func (m *JSONMap) Scan(value any) error {
 	if value == nil {
 		*m = nil
 		return nil
@@ -48,7 +48,7 @@ func (a DailyForecastArray) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *DailyForecastArray) Scan(value interface{}) error {
+func (a *DailyForecastArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil

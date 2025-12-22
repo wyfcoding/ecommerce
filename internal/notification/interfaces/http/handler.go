@@ -34,12 +34,12 @@ func NewHandler(app *application.NotificationService, logger *slog.Logger) *Hand
 func (h *Handler) SendNotification(c *gin.Context) {
 	// 定义请求体结构，用于接收通知发送信息.
 	var req struct {
-		UserID    uint64                 `json:"user_id" binding:"required"`    // 用户ID，必填.
-		NotifType string                 `json:"notif_type" binding:"required"` // 通知类型，必填.
-		Channel   string                 `json:"channel" binding:"required"`    // 通知渠道，必填.
-		Title     string                 `json:"title" binding:"required"`      // 标题，必填.
-		Content   string                 `json:"content" binding:"required"`    // 内容，必填.
-		Data      map[string]interface{} `json:"data"`                          // 附加数据，选填.
+		UserID    uint64         `json:"user_id" binding:"required"`    // 用户ID，必填.
+		NotifType string         `json:"notif_type" binding:"required"` // 通知类型，必填.
+		Channel   string         `json:"channel" binding:"required"`    // 通知渠道，必填.
+		Title     string         `json:"title" binding:"required"`      // 标题，必填.
+		Content   string         `json:"content" binding:"required"`    // 内容，必填.
+		Data      map[string]any `json:"data"`                          // 附加数据，选填.
 	}
 
 	// 绑定并验证请求JSON数据。
@@ -66,10 +66,10 @@ func (h *Handler) SendNotification(c *gin.Context) {
 func (h *Handler) SendNotificationByTemplate(c *gin.Context) {
 	// 定义请求体结构，用于接收模板发送信息.
 	var req struct {
-		UserID       uint64                 `json:"user_id" binding:"required"`       // 用户ID，必填.
-		TemplateCode string                 `json:"template_code" binding:"required"` // 模板代码，必填.
-		Variables    map[string]string      `json:"variables"`                        // 模板变量，选填.
-		Data         map[string]interface{} `json:"data"`                             // 附加数据，选填.
+		UserID       uint64            `json:"user_id" binding:"required"`       // 用户ID，必填.
+		TemplateCode string            `json:"template_code" binding:"required"` // 模板代码，必填.
+		Variables    map[string]string `json:"variables"`                        // 模板变量，选填.
+		Data         map[string]any    `json:"data"`                             // 附加数据，选填.
 	}
 
 	// 绑定并验证请求JSON数据。

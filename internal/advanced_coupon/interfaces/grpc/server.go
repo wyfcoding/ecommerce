@@ -50,10 +50,7 @@ func (s *Server) GetCoupon(ctx context.Context, req *pb.GetCouponRequest) (*pb.G
 
 func (s *Server) ListCoupons(ctx context.Context, req *pb.ListCouponsRequest) (*pb.ListCouponsResponse, error) {
 	statusVal := entity.CouponStatus(req.Status)
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

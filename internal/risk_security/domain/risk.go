@@ -54,7 +54,7 @@ func (m StringMap) Value() (driver.Value, error) {
 }
 
 // Scan 实现 sql.Scanner 接口，用于从数据库读取。
-func (m *StringMap) Scan(value interface{}) error {
+func (m *StringMap) Scan(value any) error {
 	if value == nil {
 		*m = nil
 		return nil

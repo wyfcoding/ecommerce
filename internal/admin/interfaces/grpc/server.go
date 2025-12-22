@@ -98,10 +98,7 @@ func (s *Server) DeleteAdminUser(ctx context.Context, req *pb.DeleteAdminUserReq
 // 返回管理员用户列表响应和可能发生的gRPC错误。
 func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersRequest) (*pb.ListAdminUsersResponse, error) {
 	// 将protobuf的分页Token转换为应用服务层的页码。
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -190,10 +187,7 @@ func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*em
 // 返回角色列表响应和可能发生的gRPC错误。
 func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
 	// 将protobuf的分页Token转换为应用服务层的页码。
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -273,10 +267,7 @@ func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsReq
 
 // ListAuditLogs 处理列出审计日志的gRPC请求。
 func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest) (*pb.ListAuditLogsResponse, error) {
-	page := int(req.PageToken)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageToken), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

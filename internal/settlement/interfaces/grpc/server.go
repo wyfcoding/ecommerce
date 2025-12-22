@@ -76,10 +76,7 @@ func (s *Server) CompleteSettlement(ctx context.Context, req *pb.CompleteSettlem
 // 返回结算单列表响应和可能发生的gRPC错误。
 func (s *Server) ListSettlements(ctx context.Context, req *pb.ListSettlementsRequest) (*pb.ListSettlementsResponse, error) {
 	// 获取分页参数。
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

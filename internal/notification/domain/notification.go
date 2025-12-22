@@ -40,7 +40,7 @@ const (
 
 // JSONMap 定义了一个map类型，实现了 sql.Scanner 和 driver.Valuer 接口，
 // 允许GORM将Go的map[string]interface{}类型作为JSON字符串存储到数据库，并从数据库读取。
-type JSONMap map[string]interface{}
+type JSONMap map[string]any
 
 // Value 实现 driver.Valuer 接口，将 JSONMap 转换为数据库可以存储的值（JSON字节数组）。
 func (m JSONMap) Value() (driver.Value, error) {
@@ -51,7 +51,7 @@ func (m JSONMap) Value() (driver.Value, error) {
 }
 
 // Scan 实现 sql.Scanner 接口，从数据库读取值并转换为 JSONMap。
-func (m *JSONMap) Scan(value interface{}) error {
+func (m *JSONMap) Scan(value any) error {
 	if value == nil {
 		*m = nil
 		return nil
@@ -76,7 +76,7 @@ func (a StringArray) Value() (driver.Value, error) {
 }
 
 // Scan 实现 sql.Scanner 接口，从数据库读取值并转换为 StringArray。
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = nil
 		return nil
@@ -109,7 +109,7 @@ type Notification struct {
 // title: 标题。
 // content: 内容。
 // data: 附加数据。
-func NewNotification(userID uint64, notifType NotificationType, channel NotificationChannel, title, content string, data map[string]interface{}) *Notification {
+func NewNotification(userID uint64, notifType NotificationType, channel NotificationChannel, title, content string, data map[string]any) *Notification {
 	return &Notification{
 		UserID:    userID,
 		NotifType: notifType,

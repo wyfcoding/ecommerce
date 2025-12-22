@@ -28,23 +28,23 @@ const (
 // AIModel 实体是AI模型模块的聚合根。
 // 它代表一个完整的AI模型，包括其元数据、训练状态、部署信息和性能指标。
 type AIModel struct {
-	gorm.Model                          // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	ModelNo      string                 `gorm:"type:varchar(64);uniqueIndex;not null;comment:模型编号" json:"model_no"` // 模型编号，唯一索引，不允许为空。
-	Name         string                 `gorm:"type:varchar(128);not null;comment:模型名称" json:"name"`                // 模型名称。
-	Description  string                 `gorm:"type:text;comment:描述" json:"description"`                            // 模型描述。
-	Type         string                 `gorm:"type:varchar(64);not null;comment:类型" json:"type"`                   // 模型类型（例如，推荐模型、分类模型）。
-	Algorithm    string                 `gorm:"type:varchar(64);not null;comment:算法" json:"algorithm"`              // 使用的算法（例如，RandomForest、NeuralNetwork）。
-	Version      string                 `gorm:"type:varchar(32);not null;comment:版本" json:"version"`                // 模型版本。
-	Status       ModelStatus            `gorm:"type:varchar(32);not null;default:'draft';comment:状态" json:"status"` // 模型状态，默认为“草稿”。
-	Accuracy     float64                `gorm:"type:decimal(10,4);default:0;comment:准确率" json:"accuracy"`           // 模型准确率（训练完成后）。
-	Parameters   map[string]interface{} `gorm:"type:json;serializer:json;comment:参数" json:"parameters"`             // 模型参数（JSON格式存储）。
-	TrainingData string                 `gorm:"type:text;comment:训练数据路径" json:"training_data"`                      // 训练数据在存储中的路径。
-	ModelPath    string                 `gorm:"type:varchar(255);comment:模型文件路径" json:"model_path"`                 // 模型文件在存储中的路径。
-	CreatorID    uint64                 `gorm:"not null;index;comment:创建人ID" json:"creator_id"`                     // 创建模型的用户ID，索引字段。
-	DeployedAt   *time.Time             `gorm:"comment:部署时间" json:"deployed_at"`                                    // 模型部署时间。
-	FailedReason string                 `gorm:"type:text;comment:失败原因" json:"failed_reason"`                        // 模型训练或部署失败的原因。
-	TrainingLogs []*ModelTrainingLog    `gorm:"foreignKey:ModelID" json:"training_logs"`                            // 模型的训练日志，一对多关系。
-	Predictions  []*ModelPrediction     `gorm:"foreignKey:ModelID" json:"predictions"`                              // 模型的预测记录，一对多关系。
+	gorm.Model                       // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
+	ModelNo      string              `gorm:"type:varchar(64);uniqueIndex;not null;comment:模型编号" json:"model_no"` // 模型编号，唯一索引，不允许为空。
+	Name         string              `gorm:"type:varchar(128);not null;comment:模型名称" json:"name"`                // 模型名称。
+	Description  string              `gorm:"type:text;comment:描述" json:"description"`                            // 模型描述。
+	Type         string              `gorm:"type:varchar(64);not null;comment:类型" json:"type"`                   // 模型类型（例如，推荐模型、分类模型）。
+	Algorithm    string              `gorm:"type:varchar(64);not null;comment:算法" json:"algorithm"`              // 使用的算法（例如，RandomForest、NeuralNetwork）。
+	Version      string              `gorm:"type:varchar(32);not null;comment:版本" json:"version"`                // 模型版本。
+	Status       ModelStatus         `gorm:"type:varchar(32);not null;default:'draft';comment:状态" json:"status"` // 模型状态，默认为“草稿”。
+	Accuracy     float64             `gorm:"type:decimal(10,4);default:0;comment:准确率" json:"accuracy"`           // 模型准确率（训练完成后）。
+	Parameters   map[string]any      `gorm:"type:json;serializer:json;comment:参数" json:"parameters"`             // 模型参数（JSON格式存储）。
+	TrainingData string              `gorm:"type:text;comment:训练数据路径" json:"training_data"`                      // 训练数据在存储中的路径。
+	ModelPath    string              `gorm:"type:varchar(255);comment:模型文件路径" json:"model_path"`                 // 模型文件在存储中的路径。
+	CreatorID    uint64              `gorm:"not null;index;comment:创建人ID" json:"creator_id"`                     // 创建模型的用户ID，索引字段。
+	DeployedAt   *time.Time          `gorm:"comment:部署时间" json:"deployed_at"`                                    // 模型部署时间。
+	FailedReason string              `gorm:"type:text;comment:失败原因" json:"failed_reason"`                        // 模型训练或部署失败的原因。
+	TrainingLogs []*ModelTrainingLog `gorm:"foreignKey:ModelID" json:"training_logs"`                            // 模型的训练日志，一对多关系。
+	Predictions  []*ModelPrediction  `gorm:"foreignKey:ModelID" json:"predictions"`                              // 模型的预测记录，一对多关系。
 }
 
 // ModelTrainingLog 实体记录了AI模型训练过程中的关键指标和事件。
@@ -80,10 +80,10 @@ func NewAIModel(modelNo, name, description, modelType, algorithm string, creator
 		Description: description,
 		Type:        modelType,
 		Algorithm:   algorithm,
-		Version:     "1.0.0",                      // 默认版本号。
-		Status:      ModelStatusDraft,             // 初始状态为草稿。
-		Accuracy:    0.0,                          // 初始准确率为0。
-		Parameters:  make(map[string]interface{}), // 初始化模型参数map。
+		Version:     "1.0.0",              // 默认版本号。
+		Status:      ModelStatusDraft,     // 初始状态为草稿。
+		Accuracy:    0.0,                  // 初始准确率为0。
+		Parameters:  make(map[string]any), // 初始化模型参数map。
 		CreatorID:   creatorID,
 	}
 }

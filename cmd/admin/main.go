@@ -60,12 +60,12 @@ func main() {
 		Run()
 }
 
-func registerGRPC(s *grpc.Server, svc interface{}) {
+func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
 	pb.RegisterAdminServiceServer(s, admingrpc.NewServer(ctx.AdminService))
 }
 
-func registerGin(e *gin.Engine, svc interface{}) {
+func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
 	api := e.Group("/api/v1")
 
@@ -83,7 +83,7 @@ type AppContext struct {
 }
 */
 
-func initService(cfg interface{}, m *metrics.Metrics) (interface{}, func(), error) {
+func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*configpkg.Config)
 	slog.Info("initializing service dependencies...")
 

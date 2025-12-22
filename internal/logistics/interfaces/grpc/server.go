@@ -124,10 +124,7 @@ func (s *Server) SetEstimatedTime(ctx context.Context, req *pb.SetEstimatedTimeR
 // 返回物流单列表响应和可能发生的gRPC错误。
 func (s *Server) ListLogistics(ctx context.Context, req *pb.ListLogisticsRequest) (*pb.ListLogisticsResponse, error) {
 	// 获取分页参数。
-	page := int(req.PageNum)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

@@ -83,7 +83,7 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 	order.ID = uint(orderID)
 	order.Status = domain.FlashsaleOrderStatusPending
 
-	event := map[string]interface{}{
+	event := map[string]any{
 		"order_id":     orderID,
 		"flashsale_id": flashsaleID,
 		"user_id":      userID,
@@ -95,7 +95,7 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 	}
 	payload, _ := json.Marshal(event)
 
-	if err := m.producer.Publish(ctx, []byte(fmt.Sprintf("%d", orderID)), payload); err != nil {
+	if err := m.producer.Publish(ctx, fmt.Appendf(nil, "%d", orderID), payload); err != nil {
 		m.logger.ErrorContext(ctx, "failed to publish order event", "order_id", orderID, "error", err)
 		_ = m.cache.RevertStock(ctx, flashsaleID, userID, quantity)
 		return nil, fmt.Errorf("failed to publish order: %w", err)

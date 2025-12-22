@@ -39,10 +39,7 @@ func (s *Server) CreateWarehouse(ctx context.Context, req *pb.CreateWarehouseReq
 
 // ListWarehouses 处理列出仓库的gRPC请求。
 func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesRequest) (*pb.ListWarehousesResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
