@@ -109,7 +109,7 @@ func (r *settlementRepository) GetSettlementStatistics(ctx context.Context, star
 		return nil, err
 	}
 
-// 结果 结构体定义。
+	// 结果 结构体定义。
 	type Result struct {
 		TotalAmount int64
 	}

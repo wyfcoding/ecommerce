@@ -9,7 +9,7 @@ import (
 
 // 定义Inventory模块的业务错误。
 var (
-	ErrInsufficientStock = errors.New("insufficient stock")    // 库存不足以完成操作。
+	ErrInsufficientStock = errors.New("insufficient stock")        // 库存不足以完成操作。
 	ErrNegativeQuantity  = errors.New("quantity must be positive") // 操作数量必须为正数。
 )
 
