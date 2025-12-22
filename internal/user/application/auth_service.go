@@ -3,9 +3,8 @@ package application
 import (
 	"context"
 	"errors"
-	"time"
-
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"github.com/wyfcoding/pkg/algorithm"

@@ -23,7 +23,8 @@ func NewGroupbuyService(manager *GroupbuyManager, query *GroupbuyQuery) *Groupbu
 
 // CreateGroupbuy 创建一个新的拼团活动。
 func (s *GroupbuyService) CreateGroupbuy(ctx context.Context, name string, productID, skuID, originalPrice, groupPrice uint64,
-	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time) (*domain.Groupbuy, error) {
+	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time,
+) (*domain.Groupbuy, error) {
 	return s.manager.CreateGroupbuy(ctx, name, productID, skuID, originalPrice, groupPrice, minPeople, maxPeople, totalStock, startTime, endTime)
 }
 

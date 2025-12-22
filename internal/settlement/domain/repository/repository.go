@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain/entity" // 导入结算领域的实体定义。
 )
 

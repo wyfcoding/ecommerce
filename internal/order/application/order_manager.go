@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
 	"log/slog"
+	"time"
 
 	warehousev1 "github.com/wyfcoding/ecommerce/go-api/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"

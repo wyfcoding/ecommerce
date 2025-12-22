@@ -3,11 +3,10 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/file/domain"
-
-	"log/slog"
 )
 
 // FileManager 处理文件管理的写操作。

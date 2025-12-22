@@ -29,8 +29,8 @@ func NewLogisticsManager(repo domain.LogisticsRepository, logger *slog.Logger) *
 // CreateLogistics 创建一个新的物流单。
 func (m *LogisticsManager) CreateLogistics(ctx context.Context, orderID uint64, orderNo, trackingNo, carrier, carrierCode string,
 	senderName, senderPhone, senderAddress string, senderLat, senderLon float64,
-	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64) (*domain.Logistics, error) {
-
+	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64,
+) (*domain.Logistics, error) {
 	logistics := domain.NewLogistics(orderID, orderNo, trackingNo, carrier, carrierCode,
 		senderName, senderPhone, senderAddress, senderLat, senderLon,
 		receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon)

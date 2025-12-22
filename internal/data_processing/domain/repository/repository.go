@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/entity" // 导入数据处理领域的实体定义。
 )
 

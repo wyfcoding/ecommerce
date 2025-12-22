@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain/entity"     // 导入网关模块的领域实体定义。
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain/repository" // 导入网关模块的领域仓储接口。
 

@@ -3,11 +3,10 @@ package application
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain"
-
-	"log/slog"
 )
 
 // SubscriptionManager 处理订阅的写操作。

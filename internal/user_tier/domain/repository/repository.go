@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/user_tier/domain/entity" // 导入用户等级领域的实体定义。
 )
 

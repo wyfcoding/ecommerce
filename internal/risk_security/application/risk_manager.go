@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risk_security/domain"
-
-	"log/slog"
 )
 
 // RiskManager 处理风控安全的写操作。

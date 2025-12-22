@@ -1,14 +1,13 @@
 package http
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
 	"github.com/wyfcoding/pkg/response"
-
-	"log/slog"
 
 	"github.com/gin-gonic/gin"
 )

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain/entity"     // 导入网关领域的实体定义。
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain/repository" // 导入网关领域的仓储接口。
 

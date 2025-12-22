@@ -2,11 +2,10 @@ package application
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/data_ingestion/domain"
-
-	"log/slog"
 )
 
 // DataIngestionManager 处理数据采集的写操作。

@@ -25,7 +25,8 @@ func NewLogisticsService(manager *LogisticsManager, query *LogisticsQuery) *Logi
 // CreateLogistics 创建物流运单记录。
 func (s *LogisticsService) CreateLogistics(ctx context.Context, orderID uint64, orderNo, trackingNo, carrier, carrierCode string,
 	senderName, senderPhone, senderAddress string, senderLat, senderLon float64,
-	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64) (*domain.Logistics, error) {
+	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64,
+) (*domain.Logistics, error) {
 	return s.Manager.CreateLogistics(ctx, orderID, orderNo, trackingNo, carrier, carrierCode,
 		senderName, senderPhone, senderAddress, senderLat, senderLon,
 		receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon)

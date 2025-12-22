@@ -3,10 +3,9 @@ package application
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/message/domain"
-
-	"log/slog"
 )
 
 // MessageManager 处理消息的写操作。

@@ -2,11 +2,10 @@ package application
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/dynamic_pricing/domain"
-
-	"log/slog"
 )
 
 // DynamicPricingManager 处理动态定价的写操作。

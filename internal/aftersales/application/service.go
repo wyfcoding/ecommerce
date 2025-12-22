@@ -41,8 +41,8 @@ func NewAfterSalesService(repo repository.AfterSalesRepository, idGenerator idge
 // items: 申请售后的商品列表。
 // 返回created successfully的售后实体和可能发生的错误。
 func (s *AfterSalesService) CreateAfterSales(ctx context.Context, orderID uint64, orderNo string, userID uint64,
-	asType entity.AfterSalesType, reason, description string, images []string, items []*entity.AfterSalesItem) (*entity.AfterSales, error) {
-
+	asType entity.AfterSalesType, reason, description string, images []string, items []*entity.AfterSalesItem,
+) (*entity.AfterSales, error) {
 	// 生成唯一的售后单号。
 	no := fmt.Sprintf("AS%d", s.idGenerator.Generate())
 	// 创建售后实体。

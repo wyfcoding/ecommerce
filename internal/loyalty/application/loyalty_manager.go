@@ -2,10 +2,9 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/loyalty/domain"
-
-	"log/slog"
 )
 
 // LoyaltyManager 负责处理 Loyalty 相关的写操作和业务逻辑。

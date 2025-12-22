@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+
 	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/entity"     // 导入数据处理模块的领域实体定义。
 	"github.com/wyfcoding/ecommerce/internal/data_processing/domain/repository" // 导入数据处理模块的领域仓储接口。
 

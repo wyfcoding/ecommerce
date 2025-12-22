@@ -2,11 +2,10 @@ package application
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
-
-	"log/slog"
 )
 
 // MarketingManager 处理营销的写操作。

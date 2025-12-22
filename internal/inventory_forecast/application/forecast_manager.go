@@ -2,11 +2,10 @@ package application
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory_forecast/domain"
-
-	"log/slog"
 )
 
 // InventoryForecastManager 处理库存预测的写操作。

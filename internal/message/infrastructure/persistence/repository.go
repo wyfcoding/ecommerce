@@ -76,7 +76,6 @@ func (r *messageRepository) GetConversation(ctx context.Context, user1ID, user2I
 	err := r.db.WithContext(ctx).
 		Where("(user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)", user1ID, user2ID, user2ID, user1ID).
 		First(&conversation).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

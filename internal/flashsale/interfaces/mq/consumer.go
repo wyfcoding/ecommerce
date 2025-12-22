@@ -3,7 +3,6 @@ package mq
 import (
 	"context"
 	"encoding/json"
-
 	"log/slog"
 
 	kafkago "github.com/segmentio/kafka-go"

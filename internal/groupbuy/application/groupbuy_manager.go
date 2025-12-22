@@ -3,12 +3,11 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
 	"github.com/wyfcoding/pkg/idgen"
-
-	"log/slog"
 )
 
 // GroupbuyManager 负责处理 Groupbuy 相关的写操作和业务逻辑。
@@ -28,8 +27,8 @@ func NewGroupbuyManager(repo domain.GroupbuyRepository, idGenerator idgen.Genera
 }
 
 func (m *GroupbuyManager) CreateGroupbuy(ctx context.Context, name string, productID, skuID, originalPrice, groupPrice uint64,
-	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time) (*domain.Groupbuy, error) {
-
+	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time,
+) (*domain.Groupbuy, error) {
 	groupbuy := domain.NewGroupbuy(name, productID, skuID, originalPrice, groupPrice, minPeople, maxPeople, totalStock, startTime, endTime)
 
 	if err := m.repo.CreateGroupbuy(ctx, groupbuy); err != nil {

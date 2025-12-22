@@ -2,10 +2,9 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/content_moderation/domain"
-
-	"log/slog"
 )
 
 // ModerationManager 处理内容审核的写操作。

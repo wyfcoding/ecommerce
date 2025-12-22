@@ -267,6 +267,7 @@ func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 func generatePaymentNo() string {
 	return fmt.Sprintf("P%s", time.Now().Format("20060102150405"))
 }
+
 func generateRefundNo() string {
 	return fmt.Sprintf("R%s", time.Now().Format("20060102150405"))
 }

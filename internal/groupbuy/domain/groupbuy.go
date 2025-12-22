@@ -46,7 +46,8 @@ type Groupbuy struct {
 
 // NewGroupbuy 创建并返回一个新的 Groupbuy 实体实例。
 func NewGroupbuy(name string, productID, skuID, originalPrice, groupPrice uint64,
-	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time) *Groupbuy {
+	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time,
+) *Groupbuy {
 	return &Groupbuy{
 		Name:          name,
 		ProductID:     productID,

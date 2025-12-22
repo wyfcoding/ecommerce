@@ -1,13 +1,12 @@
 package http
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics_routing/application"
 	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain"
 	"github.com/wyfcoding/pkg/response"
-
-	"log/slog"
 
 	"github.com/gin-gonic/gin"
 )

@@ -79,7 +79,8 @@ type DeliveryRoute struct {
 // receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon: 收件人信息。
 func NewLogistics(orderID uint64, orderNo, trackingNo, carrier, carrierCode string,
 	senderName, senderPhone, senderAddress string, senderLat, senderLon float64,
-	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64) *Logistics {
+	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64,
+) *Logistics {
 	return &Logistics{
 		OrderID:         orderID,
 		OrderNo:         orderNo,

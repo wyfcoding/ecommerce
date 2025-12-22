@@ -3,10 +3,9 @@ package application
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics_routing/domain"
-
-	"log/slog"
 )
 
 // LogisticsRoutingManager 处理物流路由的写操作。

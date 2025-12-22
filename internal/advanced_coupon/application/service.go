@@ -3,13 +3,12 @@ package application
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/entity"
 	"github.com/wyfcoding/ecommerce/internal/advanced_coupon/domain/repository"
 	"github.com/wyfcoding/pkg/algorithm"
-
-	"log/slog"
 )
 
 // AdvancedCouponService 定义了 AdvancedCoupon 相关的服务逻辑。

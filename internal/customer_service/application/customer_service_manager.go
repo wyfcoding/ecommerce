@@ -3,11 +3,10 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/customer_service/domain"
-
-	"log/slog"
 )
 
 // CustomerServiceManager 处理客户服务的写操作。

@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
-
-	"log/slog"
 )
 
 // FlashsaleManager 负责处理 Flashsale 相关的写操作和业务逻辑。

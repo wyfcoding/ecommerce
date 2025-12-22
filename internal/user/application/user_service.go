@@ -2,9 +2,8 @@ package application
 
 import (
 	"context"
-	"time"
-
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 )

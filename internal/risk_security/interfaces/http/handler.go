@@ -1,14 +1,13 @@
 package http
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risk_security/application"
 	"github.com/wyfcoding/pkg/response"
-
-	"log/slog"
 
 	"github.com/gin-gonic/gin"
 )

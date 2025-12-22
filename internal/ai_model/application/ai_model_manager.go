@@ -3,12 +3,11 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/ai_model/domain"
 	"github.com/wyfcoding/pkg/idgen"
-
-	"log/slog"
 )
 
 // AIModelManager 负责AI模型模块的写操作和业务逻辑。

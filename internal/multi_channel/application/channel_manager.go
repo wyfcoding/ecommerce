@@ -2,11 +2,10 @@ package application
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/multi_channel/domain"
-
-	"log/slog"
 )
 
 // ChannelManager 处理渠道的写操作。

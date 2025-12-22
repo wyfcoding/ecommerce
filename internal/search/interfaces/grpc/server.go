@@ -3,9 +3,10 @@ package grpc
 import (
 	"context"       // 导入上下文。
 	"encoding/json" // 导入JSON编码/解码库。
-	"fmt"           // 导入格式化库。
-
+	"fmt"
 	"log/slog"
+
+	// 导入格式化库。
 
 	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"         // 导入搜索模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/search/application" // 导入搜索模块的应用服务。

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -8,8 +9,6 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/audit/application"
 	"github.com/wyfcoding/ecommerce/internal/audit/domain"
 	"github.com/wyfcoding/pkg/response"
-
-	"log/slog"
 
 	"github.com/gin-gonic/gin"
 )

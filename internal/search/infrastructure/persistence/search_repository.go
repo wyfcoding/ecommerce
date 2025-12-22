@@ -93,7 +93,6 @@ func (r *searchRepository) Suggest(ctx context.Context, keyword string, limit in
 		Where("keyword LIKE ?", keyword+"%"). // 查找以指定关键词开头的记录。
 		Limit(limit).                         // 应用数量限制。
 		Scan(&suggestions).Error              // 将结果扫描到Suggestion结构体中。
-
 	if err != nil {
 		return nil, err
 	}
