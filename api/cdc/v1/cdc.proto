@@ -21,23 +21,23 @@ service CDC {
 
 // ChangeEvent 代表一个数据变更事件。
 message ChangeEvent {
-  string table_name = 1;
-  string operation_type = 2; // INSERT, UPDATE, DELETE
+  string table_name = 1; // table名称
+  string operation_type = 2; // operation类型
   map<string, string> old_data = 3; // 变更前的数据 (UPDATE 和 DELETE)
   map<string, string> new_data = 4; // 变更后的数据 (INSERT 和 UPDATE)
-  google.protobuf.Timestamp change_timestamp = 5;
+  google.protobuf.Timestamp change_timestamp = 5; // change时间戳
 }
 
 // CaptureChangeRequest 捕获变更请求消息。
 message CaptureChangeRequest {
-  string table_name = 1;
-  string operation_type = 2;
-  map<string, string> old_data = 3;
-  map<string, string> new_data = 4;
+  string table_name = 1; // table名称
+  string operation_type = 2; // operation类型
+  map<string, string> old_data = 3; // old数据
+  map<string, string> new_data = 4; // 创建一个新的实例数据
 }
 
 // StreamChangesRequest 流式传输变更请求消息。
 message StreamChangesRequest {
-  repeated string table_names = 1;
+  repeated string table_names = 1; // 表names
   optional google.protobuf.Timestamp since_timestamp = 2;
 }

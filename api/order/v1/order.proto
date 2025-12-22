@@ -140,8 +140,8 @@ message ShippingAddress {
 
 // OrderLog 记录订单的关键操作和状态变更。
 message OrderLog {
-  uint64 id = 1;
-  uint64 order_id = 2;
+  uint64 id = 1; // 唯一标识
+  uint64 order_id = 2; // 订单唯一标识
   string operator = 3;                            // 操作人 (用户ID或系统)
   string action = 4;                              // 操作描述 (例如: "订单创建", "支付成功", "发货")
   string old_status = 5;                          // 旧状态
@@ -151,7 +151,7 @@ message OrderLog {
 
 // PaymentResult 支付结果信息。
 message PaymentResult {
-  uint64 order_id = 1;
+  uint64 order_id = 1; // 订单唯一标识
   string transaction_id = 2;                      // 支付平台交易ID
   PaymentStatus status = 3;                       // 支付状态
   string message = 4;                             // 支付结果消息
@@ -179,13 +179,13 @@ message OrderItemCreate {
 
 // GetOrderByIDRequest 获取单个订单的请求。
 message GetOrderByIDRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
   uint64 user_id = 2;                             // 用于权限校验
 }
 
 // UpdateOrderStatusRequest 更新订单状态的请求。
 message UpdateOrderStatusRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
   uint64 user_id = 2;                             // 用于权限校验或操作记录
   OrderStatus new_status = 3;                     // 新的订单状态
   string operator = 4;                            // 操作人 (用户ID或系统)
@@ -194,15 +194,15 @@ message UpdateOrderStatusRequest {
 
 // CancelOrderRequest 取消订单的请求。
 message CancelOrderRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
   uint64 user_id = 2;                             // 用于权限校验
   string reason = 3;                              // 取消原因
 }
 
 // ListOrdersRequest 列表订单的请求。
 message ListOrdersRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 page = 1; // 页码
+  int32 page_size = 2; // 页码大小
   uint64 user_id = 3;                             // 按用户ID筛选
   OrderStatus status = 4;                         // 按订单状态筛选
   google.protobuf.Timestamp start_time = 5;       // 订单创建时间范围开始
@@ -212,15 +212,15 @@ message ListOrdersRequest {
 
 // ListOrdersResponse 列表订单的响应。
 message ListOrdersResponse {
-  repeated OrderInfo orders = 1;
-  int32 total = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  repeated OrderInfo orders = 1; // 订单列表
+  int32 total = 2; // 总数
+  int32 page = 3; // 页码
+  int32 page_size = 4; // 页码大小
 }
 
 // ProcessPaymentRequest 支付处理请求。
 message ProcessPaymentRequest {
-  uint64 order_id = 1;
+  uint64 order_id = 1; // 订单唯一标识
   uint64 user_id = 2;                             // 用于权限校验
   string payment_method = 3;                      // 支付方式
   int64 amount = 4;                               // 支付金额 (单位: 分)
@@ -229,7 +229,7 @@ message ProcessPaymentRequest {
 
 // RequestRefundRequest 申请退款请求。
 message RequestRefundRequest {
-  uint64 order_id = 1;
+  uint64 order_id = 1; // 订单唯一标识
   uint64 user_id = 2;                             // 用于权限校验
   int64 refund_amount = 3;                        // 退款金额 (单位: 分)
   string reason = 4;                              // 退款原因
@@ -237,17 +237,17 @@ message RequestRefundRequest {
 
 // GetOrderItemsByOrderIDRequest 获取订单项列表请求。
 message GetOrderItemsByOrderIDRequest {
-  uint64 order_id = 1;
+  uint64 order_id = 1; // 订单唯一标识
 }
 
 // GetOrderItemsByOrderIDResponse 获取订单项列表响应。
 message GetOrderItemsByOrderIDResponse {
-  repeated OrderItem items = 1;
+  repeated OrderItem items = 1; // 项列表
 }
 
 // UpdateOrderShippingStatusRequest 更新订单配送状态请求。
 message UpdateOrderShippingStatusRequest {
-  uint64 order_id = 1;
+  uint64 order_id = 1; // 订单唯一标识
   ShippingStatus new_shipping_status = 2;         // 新的配送状态
   string tracking_number = 3;                     // 快递单号
   string logistics_company = 4;                   // 物流公司

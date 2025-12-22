@@ -7,83 +7,99 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/subscription/v1;subscriptionv1";
 
+// SubscriptionService Subscription服务服务定义。
 service SubscriptionService {
-  // Plan Management
+// CreatePlan 创建Plan。
   rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
+// ListPlans 处理列出Plans请求。
   rpc ListPlans(google.protobuf.Empty) returns (ListPlansResponse);
 
-  // Subscription Management
+// Subscribe 订阅接口。
   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+// Cancel 处理Cancel请求。
   rpc Cancel(CancelRequest) returns (google.protobuf.Empty);
+// Renew 处理Renew请求。
   rpc Renew(RenewRequest) returns (google.protobuf.Empty);
+// ListSubscriptions 处理列出Subscriptions请求。
   rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse);
 }
 
+// SubscriptionPlan SubscriptionPlan消息结构。
 message SubscriptionPlan {
-  uint64 id = 1;
-  string name = 2;
-  string description = 3;
-  uint64 price = 4;
-  int32 duration = 5;
-  repeated string features = 6;
-  bool enabled = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string description = 3; // 描述
+  uint64 price = 4; // 价格
+  int32 duration = 5; // 时长
+  repeated string features = 6; // 特性
+  bool enabled = 7; // 启用
+  google.protobuf.Timestamp created_at = 8; // 创建时间
+  google.protobuf.Timestamp updated_at = 9; // 更新时间
 }
 
+// Subscription Subscription消息结构。
 message Subscription {
-  uint64 id = 1;
-  uint64 user_id = 2;
-  uint64 plan_id = 3;
-  int32 status = 4;
-  google.protobuf.Timestamp start_date = 5;
-  google.protobuf.Timestamp end_date = 6;
-  bool auto_renew = 7;
-  google.protobuf.Timestamp canceled_at = 8;
-  google.protobuf.Timestamp created_at = 9;
-  google.protobuf.Timestamp updated_at = 10;
+  uint64 id = 1; // 唯一标识
+  uint64 user_id = 2; // 用户唯一标识
+  uint64 plan_id = 3; // 计划ID
+  int32 status = 4; // 状态
+  google.protobuf.Timestamp start_date = 5; // 开始date
+  google.protobuf.Timestamp end_date = 6; // 结束date
+  bool auto_renew = 7; // auto续费
+  google.protobuf.Timestamp canceled_at = 8; // canceled在
+  google.protobuf.Timestamp created_at = 9; // 创建时间
+  google.protobuf.Timestamp updated_at = 10; // 更新时间
 }
 
+// CreatePlanRequest 创建Plan请求消息结构。
 message CreatePlanRequest {
-  string name = 1;
-  string description = 2;
-  uint64 price = 3;
-  int32 duration = 4;
-  repeated string features = 5;
+  string name = 1; // 名称
+  string description = 2; // 描述
+  uint64 price = 3; // 价格
+  int32 duration = 4; // 时长
+  repeated string features = 5; // 特性
 }
 
+// CreatePlanResponse 创建Plan响应消息结构。
 message CreatePlanResponse {
-  SubscriptionPlan plan = 1;
+  SubscriptionPlan plan = 1; // 计划
 }
 
+// ListPlansResponse 列出Plans响应消息结构。
 message ListPlansResponse {
-  repeated SubscriptionPlan plans = 1;
+  repeated SubscriptionPlan plans = 1; // 计划列表
 }
 
+// SubscribeRequest Subscribe请求消息结构。
 message SubscribeRequest {
-  uint64 user_id = 1;
-  uint64 plan_id = 2;
+  uint64 user_id = 1; // 用户唯一标识
+  uint64 plan_id = 2; // 计划ID
 }
 
+// SubscribeResponse Subscribe响应消息结构。
 message SubscribeResponse {
-  Subscription subscription = 1;
+  Subscription subscription = 1; // 订阅
 }
 
+// CancelRequest Cancel请求消息结构。
 message CancelRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// RenewRequest Renew请求消息结构。
 message RenewRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// ListSubscriptionsRequest 列出Subscriptions请求消息结构。
 message ListSubscriptionsRequest {
-  uint64 user_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  int32 page = 2; // 页码
+  int32 page_size = 3; // 页码大小
 }
 
+// ListSubscriptionsResponse 列出Subscriptions响应消息结构。
 message ListSubscriptionsResponse {
-  repeated Subscription subscriptions = 1;
-  int64 total_count = 2;
+  repeated Subscription subscriptions = 1; // 订阅列表
+  int64 total_count = 2; // 总数计数
 }

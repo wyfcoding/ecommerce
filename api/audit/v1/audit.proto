@@ -17,150 +17,154 @@ service AuditService {
 
   // --- 策略管理 ---
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+// UpdatePolicy 处理更新Policy请求。
   rpc UpdatePolicy(UpdatePolicyRequest) returns (google.protobuf.Empty);
+// ListPolicies 处理列出Policies请求。
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
 
   // --- 报告管理 ---
   rpc CreateReport(CreateReportRequest) returns (CreateReportResponse);
+// GenerateReport 处理GenerateReport请求。
   rpc GenerateReport(GenerateReportRequest) returns (google.protobuf.Empty);
+// ListReports 处理列出Reports请求。
   rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
 }
 
 // AuditLog 审计日志
 message AuditLog {
-  uint64 id = 1;
-  string audit_no = 2;
-  uint64 user_id = 3;
-  string username = 4;
-  string event_type = 5;
-  string level = 6;
-  string module = 7;
-  string action = 8;
-  string resource_type = 9;
-  string resource_id = 10;
-  string old_value = 11;
-  string new_value = 12;
-  string ip = 13;
-  string user_agent = 14;
-  string status = 15;
-  string error_msg = 16;
-  int64 duration = 17;
-  google.protobuf.Timestamp timestamp = 18;
+  uint64 id = 1; // 唯一标识
+  string audit_no = 2; // 审计no
+  uint64 user_id = 3; // 用户唯一标识
+  string username = 4; // 用户名
+  string event_type = 5; // event类型
+  string level = 6; // 等级
+  string module = 7; // 模块
+  string action = 8; // 动作
+  string resource_type = 9; // resource类型
+  string resource_id = 10; // 资源ID
+  string old_value = 11; // old值
+  string new_value = 12; // 创建一个新的实例value
+  string ip = 13; // IP地址
+  string user_agent = 14; // 用户agent
+  string status = 15; // 状态
+  string error_msg = 16; // 错误msg
+  int64 duration = 17; // 时长
+  google.protobuf.Timestamp timestamp = 18; // 时间戳
 }
 
 // LogEventRequest 记录审计事件请求
 message LogEventRequest {
-  uint64 user_id = 1;
-  string username = 2;
-  string event_type = 3;
-  string module = 4;
-  string action = 5;
+  uint64 user_id = 1; // 用户唯一标识
+  string username = 2; // 用户名
+  string event_type = 3; // event类型
+  string module = 4; // 模块
+  string action = 5; // 动作
   // Optional fields
-  string resource_type = 6;
-  string resource_id = 7;
-  string old_value = 8;
-  string new_value = 9;
-  string ip = 10;
-  string user_agent = 11;
-  int64 duration = 12;
-  string error_msg = 13;
+  string resource_type = 6; // resource类型
+  string resource_id = 7; // 资源ID
+  string old_value = 8; // old值
+  string new_value = 9; // 创建一个新的实例value
+  string ip = 10; // IP地址
+  string user_agent = 11; // 用户agent
+  int64 duration = 12; // 时长
+  string error_msg = 13; // 错误msg
 }
 
 // QueryLogsRequest 查询审计日志请求
 message QueryLogsRequest {
-  uint64 user_id = 1;
-  string module = 2;
-  string event_type = 3;
-  google.protobuf.Timestamp start_time = 4;
-  google.protobuf.Timestamp end_time = 5;
-  string status = 6;
-  uint32 page_size = 7;
-  uint32 page_num = 8;
+  uint64 user_id = 1; // 用户唯一标识
+  string module = 2; // 模块
+  string event_type = 3; // event类型
+  google.protobuf.Timestamp start_time = 4; // 开始时间
+  google.protobuf.Timestamp end_time = 5; // 结束时间
+  string status = 6; // 状态
+  uint32 page_size = 7; // 页码大小
+  uint32 page_num = 8; // 页码num
 }
 
 // QueryLogsResponse 查询审计日志响应
 message QueryLogsResponse {
-  repeated AuditLog logs = 1;
-  uint64 total_count = 2;
+  repeated AuditLog logs = 1; // 日志列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // AuditPolicy 审计策略
 message AuditPolicy {
-  uint64 id = 1;
-  string name = 2;
-  string description = 3;
-  repeated string event_types = 4;
-  repeated string modules = 5;
-  bool enabled = 6;
-  int32 retention_days = 7;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string description = 3; // 描述
+  repeated string event_types = 4; // 事件types
+  repeated string modules = 5; // 模块
+  bool enabled = 6; // 启用
+  int32 retention_days = 7; // 留存days
 }
 
 // CreatePolicyRequest 创建审计策略请求
 message CreatePolicyRequest {
-  string name = 1;
-  string description = 2;
+  string name = 1; // 名称
+  string description = 2; // 描述
 }
 
 // CreatePolicyResponse 创建审计策略响应
 message CreatePolicyResponse {
-  AuditPolicy policy = 1;
+  AuditPolicy policy = 1; // 策略
 }
 
 // UpdatePolicyRequest 更新审计策略请求
 message UpdatePolicyRequest {
-  uint64 id = 1;
-  repeated string event_types = 2;
-  repeated string modules = 3;
-  bool enabled = 4;
+  uint64 id = 1; // 唯一标识
+  repeated string event_types = 2; // 事件types
+  repeated string modules = 3; // 模块
+  bool enabled = 4; // 启用
 }
 
 // ListPoliciesRequest 获取审计策略列表请求
 message ListPoliciesRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
 // ListPoliciesResponse 获取审计策略列表响应
 message ListPoliciesResponse {
-  repeated AuditPolicy policies = 1;
-  uint64 total_count = 2;
+  repeated AuditPolicy policies = 1; // 策略
+  uint64 total_count = 2; // 总数计数
 }
 
 // AuditReport 审计报告
 message AuditReport {
-  uint64 id = 1;
-  string report_no = 2;
-  string title = 3;
-  string description = 4;
-  string status = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp generated_at = 7;
+  uint64 id = 1; // 唯一标识
+  string report_no = 2; // 报告no
+  string title = 3; // 标题
+  string description = 4; // 描述
+  string status = 5; // 状态
+  google.protobuf.Timestamp created_at = 6; // 创建时间
+  google.protobuf.Timestamp generated_at = 7; // generated在
 }
 
 // CreateReportRequest 创建审计报告请求
 message CreateReportRequest {
-  string title = 1;
-  string description = 2;
+  string title = 1; // 标题
+  string description = 2; // 描述
 }
 
 // CreateReportResponse 创建审计报告响应
 message CreateReportResponse {
-  AuditReport report = 1;
+  AuditReport report = 1; // 报告
 }
 
 // GenerateReportRequest 生成报告内容请求
 message GenerateReportRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // ListReportsRequest 获取审计报告列表请求
 message ListReportsRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
 // ListReportsResponse 获取审计报告列表响应
 message ListReportsResponse {
-  repeated AuditReport reports = 1;
-  uint64 total_count = 2;
+  repeated AuditReport reports = 1; // 报告
+  uint64 total_count = 2; // 总数计数
 }

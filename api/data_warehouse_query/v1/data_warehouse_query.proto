@@ -21,33 +21,33 @@ service DataWarehouseQuery {
 
 // ExecuteQueryRequest 执行查询请求消息。
 message ExecuteQueryRequest {
-  string query_string = 1;
-  map<string, string> query_params = 2;
+  string query_string = 1; // 查询字符串
+  map<string, string> query_params = 2; // queryparams
   optional string query_engine = 3; // e.g., "Presto", "Hive", "Spark"
 }
 
 // ExecuteQueryResponse 执行查询响应消息。
 message ExecuteQueryResponse {
-  string query_id = 1;
-  string status = 2;
+  string query_id = 1; // 查询ID
+  string status = 2; // 状态
 }
 
 // GetQueryResultRequest 获取查询结果请求消息。
 message GetQueryResultRequest {
-  string query_id = 1;
+  string query_id = 1; // 查询ID
   optional int32 page_size = 2;
   optional int32 page_number = 3;
 }
 
 // QueryRow 查询结果行
 message QueryRow {
-  map<string, string> columns = 1;
+  map<string, string> columns = 1; // columns
 }
 
 // GetQueryResultResponse 获取查询结果响应消息。
 message GetQueryResultResponse {
-  string query_id = 1;
-  string status = 2;
-  repeated QueryRow rows = 3;
-  bool has_more = 4;
+  string query_id = 1; // 查询ID
+  string status = 2; // 状态
+  repeated QueryRow rows = 3; // 行
+  bool has_more = 4; // 有more
 }

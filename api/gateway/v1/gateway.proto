@@ -18,6 +18,6 @@ service Gateway {
 
 // HealthCheckResponse 健康检查响应消息。
 message HealthCheckResponse {
-  string status = 1; // e.g., "UP", "DOWN"
-  string message = 2;
+  string status = 1; // 状态
+  string message = 2; // 消息
 }

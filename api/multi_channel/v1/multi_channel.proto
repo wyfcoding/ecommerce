@@ -7,95 +7,110 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/multi_channel/v1;multichannelv1";
 
+// MultiChannelService MultiChannel服务服务定义。
 service MultiChannelService {
-  // Channel Management
+// RegisterChannel 注册Channel接口。
   rpc RegisterChannel(RegisterChannelRequest) returns (RegisterChannelResponse);
+// ListChannels 处理列出Channels请求。
   rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+// SyncOrders 处理SyncOrders请求。
   rpc SyncOrders(SyncOrdersRequest) returns (google.protobuf.Empty);
 
-  // Order Management
+// ListOrders 列出列表Orders。
   rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
 }
 
+// Channel Channel消息结构。
 message Channel {
-  uint64 id = 1;
-  string name = 2;
-  string type = 3;
-  string api_key = 4;
-  string api_secret = 5;
-  bool is_enabled = 6;
-  google.protobuf.Timestamp created_at = 7;
-  google.protobuf.Timestamp updated_at = 8;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string type = 3; // 类型
+  string api_key = 4; // API键
+  string api_secret = 5; // 接口secret
+  bool is_enabled = 6; // 是enabled
+  google.protobuf.Timestamp created_at = 7; // 创建时间
+  google.protobuf.Timestamp updated_at = 8; // 更新时间
 }
 
+// OrderItem 订单Item消息结构。
 message OrderItem {
-  uint64 product_id = 1;
-  string product_name = 2;
-  int32 quantity = 3;
-  int64 price = 4;
-  string sku = 5;
+  uint64 product_id = 1; // 产品id
+  string product_name = 2; // 产品名称
+  int32 quantity = 3; // 数量
+  int64 price = 4; // 价格
+  string sku = 5; // 库存单元
 }
 
+// BuyerInfo BuyerInfo消息结构。
 message BuyerInfo {
-  string name = 1;
-  string email = 2;
-  string phone = 3;
-  string country = 4;
+  string name = 1; // 名称
+  string email = 2; // 邮箱
+  string phone = 3; // 电话
+  string country = 4; // 国家
 }
 
+// ShippingInfo ShippingInfo消息结构。
 message ShippingInfo {
-  string address = 1;
-  string city = 2;
-  string state = 3;
-  string zip_code = 4;
-  string country = 5;
+  string address = 1; // 地址
+  string city = 2; // 城市
+  string state = 3; // 状态
+  string zip_code = 4; // zip代码
+  string country = 5; // 国家
 }
 
+// LocalOrder Local订单消息结构。
 message LocalOrder {
-  uint64 id = 1;
-  uint64 channel_id = 2;
-  string channel_name = 3;
-  string channel_order_id = 4;
-  repeated OrderItem items = 5;
-  int64 total_amount = 6;
-  BuyerInfo buyer_info = 7;
-  ShippingInfo shipping_info = 8;
-  string status = 9;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
+  uint64 id = 1; // 唯一标识
+  uint64 channel_id = 2; // 渠道ID
+  string channel_name = 3; // channel名称
+  string channel_order_id = 4; // 订单唯一标识
+  repeated OrderItem items = 5; // 项列表
+  int64 total_amount = 6; // 总数金额
+  BuyerInfo buyer_info = 7; // buyer信息
+  ShippingInfo shipping_info = 8; // 发货信息
+  string status = 9; // 状态
+  google.protobuf.Timestamp created_at = 10; // 创建时间
+  google.protobuf.Timestamp updated_at = 11; // 更新时间
 }
 
+// RegisterChannelRequest RegisterChannel请求消息结构。
 message RegisterChannelRequest {
-  string name = 1;
-  string type = 2;
-  string api_key = 3;
-  string api_secret = 4;
-  bool is_enabled = 5;
+  string name = 1; // 名称
+  string type = 2; // 类型
+  string api_key = 3; // API键
+  string api_secret = 4; // 接口secret
+  bool is_enabled = 5; // 是enabled
 }
 
+// RegisterChannelResponse RegisterChannel响应消息结构。
 message RegisterChannelResponse {
-  Channel channel = 1;
+  Channel channel = 1; // 渠道
 }
 
+// ListChannelsRequest 列出Channels请求消息结构。
 message ListChannelsRequest {
 }
 
+// ListChannelsResponse 列出Channels响应消息结构。
 message ListChannelsResponse {
-  repeated Channel channels = 1;
+  repeated Channel channels = 1; // 渠道列表
 }
 
+// SyncOrdersRequest SyncOrders请求消息结构。
 message SyncOrdersRequest {
-  uint64 channel_id = 1;
+  uint64 channel_id = 1; // 渠道ID
 }
 
+// ListOrdersRequest 列出Orders请求消息结构。
 message ListOrdersRequest {
-  uint64 channel_id = 1;
-  string status = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  uint64 channel_id = 1; // 渠道ID
+  string status = 2; // 状态
+  int32 page = 3; // 页码
+  int32 page_size = 4; // 页码大小
 }
 
+// ListOrdersResponse 列出Orders响应消息结构。
 message ListOrdersResponse {
-  repeated LocalOrder orders = 1;
-  int64 total_count = 2;
+  repeated LocalOrder orders = 1; // 订单列表
+  int64 total_count = 2; // 总数计数
 }

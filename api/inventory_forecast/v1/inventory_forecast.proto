@@ -30,126 +30,138 @@ service InventoryForecastService {
 
 // DailyForecast 日预测
 message DailyForecast {
-  google.protobuf.Timestamp date = 1;
-  int32 quantity = 2;
-  double confidence = 3;
+  google.protobuf.Timestamp date = 1; // 日期
+  int32 quantity = 2; // 数量
+  double confidence = 3; // 置信度
 }
 
 // SalesForecast 销售预测
 message SalesForecast {
-  uint64 id = 1;
-  uint64 sku_id = 2;
-  int32 average_daily_sales = 3;
-  double trend_rate = 4;
-  repeated DailyForecast predictions = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  uint64 id = 1; // 唯一标识
+  uint64 sku_id = 2; // 库存单元唯一标识
+  int32 average_daily_sales = 3; // 平均每日销售
+  double trend_rate = 4; // 趋势率
+  repeated DailyForecast predictions = 5; // 预测
+  google.protobuf.Timestamp created_at = 6; // 创建时间
+  google.protobuf.Timestamp updated_at = 7; // 更新时间
 }
 
+// GenerateForecastRequest GenerateForecast请求消息结构。
 message GenerateForecastRequest {
-  uint64 sku_id = 1;
+  uint64 sku_id = 1; // 库存单元唯一标识
 }
 
+// GenerateForecastResponse GenerateForecast响应消息结构。
 message GenerateForecastResponse {
-  SalesForecast forecast = 1;
+  SalesForecast forecast = 1; // 预测
 }
 
+// GetForecastRequest 获取Forecast请求消息结构。
 message GetForecastRequest {
-  uint64 sku_id = 1;
+  uint64 sku_id = 1; // 库存单元唯一标识
 }
 
+// GetForecastResponse 获取Forecast响应消息结构。
 message GetForecastResponse {
-  SalesForecast forecast = 1;
+  SalesForecast forecast = 1; // 预测
 }
 
 // InventoryWarning 库存预警
 message InventoryWarning {
-  uint64 id = 1;
-  uint64 sku_id = 2;
-  int32 current_stock = 3;
-  int32 warning_threshold = 4;
-  int32 days_until_empty = 5;
-  google.protobuf.Timestamp estimated_empty_date = 6;
-  bool need_replenishment = 7;
-  int32 recommended_replenishment_qty = 8;
-  google.protobuf.Timestamp created_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 sku_id = 2; // 库存单元唯一标识
+  int32 current_stock = 3; // 当前库存
+  int32 warning_threshold = 4; // 警告阈值
+  int32 days_until_empty = 5; // daysuntil空
+  google.protobuf.Timestamp estimated_empty_date = 6; // estimated空date
+  bool need_replenishment = 7; // 需要replenishment
+  int32 recommended_replenishment_qty = 8; // recommended补货qty
+  google.protobuf.Timestamp created_at = 9; // 创建时间
 }
 
+// ListWarningsRequest 列出Warnings请求消息结构。
 message ListWarningsRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
+// ListWarningsResponse 列出Warnings响应消息结构。
 message ListWarningsResponse {
-  repeated InventoryWarning warnings = 1;
-  uint64 total_count = 2;
+  repeated InventoryWarning warnings = 1; // 警告数
+  uint64 total_count = 2; // 总数计数
 }
 
 // SlowMovingItem 滞销品
 message SlowMovingItem {
-  uint64 id = 1;
-  uint64 sku_id = 2;
-  string product_name = 3;
-  int32 current_stock = 4;
-  double daily_sales_rate = 5;
-  int32 days_in_stock = 6;
-  double turnover_rate = 7;
-  string recommend_action = 8;
-  google.protobuf.Timestamp created_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 sku_id = 2; // 库存单元唯一标识
+  string product_name = 3; // 产品名称
+  int32 current_stock = 4; // 当前库存
+  double daily_sales_rate = 5; // 每日销售率
+  int32 days_in_stock = 6; // days在...里面stock
+  double turnover_rate = 7; // 周转率
+  string recommend_action = 8; // recommend动作
+  google.protobuf.Timestamp created_at = 9; // 创建时间
 }
 
+// ListSlowMovingItemsRequest 列出SlowMovingItems请求消息结构。
 message ListSlowMovingItemsRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
+// ListSlowMovingItemsResponse 列出SlowMovingItems响应消息结构。
 message ListSlowMovingItemsResponse {
-  repeated SlowMovingItem items = 1;
-  uint64 total_count = 2;
+  repeated SlowMovingItem items = 1; // 项列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // ReplenishmentSuggestion 补货建议
 message ReplenishmentSuggestion {
-  uint64 id = 1;
-  uint64 sku_id = 2;
-  string product_name = 3;
-  int32 current_stock = 4;
-  int32 suggested_qty = 5;
-  string priority = 6;
-  string reason = 7;
-  int64 estimated_cost = 8;
-  google.protobuf.Timestamp created_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 sku_id = 2; // 库存单元唯一标识
+  string product_name = 3; // 产品名称
+  int32 current_stock = 4; // 当前库存
+  int32 suggested_qty = 5; // 建议qty
+  string priority = 6; // 优先级
+  string reason = 7; // 原因
+  int64 estimated_cost = 8; // estimated成本
+  google.protobuf.Timestamp created_at = 9; // 创建时间
 }
 
+// ListReplenishmentSuggestionsRequest 列出ReplenishmentSuggestions请求消息结构。
 message ListReplenishmentSuggestionsRequest {
-  string priority = 1;
-  uint32 page_size = 2;
-  uint32 page_num = 3;
+  string priority = 1; // 优先级
+  uint32 page_size = 2; // 页码大小
+  uint32 page_num = 3; // 页码num
 }
 
+// ListReplenishmentSuggestionsResponse 列出ReplenishmentSuggestions响应消息结构。
 message ListReplenishmentSuggestionsResponse {
-  repeated ReplenishmentSuggestion suggestions = 1;
-  uint64 total_count = 2;
+  repeated ReplenishmentSuggestion suggestions = 1; // 建议列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // StockoutRisk 缺货风险
 message StockoutRisk {
-  uint64 id = 1;
-  uint64 sku_id = 2;
-  int32 current_stock = 3;
-  int32 days_until_stockout = 4;
-  google.protobuf.Timestamp estimated_stockout_date = 5;
-  string risk_level = 6;
-  google.protobuf.Timestamp created_at = 7;
+  uint64 id = 1; // 唯一标识
+  uint64 sku_id = 2; // 库存单元唯一标识
+  int32 current_stock = 3; // 当前库存
+  int32 days_until_stockout = 4; // daysuntil缺货
+  google.protobuf.Timestamp estimated_stockout_date = 5; // 预计缺货date
+  string risk_level = 6; // risk等级
+  google.protobuf.Timestamp created_at = 7; // 创建时间
 }
 
+// ListStockoutRisksRequest 列出StockoutRisks请求消息结构。
 message ListStockoutRisksRequest {
-  string level = 1;
-  uint32 page_size = 2;
-  uint32 page_num = 3;
+  string level = 1; // 等级
+  uint32 page_size = 2; // 页码大小
+  uint32 page_num = 3; // 页码num
 }
 
+// ListStockoutRisksResponse 列出StockoutRisks响应消息结构。
 message ListStockoutRisksResponse {
-  repeated StockoutRisk risks = 1;
-  uint64 total_count = 2;
+  repeated StockoutRisk risks = 1; // 风险
+  uint64 total_count = 2; // 总数计数
 }

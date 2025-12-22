@@ -24,68 +24,74 @@ service LogisticsRoutingService {
 
 // Carrier 配送商
 message Carrier {
-  uint64 id = 1;
-  string name = 2;
-  string type = 3;
-  int64 base_cost = 4;
-  double weight_rate = 5;
-  double distance_rate = 6;
-  int32 base_delivery_time = 7;
-  repeated string supported_regions = 8;
-  int32 available_capacity = 9;
-  double rating = 10;
-  bool is_active = 11;
-  google.protobuf.Timestamp created_at = 12;
-  google.protobuf.Timestamp updated_at = 13;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string type = 3; // 类型
+  int64 base_cost = 4; // base成本
+  double weight_rate = 5; // 权重率
+  double distance_rate = 6; // 距离率
+  int32 base_delivery_time = 7; // basedelivery时间
+  repeated string supported_regions = 8; // 支持地区列表
+  int32 available_capacity = 9; // 可用容量
+  double rating = 10; // 评分
+  bool is_active = 11; // 是激活
+  google.protobuf.Timestamp created_at = 12; // 创建时间
+  google.protobuf.Timestamp updated_at = 13; // 更新时间
 }
 
 // RouteOrder 路由订单
 message RouteOrder {
-  uint64 order_id = 1;
-  uint64 carrier_id = 2;
-  string carrier_name = 3;
-  int64 estimated_cost = 4;
-  int32 estimated_time = 5;
+  uint64 order_id = 1; // 订单唯一标识
+  uint64 carrier_id = 2; // 承运商ID
+  string carrier_name = 3; // carrier名称
+  int64 estimated_cost = 4; // estimated成本
+  int32 estimated_time = 5; // estimated时间
 }
 
 // OptimizedRoute 优化路由
 message OptimizedRoute {
-  uint64 id = 1;
-  repeated RouteOrder orders = 2;
-  int32 order_count = 3;
-  int64 total_cost = 4;
-  int64 average_cost = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  uint64 id = 1; // 唯一标识
+  repeated RouteOrder orders = 2; // 订单列表
+  int32 order_count = 3; // 订单计数
+  int64 total_cost = 4; // 总数cost
+  int64 average_cost = 5; // average成本
+  google.protobuf.Timestamp created_at = 6; // 创建时间
+  google.protobuf.Timestamp updated_at = 7; // 更新时间
 }
 
+// RegisterCarrierRequest RegisterCarrier请求消息结构。
 message RegisterCarrierRequest {
-  string name = 1;
-  string type = 2;
-  int64 base_cost = 3;
-  double weight_rate = 4;
-  double distance_rate = 5;
-  int32 base_delivery_time = 6;
-  repeated string supported_regions = 7;
-  int32 available_capacity = 8;
+  string name = 1; // 名称
+  string type = 2; // 类型
+  int64 base_cost = 3; // base成本
+  double weight_rate = 4; // 权重率
+  double distance_rate = 5; // 距离率
+  int32 base_delivery_time = 6; // basedelivery时间
+  repeated string supported_regions = 7; // 支持地区列表
+  int32 available_capacity = 8; // 可用容量
 }
 
+// OptimizeRouteRequest OptimizeRoute请求消息结构。
 message OptimizeRouteRequest {
-  repeated uint64 order_ids = 1;
+  repeated uint64 order_ids = 1; // 订单唯一标识
 }
 
+// OptimizeRouteResponse OptimizeRoute响应消息结构。
 message OptimizeRouteResponse {
-  OptimizedRoute route = 1;
+  OptimizedRoute route = 1; // 路由
 }
 
+// GetRouteRequest 获取Route请求消息结构。
 message GetRouteRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// GetRouteResponse 获取Route响应消息结构。
 message GetRouteResponse {
-  OptimizedRoute route = 1;
+  OptimizedRoute route = 1; // 路由
 }
 
+// ListCarriersResponse 列出Carriers响应消息结构。
 message ListCarriersResponse {
-  repeated Carrier carriers = 1;
+  repeated Carrier carriers = 1; // 承运商列表
 }

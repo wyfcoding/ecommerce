@@ -20,45 +20,45 @@ service NotificationService {
 
 // Notification 通知信息
 message Notification {
-  uint64 notification_id = 1;
-  uint64 user_id = 2;
-  string type = 3; // SYSTEM, ORDER, MARKETING, INTERACTION
-  string title = 4;
-  string content = 5;
-  bool is_read = 6;
-  google.protobuf.Timestamp created_at = 7;
+  uint64 notification_id = 1; // 通知ID
+  uint64 user_id = 2; // 用户唯一标识
+  string type = 3; // 类型
+  string title = 4; // 标题
+  string content = 5; // 内容
+  bool is_read = 6; // 是read
+  google.protobuf.Timestamp created_at = 7; // 创建时间
 }
 
 // SendNotificationRequest 发送通知请求
 message SendNotificationRequest {
-  uint64 user_id = 1;
-  string type = 2;
-  string title = 3;
-  string content = 4;
+  uint64 user_id = 1; // 用户唯一标识
+  string type = 2; // 类型
+  string title = 3; // 标题
+  string content = 4; // 内容
 }
 
 // SendNotificationResponse 发送通知响应
 message SendNotificationResponse {
-  uint64 notification_id = 1;
+  uint64 notification_id = 1; // 通知ID
 }
 
 // ListNotificationsRequest 获取用户通知列表请求
 message ListNotificationsRequest {
-  uint64 user_id = 1;
+  uint64 user_id = 1; // 用户唯一标识
   bool include_read = 2; // 是否包含已读通知
-  uint32 page_size = 3;
-  uint32 page_num = 4;
+  uint32 page_size = 3; // 页码大小
+  uint32 page_num = 4; // 页码num
 }
 
 // ListNotificationsResponse 获取用户通知列表响应
 message ListNotificationsResponse {
-  repeated Notification notifications = 1;
-  uint64 total_count = 2;
+  repeated Notification notifications = 1; // 通知列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // MarkNotificationAsReadRequest 标记通知为已读请求
 message MarkNotificationAsReadRequest {
-  uint64 notification_id = 1;
+  uint64 notification_id = 1; // 通知ID
   uint64 user_id = 2; // 用于权限校验
 }
 

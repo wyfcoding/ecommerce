@@ -26,79 +26,79 @@ service AdvancedCouponService {
 
 // Coupon 优惠券信息
 message Coupon {
-  uint64 id = 1;
-  string code = 2;
-  string type = 3; // percentage, fixed, free_shipping
-  int64 discount_value = 4;
-  int64 min_purchase_amount = 5;
-  int64 max_discount_amount = 6;
-  google.protobuf.Timestamp valid_from = 7;
-  google.protobuf.Timestamp valid_until = 8;
-  int64 total_quantity = 9;
-  int64 used_quantity = 10;
-  int64 per_user_limit = 11;
-  string status = 12; // active, inactive, revoked, expired
+  uint64 id = 1; // 唯一标识
+  string code = 2; // 代码
+  string type = 3; // 类型
+  int64 discount_value = 4; // 折扣value
+  int64 min_purchase_amount = 5; // 最小purchase金额
+  int64 max_discount_amount = 6; // 最大折扣金额
+  google.protobuf.Timestamp valid_from = 7; // valid从
+  google.protobuf.Timestamp valid_until = 8; // 有效until
+  int64 total_quantity = 9; // 总数数量
+  int64 used_quantity = 10; // 用数量
+  int64 per_user_limit = 11; // per用户限制
+  string status = 12; // 状态
 }
 
 // CreateCouponRequest 创建优惠券请求
 message CreateCouponRequest {
-  string code = 1;
-  string type = 2;
-  int64 discount_value = 3;
-  google.protobuf.Timestamp valid_from = 4;
-  google.protobuf.Timestamp valid_until = 5;
-  int64 total_quantity = 6;
+  string code = 1; // 代码
+  string type = 2; // 类型
+  int64 discount_value = 3; // 折扣value
+  google.protobuf.Timestamp valid_from = 4; // valid从
+  google.protobuf.Timestamp valid_until = 5; // 有效until
+  int64 total_quantity = 6; // 总数数量
 }
 
 // CreateCouponResponse 创建优惠券响应
 message CreateCouponResponse {
-  Coupon coupon = 1;
+  Coupon coupon = 1; // 优惠券
 }
 
 // GetCouponRequest 获取优惠券请求
 message GetCouponRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // GetCouponResponse 获取优惠券响应
 message GetCouponResponse {
-  Coupon coupon = 1;
+  Coupon coupon = 1; // 优惠券
 }
 
 // ListCouponsRequest 获取优惠券列表请求
 message ListCouponsRequest {
-  string status = 1;
-  uint32 page_size = 2;
-  uint32 page_num = 3;
+  string status = 1; // 状态
+  uint32 page_size = 2; // 页码大小
+  uint32 page_num = 3; // 页码num
 }
 
 // ListCouponsResponse 获取优惠券列表响应
 message ListCouponsResponse {
-  repeated Coupon coupons = 1;
-  uint64 total_count = 2;
+  repeated Coupon coupons = 1; // 优惠券列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // UseCouponRequest 使用优惠券请求
 message UseCouponRequest {
-  uint64 user_id = 1;
-  string code = 2;
-  uint64 order_id = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  string code = 2; // 代码
+  uint64 order_id = 3; // 订单唯一标识
 }
 
 // UseCouponResponse 使用优惠券响应
 message UseCouponResponse {
-  bool success = 1;
+  bool success = 1; // 成功
 }
 
 // CalculateBestDiscountRequest 计算最优优惠组合请求
 message CalculateBestDiscountRequest {
-  int64 order_amount = 1;
-  repeated uint64 coupon_ids = 2;
+  int64 order_amount = 1; // 订单金额
+  repeated uint64 coupon_ids = 2; // 优惠券ids
 }
 
 // CalculateBestDiscountResponse 计算最优优惠组合响应
 message CalculateBestDiscountResponse {
-  repeated uint64 best_coupon_ids = 1;
-  int64 final_price = 2;
-  int64 discount_amount = 3;
+  repeated uint64 best_coupon_ids = 1; // best优惠券ids
+  int64 final_price = 2; // final价格
+  int64 discount_amount = 3; // 折扣金额
 }

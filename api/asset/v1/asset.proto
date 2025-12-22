@@ -73,7 +73,7 @@ message UploadFileRequest {
 
 // UploadFileResponse 上传文件响应。
 message UploadFileResponse {
-  FileMetadata file_metadata = 1;
+  FileMetadata file_metadata = 1; // 文件metadata
 }
 
 // GetFileMetadataRequest 获取文件元数据请求。
@@ -83,7 +83,7 @@ message GetFileMetadataRequest {
 
 // FileMetadataResponse 文件元数据响应。
 message FileMetadataResponse {
-  FileMetadata file_metadata = 1;
+  FileMetadata file_metadata = 1; // 文件metadata
 }
 
 // DeleteFileRequest 删除文件请求。
@@ -93,8 +93,8 @@ message DeleteFileRequest {
 
 // ListFilesRequest 获取文件列表请求。
 message ListFilesRequest {
-  int32 page_size = 1;
-  int32 page_token = 2;
+  int32 page_size = 1; // 页码大小
+  int32 page_token = 2; // 页码令牌
   optional FileType file_type = 3; // 按文件类型过滤
   optional string filename_keyword = 4; // 按文件名关键词过滤
   optional uint64 uploader_id = 5; // 按上传者ID过滤
@@ -104,9 +104,9 @@ message ListFilesRequest {
 
 // ListFilesResponse 获取文件列表响应。
 message ListFilesResponse {
-  repeated FileMetadata files = 1;
-  int32 total_count = 2;
-  int32 next_page_token = 3;
+  repeated FileMetadata files = 1; // 文件列表
+  int32 total_count = 2; // 总数计数
+  int32 next_page_token = 3; // 下一个页码令牌
 }
 
 // PresignedURLType 预签名URL类型。

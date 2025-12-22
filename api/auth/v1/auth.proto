@@ -23,30 +23,30 @@ service Auth {
 
 // AuthenticateRequest 认证请求消息。
 message AuthenticateRequest {
-  string username = 1;
-  string password = 2;
+  string username = 1; // 用户名
+  string password = 2; // 密码
 }
 
 // AuthenticateResponse 认证响应消息。
 message AuthenticateResponse {
-  string token = 1; // JWT Token
+  string token = 1; // 令牌
   int64 expires_at = 2; // Token 过期时间戳 (Unix seconds)
 }
 
 // RefreshTokenRequest 刷新Token请求消息。
 message RefreshTokenRequest {
-  string refresh_token = 1;
+  string refresh_token = 1; // refresh令牌
 }
 
 // ValidateTokenRequest 验证Token请求消息。
 message ValidateTokenRequest {
-  string token = 1;
+  string token = 1; // 令牌
 }
 
 // ValidateTokenResponse 验证Token响应消息。
 message ValidateTokenResponse {
-  bool valid = 1;
-  uint64 user_id = 2;
-  string username = 3;
-  int64 expires_at = 4;
+  bool valid = 1; // 有效
+  uint64 user_id = 2; // 用户唯一标识
+  string username = 3; // 用户名
+  int64 expires_at = 4; // expires在
 }

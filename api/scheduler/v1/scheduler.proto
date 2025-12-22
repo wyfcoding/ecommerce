@@ -7,95 +7,111 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/scheduler/v1;schedulerv1";
 
+// SchedulerService Scheduler服务服务定义。
 service SchedulerService {
-  // Job Management
+// CreateJob 创建作业。
   rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
+// UpdateJob 处理更新Job请求。
   rpc UpdateJob(UpdateJobRequest) returns (google.protobuf.Empty);
+// ToggleJobStatus 处理ToggleJob状态请求。
   rpc ToggleJobStatus(ToggleJobStatusRequest) returns (google.protobuf.Empty);
+// RunJob 处理RunJob请求。
   rpc RunJob(RunJobRequest) returns (google.protobuf.Empty);
+// ListJobs 处理列出Jobs请求。
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
 
-  // Log Management
+// ListJobLogs 列出列表作业Logs。
   rpc ListJobLogs(ListJobLogsRequest) returns (ListJobLogsResponse);
 }
 
+// Job Job消息结构。
 message Job {
-  uint64 id = 1;
-  string name = 2;
-  string description = 3;
-  string cron_expr = 4;
-  string handler = 5;
-  string params = 6;
-  int32 status = 7;
-  google.protobuf.Timestamp last_run_time = 8;
-  google.protobuf.Timestamp next_run_time = 9;
-  int64 run_count = 10;
-  int64 fail_count = 11;
-  google.protobuf.Timestamp created_at = 12;
-  google.protobuf.Timestamp updated_at = 13;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string description = 3; // 描述
+  string cron_expr = 4; // 定时expr
+  string handler = 5; // 处理器
+  string params = 6; // 参数
+  int32 status = 7; // 状态
+  google.protobuf.Timestamp last_run_time = 8; // lastrun时间
+  google.protobuf.Timestamp next_run_time = 9; // 下一个run时间
+  int64 run_count = 10; // run计数
+  int64 fail_count = 11; // fail计数
+  google.protobuf.Timestamp created_at = 12; // 创建时间
+  google.protobuf.Timestamp updated_at = 13; // 更新时间
 }
 
+// JobLog JobLog消息结构。
 message JobLog {
-  uint64 id = 1;
-  uint64 job_id = 2;
-  string job_name = 3;
-  string handler = 4;
-  string params = 5;
-  string status = 6;
-  string result = 7;
-  string error = 8;
-  int64 duration = 9;
-  google.protobuf.Timestamp start_time = 10;
-  google.protobuf.Timestamp end_time = 11;
-  google.protobuf.Timestamp created_at = 12;
-  google.protobuf.Timestamp updated_at = 13;
+  uint64 id = 1; // 唯一标识
+  uint64 job_id = 2; // 作业ID
+  string job_name = 3; // job名称
+  string handler = 4; // 处理器
+  string params = 5; // 参数
+  string status = 6; // 状态
+  string result = 7; // 结果
+  string error = 8; // 错误
+  int64 duration = 9; // 时长
+  google.protobuf.Timestamp start_time = 10; // 开始时间
+  google.protobuf.Timestamp end_time = 11; // 结束时间
+  google.protobuf.Timestamp created_at = 12; // 创建时间
+  google.protobuf.Timestamp updated_at = 13; // 更新时间
 }
 
+// CreateJobRequest 创建Job请求消息结构。
 message CreateJobRequest {
-  string name = 1;
-  string description = 2;
-  string cron_expr = 3;
-  string handler = 4;
-  string params = 5;
+  string name = 1; // 名称
+  string description = 2; // 描述
+  string cron_expr = 3; // 定时expr
+  string handler = 4; // 处理器
+  string params = 5; // 参数
 }
 
+// CreateJobResponse 创建Job响应消息结构。
 message CreateJobResponse {
-  Job job = 1;
+  Job job = 1; // 作业
 }
 
+// UpdateJobRequest 更新Job请求消息结构。
 message UpdateJobRequest {
-  uint64 id = 1;
-  string cron_expr = 2;
-  string params = 3;
+  uint64 id = 1; // 唯一标识
+  string cron_expr = 2; // 定时expr
+  string params = 3; // 参数
 }
 
+// ToggleJobStatusRequest ToggleJob状态请求消息结构。
 message ToggleJobStatusRequest {
-  uint64 id = 1;
-  bool enable = 2;
+  uint64 id = 1; // 唯一标识
+  bool enable = 2; // 启用
 }
 
+// RunJobRequest RunJob请求消息结构。
 message RunJobRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// ListJobsRequest 列出Jobs请求消息结构。
 message ListJobsRequest {
-  int32 status = 1; // -1: All
-  int32 page = 2;
-  int32 page_size = 3;
+  int32 status = 1; // 状态
+  int32 page = 2; // 页码
+  int32 page_size = 3; // 页码大小
 }
 
+// ListJobsResponse 列出Jobs响应消息结构。
 message ListJobsResponse {
-  repeated Job jobs = 1;
-  int64 total_count = 2;
+  repeated Job jobs = 1; // 作业列表
+  int64 total_count = 2; // 总数计数
 }
 
+// ListJobLogsRequest 列出JobLogs请求消息结构。
 message ListJobLogsRequest {
-  uint64 job_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  uint64 job_id = 1; // 作业ID
+  int32 page = 2; // 页码
+  int32 page_size = 3; // 页码大小
 }
 
+// ListJobLogsResponse 列出JobLogs响应消息结构。
 message ListJobLogsResponse {
-  repeated JobLog logs = 1;
-  int64 total_count = 2;
+  repeated JobLog logs = 1; // 日志列表
+  int64 total_count = 2; // 总数计数
 }

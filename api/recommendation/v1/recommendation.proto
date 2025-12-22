@@ -4,6 +4,7 @@ package recommendation.v1;
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/recommendation/v1;v1";
 
+// RecommendationService Recommendation服务服务定义。
 service RecommendationService {
   // 定义推荐服务的接口
   rpc GetRecommendedProducts (GetRecommendedProductsRequest) returns (GetRecommendedProductsResponse);
@@ -18,50 +19,57 @@ service RecommendationService {
   rpc GetAdvancedRecommendedProducts (GetAdvancedRecommendedProductsRequest) returns (GetAdvancedRecommendedProductsResponse);
 }
 
+// GetRecommendedProductsRequest 获取RecommendedProducts请求消息结构。
 message GetRecommendedProductsRequest {
-  string user_id = 1;
-  int32 count = 2;
+  string user_id = 1; // 用户唯一标识
+  int32 count = 2; // 计数
 }
 
+// GetRecommendedProductsResponse 获取RecommendedProducts响应消息结构。
 message GetRecommendedProductsResponse {
-  repeated Product products = 1;
+  repeated Product products = 1; // 商品列表
 }
 
+// Product 产品消息结构。
 message Product {
-  string id = 1;
-  string name = 2;
-  string description = 3;
-  double price = 4;
-  string image_url = 5;
+  string id = 1; // 唯一标识
+  string name = 2; // 名称
+  string description = 3; // 描述
+  double price = 4; // 价格
+  string image_url = 5; // 图片链接
 }
 
+// IndexProductRelationshipRequest Index产品Relationship请求消息结构。
 message IndexProductRelationshipRequest {
-  string product_id_1 = 1;
-  string product_id_2 = 2;
-  string type = 3; // e.g., "BOUGHT_TOGETHER", "VIEWED_TOGETHER"
-  double weight = 4;
+  string product_id_1 = 1; // 产品id
+  string product_id_2 = 2; // 产品id
+  string type = 3; // 类型
+  double weight = 4; // 权重
 }
 
+// IndexProductRelationshipResponse Index产品Relationship响应消息结构。
 message IndexProductRelationshipResponse {}
 
+// GetGraphRecommendedProductsRequest 获取GraphRecommendedProducts请求消息结构。
 message GetGraphRecommendedProductsRequest {
-  string product_id = 1;
-  int32 count = 2;
+  string product_id = 1; // 产品id
+  int32 count = 2; // 计数
 }
 
+// GetGraphRecommendedProductsResponse 获取GraphRecommendedProducts响应消息结构。
 message GetGraphRecommendedProductsResponse {
-  repeated Product products = 1;
+  repeated Product products = 1; // 商品列表
 }
 
 // GetAdvancedRecommendedProductsRequest 获取高级个性化推荐请求
 message GetAdvancedRecommendedProductsRequest {
-  string user_id = 1;
-  int32 count = 2;
+  string user_id = 1; // 用户唯一标识
+  int32 count = 2; // 计数
   map<string, string> context_features = 3; // 上下文特征，如当前浏览商品ID，会话信息
 }
 
 // GetAdvancedRecommendedProductsResponse 获取高级个性化推荐响应
 message GetAdvancedRecommendedProductsResponse {
-  repeated Product products = 1;
+  repeated Product products = 1; // 商品列表
   string explanation = 2; // 推荐解释 (可选)
 }

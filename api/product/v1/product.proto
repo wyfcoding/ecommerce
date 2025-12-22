@@ -115,7 +115,7 @@ message ProductInfo {
 // SKU 代表一个库存量单位 (SKU - Stock Keeping Unit)。
 // SKU是实际销售的单位，例如 "iPhone 15 Pro Max 256GB 蓝色"。
 message SKU {
-  uint64 id = 1;                                  // SKU ID
+  uint64 id = 1; // 唯一标识
   uint64 product_id = 2;                          // 所属SPU ID
   string sku_no = 3;                              // SKU编码, 例如 "SKU123456-BLUE-256G"
   string name = 4;                                // SKU名称 (通常由SPU名称 + 规格值构成)
@@ -169,124 +169,124 @@ message SeoInfo {
 
 // CreateProductRequest 创建商品的请求。
 message CreateProductRequest {
-  string name = 1;
-  string description = 2;
-  uint64 category_id = 3;
-  uint64 brand_id = 4;
-  ProductStatus status = 5;
-  repeated ProductAttribute attributes = 6;
-  string main_image_url = 7;
-  repeated string gallery_image_urls = 8;
-  SeoInfo seo_info = 9;
-  google.protobuf.DoubleValue weight = 10;
+  string name = 1; // 名称
+  string description = 2; // 描述
+  uint64 category_id = 3; // 分类id
+  uint64 brand_id = 4; // 品牌ID
+  ProductStatus status = 5; // 状态
+  repeated ProductAttribute attributes = 6; // 属性
+  string main_image_url = 7; // main图片链接
+  repeated string gallery_image_urls = 8; // gallery图片urls
+  SeoInfo seo_info = 9; // seo信息
+  google.protobuf.DoubleValue weight = 10; // 权重
 }
 
 // GetProductByIDRequest 获取单个商品的请求。
 message GetProductByIDRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // UpdateProductInfoRequest 更新商品信息的请求。
 message UpdateProductInfoRequest {
-  uint64 id = 1;
-  google.protobuf.StringValue name = 2;
-  google.protobuf.StringValue description = 3;
-  google.protobuf.UInt64Value category_id = 4;
-  google.protobuf.UInt64Value brand_id = 5;
-  ProductStatus status = 6;
-  string main_image_url = 7;
-  repeated string gallery_image_urls = 8;
-  SeoInfo seo_info = 9;
-  google.protobuf.DoubleValue weight = 10;
+  uint64 id = 1; // 唯一标识
+  google.protobuf.StringValue name = 2; // 名称
+  google.protobuf.StringValue description = 3; // 描述
+  google.protobuf.UInt64Value category_id = 4; // 分类id
+  google.protobuf.UInt64Value brand_id = 5; // 品牌ID
+  ProductStatus status = 6; // 状态
+  string main_image_url = 7; // main图片链接
+  repeated string gallery_image_urls = 8; // gallery图片urls
+  SeoInfo seo_info = 9; // seo信息
+  google.protobuf.DoubleValue weight = 10; // 权重
 }
 
 // DeleteProductRequest 删除商品的请求。
 message DeleteProductRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // ListProductsRequest 列表商品的请求。
 message ListProductsRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 page = 1; // 页码
+  int32 page_size = 2; // 页码大小
   uint64 category_id = 3; // 按分类筛选
   uint64 brand_id = 4;    // 按品牌筛选
   ProductStatus status = 5; // 按状态筛选
-  string sort_by = 6;     // 排序字段, e.g., "price_asc", "created_at_desc"
+  string sort_by = 6;     // 价格
 }
 
 // ListProductsResponse 列表商品的响应。
 message ListProductsResponse {
-  repeated ProductInfo products = 1;
-  int32 total = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  repeated ProductInfo products = 1; // 商品列表
+  int32 total = 2; // 总数
+  int32 page = 3; // 页码
+  int32 page_size = 4; // 页码大小
 }
 
 // AddSKUsToProductRequest 批量添加SKU的请求。
 message AddSKUsToProductRequest {
-  uint64 product_id = 1;
-  repeated SKUCreate skus = 2;
+  uint64 product_id = 1; // 产品id
+  repeated SKUCreate skus = 2; // SKU列表
 }
 
 // SKUCreate 用于创建时描述一个SKU。
 message SKUCreate {
-  string name = 1;
-  int64 price = 2;
-  int32 stock_quantity = 3;
-  string image_url = 4;
-  repeated SpecValue spec_values = 5;
+  string name = 1; // 名称
+  int64 price = 2; // 价格
+  int32 stock_quantity = 3; // stock数量
+  string image_url = 4; // 图片链接
+  repeated SpecValue spec_values = 5; // 规格值
 }
 
 // AddSKUsToProductResponse 批量添加SKU的响应。
 message AddSKUsToProductResponse {
-  repeated SKU created_skus = 1;
+  repeated SKU created_skus = 1; // createdSKU列表
 }
 
 // UpdateSKURequest 更新SKU的请求。
 message UpdateSKURequest {
-  uint64 id = 1;
-  google.protobuf.Int64Value price = 2;
-  google.protobuf.Int32Value stock_quantity = 3;
-  google.protobuf.StringValue image_url = 4;
+  uint64 id = 1; // 唯一标识
+  google.protobuf.Int64Value price = 2; // 价格
+  google.protobuf.Int32Value stock_quantity = 3; // stock数量
+  google.protobuf.StringValue image_url = 4; // 图片链接
 }
 
 // DeleteSKURequest 删除SKU的请求。
 message DeleteSKURequest {
-  uint64 product_id = 1;
-  repeated uint64 sku_ids = 2;
+  uint64 product_id = 1; // 产品id
+  repeated uint64 sku_ids = 2; // SKUID列表
 }
 
 // GetSKUByIDRequest 获取单个SKU的请求。
 message GetSKUByIDRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // CreateCategoryRequest 创建分类的请求。
 message CreateCategoryRequest {
-  string name = 1;
-  uint64 parent_id = 2;
-  string icon_url = 3;
-  int32 sort_order = 4;
+  string name = 1; // 名称
+  uint64 parent_id = 2; // 父ID
+  string icon_url = 3; // icon链接
+  int32 sort_order = 4; // 排序订单
 }
 
 // GetCategoryByIDRequest 获取分类的请求。
 message GetCategoryByIDRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // UpdateCategoryRequest 更新分类的请求。
 message UpdateCategoryRequest {
-  uint64 id = 1;
-  google.protobuf.StringValue name = 2;
-  google.protobuf.UInt64Value parent_id = 3;
-  google.protobuf.StringValue icon_url = 4;
-  google.protobuf.Int32Value sort_order = 5;
+  uint64 id = 1; // 唯一标识
+  google.protobuf.StringValue name = 2; // 名称
+  google.protobuf.UInt64Value parent_id = 3; // 父ID
+  google.protobuf.StringValue icon_url = 4; // icon链接
+  google.protobuf.Int32Value sort_order = 5; // 排序订单
 }
 
 // DeleteCategoryRequest 删除分类的请求。
 message DeleteCategoryRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // ListCategoriesRequest 列表分类的请求。
@@ -296,42 +296,42 @@ message ListCategoriesRequest {
 
 // ListCategoriesResponse 列表分类的响应。
 message ListCategoriesResponse {
-  repeated Category categories = 1;
+  repeated Category categories = 1; // 分类列表
 }
 
 // CreateBrandRequest 创建品牌的请求。
 message CreateBrandRequest {
-  string name = 1;
-  string logo_url = 2;
-  string description = 3;
+  string name = 1; // 名称
+  string logo_url = 2; // logo链接
+  string description = 3; // 描述
 }
 
 // GetBrandByIDRequest 获取品牌的请求。
 message GetBrandByIDRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // UpdateBrandRequest 更新品牌的请求。
 message UpdateBrandRequest {
-  uint64 id = 1;
-  google.protobuf.StringValue name = 2;
-  google.protobuf.StringValue logo_url = 3;
-  google.protobuf.StringValue description = 4;
+  uint64 id = 1; // 唯一标识
+  google.protobuf.StringValue name = 2; // 名称
+  google.protobuf.StringValue logo_url = 3; // logo链接
+  google.protobuf.StringValue description = 4; // 描述
 }
 
 // DeleteBrandRequest 删除品牌的请求。
 message DeleteBrandRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // ListBrandsRequest 列表品牌的请求。
 message ListBrandsRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 page = 1; // 页码
+  int32 page_size = 2; // 页码大小
 }
 
 // ListBrandsResponse 列表品牌的响应。
 message ListBrandsResponse {
-  repeated Brand brands = 1;
-  int32 total = 2;
+  repeated Brand brands = 1; // 品牌
+  int32 total = 2; // 总数
 }

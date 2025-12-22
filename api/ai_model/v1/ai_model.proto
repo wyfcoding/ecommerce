@@ -62,7 +62,7 @@ message GetProductRecommendationsRequest {
 
 // GetProductRecommendationsResponse 获取商品推荐响应。
 message GetProductRecommendationsResponse {
-  repeated ProductRecommendation recommendations = 1;
+  repeated ProductRecommendation recommendations = 1; // 推荐
 }
 
 // ProductRecommendation 代表一个商品推荐。
@@ -80,7 +80,7 @@ message GetRelatedProductsRequest {
 
 // GetRelatedProductsResponse 获取相关商品响应。
 message GetRelatedProductsResponse {
-  repeated ProductRecommendation related_products = 1;
+  repeated ProductRecommendation related_products = 1; // related商品列表
 }
 
 // GetPersonalizedFeedRequest 获取个性化内容流请求。
@@ -92,9 +92,9 @@ message GetPersonalizedFeedRequest {
 
 // GetPersonalizedFeedResponse 获取个性化内容流响应。
 message GetPersonalizedFeedResponse {
-  repeated FeedItem feed_items = 1;
-  int32 total_count = 2;
-  int32 next_page_token = 3;
+  repeated FeedItem feed_items = 1; // Feed项列表
+  int32 total_count = 2; // 总数计数
+  int32 next_page_token = 3; // 下一个页码令牌
 }
 
 // FeedItem 代表内容流中的一个项目。
@@ -141,7 +141,7 @@ message SearchImageByImageRequest {
 
 // SearchImageByImageResponse 通过图片搜索相似商品响应。
 message SearchImageByImageResponse {
-  repeated ProductSearchResult results = 1;
+  repeated ProductSearchResult results = 1; // 结果列表
 }
 
 // ProductSearchResult 代表图片搜索结果中的一个商品。
@@ -178,7 +178,7 @@ message ExtractKeywordsFromTextRequest {
 
 // ExtractKeywordsFromTextResponse 从文本中提取关键词响应。
 message ExtractKeywordsFromTextResponse {
-  repeated string keywords = 1;
+  repeated string keywords = 1; // 关键词列表
 }
 
 // SummarizeTextRequest 总结长文本内容请求。

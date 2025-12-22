@@ -38,7 +38,7 @@ message GetRealtimeSalesMetricsRequest {}
 
 // RealtimeSalesMetricsResponse 实时销售指标响应
 message RealtimeSalesMetricsResponse {
-  RealtimeSalesMetrics metrics = 1;
+  RealtimeSalesMetrics metrics = 1; // 指标
 }
 
 // GetRealtimeUserActivityRequest 获取实时用户活跃度请求
@@ -46,20 +46,20 @@ message GetRealtimeUserActivityRequest {}
 
 // RealtimeUserActivityResponse 实时用户活跃度响应
 message RealtimeUserActivityResponse {
-  RealtimeUserActivity activity = 1;
+  RealtimeUserActivity activity = 1; // 活动
 }
 
 // RecordUserBehaviorRequest 记录用户行为请求
 message RecordUserBehaviorRequest {
-  string user_id = 1;
-  string behavior_type = 2; // VIEW, CLICK, PURCHASE, ADD_TO_CART
+  string user_id = 1; // 用户唯一标识
+  string behavior_type = 2; // behavior类型
   string item_id = 3; // 行为关联的商品ID或其他实体ID
   map<string, string> properties = 4; // 行为属性
-  google.protobuf.Timestamp event_time = 5;
+  google.protobuf.Timestamp event_time = 5; // event时间
 }
 
 // RecordUserBehaviorResponse 记录用户行为响应
 message RecordUserBehaviorResponse {
-  bool success = 1;
-  string message = 2;
+  bool success = 1; // 成功
+  string message = 2; // 消息
 }

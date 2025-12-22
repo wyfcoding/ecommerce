@@ -36,103 +36,115 @@ service LoyaltyService {
 
 // MemberAccount 会员账户
 message MemberAccount {
-  uint64 id = 1;
-  uint64 user_id = 2;
-  string level = 3;
-  int64 total_points = 4;
-  int64 available_points = 5;
-  int64 frozen_points = 6;
-  uint64 total_spent = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 user_id = 2; // 用户唯一标识
+  string level = 3; // 等级
+  int64 total_points = 4; // 总数points
+  int64 available_points = 5; // 可用points
+  int64 frozen_points = 6; // 冻结points
+  uint64 total_spent = 7; // 总数spent
+  google.protobuf.Timestamp created_at = 8; // 创建时间
+  google.protobuf.Timestamp updated_at = 9; // 更新时间
 }
 
 // PointsTransaction 积分交易
 message PointsTransaction {
-  uint64 id = 1;
-  uint64 user_id = 2;
-  string transaction_type = 3;
-  int64 points = 4;
-  int64 balance = 5;
-  uint64 order_id = 6;
-  string description = 7;
-  google.protobuf.Timestamp expire_at = 8;
-  google.protobuf.Timestamp created_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 user_id = 2; // 用户唯一标识
+  string transaction_type = 3; // transaction类型
+  int64 points = 4; // 积分
+  int64 balance = 5; // 余额
+  uint64 order_id = 6; // 订单唯一标识
+  string description = 7; // 描述
+  google.protobuf.Timestamp expire_at = 8; // expire在
+  google.protobuf.Timestamp created_at = 9; // 创建时间
 }
 
 // MemberBenefit 会员权益
 message MemberBenefit {
-  uint64 id = 1;
-  string level = 2;
-  string name = 3;
-  string description = 4;
-  double discount_rate = 5;
-  double points_rate = 6;
-  bool enabled = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  uint64 id = 1; // 唯一标识
+  string level = 2; // 等级
+  string name = 3; // 名称
+  string description = 4; // 描述
+  double discount_rate = 5; // 折扣rate
+  double points_rate = 6; // points率
+  bool enabled = 7; // 启用
+  google.protobuf.Timestamp created_at = 8; // 创建时间
+  google.protobuf.Timestamp updated_at = 9; // 更新时间
 }
 
+// GetMemberAccountRequest 获取Member账户请求消息结构。
 message GetMemberAccountRequest {
-  uint64 user_id = 1;
+  uint64 user_id = 1; // 用户唯一标识
 }
 
+// GetMemberAccountResponse 获取Member账户响应消息结构。
 message GetMemberAccountResponse {
-  MemberAccount account = 1;
+  MemberAccount account = 1; // 账户
 }
 
+// AddPointsRequest AddPoints请求消息结构。
 message AddPointsRequest {
-  uint64 user_id = 1;
-  int64 points = 2;
-  string transaction_type = 3;
-  string description = 4;
-  uint64 order_id = 5;
+  uint64 user_id = 1; // 用户唯一标识
+  int64 points = 2; // 积分
+  string transaction_type = 3; // transaction类型
+  string description = 4; // 描述
+  uint64 order_id = 5; // 订单唯一标识
 }
 
+// DeductPointsRequest DeductPoints请求消息结构。
 message DeductPointsRequest {
-  uint64 user_id = 1;
-  int64 points = 2;
-  string transaction_type = 3;
-  string description = 4;
-  uint64 order_id = 5;
+  uint64 user_id = 1; // 用户唯一标识
+  int64 points = 2; // 积分
+  string transaction_type = 3; // transaction类型
+  string description = 4; // 描述
+  uint64 order_id = 5; // 订单唯一标识
 }
 
+// AddSpentRequest AddSpent请求消息结构。
 message AddSpentRequest {
-  uint64 user_id = 1;
-  uint64 amount = 2;
+  uint64 user_id = 1; // 用户唯一标识
+  uint64 amount = 2; // 金额
 }
 
+// ListPointsTransactionsRequest 列出PointsTransactions请求消息结构。
 message ListPointsTransactionsRequest {
-  uint64 user_id = 1;
-  uint32 page_size = 2;
-  uint32 page_num = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  uint32 page_size = 2; // 页码大小
+  uint32 page_num = 3; // 页码num
 }
 
+// ListPointsTransactionsResponse 列出PointsTransactions响应消息结构。
 message ListPointsTransactionsResponse {
-  repeated PointsTransaction transactions = 1;
-  uint64 total_count = 2;
+  repeated PointsTransaction transactions = 1; // 事务列表
+  uint64 total_count = 2; // 总数计数
 }
 
+// AddBenefitRequest AddBenefit请求消息结构。
 message AddBenefitRequest {
-  string level = 1;
-  string name = 2;
-  string description = 3;
-  double discount_rate = 4;
-  double points_rate = 5;
+  string level = 1; // 等级
+  string name = 2; // 名称
+  string description = 3; // 描述
+  double discount_rate = 4; // 折扣rate
+  double points_rate = 5; // points率
 }
 
+// AddBenefitResponse AddBenefit响应消息结构。
 message AddBenefitResponse {
-  MemberBenefit benefit = 1;
+  MemberBenefit benefit = 1; // 权益
 }
 
+// ListBenefitsRequest 列出Benefits请求消息结构。
 message ListBenefitsRequest {
-  string level = 1;
+  string level = 1; // 等级
 }
 
+// ListBenefitsResponse 列出Benefits响应消息结构。
 message ListBenefitsResponse {
-  repeated MemberBenefit benefits = 1;
+  repeated MemberBenefit benefits = 1; // 权益列表
 }
 
+// DeleteBenefitRequest 删除Benefit请求消息结构。
 message DeleteBenefitRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }

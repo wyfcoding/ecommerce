@@ -12,8 +12,8 @@ service SmartProductSelectionService {
 
 // ProductRecommendation 智能选品推荐结果
 message ProductRecommendation {
-  uint64 product_id = 1;
-  string product_name = 2;
+  uint64 product_id = 1; // 产品id
+  string product_name = 2; // 产品名称
   double score = 3; // 推荐分数
   string reason = 4; // 推荐理由
 }
@@ -26,5 +26,5 @@ message GetSmartProductRecommendationsRequest {
 
 // GetSmartProductRecommendationsResponse 获取智能选品推荐响应
 message GetSmartProductRecommendationsResponse {
-  repeated ProductRecommendation recommendations = 1;
+  repeated ProductRecommendation recommendations = 1; // 推荐
 }

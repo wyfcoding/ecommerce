@@ -24,52 +24,52 @@ service FileService {
 
 // FileMetadata 文件元数据
 message FileMetadata {
-  uint64 id = 1;
-  string name = 2;
-  int64 size = 3;
-  string type = 4; // IMAGE, VIDEO, DOCUMENT, OTHER
-  string url = 5;
-  string bucket = 6;
-  string checksum = 7;
-  google.protobuf.Timestamp created_at = 8;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  int64 size = 3; // 大小
+  string type = 4; // 类型
+  string url = 5; // 链接
+  string bucket = 6; // 存储桶
+  string checksum = 7; // 校验和
+  google.protobuf.Timestamp created_at = 8; // 创建时间
 }
 
 // UploadFileRequest 上传文件请求
 message UploadFileRequest {
-  string name = 1;
-  int64 size = 2;
-  string type = 3;
-  bytes content = 4;
+  string name = 1; // 名称
+  int64 size = 2; // 大小
+  string type = 3; // 类型
+  bytes content = 4; // 内容
 }
 
 // UploadFileResponse 上传文件响应
 message UploadFileResponse {
-  FileMetadata file = 1;
+  FileMetadata file = 1; // 文件
 }
 
 // GetFileRequest 获取文件信息请求
 message GetFileRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // GetFileResponse 获取文件信息响应
 message GetFileResponse {
-  FileMetadata file = 1;
+  FileMetadata file = 1; // 文件
 }
 
 // DeleteFileRequest 删除文件请求
 message DeleteFileRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
 // ListFilesRequest 获取文件列表请求
 message ListFilesRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
 // ListFilesResponse 获取文件列表响应
 message ListFilesResponse {
-  repeated FileMetadata files = 1;
-  uint64 total_count = 2;
+  repeated FileMetadata files = 1; // 文件列表
+  uint64 total_count = 2; // 总数计数
 }

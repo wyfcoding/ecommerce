@@ -30,31 +30,31 @@ message ContentInfo {
   string content_type = 3; // 内容类型 (e.g., article, page, product_description)
   string content_body = 4; // 内容主体
   string author = 5; // 作者
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  google.protobuf.Timestamp created_at = 6; // 创建时间
+  google.protobuf.Timestamp updated_at = 7; // 更新时间
 }
 
 // CreateContentRequest 创建内容请求消息。
 message CreateContentRequest {
-  string title = 1;
-  string content_type = 2;
-  string content_body = 3;
-  string author = 4;
+  string title = 1; // 标题
+  string content_type = 2; // 内容类型
+  string content_body = 3; // 内容正文
+  string author = 4; // 作者
 }
 
 // ContentResponse 内容响应消息。
 message ContentResponse {
-  ContentInfo content = 1;
+  ContentInfo content = 1; // 内容
 }
 
 // GetContentByIDRequest 获取内容信息请求。
 message GetContentByIDRequest {
-  uint64 content_id = 1;
+  uint64 content_id = 1; // 内容id
 }
 
 // UpdateContentRequest 更新内容信息请求。
 message UpdateContentRequest {
-  uint64 content_id = 1;
+  uint64 content_id = 1; // 内容id
   optional string title = 2;
   optional string content_type = 3;
   optional string content_body = 4;
@@ -63,5 +63,5 @@ message UpdateContentRequest {
 
 // DeleteContentRequest 删除内容请求。
 message DeleteContentRequest {
-  uint64 content_id = 1;
+  uint64 content_id = 1; // 内容id
 }

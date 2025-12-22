@@ -30,79 +30,89 @@ service FinancialSettlementService {
 
 // Settlement 结算单
 message Settlement {
-  uint64 id = 1;
-  uint64 seller_id = 2;
-  string period = 3;
-  google.protobuf.Timestamp start_date = 4;
-  google.protobuf.Timestamp end_date = 5;
-  int64 total_sales_amount = 6;
-  int64 commission_amount = 7;
-  int64 rebate_amount = 8;
-  int64 other_fees = 9;
-  int64 final_amount = 10;
-  string status = 11;
-  string approved_by = 12;
-  google.protobuf.Timestamp approved_at = 13;
-  string rejection_reason = 14;
-  google.protobuf.Timestamp created_at = 15;
+  uint64 id = 1; // 唯一标识
+  uint64 seller_id = 2; // seller唯一标识
+  string period = 3; // 周期
+  google.protobuf.Timestamp start_date = 4; // 开始date
+  google.protobuf.Timestamp end_date = 5; // 结束date
+  int64 total_sales_amount = 6; // 总数sales金额
+  int64 commission_amount = 7; // commission金额
+  int64 rebate_amount = 8; // rebate金额
+  int64 other_fees = 9; // other费用列表
+  int64 final_amount = 10; // final金额
+  string status = 11; // 状态
+  string approved_by = 12; // approved被
+  google.protobuf.Timestamp approved_at = 13; // approved在
+  string rejection_reason = 14; // 拒绝原因
+  google.protobuf.Timestamp created_at = 15; // 创建时间
 }
 
+// CreateSettlementRequest 创建Settlement请求消息结构。
 message CreateSettlementRequest {
-  uint64 seller_id = 1;
-  string period = 2;
-  google.protobuf.Timestamp start_date = 3;
-  google.protobuf.Timestamp end_date = 4;
+  uint64 seller_id = 1; // seller唯一标识
+  string period = 2; // 周期
+  google.protobuf.Timestamp start_date = 3; // 开始date
+  google.protobuf.Timestamp end_date = 4; // 结束date
 }
 
+// CreateSettlementResponse 创建Settlement响应消息结构。
 message CreateSettlementResponse {
-  Settlement settlement = 1;
+  Settlement settlement = 1; // 结算
 }
 
+// ApproveSettlementRequest ApproveSettlement请求消息结构。
 message ApproveSettlementRequest {
-  uint64 id = 1;
-  string approved_by = 2;
+  uint64 id = 1; // 唯一标识
+  string approved_by = 2; // approved被
 }
 
+// RejectSettlementRequest RejectSettlement请求消息结构。
 message RejectSettlementRequest {
-  uint64 id = 1;
-  string reason = 2;
+  uint64 id = 1; // 唯一标识
+  string reason = 2; // 原因
 }
 
+// GetSettlementRequest 获取Settlement请求消息结构。
 message GetSettlementRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// GetSettlementResponse 获取Settlement响应消息结构。
 message GetSettlementResponse {
-  Settlement settlement = 1;
+  Settlement settlement = 1; // 结算
 }
 
+// ListSettlementsRequest 列出Settlements请求消息结构。
 message ListSettlementsRequest {
-  uint64 seller_id = 1;
-  uint32 page_size = 2;
-  uint32 page_num = 3;
+  uint64 seller_id = 1; // seller唯一标识
+  uint32 page_size = 2; // 页码大小
+  uint32 page_num = 3; // 页码num
 }
 
+// ListSettlementsResponse 列出Settlements响应消息结构。
 message ListSettlementsResponse {
-  repeated Settlement settlements = 1;
-  uint64 total_count = 2;
+  repeated Settlement settlements = 1; // 结算列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // SettlementPayment 结算支付
 message SettlementPayment {
-  uint64 id = 1;
-  uint64 settlement_id = 2;
-  uint64 seller_id = 3;
-  int64 amount = 4;
-  string status = 5;
-  string transaction_id = 6;
-  google.protobuf.Timestamp completed_at = 7;
-  google.protobuf.Timestamp created_at = 8;
+  uint64 id = 1; // 唯一标识
+  uint64 settlement_id = 2; // 结算唯一标识
+  uint64 seller_id = 3; // seller唯一标识
+  int64 amount = 4; // 金额
+  string status = 5; // 状态
+  string transaction_id = 6; // 事务ID
+  google.protobuf.Timestamp completed_at = 7; // completed在
+  google.protobuf.Timestamp created_at = 8; // 创建时间
 }
 
+// ProcessPaymentRequest Process支付请求消息结构。
 message ProcessPaymentRequest {
-  uint64 settlement_id = 1;
+  uint64 settlement_id = 1; // 结算唯一标识
 }
 
+// ProcessPaymentResponse Process支付响应消息结构。
 message ProcessPaymentResponse {
-  SettlementPayment payment = 1;
+  SettlementPayment payment = 1; // 支付
 }

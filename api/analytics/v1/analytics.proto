@@ -61,8 +61,8 @@ enum EventType {
 
 // EventProperty 代表事件的属性。
 message EventProperty {
-  string key = 1;
-  string value = 2;
+  string key = 1; // 键
+  string value = 2; // 值
 }
 
 // Event 代表一个待跟踪的事件。
@@ -81,104 +81,104 @@ message Event {
 
 // TrackEventRequest 跟踪单个事件请求。
 message TrackEventRequest {
-  Event event = 1;
+  Event event = 1; // 事件
 }
 
 // BatchTrackEventsRequest 批量跟踪事件请求。
 message BatchTrackEventsRequest {
-  repeated Event events = 1;
+  repeated Event events = 1; // 事件列表
 }
 
 // GetUserActivityReportRequest 获取用户活动报告请求。
 message GetUserActivityReportRequest {
-  uint64 user_id = 1;
-  google.protobuf.Timestamp start_date = 2;
-  google.protobuf.Timestamp end_date = 3;
-  int32 page_size = 4;
-  int32 page_token = 5;
+  uint64 user_id = 1; // 用户唯一标识
+  google.protobuf.Timestamp start_date = 2; // 开始date
+  google.protobuf.Timestamp end_date = 3; // 结束date
+  int32 page_size = 4; // 页码大小
+  int32 page_token = 5; // 页码令牌
 }
 
 // UserActivityReportResponse 用户活动报告响应。
 message UserActivityReportResponse {
-  repeated UserActivity activities = 1;
-  int32 total_count = 2;
-  int32 next_page_token = 3;
+  repeated UserActivity activities = 1; // 活动列表
+  int32 total_count = 2; // 总数计数
+  int32 next_page_token = 3; // 下一个页码令牌
 }
 
 // UserActivity 代表用户的一项活动。
 message UserActivity {
-  string event_name = 1;
-  google.protobuf.Timestamp timestamp = 2;
-  map<string, string> properties = 3;
+  string event_name = 1; // event名称
+  google.protobuf.Timestamp timestamp = 2; // 时间戳
+  map<string, string> properties = 3; // properties
 }
 
 // GetProductPerformanceReportRequest 获取商品表现报告请求。
 message GetProductPerformanceReportRequest {
-  uint64 product_id = 1;
-  google.protobuf.Timestamp start_date = 2;
-  google.protobuf.Timestamp end_date = 3;
-  int32 page_size = 4;
-  int32 page_token = 5;
+  uint64 product_id = 1; // 产品id
+  google.protobuf.Timestamp start_date = 2; // 开始date
+  google.protobuf.Timestamp end_date = 3; // 结束date
+  int32 page_size = 4; // 页码大小
+  int32 page_token = 5; // 页码令牌
 }
 
 // ProductPerformanceReportResponse 商品表现报告响应。
 message ProductPerformanceReportResponse {
-  repeated ProductPerformance product_performances = 1;
-  int32 total_count = 2;
-  int32 next_page_token = 3;
+  repeated ProductPerformance product_performances = 1; // 产品performances
+  int32 total_count = 2; // 总数计数
+  int32 next_page_token = 3; // 下一个页码令牌
 }
 
 // ProductPerformance 代表商品的表现数据。
 message ProductPerformance {
-  uint64 product_id = 1;
-  string product_name = 2;
-  uint64 page_views = 3;
-  uint64 add_to_carts = 4;
-  uint64 purchases = 5;
-  double total_sales_amount = 6;
-  double conversion_rate = 7;
+  uint64 product_id = 1; // 产品id
+  string product_name = 2; // 产品名称
+  uint64 page_views = 3; // 页码views
+  uint64 add_to_carts = 4; // add去carts
+  uint64 purchases = 5; // 购买
+  double total_sales_amount = 6; // 总数sales金额
+  double conversion_rate = 7; // 转化rate
 }
 
 // GetSalesOverviewReportRequest 获取销售概览报告请求。
 message GetSalesOverviewReportRequest {
-  google.protobuf.Timestamp start_date = 1;
-  google.protobuf.Timestamp end_date = 2;
+  google.protobuf.Timestamp start_date = 1; // 开始date
+  google.protobuf.Timestamp end_date = 2; // 结束date
   optional string group_by = 3; // 例如: "day", "month", "category"
 }
 
 // SalesOverviewReportResponse 销售概览报告响应。
 message SalesOverviewReportResponse {
-  double total_sales_amount = 1;
-  uint64 total_orders = 2;
-  uint64 total_units_sold = 3;
-  double average_order_value = 4;
-  repeated SalesTrend trends = 5;
+  double total_sales_amount = 1; // 总数sales金额
+  uint64 total_orders = 2; // 总数orders
+  uint64 total_units_sold = 3; // 总数unitssold
+  double average_order_value = 4; // average订单value
+  repeated SalesTrend trends = 5; // 趋势列表
 }
 
 // SalesTrend 代表销售趋势数据点。
 message SalesTrend {
   string period = 1; // 时间周期 (例如: "2023-01-01", "2023-01")
-  double sales_amount = 2;
-  uint64 orders_count = 3;
+  double sales_amount = 2; // sales金额
+  uint64 orders_count = 3; // orders计数
 }
 
 // GetConversionFunnelReportRequest 获取转化漏斗报告请求。
 message GetConversionFunnelReportRequest {
-  google.protobuf.Timestamp start_date = 1;
-  google.protobuf.Timestamp end_date = 2;
+  google.protobuf.Timestamp start_date = 1; // 开始date
+  google.protobuf.Timestamp end_date = 2; // 结束date
   repeated EventType funnel_steps = 3; // 漏斗步骤 (例如: PAGE_VIEW, ADD_TO_CART, PURCHASE)
 }
 
 // ConversionFunnelReportResponse 转化漏斗报告响应。
 message ConversionFunnelReportResponse {
-  repeated FunnelStepData funnel_data = 1;
+  repeated FunnelStepData funnel_data = 1; // funnel数据
 }
 
 // FunnelStepData 代表漏斗中的一个步骤数据。
 message FunnelStepData {
-  EventType step = 1;
-  string step_name = 2;
-  uint64 count = 3;
+  EventType step = 1; // 步骤
+  string step_name = 2; // step名称
+  uint64 count = 3; // 计数
   double conversion_rate = 4; // 相对于上一步的转化率
   double total_conversion_rate = 5; // 相对于第一步的转化率
 }
@@ -187,64 +187,65 @@ message FunnelStepData {
 message GetCustomReportRequest {
   string report_name = 1; // 报告名称或类型
   map<string, string> parameters = 2; // 报告参数
-  int32 page_size = 3;
-  int32 page_token = 4;
+  int32 page_size = 3; // 页码大小
+  int32 page_token = 4; // 页码令牌
 }
 
 // CustomReportResponse 自定义报告响应。
 message CustomReportResponse {
   repeated Row rows = 1; // 报告数据行
-  int32 total_count = 2;
-  int32 next_page_token = 3;
+  int32 total_count = 2; // 总数计数
+  int32 next_page_token = 3; // 下一个页码令牌
   repeated string columns = 4; // 报告列名
 }
 
+// Row Row消息结构。
 message Row {
-  map<string, string> values = 1;
+  map<string, string> values = 1; // values
 }
 
 // GetUserBehaviorPathRequest 获取用户行为路径请求。
 message GetUserBehaviorPathRequest {
-  uint64 user_id = 1;
-  google.protobuf.Timestamp start_date = 2;
-  google.protobuf.Timestamp end_date = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  google.protobuf.Timestamp start_date = 2; // 开始date
+  google.protobuf.Timestamp end_date = 3; // 结束date
   int32 max_steps = 4; // 最大路径步骤数
 }
 
 // UserBehaviorPathResponse 用户行为路径响应。
 message UserBehaviorPathResponse {
-  repeated UserBehaviorPath paths = 1;
+  repeated UserBehaviorPath paths = 1; // 路径列表
 }
 
 // UserBehaviorPath 代表一条用户行为路径。
 message UserBehaviorPath {
-  repeated UserActivity activities = 1;
+  repeated UserActivity activities = 1; // 活动列表
   uint64 count = 2; // 该路径的发生次数
 }
 
 // GetUserSegmentsRequest 获取用户分群请求。
 message GetUserSegmentsRequest {
   repeated string segment_criteria = 1; // 分群条件 (例如: "purchased_category:electronics", "last_login_days_ago:<30")
-  int32 page_size = 2;
-  int32 page_token = 3;
+  int32 page_size = 2; // 页码大小
+  int32 page_token = 3; // 页码令牌
 }
 
 // UserSegmentsResponse 用户分群响应。
 message UserSegmentsResponse {
-  repeated UserSegment segments = 1;
-  int32 total_count = 2;
-  int32 next_page_token = 3;
+  repeated UserSegment segments = 1; // 分群
+  int32 total_count = 2; // 总数计数
+  int32 next_page_token = 3; // 下一个页码令牌
 }
 
 // UserSegment 代表一个用户分群。
 message UserSegment {
-  string segment_name = 1;
-  repeated uint64 user_ids = 2;
-  uint64 user_count = 3;
+  string segment_name = 1; // segment名称
+  repeated uint64 user_ids = 2; // 用户唯一标识
+  uint64 user_count = 3; // 用户计数
 }
 
 // RealtimeVisitorsResponse 实时访客数量响应。
 message RealtimeVisitorsResponse {
-  uint64 visitor_count = 1;
+  uint64 visitor_count = 1; // visitor计数
   repeated string active_pages = 2; // 当前活跃页面列表
 }

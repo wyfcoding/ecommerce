@@ -7,104 +7,118 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/pricing/v1;pricingv1";
 
+// PricingService Pricing服务服务定义。
 service PricingService {
-  // Rule Management
+// CreateRule 创建规则。
   rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
+// ListRules 处理列出Rules请求。
   rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
 
-  // Price Calculation
+// CalculatePrice 计算价格接口。
   rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
 
-  // History Management
+// RecordHistory RecordHistory接口。
   rpc RecordHistory(RecordHistoryRequest) returns (google.protobuf.Empty);
+// ListHistory 处理列出History请求。
   rpc ListHistory(ListHistoryRequest) returns (ListHistoryResponse);
 }
 
+// PricingRule PricingRule消息结构。
 message PricingRule {
-  uint64 id = 1;
-  string name = 2;
-  uint64 product_id = 3;
-  uint64 sku_id = 4;
-  string strategy = 5;
-  uint64 base_price = 6;
-  uint64 min_price = 7;
-  uint64 max_price = 8;
-  double adjust_rate = 9;
-  bool enabled = 10;
-  google.protobuf.Timestamp start_time = 11;
-  google.protobuf.Timestamp end_time = 12;
-  google.protobuf.Timestamp created_at = 13;
-  google.protobuf.Timestamp updated_at = 14;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  uint64 product_id = 3; // 产品id
+  uint64 sku_id = 4; // 库存单元唯一标识
+  string strategy = 5; // 策略
+  uint64 base_price = 6; // base价格
+  uint64 min_price = 7; // 最小价格
+  uint64 max_price = 8; // 最大价格
+  double adjust_rate = 9; // 调整率
+  bool enabled = 10; // 启用
+  google.protobuf.Timestamp start_time = 11; // 开始时间
+  google.protobuf.Timestamp end_time = 12; // 结束时间
+  google.protobuf.Timestamp created_at = 13; // 创建时间
+  google.protobuf.Timestamp updated_at = 14; // 更新时间
 }
 
+// PriceHistory 价格History消息结构。
 message PriceHistory {
-  uint64 id = 1;
-  uint64 product_id = 2;
-  uint64 sku_id = 3;
-  uint64 price = 4;
-  uint64 old_price = 5;
-  double change_rate = 6;
-  string reason = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 product_id = 2; // 产品id
+  uint64 sku_id = 3; // 库存单元唯一标识
+  uint64 price = 4; // 价格
+  uint64 old_price = 5; // old价格
+  double change_rate = 6; // 变化率
+  string reason = 7; // 原因
+  google.protobuf.Timestamp created_at = 8; // 创建时间
+  google.protobuf.Timestamp updated_at = 9; // 更新时间
 }
 
+// CreateRuleRequest 创建Rule请求消息结构。
 message CreateRuleRequest {
-  string name = 1;
-  uint64 product_id = 2;
-  uint64 sku_id = 3;
-  string strategy = 4;
-  uint64 base_price = 5;
-  uint64 min_price = 6;
-  uint64 max_price = 7;
-  double adjust_rate = 8;
-  bool enabled = 9;
-  google.protobuf.Timestamp start_time = 10;
-  google.protobuf.Timestamp end_time = 11;
+  string name = 1; // 名称
+  uint64 product_id = 2; // 产品id
+  uint64 sku_id = 3; // 库存单元唯一标识
+  string strategy = 4; // 策略
+  uint64 base_price = 5; // base价格
+  uint64 min_price = 6; // 最小价格
+  uint64 max_price = 7; // 最大价格
+  double adjust_rate = 8; // 调整率
+  bool enabled = 9; // 启用
+  google.protobuf.Timestamp start_time = 10; // 开始时间
+  google.protobuf.Timestamp end_time = 11; // 结束时间
 }
 
+// CreateRuleResponse 创建Rule响应消息结构。
 message CreateRuleResponse {
-  PricingRule rule = 1;
+  PricingRule rule = 1; // 规则
 }
 
+// ListRulesRequest 列出Rules请求消息结构。
 message ListRulesRequest {
-  uint64 product_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  uint64 product_id = 1; // 产品id
+  int32 page = 2; // 页码
+  int32 page_size = 3; // 页码大小
 }
 
+// ListRulesResponse 列出Rules响应消息结构。
 message ListRulesResponse {
-  repeated PricingRule rules = 1;
-  int64 total_count = 2;
+  repeated PricingRule rules = 1; // 规则列表
+  int64 total_count = 2; // 总数计数
 }
 
+// CalculatePriceRequest Calculate价格请求消息结构。
 message CalculatePriceRequest {
-  uint64 product_id = 1;
-  uint64 sku_id = 2;
-  double demand = 3;
-  double competition = 4;
+  uint64 product_id = 1; // 产品id
+  uint64 sku_id = 2; // 库存单元唯一标识
+  double demand = 3; // 需求
+  double competition = 4; // 竞争
 }
 
+// CalculatePriceResponse Calculate价格响应消息结构。
 message CalculatePriceResponse {
-  uint64 price = 1;
+  uint64 price = 1; // 价格
 }
 
+// RecordHistoryRequest RecordHistory请求消息结构。
 message RecordHistoryRequest {
-  uint64 product_id = 1;
-  uint64 sku_id = 2;
-  uint64 price = 3;
-  uint64 old_price = 4;
-  string reason = 5;
+  uint64 product_id = 1; // 产品id
+  uint64 sku_id = 2; // 库存单元唯一标识
+  uint64 price = 3; // 价格
+  uint64 old_price = 4; // old价格
+  string reason = 5; // 原因
 }
 
+// ListHistoryRequest 列出History请求消息结构。
 message ListHistoryRequest {
-  uint64 product_id = 1;
-  uint64 sku_id = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  uint64 product_id = 1; // 产品id
+  uint64 sku_id = 2; // 库存单元唯一标识
+  int32 page = 3; // 页码
+  int32 page_size = 4; // 页码大小
 }
 
+// ListHistoryResponse 列出History响应消息结构。
 message ListHistoryResponse {
-  repeated PriceHistory history = 1;
-  int64 total_count = 2;
+  repeated PriceHistory history = 1; // 历史
+  int64 total_count = 2; // 总数计数
 }

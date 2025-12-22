@@ -17,68 +17,75 @@ service DynamicPricingService {
 
   // --- 策略管理 ---
   rpc SaveStrategy(SaveStrategyRequest) returns (google.protobuf.Empty);
+// ListStrategies 处理列出Strategies请求。
   rpc ListStrategies(ListStrategiesRequest) returns (ListStrategiesResponse);
 }
 
 // PricingRequest 定价请求
 message CalculatePriceRequest {
-  uint64 sku_id = 1;
-  int64 base_price = 2;
-  int32 current_stock = 3;
-  int32 total_stock = 4;
-  int32 daily_demand = 5;
-  int32 average_daily_demand = 6;
-  int64 competitor_price = 7;
+  uint64 sku_id = 1; // 库存单元唯一标识
+  int64 base_price = 2; // base价格
+  int32 current_stock = 3; // 当前库存
+  int32 total_stock = 4; // 总数stock
+  int32 daily_demand = 5; // 每日需求
+  int32 average_daily_demand = 6; // 平均每日需求
+  int64 competitor_price = 7; // competitor价格
 }
 
 // DynamicPrice 动态价格
 message DynamicPrice {
-  uint64 sku_id = 1;
-  int64 base_price = 2;
-  int64 final_price = 3;
-  double price_adjustment = 4;
-  double inventory_factor = 5;
-  double demand_factor = 6;
-  double competitor_factor = 7;
-  google.protobuf.Timestamp effective_time = 8;
-  google.protobuf.Timestamp expiry_time = 9;
+  uint64 sku_id = 1; // 库存单元唯一标识
+  int64 base_price = 2; // base价格
+  int64 final_price = 3; // final价格
+  double price_adjustment = 4; // 价格adjustment
+  double inventory_factor = 5; // 库存factor
+  double demand_factor = 6; // 需求factor
+  double competitor_factor = 7; // 竞争对手factor
+  google.protobuf.Timestamp effective_time = 8; // effective时间
+  google.protobuf.Timestamp expiry_time = 9; // expiry时间
 }
 
+// CalculatePriceResponse Calculate价格响应消息结构。
 message CalculatePriceResponse {
-  DynamicPrice price = 1;
+  DynamicPrice price = 1; // 价格
 }
 
+// GetLatestPriceRequest 获取Latest价格请求消息结构。
 message GetLatestPriceRequest {
-  uint64 sku_id = 1;
+  uint64 sku_id = 1; // 库存单元唯一标识
 }
 
+// GetLatestPriceResponse 获取Latest价格响应消息结构。
 message GetLatestPriceResponse {
-  DynamicPrice price = 1;
+  DynamicPrice price = 1; // 价格
 }
 
 // PricingStrategy 定价策略
 message PricingStrategy {
-  uint64 id = 1;
-  uint64 sku_id = 2;
-  string strategy_type = 3;
-  int64 min_price = 4;
-  int64 max_price = 5;
-  int32 inventory_threshold = 6;
-  int32 demand_threshold = 7;
-  int64 competitor_price_offset = 8;
-  bool enabled = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 sku_id = 2; // 库存单元唯一标识
+  string strategy_type = 3; // strategy类型
+  int64 min_price = 4; // 最小价格
+  int64 max_price = 5; // 最大价格
+  int32 inventory_threshold = 6; // 库存threshold
+  int32 demand_threshold = 7; // 需求阈值
+  int64 competitor_price_offset = 8; // competitor价格偏移
+  bool enabled = 9; // 启用
 }
 
+// SaveStrategyRequest 保存Strategy请求消息结构。
 message SaveStrategyRequest {
-  PricingStrategy strategy = 1;
+  PricingStrategy strategy = 1; // 策略
 }
 
+// ListStrategiesRequest 列出Strategies请求消息结构。
 message ListStrategiesRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
+// ListStrategiesResponse 列出Strategies响应消息结构。
 message ListStrategiesResponse {
-  repeated PricingStrategy strategies = 1;
-  uint64 total_count = 2;
+  repeated PricingStrategy strategies = 1; // 策略列表
+  uint64 total_count = 2; // 总数计数
 }

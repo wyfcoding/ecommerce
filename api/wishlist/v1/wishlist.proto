@@ -6,12 +6,12 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/wishlist/v1;v1";
 
-// Wishlist Service
+// Wishlist Wishlist服务。
 service Wishlist {
     // 将商品添加到用户的心愿单
     rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse);
 
-    // Remove an item from a user's wishlist
+// RemoveItemFromWishlist 删除Item来源Wishlist。
     rpc RemoveItemFromWishlist(RemoveItemFromWishlistRequest) returns (RemoveItemFromWishlistResponse);
 
     // 列出用户心愿单中的所有商品
@@ -20,44 +20,44 @@ service Wishlist {
 
 // 代表用户心愿单中的一个商品
 message WishlistItem {
-    string id = 1;
-    string user_id = 2;
-    string product_id = 3;
-    google.protobuf.Timestamp added_at = 4;
+    string id = 1; // 唯一标识
+    string user_id = 2; // 用户唯一标识
+    string product_id = 3; // 产品id
+    google.protobuf.Timestamp added_at = 4; // added在
 }
 
 // 添加商品到心愿单的请求
 message AddItemToWishlistRequest {
-    string user_id = 1;
-    string product_id = 2;
+    string user_id = 1; // 用户唯一标识
+    string product_id = 2; // 产品id
 }
 
 // 添加商品到心愿单的响应
 message AddItemToWishlistResponse {
-    WishlistItem item = 1;
+    WishlistItem item = 1; // 项
 }
 
 // 从心愿单移除商品的请求
 message RemoveItemFromWishlistRequest {
-    string user_id = 1;
-    string product_id = 2;
+    string user_id = 1; // 用户唯一标识
+    string product_id = 2; // 产品id
 }
 
 // 从心愿单移除商品的响应
 message RemoveItemFromWishlistResponse {
-    bool success = 1;
-    string message = 2;
+    bool success = 1; // 成功
+    string message = 2; // 消息
 }
 
 // 获取心愿单商品列表的请求
 message ListWishlistItemsRequest {
-    string user_id = 1;
-    int32 page_size = 2;
-    int32 page_token = 3;
+    string user_id = 1; // 用户唯一标识
+    int32 page_size = 2; // 页码大小
+    int32 page_token = 3; // 页码令牌
 }
 
 // 获取心愿单商品列表的响应
 message ListWishlistItemsResponse {
-    repeated WishlistItem items = 1;
-    int32 total_count = 2;
+    repeated WishlistItem items = 1; // 项列表
+    int32 total_count = 2; // 总数计数
 }

@@ -7,109 +7,130 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/user_tier/v1;usertierv1";
 
+// UserTierService 用户Tier服务服务定义。
 service UserTierService {
-  // Tier Management
+// GetUserTier 获取用户Tier。
   rpc GetUserTier(GetUserTierRequest) returns (GetUserTierResponse);
+// AddScore 处理Add分数请求。
   rpc AddScore(AddScoreRequest) returns (google.protobuf.Empty);
 
-  // Points Management
+// GetPoints 获取Points。
   rpc GetPoints(GetPointsRequest) returns (GetPointsResponse);
+// AddPoints 处理AddPoints请求。
   rpc AddPoints(AddPointsRequest) returns (google.protobuf.Empty);
+// DeductPoints 处理DeductPoints请求。
   rpc DeductPoints(DeductPointsRequest) returns (google.protobuf.Empty);
+// ListPointsLogs 处理列出PointsLogs请求。
   rpc ListPointsLogs(ListPointsLogsRequest) returns (ListPointsLogsResponse);
 
-  // Exchange Management
+// Exchange Exchange接口。
   rpc Exchange(ExchangeRequest) returns (google.protobuf.Empty);
+// ListExchanges 处理列出Exchanges请求。
   rpc ListExchanges(ListExchangesRequest) returns (ListExchangesResponse);
 }
 
+// UserTier 用户Tier消息结构。
 message UserTier {
-  uint64 user_id = 1;
-  int32 level = 2;
-  string level_name = 3;
-  int64 score = 4;
-  int64 next_level_score = 5;
-  double progress_to_next_level = 6;
-  double discount_rate = 7;
-  double points = 8;
-  google.protobuf.Timestamp created_at = 9;
-  google.protobuf.Timestamp updated_at = 10;
+  uint64 user_id = 1; // 用户唯一标识
+  int32 level = 2; // 等级
+  string level_name = 3; // 等级名称
+  int64 score = 4; // 分数
+  int64 next_level_score = 5; // 下一个等级分数
+  double progress_to_next_level = 6; // progress去下一个等级
+  double discount_rate = 7; // 折扣rate
+  double points = 8; // 积分
+  google.protobuf.Timestamp created_at = 9; // 创建时间
+  google.protobuf.Timestamp updated_at = 10; // 更新时间
 }
 
+// PointsLog PointsLog消息结构。
 message PointsLog {
-  uint64 id = 1;
-  uint64 user_id = 2;
-  int64 points = 3;
-  string reason = 4;
-  string type = 5;
-  google.protobuf.Timestamp created_at = 6;
+  uint64 id = 1; // 唯一标识
+  uint64 user_id = 2; // 用户唯一标识
+  int64 points = 3; // 积分
+  string reason = 4; // 原因
+  string type = 5; // 类型
+  google.protobuf.Timestamp created_at = 6; // 创建时间
 }
 
+// ExchangeItem ExchangeItem消息结构。
 message ExchangeItem {
-  uint64 id = 1;
-  string name = 2;
-  string description = 3;
-  int64 required_points = 4;
-  int32 stock = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string description = 3; // 描述
+  int64 required_points = 4; // required积分
+  int32 stock = 5; // 库存
+  google.protobuf.Timestamp created_at = 6; // 创建时间
+  google.protobuf.Timestamp updated_at = 7; // 更新时间
 }
 
+// GetUserTierRequest 获取用户Tier请求消息结构。
 message GetUserTierRequest {
-  uint64 user_id = 1;
+  uint64 user_id = 1; // 用户唯一标识
 }
 
+// GetUserTierResponse 获取用户Tier响应消息结构。
 message GetUserTierResponse {
-  UserTier tier = 1;
+  UserTier tier = 1; // 层级
 }
 
+// AddScoreRequest Add分数请求消息结构。
 message AddScoreRequest {
-  uint64 user_id = 1;
-  int64 score = 2;
+  uint64 user_id = 1; // 用户唯一标识
+  int64 score = 2; // 分数
 }
 
+// GetPointsRequest 获取Points请求消息结构。
 message GetPointsRequest {
-  uint64 user_id = 1;
+  uint64 user_id = 1; // 用户唯一标识
 }
 
+// GetPointsResponse 获取Points响应消息结构。
 message GetPointsResponse {
-  int64 points = 1;
+  int64 points = 1; // 积分
 }
 
+// AddPointsRequest AddPoints请求消息结构。
 message AddPointsRequest {
-  uint64 user_id = 1;
-  int64 points = 2;
-  string reason = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  int64 points = 2; // 积分
+  string reason = 3; // 原因
 }
 
+// DeductPointsRequest DeductPoints请求消息结构。
 message DeductPointsRequest {
-  uint64 user_id = 1;
-  int64 points = 2;
-  string reason = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  int64 points = 2; // 积分
+  string reason = 3; // 原因
 }
 
+// ListPointsLogsRequest 列出PointsLogs请求消息结构。
 message ListPointsLogsRequest {
-  uint64 user_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  int32 page = 2; // 页码
+  int32 page_size = 3; // 页码大小
 }
 
+// ListPointsLogsResponse 列出PointsLogs响应消息结构。
 message ListPointsLogsResponse {
-  repeated PointsLog logs = 1;
-  int64 total_count = 2;
+  repeated PointsLog logs = 1; // 日志列表
+  int64 total_count = 2; // 总数计数
 }
 
+// ExchangeRequest Exchange请求消息结构。
 message ExchangeRequest {
-  uint64 user_id = 1;
-  uint64 exchange_id = 2;
+  uint64 user_id = 1; // 用户唯一标识
+  uint64 exchange_id = 2; // 交易所ID
 }
 
+// ListExchangesRequest 列出Exchanges请求消息结构。
 message ListExchangesRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 page = 1; // 页码
+  int32 page_size = 2; // 页码大小
 }
 
+// ListExchangesResponse 列出Exchanges响应消息结构。
 message ListExchangesResponse {
-  repeated ExchangeItem items = 1;
-  int64 total_count = 2;
+  repeated ExchangeItem items = 1; // 项列表
+  int64 total_count = 2; // 总数计数
 }

@@ -19,8 +19,8 @@ service DataLakeIngestion {
 
 // IngestToDataLakeRequest 摄取数据到数据湖请求消息。
 message IngestToDataLakeRequest {
-  string data_source = 1;
-  string data_format = 2;
-  bytes data_content = 3;
-  map<string, string> metadata = 4;
+  string data_source = 1; // 数据source
+  string data_format = 2; // 数据format
+  bytes data_content = 3; // 数据内容
+  map<string, string> metadata = 4; // metadata
 }

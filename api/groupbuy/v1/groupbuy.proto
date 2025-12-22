@@ -27,104 +27,114 @@ service GroupbuyService {
 
 // Groupbuy 拼团活动
 message Groupbuy {
-  uint64 id = 1;
-  string name = 2;
-  uint64 product_id = 3;
-  uint64 sku_id = 4;
-  uint64 original_price = 5;
-  uint64 group_price = 6;
-  int32 min_people = 7;
-  int32 max_people = 8;
-  int32 total_stock = 9;
-  int32 sold_count = 10;
-  google.protobuf.Timestamp start_time = 11;
-  google.protobuf.Timestamp end_time = 12;
-  int32 status = 13;
-  string description = 14;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  uint64 product_id = 3; // 产品id
+  uint64 sku_id = 4; // 库存单元唯一标识
+  uint64 original_price = 5; // original价格
+  uint64 group_price = 6; // 组价格
+  int32 min_people = 7; // 最小people
+  int32 max_people = 8; // 最大people
+  int32 total_stock = 9; // 总数stock
+  int32 sold_count = 10; // sold计数
+  google.protobuf.Timestamp start_time = 11; // 开始时间
+  google.protobuf.Timestamp end_time = 12; // 结束时间
+  int32 status = 13; // 状态
+  string description = 14; // 描述
 }
 
+// CreateGroupbuyRequest 创建Groupbuy请求消息结构。
 message CreateGroupbuyRequest {
-  string name = 1;
-  uint64 product_id = 2;
-  uint64 sku_id = 3;
-  uint64 original_price = 4;
-  uint64 group_price = 5;
-  int32 min_people = 6;
-  int32 max_people = 7;
-  int32 total_stock = 8;
-  google.protobuf.Timestamp start_time = 9;
-  google.protobuf.Timestamp end_time = 10;
+  string name = 1; // 名称
+  uint64 product_id = 2; // 产品id
+  uint64 sku_id = 3; // 库存单元唯一标识
+  uint64 original_price = 4; // original价格
+  uint64 group_price = 5; // 组价格
+  int32 min_people = 6; // 最小people
+  int32 max_people = 7; // 最大people
+  int32 total_stock = 8; // 总数stock
+  google.protobuf.Timestamp start_time = 9; // 开始时间
+  google.protobuf.Timestamp end_time = 10; // 结束时间
 }
 
+// CreateGroupbuyResponse 创建Groupbuy响应消息结构。
 message CreateGroupbuyResponse {
-  Groupbuy groupbuy = 1;
+  Groupbuy groupbuy = 1; // 团购
 }
 
+// ListGroupbuysRequest 列出Groupbuys请求消息结构。
 message ListGroupbuysRequest {
-  uint32 page_size = 1;
-  uint32 page_num = 2;
+  uint32 page_size = 1; // 页码大小
+  uint32 page_num = 2; // 页码num
 }
 
+// ListGroupbuysResponse 列出Groupbuys响应消息结构。
 message ListGroupbuysResponse {
-  repeated Groupbuy groupbuys = 1;
-  uint64 total_count = 2;
+  repeated Groupbuy groupbuys = 1; // 团购列表
+  uint64 total_count = 2; // 总数计数
 }
 
 // GroupbuyTeam 拼团团队
 message GroupbuyTeam {
-  uint64 id = 1;
-  uint64 groupbuy_id = 2;
-  string team_no = 3;
-  uint64 leader_id = 4;
-  int32 current_people = 5;
-  int32 max_people = 6;
-  int32 status = 7;
-  google.protobuf.Timestamp expire_at = 8;
-  google.protobuf.Timestamp success_at = 9;
+  uint64 id = 1; // 唯一标识
+  uint64 groupbuy_id = 2; // 团购唯一标识
+  string team_no = 3; // 团队编号
+  uint64 leader_id = 4; // leader唯一标识
+  int32 current_people = 5; // 当前people
+  int32 max_people = 6; // 最大people
+  int32 status = 7; // 状态
+  google.protobuf.Timestamp expire_at = 8; // expire在
+  google.protobuf.Timestamp success_at = 9; // success在
 }
 
 // GroupbuyOrder 拼团订单
 message GroupbuyOrder {
-  uint64 id = 1;
-  uint64 groupbuy_id = 2;
-  uint64 team_id = 3;
-  string team_no = 4;
-  uint64 user_id = 5;
-  uint64 product_id = 6;
-  uint64 sku_id = 7;
-  uint64 price = 8;
-  int32 quantity = 9;
-  uint64 total_amount = 10;
-  bool is_leader = 11;
-  int32 status = 12;
-  google.protobuf.Timestamp paid_at = 13;
-  google.protobuf.Timestamp refunded_at = 14;
+  uint64 id = 1; // 唯一标识
+  uint64 groupbuy_id = 2; // 团购唯一标识
+  uint64 team_id = 3; // team唯一标识
+  string team_no = 4; // 团队编号
+  uint64 user_id = 5; // 用户唯一标识
+  uint64 product_id = 6; // 产品id
+  uint64 sku_id = 7; // 库存单元唯一标识
+  uint64 price = 8; // 价格
+  int32 quantity = 9; // 数量
+  uint64 total_amount = 10; // 总数金额
+  bool is_leader = 11; // 是leader
+  int32 status = 12; // 状态
+  google.protobuf.Timestamp paid_at = 13; // paid在
+  google.protobuf.Timestamp refunded_at = 14; // refunded在
 }
 
+// InitiateTeamRequest InitiateTeam请求消息结构。
 message InitiateTeamRequest {
-  uint64 groupbuy_id = 1;
-  uint64 user_id = 2;
+  uint64 groupbuy_id = 1; // 团购唯一标识
+  uint64 user_id = 2; // 用户唯一标识
 }
 
+// InitiateTeamResponse InitiateTeam响应消息结构。
 message InitiateTeamResponse {
-  GroupbuyTeam team = 1;
-  GroupbuyOrder order = 2;
+  GroupbuyTeam team = 1; // 团队
+  GroupbuyOrder order = 2; // 订单
 }
 
+// JoinTeamRequest JoinTeam请求消息结构。
 message JoinTeamRequest {
-  string team_no = 1;
-  uint64 user_id = 2;
+  string team_no = 1; // 团队编号
+  uint64 user_id = 2; // 用户唯一标识
 }
 
+// JoinTeamResponse JoinTeam响应消息结构。
 message JoinTeamResponse {
-  GroupbuyOrder order = 1;
+  GroupbuyOrder order = 1; // 订单
 }
 
+// GetTeamDetailsRequest 获取TeamDetails请求消息结构。
 message GetTeamDetailsRequest {
-  uint64 team_id = 1;
+  uint64 team_id = 1; // team唯一标识
 }
 
+// GetTeamDetailsResponse 获取TeamDetails响应消息结构。
 message GetTeamDetailsResponse {
-  GroupbuyTeam team = 1;
-  repeated GroupbuyOrder orders = 2;
+  GroupbuyTeam team = 1; // 团队
+  repeated GroupbuyOrder orders = 2; // 订单列表
 }

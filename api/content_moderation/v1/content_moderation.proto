@@ -21,28 +21,28 @@ service ContentModeration {
 
 // ModerateTextRequest 审核文本请求消息。
 message ModerateTextRequest {
-  string text = 1;
-  string content_type = 2; // e.g., "comment", "product_description"
-  uint64 user_id = 3;
+  string text = 1; // 文本
+  string content_type = 2; // 内容类型
+  uint64 user_id = 3; // 用户唯一标识
 }
 
 // ModerateTextResponse 审核文本响应消息。
 message ModerateTextResponse {
-  bool is_safe = 1;
-  repeated string moderation_labels = 2;
+  bool is_safe = 1; // 是safe
+  repeated string moderation_labels = 2; // moderation标签
   optional string rejection_reason = 3;
 }
 
 // ModerateImageRequest 审核图片请求消息。
 message ModerateImageRequest {
-  bytes image_data = 1;
-  string content_type = 2; // e.g., "product_image", "user_avatar"
-  uint64 user_id = 3;
+  bytes image_data = 1; // 图片数据
+  string content_type = 2; // 内容类型
+  uint64 user_id = 3; // 用户唯一标识
 }
 
 // ModerateImageResponse 审核图片响应消息。
 message ModerateImageResponse {
-  bool is_safe = 1;
-  repeated string moderation_labels = 2;
+  bool is_safe = 1; // 是safe
+  repeated string moderation_labels = 2; // moderation标签
   optional string rejection_reason = 3;
 }

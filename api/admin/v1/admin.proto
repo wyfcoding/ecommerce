@@ -57,7 +57,7 @@ message SystemSetting {
   google.protobuf.Timestamp updated_at = 4; // 更新时间
 }
 
-// --- AdminUser RPCs ---
+// CreateAdminUserRequest 创建Admin用户请求消息。
 
 // CreateAdminUserRequest 创建管理员用户的请求
 message CreateAdminUserRequest {
@@ -116,7 +116,7 @@ message ListAdminUsersResponse {
   int32 total_count = 2; // 总数
 }
 
-// --- Role RPCs ---
+// CreateRoleRequest 创建角色请求消息。
 
 // CreateRoleRequest 创建角色的请求
 message CreateRoleRequest {
@@ -170,7 +170,7 @@ message ListRolesResponse {
   int32 total_count = 2; // 总数
 }
 
-// --- Permission RPCs ---
+// CreatePermissionRequest 创建权限请求消息。
 
 // CreatePermissionRequest 创建权限的请求
 message CreatePermissionRequest {
@@ -205,7 +205,7 @@ message ListPermissionsResponse {
   int32 total_count = 2; // 总数
 }
 
-// --- AuditLog RPCs ---
+// ListAuditLogsRequest 列表审计Logs请求消息。
 
 // ListAuditLogsRequest 列出审计日志的请求
 message ListAuditLogsRequest {
@@ -225,7 +225,7 @@ message ListAuditLogsResponse {
   int32 total_count = 2; // 总数
 }
 
-// --- SystemSetting RPCs ---
+// GetSystemSettingRequest 获取系统设置请求消息。
 
 // GetSystemSettingRequest 获取系统配置的请求
 message GetSystemSettingRequest {
@@ -253,21 +253,31 @@ message UpdateSystemSettingResponse {
 service AdminService {
   // --- AdminUser 管理 ---
   rpc CreateAdminUser(CreateAdminUserRequest) returns (CreateAdminUserResponse);
+// GetAdminUser 处理获取Admin用户请求。
   rpc GetAdminUser(GetAdminUserRequest) returns (GetAdminUserResponse);
+// UpdateAdminUser 处理更新Admin用户请求。
   rpc UpdateAdminUser(UpdateAdminUserRequest) returns (UpdateAdminUserResponse);
+// DeleteAdminUser 处理删除Admin用户请求。
   rpc DeleteAdminUser(DeleteAdminUserRequest) returns (google.protobuf.Empty);
+// ListAdminUsers 处理列出AdminUsers请求。
   rpc ListAdminUsers(ListAdminUsersRequest) returns (ListAdminUsersResponse);
 
   // --- Role 管理 ---
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+// GetRole 处理获取角色请求。
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+// UpdateRole 处理更新角色请求。
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+// DeleteRole 处理删除角色请求。
   rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
+// ListRoles 处理列出Roles请求。
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
 
   // --- Permission 管理 ---
   rpc CreatePermission(CreatePermissionRequest) returns (CreatePermissionResponse);
+// GetPermission 处理获取权限请求。
   rpc GetPermission(GetPermissionRequest) returns (GetPermissionResponse);
+// ListPermissions 处理列出Permissions请求。
   rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
 
   // --- AuditLog 查询 ---
@@ -275,5 +285,6 @@ service AdminService {
 
   // --- SystemSetting 管理 ---
   rpc GetSystemSetting(GetSystemSettingRequest) returns (GetSystemSettingResponse);
+// UpdateSystemSetting 处理更新SystemSetting请求。
   rpc UpdateSystemSetting(UpdateSystemSettingRequest) returns (UpdateSystemSettingResponse);
 }

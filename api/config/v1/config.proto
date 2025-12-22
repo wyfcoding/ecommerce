@@ -27,31 +27,31 @@ service Config {
 message ConfigEntry {
   string key = 1; // 配置键
   string value = 2; // 配置值
-  google.protobuf.Timestamp updated_at = 3;
+  google.protobuf.Timestamp updated_at = 3; // 更新时间
 }
 
 // GetConfigRequest 获取配置请求消息。
 message GetConfigRequest {
-  string key = 1;
+  string key = 1; // 键
 }
 
 // ConfigResponse 配置响应消息。
 message ConfigResponse {
-  ConfigEntry config = 1;
+  ConfigEntry config = 1; // 配置
 }
 
 // SetConfigRequest 设置配置请求消息。
 message SetConfigRequest {
-  string key = 1;
-  string value = 2;
+  string key = 1; // 键
+  string value = 2; // 值
 }
 
 // DeleteConfigRequest 删除配置请求消息。
 message DeleteConfigRequest {
-  string key = 1;
+  string key = 1; // 键
 }
 
 // WatchConfigRequest 监听配置请求消息。
 message WatchConfigRequest {
-  string key = 1;
+  string key = 1; // 键
 }

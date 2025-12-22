@@ -4,27 +4,31 @@ package search.v1;
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/search/v1;v1";
 
+// SearchService 搜索服务服务定义。
 service SearchService {
   // 定义搜索服务的接口
   rpc SearchProducts (SearchProductsRequest) returns (SearchProductsResponse);
 }
 
+// SearchProductsRequest 搜索Products请求消息结构。
 message SearchProductsRequest {
-  string query = 1;
-  int32 page_size = 2;
-  int32 page_token = 3;
+  string query = 1; // 查询
+  int32 page_size = 2; // 页码大小
+  int32 page_token = 3; // 页码令牌
 }
 
+// SearchProductsResponse 搜索Products响应消息结构。
 message SearchProductsResponse {
-  repeated Product products = 1;
-  int32 total_size = 2;
-  int32 next_page_token = 3;
+  repeated Product products = 1; // 商品列表
+  int32 total_size = 2; // 总数大小
+  int32 next_page_token = 3; // 下一个页码令牌
 }
 
+// Product 产品消息结构。
 message Product {
-  string id = 1;
-  string name = 2;
-  string description = 3;
-  double price = 4;
-  string image_url = 5;
+  string id = 1; // 唯一标识
+  string name = 2; // 名称
+  string description = 3; // 描述
+  double price = 4; // 价格
+  string image_url = 5; // 图片链接
 }

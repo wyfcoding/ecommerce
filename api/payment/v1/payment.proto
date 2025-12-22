@@ -158,8 +158,8 @@ message GetRefundStatusRequest {
 
 // ListPaymentTransactionsRequest 列出支付交易记录的请求。
 message ListPaymentTransactionsRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 page = 1; // 页码
+  int32 page_size = 2; // 页码大小
   uint64 user_id = 3;                             // 按用户ID筛选
   uint64 order_id = 4;                            // 按订单ID筛选
   PaymentStatus status = 5;                       // 按支付状态筛选
@@ -169,16 +169,16 @@ message ListPaymentTransactionsRequest {
 
 // ListPaymentTransactionsResponse 列出支付交易记录的响应。
 message ListPaymentTransactionsResponse {
-  repeated PaymentTransaction transactions = 1;
-  int32 total = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  repeated PaymentTransaction transactions = 1; // 事务列表
+  int32 total = 2; // 总数
+  int32 page = 3; // 页码
+  int32 page_size = 4; // 页码大小
 }
 
 // ListRefundTransactionsRequest 列出退款交易记录的请求。
 message ListRefundTransactionsRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 page = 1; // 页码
+  int32 page_size = 2; // 页码大小
   uint64 user_id = 3;                             // 按用户ID筛选
   uint64 order_id = 4;                            // 按订单ID筛选
   RefundStatus status = 5;                        // 按退款状态筛选
@@ -188,8 +188,8 @@ message ListRefundTransactionsRequest {
 
 // ListRefundTransactionsResponse 列出退款交易记录的响应。
 message ListRefundTransactionsResponse {
-  repeated RefundTransaction transactions = 1;
-  int32 total = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  repeated RefundTransaction transactions = 1; // 事务列表
+  int32 total = 2; // 总数
+  int32 page = 3; // 页码
+  int32 page_size = 4; // 页码大小
 }

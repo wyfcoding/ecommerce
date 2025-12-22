@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/fraud_detection/v1;v1";
 
-// FraudDetection Service
+// FraudDetection FraudDetection服务。
 service FraudDetection {
     // 提交交易进行欺诈评估
     rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse);
@@ -14,57 +14,57 @@ service FraudDetection {
     // 获取欺诈评估的状态
     rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse);
 
-    // Report a suspected fraudulent activity
+// ReportFraud 报告Fraud接口。
     rpc ReportFraud(ReportFraudRequest) returns (ReportFraudResponse);
 }
 
-// Represents a fraud evaluation result
+// FraudEvaluation FraudEvaluation消息。
 message FraudEvaluation {
-    string transaction_id = 1;
-    string user_id = 2;
-    string status = 3; // e.g., PENDING, APPROVED, REJECTED, REVIEW
-    double score = 4; // Fraud risk score
+    string transaction_id = 1; // 事务ID
+    string user_id = 2; // 用户唯一标识
+    string status = 3; // 状态
+    double score = 4; // 分数
     repeated string reasons = 5; // 评分/状态的原因
-    google.protobuf.Timestamp evaluated_at = 6;
+    google.protobuf.Timestamp evaluated_at = 6; // evaluated在
 }
 
 // 欺诈评估请求
 message EvaluateTransactionRequest {
-    string transaction_id = 1;
-    string user_id = 2;
-    double amount = 3;
-    string currency = 4;
-    string payment_method_type = 5;
-    string ip_address = 6;
-    string user_agent = 7;
-    map<string, string> additional_data = 8;
+    string transaction_id = 1; // 事务ID
+    string user_id = 2; // 用户唯一标识
+    double amount = 3; // 金额
+    string currency = 4; // 货币
+    string payment_method_type = 5; // 支付method类型
+    string ip_address = 6; // ip地址
+    string user_agent = 7; // 用户agent
+    map<string, string> additional_data = 8; // additional数据
 }
 
 // 欺诈评估响应
 message EvaluateTransactionResponse {
-    FraudEvaluation evaluation = 1;
+    FraudEvaluation evaluation = 1; // 评估
 }
 
 // 获取欺诈评估状态请求
 message GetEvaluationStatusRequest {
-    string transaction_id = 1;
+    string transaction_id = 1; // 事务ID
 }
 
 // 获取欺诈评估状态响应
 message GetEvaluationStatusResponse {
-    FraudEvaluation evaluation = 1;
+    FraudEvaluation evaluation = 1; // 评估
 }
 
 // 报告欺诈请求
 message ReportFraudRequest {
-    string transaction_id = 1;
-    string user_id = 2;
-    string report_reason = 3;
-    map<string, string> evidence = 4;
+    string transaction_id = 1; // 事务ID
+    string user_id = 2; // 用户唯一标识
+    string report_reason = 3; // 报告reason
+    map<string, string> evidence = 4; // evidence
 }
 
 // 报告欺诈响应
 message ReportFraudResponse {
-    bool success = 1;
-    string message = 2;
+    bool success = 1; // 成功
+    string message = 2; // 消息
 }

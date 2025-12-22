@@ -7,49 +7,57 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/risk_security/v1;risksecurityv1";
 
+// RiskSecurityService RiskSecurity服务服务定义。
 service RiskSecurityService {
-  // Risk Evaluation
+// EvaluateRisk EvaluateRisk接口。
   rpc EvaluateRisk(EvaluateRiskRequest) returns (EvaluateRiskResponse);
 
-  // Blacklist Management
+// AddToBlacklist 创建目标Blacklist。
   rpc AddToBlacklist(AddToBlacklistRequest) returns (google.protobuf.Empty);
+// RemoveFromBlacklist 处理Remove从Blacklist请求。
   rpc RemoveFromBlacklist(RemoveFromBlacklistRequest) returns (google.protobuf.Empty);
 
-  // Behavior Tracking
+// RecordUserBehavior Record用户Behavior接口。
   rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (google.protobuf.Empty);
 }
 
+// RiskAnalysisResult RiskAnalysis结果消息结构。
 message RiskAnalysisResult {
-  uint64 user_id = 1;
-  int32 risk_score = 2;
-  int32 risk_level = 3;
-  string risk_items_json = 4;
+  uint64 user_id = 1; // 用户唯一标识
+  int32 risk_score = 2; // risk分数
+  int32 risk_level = 3; // risk等级
+  string risk_items_json = 4; // 风险itemsJSON
 }
 
+// EvaluateRiskRequest EvaluateRisk请求消息结构。
 message EvaluateRiskRequest {
-  uint64 user_id = 1;
-  string ip = 2;
-  string device_id = 3;
-  int64 amount = 4;
+  uint64 user_id = 1; // 用户唯一标识
+  string ip = 2; // IP地址
+  string device_id = 3; // 设备ID
+  int64 amount = 4; // 金额
 }
 
+// EvaluateRiskResponse EvaluateRisk响应消息结构。
 message EvaluateRiskResponse {
-  RiskAnalysisResult result = 1;
+  RiskAnalysisResult result = 1; // 结果
 }
 
+// AddToBlacklistRequest Add去Blacklist请求消息结构。
 message AddToBlacklistRequest {
-  string type = 1;
-  string value = 2;
-  string reason = 3;
-  int64 duration_seconds = 4;
+  string type = 1; // 类型
+  string value = 2; // 值
+  string reason = 3; // 原因
+  int64 duration_seconds = 4; // 时长seconds
 }
 
+// RemoveFromBlacklistRequest Remove从Blacklist请求消息结构。
 message RemoveFromBlacklistRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// RecordUserBehaviorRequest Record用户Behavior请求消息结构。
 message RecordUserBehaviorRequest {
-  uint64 user_id = 1;
-  string ip = 2;
-  string device_id = 3;
+  uint64 user_id = 1; // 用户唯一标识
+  string ip = 2; // IP地址
+  string device_id = 3; // 设备ID
 }

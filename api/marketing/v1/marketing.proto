@@ -7,125 +7,149 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/marketing/v1;marketingv1";
 
+// MarketingService Marketing服务服务定义。
 service MarketingService {
-  // Campaign Management
+// CreateCampaign 创建Campaign。
   rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+// GetCampaign 处理获取Campaign请求。
   rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
+// UpdateCampaignStatus 处理更新Campaign状态请求。
   rpc UpdateCampaignStatus(UpdateCampaignStatusRequest) returns (google.protobuf.Empty);
+// ListCampaigns 处理列出Campaigns请求。
   rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+// RecordParticipation 处理RecordParticipation请求。
   rpc RecordParticipation(RecordParticipationRequest) returns (google.protobuf.Empty);
 
-  // Banner Management
+// CreateBanner 创建Banner。
   rpc CreateBanner(CreateBannerRequest) returns (CreateBannerResponse);
+// ListBanners 处理列出Banners请求。
   rpc ListBanners(ListBannersRequest) returns (ListBannersResponse);
+// DeleteBanner 处理删除Banner请求。
   rpc DeleteBanner(DeleteBannerRequest) returns (google.protobuf.Empty);
+// ClickBanner 处理ClickBanner请求。
   rpc ClickBanner(ClickBannerRequest) returns (google.protobuf.Empty);
 }
 
+// Campaign Campaign消息结构。
 message Campaign {
-  uint64 id = 1;
-  string name = 2;
-  string campaign_type = 3;
-  string description = 4;
-  google.protobuf.Timestamp start_time = 5;
-  google.protobuf.Timestamp end_time = 6;
-  uint64 budget = 7;
-  uint64 spent = 8;
-  int64 target_users = 9;
-  int64 reached_users = 10;
-  int32 status = 11;
+  uint64 id = 1; // 唯一标识
+  string name = 2; // 名称
+  string campaign_type = 3; // campaign类型
+  string description = 4; // 描述
+  google.protobuf.Timestamp start_time = 5; // 开始时间
+  google.protobuf.Timestamp end_time = 6; // 结束时间
+  uint64 budget = 7; // 预算
+  uint64 spent = 8; // 花费
+  int64 target_users = 9; // 目标users
+  int64 reached_users = 10; // 触达users
+  int32 status = 11; // 状态
   string rules_json = 12; // 规则的 JSON 字符串
-  google.protobuf.Timestamp created_at = 13;
-  google.protobuf.Timestamp updated_at = 14;
+  google.protobuf.Timestamp created_at = 13; // 创建时间
+  google.protobuf.Timestamp updated_at = 14; // 更新时间
 }
 
+// Banner Banner消息结构。
 message Banner {
-  uint64 id = 1;
-  string title = 2;
-  string image_url = 3;
-  string link_url = 4;
-  string position = 5;
-  int32 priority = 6;
-  google.protobuf.Timestamp start_time = 7;
-  google.protobuf.Timestamp end_time = 8;
-  int64 click_count = 9;
-  bool enabled = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
+  uint64 id = 1; // 唯一标识
+  string title = 2; // 标题
+  string image_url = 3; // 图片链接
+  string link_url = 4; // link链接
+  string position = 5; // 位置
+  int32 priority = 6; // 优先级
+  google.protobuf.Timestamp start_time = 7; // 开始时间
+  google.protobuf.Timestamp end_time = 8; // 结束时间
+  int64 click_count = 9; // click计数
+  bool enabled = 10; // 启用
+  google.protobuf.Timestamp created_at = 11; // 创建时间
+  google.protobuf.Timestamp updated_at = 12; // 更新时间
 }
 
+// CreateCampaignRequest 创建Campaign请求消息结构。
 message CreateCampaignRequest {
-  string name = 1;
-  string campaign_type = 2;
-  string description = 3;
-  google.protobuf.Timestamp start_time = 4;
-  google.protobuf.Timestamp end_time = 5;
-  uint64 budget = 6;
-  string rules_json = 7;
+  string name = 1; // 名称
+  string campaign_type = 2; // campaign类型
+  string description = 3; // 描述
+  google.protobuf.Timestamp start_time = 4; // 开始时间
+  google.protobuf.Timestamp end_time = 5; // 结束时间
+  uint64 budget = 6; // 预算
+  string rules_json = 7; // 规则列表JSON数据
 }
 
+// CreateCampaignResponse 创建Campaign响应消息结构。
 message CreateCampaignResponse {
-  Campaign campaign = 1;
+  Campaign campaign = 1; // 活动
 }
 
+// GetCampaignRequest 获取Campaign请求消息结构。
 message GetCampaignRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// GetCampaignResponse 获取Campaign响应消息结构。
 message GetCampaignResponse {
-  Campaign campaign = 1;
+  Campaign campaign = 1; // 活动
 }
 
+// UpdateCampaignStatusRequest 更新Campaign状态请求消息结构。
 message UpdateCampaignStatusRequest {
-  uint64 id = 1;
-  int32 status = 2;
+  uint64 id = 1; // 唯一标识
+  int32 status = 2; // 状态
 }
 
+// ListCampaignsRequest 列出Campaigns请求消息结构。
 message ListCampaignsRequest {
-  int32 status = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  int32 status = 1; // 状态
+  int32 page = 2; // 页码
+  int32 page_size = 3; // 页码大小
 }
 
+// ListCampaignsResponse 列出Campaigns响应消息结构。
 message ListCampaignsResponse {
-  repeated Campaign campaigns = 1;
-  int64 total_count = 2;
+  repeated Campaign campaigns = 1; // 活动列表
+  int64 total_count = 2; // 总数计数
 }
 
+// RecordParticipationRequest RecordParticipation请求消息结构。
 message RecordParticipationRequest {
-  uint64 campaign_id = 1;
-  uint64 user_id = 2;
-  uint64 order_id = 3;
-  uint64 discount = 4;
+  uint64 campaign_id = 1; // 活动ID
+  uint64 user_id = 2; // 用户唯一标识
+  uint64 order_id = 3; // 订单唯一标识
+  uint64 discount = 4; // 折扣
 }
 
+// CreateBannerRequest 创建Banner请求消息结构。
 message CreateBannerRequest {
-  string title = 1;
-  string image_url = 2;
-  string link_url = 3;
-  string position = 4;
-  int32 priority = 5;
-  google.protobuf.Timestamp start_time = 6;
-  google.protobuf.Timestamp end_time = 7;
+  string title = 1; // 标题
+  string image_url = 2; // 图片链接
+  string link_url = 3; // link链接
+  string position = 4; // 位置
+  int32 priority = 5; // 优先级
+  google.protobuf.Timestamp start_time = 6; // 开始时间
+  google.protobuf.Timestamp end_time = 7; // 结束时间
 }
 
+// CreateBannerResponse 创建Banner响应消息结构。
 message CreateBannerResponse {
-  Banner banner = 1;
+  Banner banner = 1; // 横幅
 }
 
+// ListBannersRequest 列出Banners请求消息结构。
 message ListBannersRequest {
-  string position = 1;
-  bool active_only = 2;
+  string position = 1; // 位置
+  bool active_only = 2; // 激活only
 }
 
+// ListBannersResponse 列出Banners响应消息结构。
 message ListBannersResponse {
-  repeated Banner banners = 1;
+  repeated Banner banners = 1; // 横幅
 }
 
+// DeleteBannerRequest 删除Banner请求消息结构。
 message DeleteBannerRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }
 
+// ClickBannerRequest ClickBanner请求消息结构。
 message ClickBannerRequest {
-  uint64 id = 1;
+  uint64 id = 1; // 唯一标识
 }

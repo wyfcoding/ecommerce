@@ -6,81 +6,81 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/review/v1;v1";
 
-// Review Service
+// Review 评论服务。
 service Review {
-    // Submit a new product review
+// CreateReview 创建评论。
     rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse);
 
     // 获取特定商品的评论
     rpc ListProductReviews(ListProductReviewsRequest) returns (ListProductReviewsResponse);
 
-    // Get reviews by a specific user
+// ListUserReviews 列出列表用户Reviews。
     rpc ListUserReviews(ListUserReviewsRequest) returns (ListUserReviewsResponse);
 
     // 获取商品的总体评分
     rpc GetProductRating(GetProductRatingRequest) returns (GetProductRatingResponse);
 }
 
-// Represents a product review
+// ReviewInfo 评论信息消息。
 message ReviewInfo {
-    string id = 1;
-    string product_id = 2;
-    string user_id = 3;
-    int32 rating = 4; // 1-5 stars
-    string title = 5;
-    string content = 6;
-    google.protobuf.Timestamp created_at = 7;
-    google.protobuf.Timestamp updated_at = 8;
+    string id = 1; // 唯一标识
+    string product_id = 2; // 产品id
+    string user_id = 3; // 用户唯一标识
+    int32 rating = 4; // 评分
+    string title = 5; // 标题
+    string content = 6; // 内容
+    google.protobuf.Timestamp created_at = 7; // 创建时间
+    google.protobuf.Timestamp updated_at = 8; // 更新时间
 }
 
 // 创建评论请求
 message CreateReviewRequest {
-    string product_id = 1;
-    string user_id = 2;
-    int32 rating = 3;
-    string title = 4;
-    string content = 5;
+    string product_id = 1; // 产品id
+    string user_id = 2; // 用户唯一标识
+    int32 rating = 3; // 评分
+    string title = 4; // 标题
+    string content = 5; // 内容
 }
 
 // 创建评论响应
 message CreateReviewResponse {
-    ReviewInfo review = 1;
+    ReviewInfo review = 1; // 评论
 }
 
 // 获取商品评论列表请求
 message ListProductReviewsRequest {
-    string product_id = 1;
-    int32 page_size = 2;
-    int32 page_token = 3;
+    string product_id = 1; // 产品id
+    int32 page_size = 2; // 页码大小
+    int32 page_token = 3; // 页码令牌
 }
 
 // 获取商品评论列表响应
 message ListProductReviewsResponse {
-    repeated ReviewInfo reviews = 1;
-    int32 total_count = 2;
-    double average_rating = 3;
+    repeated ReviewInfo reviews = 1; // 评论列表
+    int32 total_count = 2; // 总数计数
+    double average_rating = 3; // average评分
 }
 
 // 获取用户评论列表请求
 message ListUserReviewsRequest {
-    string user_id = 1;
-    int32 page_size = 2;
-    int32 page_token = 3;
+    string user_id = 1; // 用户唯一标识
+    int32 page_size = 2; // 页码大小
+    int32 page_token = 3; // 页码令牌
 }
 
 // 获取用户评论列表响应
 message ListUserReviewsResponse {
-    repeated ReviewInfo reviews = 1;
-    int32 total_count = 2;
+    repeated ReviewInfo reviews = 1; // 评论列表
+    int32 total_count = 2; // 总数计数
 }
 
 // 获取商品评分请求
 message GetProductRatingRequest {
-    string product_id = 1;
+    string product_id = 1; // 产品id
 }
 
 // 获取商品评分响应
 message GetProductRatingResponse {
-    double average_rating = 1;
-    int32 total_reviews = 2;
+    double average_rating = 1; // average评分
+    int32 total_reviews = 2; // 总数reviews
 }

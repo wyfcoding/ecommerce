@@ -21,27 +21,27 @@ service DataProcessing {
 
 // ProcessDataRequest 数据处理请求消息。
 message ProcessDataRequest {
-  string data_id = 1;
-  string processing_type = 2;
-  map<string, string> processing_params = 3;
+  string data_id = 1; // 数据id
+  string processing_type = 2; // processing类型
+  map<string, string> processing_params = 3; // processingparams
 }
 
 // ProcessDataResponse 数据处理响应消息。
 message ProcessDataResponse {
-  string processing_id = 1;
-  string status = 2;
+  string processing_id = 1; // processing唯一标识
+  string status = 2; // 状态
 }
 
 // GetProcessingStatusRequest 获取数据处理状态请求消息。
 message GetProcessingStatusRequest {
-  string processing_id = 1;
+  string processing_id = 1; // processing唯一标识
 }
 
 // ProcessingStatusResponse 数据处理状态响应消息。
 message ProcessingStatusResponse {
-  string processing_id = 1;
-  string status = 2;
+  string processing_id = 1; // processing唯一标识
+  string status = 2; // 状态
   optional string result_data_url = 3;
-  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp started_at = 4; // started在
   optional google.protobuf.Timestamp completed_at = 5;
 }

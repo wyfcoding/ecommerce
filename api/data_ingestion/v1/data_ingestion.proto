@@ -21,13 +21,13 @@ service DataIngestion {
 
 // IngestEventRequest 摄取事件请求消息。
 message IngestEventRequest {
-  string event_type = 1;
-  map<string, string> event_data = 2;
-  google.protobuf.Timestamp timestamp = 3;
+  string event_type = 1; // event类型
+  map<string, string> event_data = 2; // event数据
+  google.protobuf.Timestamp timestamp = 3; // 时间戳
   optional string source = 4;
 }
 
 // IngestBatchRequest 批量摄取请求消息。
 message IngestBatchRequest {
-  repeated IngestEventRequest events = 1;
+  repeated IngestEventRequest events = 1; // 事件列表
 }

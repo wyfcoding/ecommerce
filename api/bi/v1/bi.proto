@@ -21,37 +21,37 @@ service BI {
 
 // GetSalesDataRequest 获取销售数据请求消息。
 message GetSalesDataRequest {
-  google.protobuf.Timestamp start_date = 1;
-  google.protobuf.Timestamp end_date = 2;
+  google.protobuf.Timestamp start_date = 1; // 开始date
+  google.protobuf.Timestamp end_date = 2; // 结束date
   optional string product_category = 3;
 }
 
 // SalesDataPoint 代表一个销售数据点。
 message SalesDataPoint {
-  google.protobuf.Timestamp date = 1;
-  double total_sales = 2;
-  uint64 order_count = 3;
+  google.protobuf.Timestamp date = 1; // 日期
+  double total_sales = 2; // 总数sales
+  uint64 order_count = 3; // 订单计数
 }
 
 // GetSalesDataResponse 获取销售数据响应消息。
 message GetSalesDataResponse {
-  repeated SalesDataPoint data_points = 1;
+  repeated SalesDataPoint data_points = 1; // 数据points
 }
 
 // GetUserRetentionRequest 获取用户留存数据请求消息。
 message GetUserRetentionRequest {
-  google.protobuf.Timestamp start_date = 1;
-  google.protobuf.Timestamp end_date = 2;
-  int32 cohort_size_days = 3;
+  google.protobuf.Timestamp start_date = 1; // 开始date
+  google.protobuf.Timestamp end_date = 2; // 结束date
+  int32 cohort_size_days = 3; // cohort大小days
 }
 
 // UserRetentionDataPoint 代表一个用户留存数据点。
 message UserRetentionDataPoint {
-  google.protobuf.Timestamp cohort_date = 1;
+  google.protobuf.Timestamp cohort_date = 1; // 同期群date
   repeated double retention_rates = 2; // 例如：[100%, 50%, 30%] 代表第0天，第7天，第14天留存率
 }
 
 // GetUserRetentionResponse 获取用户留存数据响应消息。
 message GetUserRetentionResponse {
-  repeated UserRetentionDataPoint data_points = 1;
+  repeated UserRetentionDataPoint data_points = 1; // 数据points
 }
