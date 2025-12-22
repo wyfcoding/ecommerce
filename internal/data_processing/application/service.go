@@ -50,16 +50,21 @@ func (s *DataProcessingService) SubmitTask(ctx context.Context, name, taskType, 
 // processTask 异步处理数据处理任务的后台逻辑。
 // task: 待处理的任务实体。
 func (s *DataProcessingService) processTask(task *entity.ProcessingTask) {
-	ctx := context.Background()  // 使用一个新的背景上下文处理后台任务。
-	task.Start()                 // 调用实体方法更新任务状态为运行中。
-	s.repo.UpdateTask(ctx, task) // 更新数据库中的任务状态。
+	ctx := context.Background() // 使用一个新的背景上下文处理后台任务。
+	task.Start()                // 调用实体方法更新任务状态为运行中。
+	if err := s.repo.UpdateTask(ctx, task); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update task status to running", "task_id", task.ID, "error", err)
+		return
+	} // 更新数据库中的任务状态。
 
 	// 模拟: 模拟数据处理过程。
 	time.Sleep(1 * time.Second)
 
 	// Success simulation: 模拟成功完成处理。
 	task.Complete(`{"status": "success", "data": "processed"}`) // 调用实体方法更新任务状态为完成，并记录结果。
-	s.repo.UpdateTask(ctx, task)                                // 更新数据库中的任务状态。
+	if err := s.repo.UpdateTask(ctx, task); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update task status to completed", "task_id", task.ID, "error", err)
+	} // 更新数据库中的任务状态。
 }
 
 // ListTasks 获取数据处理任务列表。

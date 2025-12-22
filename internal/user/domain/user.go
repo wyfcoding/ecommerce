@@ -114,7 +114,6 @@ func (u *User) AddAddress(address *Address) error {
 // addressID: 待更新地址的ID。
 // address: 包含更新信息的地址实体。
 func (u *User) UpdateAddress(addressID uint, address *Address) error {
-	found := false
 	for i, addr := range u.Addresses {
 		if addr.ID == addressID {
 			// 更新地址字段。
@@ -133,14 +132,10 @@ func (u *User) UpdateAddress(addressID uint, address *Address) error {
 			} else {
 				u.Addresses[i].IsDefault = false
 			}
-			found = true
 			return nil
 		}
 	}
-	if !found {
-		return fmt.Errorf("address not found")
-	}
-	return nil
+	return fmt.Errorf("address not found")
 }
 
 // RemoveAddress 移除用户的地址。

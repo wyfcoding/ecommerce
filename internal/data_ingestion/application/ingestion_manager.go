@@ -14,7 +14,7 @@ type DataIngestionManager struct {
 	logger *slog.Logger
 }
 
-// NewDataIngestionManager creates a new DataIngestionManager instance.
+// NewDataIngestionManager 创建并返回一个新的 DataIngestionManager 实例。
 func NewDataIngestionManager(repo domain.DataIngestionRepository, logger *slog.Logger) *DataIngestionManager {
 	return &DataIngestionManager{
 		repo:   repo,
@@ -56,20 +56,28 @@ func (m *DataIngestionManager) TriggerIngestion(ctx context.Context, sourceID ui
 func (m *DataIngestionManager) processJob(job *domain.IngestionJob) {
 	ctx := context.Background()
 	job.Start()
-	m.repo.UpdateJob(ctx, job)
+	if err := m.repo.UpdateJob(ctx, job); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update job status to started", "job_id", job.ID, "error", err)
+		return
+	}
 	m.logger.InfoContext(ctx, "ingestion job started", "job_id", job.ID)
 
 	time.Sleep(2 * time.Second)
 
 	job.Complete(100)
-	m.repo.UpdateJob(ctx, job)
+	if err := m.repo.UpdateJob(ctx, job); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update job status to completed", "job_id", job.ID, "error", err)
+		return
+	}
 	m.logger.InfoContext(ctx, "ingestion job completed", "job_id", job.ID, "rows_processed", 100)
 
 	source, _ := m.repo.GetSource(ctx, job.SourceID)
 	if source != nil {
 		now := time.Now()
 		source.LastRunAt = &now
-		m.repo.UpdateSource(ctx, source)
+		if err := m.repo.UpdateSource(ctx, source); err != nil {
+			m.logger.ErrorContext(ctx, "failed to update source last run time", "source_id", source.ID, "error", err)
+		}
 	}
 }
 
