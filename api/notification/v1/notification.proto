@@ -6,61 +6,81 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/notification/v1;v1";
 
-// NotificationService 定义了通知服务接口
+// 通知服务，处理系统向用户推送的各类即时通知及状态管理。
 service NotificationService {
-  // 发送通知
+  // 发送单条系统通知。
   rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
 
-  // 获取用户通知列表
+  // 获取用户的通知历史列表。
   rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
 
-  // 标记通知为已读
+  // 标记特定通知为已读。
   rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse);
 }
 
-// Notification 通知信息
+// 通知实体。
 message Notification {
-  uint64 notification_id = 1; // 通知ID
-  uint64 user_id = 2; // 用户唯一标识
-  string type = 3; // 类型
-  string title = 4; // 标题
-  string content = 5; // 内容
-  bool is_read = 6; // 是read
-  google.protobuf.Timestamp created_at = 7; // 创建时间
+  // 唯一 ID。
+  uint64 notification_id = 1;
+  // 接收人 ID。
+  uint64 user_id = 2;
+  // 通知分类 (ORDER, PROMO, SYSTEM)。
+  string type = 3;
+  // 标题。
+  string title = 4;
+  // 正文。
+  string content = 5;
+  // 是否已读。
+  bool is_read = 6;
+  // 生成时间。
+  google.protobuf.Timestamp created_at = 7;
 }
 
-// SendNotificationRequest 发送通知请求
+// 发送请求。
 message SendNotificationRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string type = 2; // 类型
-  string title = 3; // 标题
-  string content = 4; // 内容
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 类别。
+  string type = 2;
+  // 标题。
+  string title = 3;
+  // 正文。
+  string content = 4;
 }
 
-// SendNotificationResponse 发送通知响应
+// 发送响应。
 message SendNotificationResponse {
-  uint64 notification_id = 1; // 通知ID
+  // 通知 ID。
+  uint64 notification_id = 1;
 }
 
-// ListNotificationsRequest 获取用户通知列表请求
+// 列表查询请求。
 message ListNotificationsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  bool include_read = 2; // 是否包含已读通知
-  uint32 page_size = 3; // 页码大小
-  uint32 page_num = 4; // 页码num
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 过滤条件：是否含已读。
+  bool include_read = 2;
+  // 每页数量。
+  uint32 page_size = 3;
+  // 页码。
+  uint32 page_num = 4;
 }
 
-// ListNotificationsResponse 获取用户通知列表响应
+// 列表响应。
 message ListNotificationsResponse {
-  repeated Notification notifications = 1; // 通知列表
-  uint64 total_count = 2; // 总数计数
+  // 通知记录序列。
+  repeated Notification notifications = 1;
+  // 总记录数。
+  uint64 total_count = 2;
 }
 
-// MarkNotificationAsReadRequest 标记通知为已读请求
+// 已读标记请求。
 message MarkNotificationAsReadRequest {
-  uint64 notification_id = 1; // 通知ID
-  uint64 user_id = 2; // 用于权限校验
+  // 通知 ID。
+  uint64 notification_id = 1;
+  // 权限校验 ID。
+  uint64 user_id = 2;
 }
 
-// MarkNotificationAsReadResponse 标记通知为已读响应
+// 已读标记响应。
 message MarkNotificationAsReadResponse {}

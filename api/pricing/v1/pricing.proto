@@ -2,123 +2,181 @@ syntax = "proto3";
 
 package api.pricing.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/pricing/v1;pricingv1";
 
-// PricingService Pricing服务服务定义。
+// 动态定价服务，负责管理价格规则及计算商品的最终实时售价。
 service PricingService {
-// CreateRule 创建规则。
+  // 创建定价规则。
   rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
-// ListRules 处理列出Rules请求。
+
+  // 分页列出定价规则。
   rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
 
-// CalculatePrice 计算价格接口。
+  // 根据当前市场需求、竞争情况等因素计算实时价格。
   rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
 
-// RecordHistory RecordHistory接口。
+  // 记录一次价格变动历史。
   rpc RecordHistory(RecordHistoryRequest) returns (google.protobuf.Empty);
-// ListHistory 处理列出History请求。
+
+  // 查询商品的价格变动记录。
   rpc ListHistory(ListHistoryRequest) returns (ListHistoryResponse);
 }
 
-// PricingRule PricingRule消息结构。
+// 定价规则。
 message PricingRule {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  uint64 product_id = 3; // 产品id
-  uint64 sku_id = 4; // 库存单元唯一标识
-  string strategy = 5; // 策略
-  uint64 base_price = 6; // base价格
-  uint64 min_price = 7; // 最小价格
-  uint64 max_price = 8; // 最大价格
-  double adjust_rate = 9; // 调整率
-  bool enabled = 10; // 启用
-  google.protobuf.Timestamp start_time = 11; // 开始时间
-  google.protobuf.Timestamp end_time = 12; // 结束时间
-  google.protobuf.Timestamp created_at = 13; // 创建时间
-  google.protobuf.Timestamp updated_at = 14; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 规则名称。
+  string name = 2;
+  // 关联商品 ID。
+  uint64 product_id = 3;
+  // 关联 SKU ID。
+  uint64 sku_id = 4;
+  // 定价策略（如 COST_PLUS, COMPETITIVE, DYNAMIC）。
+  string strategy = 5;
+  // 成本价或基准价。
+  uint64 base_price = 6;
+  // 允许的最低价限制。
+  uint64 min_price = 7;
+  // 允许的最高价限制。
+  uint64 max_price = 8;
+  // 价格调整幅度（如 0.1 代表加价 10%）。
+  double adjust_rate = 9;
+  // 是否启用规则。
+  bool enabled = 10;
+  // 规则生效时间。
+  google.protobuf.Timestamp start_time = 11;
+  // 规则失效时间。
+  google.protobuf.Timestamp end_time = 12;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 13;
+  // 最后更新时间。
+  google.protobuf.Timestamp updated_at = 14;
 }
 
-// PriceHistory 价格History消息结构。
+// 价格历史记录。
 message PriceHistory {
-  uint64 id = 1; // 唯一标识
-  uint64 product_id = 2; // 产品id
-  uint64 sku_id = 3; // 库存单元唯一标识
-  uint64 price = 4; // 价格
-  uint64 old_price = 5; // old价格
-  double change_rate = 6; // 变化率
-  string reason = 7; // 原因
-  google.protobuf.Timestamp created_at = 8; // 创建时间
-  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 记录 ID。
+  uint64 id = 1;
+  // 商品 ID。
+  uint64 product_id = 2;
+  // SKU ID。
+  uint64 sku_id = 3;
+  // 调整后的新价格。
+  uint64 price = 4;
+  // 调整前的旧价格。
+  uint64 old_price = 5;
+  // 价格变动比例。
+  double change_rate = 6;
+  // 变动原因描述。
+  string reason = 7;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// CreateRuleRequest 创建Rule请求消息结构。
+// 规则创建请求。
 message CreateRuleRequest {
-  string name = 1; // 名称
-  uint64 product_id = 2; // 产品id
-  uint64 sku_id = 3; // 库存单元唯一标识
-  string strategy = 4; // 策略
-  uint64 base_price = 5; // base价格
-  uint64 min_price = 6; // 最小价格
-  uint64 max_price = 7; // 最大价格
-  double adjust_rate = 8; // 调整率
-  bool enabled = 9; // 启用
-  google.protobuf.Timestamp start_time = 10; // 开始时间
-  google.protobuf.Timestamp end_time = 11; // 结束时间
+  // 名称。
+  string name = 1;
+  // 商品 ID。
+  uint64 product_id = 2;
+  // SKU ID。
+  uint64 sku_id = 3;
+  // 策略名。
+  string strategy = 4;
+  // 基准价。
+  uint64 base_price = 5;
+  // 最低限价。
+  uint64 min_price = 6;
+  // 最高限价。
+  uint64 max_price = 7;
+  // 调整率。
+  double adjust_rate = 8;
+  // 是否立即启用。
+  bool enabled = 9;
+  // 开始生效日期。
+  google.protobuf.Timestamp start_time = 10;
+  // 结束生效日期。
+  google.protobuf.Timestamp end_time = 11;
 }
 
-// CreateRuleResponse 创建Rule响应消息结构。
+// 规则创建响应。
 message CreateRuleResponse {
-  PricingRule rule = 1; // 规则
+  // 创建成功的规则详情。
+  PricingRule rule = 1;
 }
 
-// ListRulesRequest 列出Rules请求消息结构。
+// 规则查询请求。
 message ListRulesRequest {
-  uint64 product_id = 1; // 产品id
-  int32 page = 2; // 页码
-  int32 page_size = 3; // 页码大小
+  // 针对特定商品筛选。
+  uint64 product_id = 1;
+  // 页码。
+  int32 page = 2;
+  // 每页数量。
+  int32 page_size = 3;
 }
 
-// ListRulesResponse 列出Rules响应消息结构。
+// 规则查询响应。
 message ListRulesResponse {
-  repeated PricingRule rules = 1; // 规则列表
-  int64 total_count = 2; // 总数计数
+  // 规则列表数据。
+  repeated PricingRule rules = 1;
+  // 总记录数。
+  int64 total_count = 2;
 }
 
-// CalculatePriceRequest Calculate价格请求消息结构。
+// 价格计算请求。
 message CalculatePriceRequest {
-  uint64 product_id = 1; // 产品id
-  uint64 sku_id = 2; // 库存单元唯一标识
-  double demand = 3; // 需求
-  double competition = 4; // 竞争
+  // 商品 ID。
+  uint64 product_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
+  // 实时需求因子 (0.0 - 1.0)。
+  double demand = 3;
+  // 竞争激烈程度。
+  double competition = 4;
 }
 
-// CalculatePriceResponse Calculate价格响应消息结构。
+// 价格计算响应。
 message CalculatePriceResponse {
-  uint64 price = 1; // 价格
+  // 计算出的建议零售价。
+  uint64 price = 1;
 }
 
-// RecordHistoryRequest RecordHistory请求消息结构。
+// 历史记录保存请求。
 message RecordHistoryRequest {
-  uint64 product_id = 1; // 产品id
-  uint64 sku_id = 2; // 库存单元唯一标识
-  uint64 price = 3; // 价格
-  uint64 old_price = 4; // old价格
-  string reason = 5; // 原因
+  // 商品 ID。
+  uint64 product_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
+  // 新价格。
+  uint64 price = 3;
+  // 旧价格。
+  uint64 old_price = 4;
+  // 变动理由。
+  string reason = 5;
 }
 
-// ListHistoryRequest 列出History请求消息结构。
+// 历史记录查询请求。
 message ListHistoryRequest {
-  uint64 product_id = 1; // 产品id
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 page = 3; // 页码
-  int32 page_size = 4; // 页码大小
+  // 商品 ID。
+  uint64 product_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
+  // 页码。
+  int32 page = 3;
+  // 每页数量。
+  int32 page_size = 4;
 }
 
-// ListHistoryResponse 列出History响应消息结构。
+// 历史记录查询响应。
 message ListHistoryResponse {
-  repeated PriceHistory history = 1; // 历史
-  int64 total_count = 2; // 总数计数
+  // 变动记录序列。
+  repeated PriceHistory history = 1;
+  // 总记录数。
+  int64 total_count = 2;
 }

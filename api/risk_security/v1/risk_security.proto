@@ -2,62 +2,79 @@ syntax = "proto3";
 
 package api.risk_security.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/risk_security/v1;risksecurityv1";
 
-// RiskSecurityService RiskSecurity服务服务定义。
+// 风控安全服务，负责用户行为风险评估、黑名单管理及异常操作监控。
 service RiskSecurityService {
-// EvaluateRisk EvaluateRisk接口。
+  // 评估当前操作的风险等级（如登录、支付）。
   rpc EvaluateRisk(EvaluateRiskRequest) returns (EvaluateRiskResponse);
 
-// AddToBlacklist 创建目标Blacklist。
+  // 将特定标识（IP、用户 ID 等）加入黑名单。
   rpc AddToBlacklist(AddToBlacklistRequest) returns (google.protobuf.Empty);
-// RemoveFromBlacklist 处理Remove从Blacklist请求。
+
+  // 从黑名单中移除特定标识。
   rpc RemoveFromBlacklist(RemoveFromBlacklistRequest) returns (google.protobuf.Empty);
 
-// RecordUserBehavior Record用户Behavior接口。
+  // 记录用户关键行为，用于后续风险建模。
   rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (google.protobuf.Empty);
 }
 
-// RiskAnalysisResult RiskAnalysis结果消息结构。
+// 风险分析详情。
 message RiskAnalysisResult {
-  uint64 user_id = 1; // 用户唯一标识
-  int32 risk_score = 2; // risk分数
-  int32 risk_level = 3; // risk等级
-  string risk_items_json = 4; // 风险itemsJSON
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 风险量化评分。
+  int32 risk_score = 2;
+  // 风险等级标识。
+  int32 risk_level = 3;
+  // 命中风险项的详情 (JSON)。
+  string risk_items_json = 4;
 }
 
-// EvaluateRiskRequest EvaluateRisk请求消息结构。
+// 风险评估请求。
 message EvaluateRiskRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string ip = 2; // IP地址
-  string device_id = 3; // 设备ID
-  int64 amount = 4; // 金额
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 来源 IP。
+  string ip = 2;
+  // 硬件设备 ID。
+  string device_id = 3;
+  // 涉及的交易金额。
+  int64 amount = 4;
 }
 
-// EvaluateRiskResponse EvaluateRisk响应消息结构。
+// 风险评估响应。
 message EvaluateRiskResponse {
-  RiskAnalysisResult result = 1; // 结果
+  // 详细分析结果。
+  RiskAnalysisResult result = 1;
 }
 
-// AddToBlacklistRequest Add去Blacklist请求消息结构。
+// 加入黑名单请求。
 message AddToBlacklistRequest {
-  string type = 1; // 类型
-  string value = 2; // 值
-  string reason = 3; // 原因
-  int64 duration_seconds = 4; // 时长seconds
+  // 名单类型 (IP, USER, DEVICE)。
+  string type = 1;
+  // 封禁对象的值。
+  string value = 2;
+  // 封禁原因说明。
+  string reason = 3;
+  // 自动解封时间（秒）。
+  int64 duration_seconds = 4;
 }
 
-// RemoveFromBlacklistRequest Remove从Blacklist请求消息结构。
+// 移除黑名单请求。
 message RemoveFromBlacklistRequest {
-  uint64 id = 1; // 唯一标识
+  // 记录 ID。
+  uint64 id = 1;
 }
 
-// RecordUserBehaviorRequest Record用户Behavior请求消息结构。
+// 行为记录请求。
 message RecordUserBehaviorRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string ip = 2; // IP地址
-  string device_id = 3; // 设备ID
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 实时 IP。
+  string ip = 2;
+  // 设备环境 ID。
+  string device_id = 3;
 }

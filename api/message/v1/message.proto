@@ -6,78 +6,104 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/message/v1;v1";
 
-// MessageService 定义了消息服务接口
+// 站内消息服务，负责系统通知、私信的下发及阅读状态管理。
 service MessageService {
-  // 发送消息
+  // 发送一条即时消息。
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 
-  // 获取消息列表
+  // 获取收件箱消息列表。
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
 
-  // 标记消息为已读
+  // 将消息状态变更为已读。
   rpc MarkMessageAsRead(MarkMessageAsReadRequest) returns (MarkMessageAsReadResponse);
 
-  // 获取未读消息数
+  // 获取当前未读的消息总数。
   rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse);
 }
 
-// Message 消息信息
+// 消息记录实体。
 message Message {
-  uint64 id = 1; // 唯一标识
-  uint64 sender_id = 2; // 发送者ID
-  uint64 receiver_id = 3; // 收件人ID
-  string type = 4; // 类型
-  string title = 5; // 标题
-  string content = 6; // 内容
-  string link = 7; // 链接
-  bool is_read = 8; // 是read
-  google.protobuf.Timestamp created_at = 9; // 创建时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 发件人 ID（系统消息通常为 0）。
+  uint64 sender_id = 2;
+  // 收件人 ID。
+  uint64 receiver_id = 3;
+  // 消息分类（NOTIFICATION, PRIVATE_MESSAGE 等）。
+  string type = 4;
+  // 简短标题。
+  string title = 5;
+  // 正文。
+  string content = 6;
+  // 关联的业务页面跳转链接。
+  string link = 7;
+  // 阅读标记。
+  bool is_read = 8;
+  // 下发时间。
+  google.protobuf.Timestamp created_at = 9;
 }
 
-// SendMessageRequest 发送消息请求
+// 发送请求。
 message SendMessageRequest {
-  uint64 sender_id = 1; // 发送者ID
-  uint64 receiver_id = 2; // 收件人ID
-  string type = 3; // 类型
-  string title = 4; // 标题
-  string content = 5; // 内容
-  string link = 6; // 链接
+  // 发件人。
+  uint64 sender_id = 1;
+  // 收件人。
+  uint64 receiver_id = 2;
+  // 类型。
+  string type = 3;
+  // 标题。
+  string title = 4;
+  // 正文内容。
+  string content = 5;
+  // 链接。
+  string link = 6;
 }
 
-// SendMessageResponse 发送消息响应
+// 发送结果。
 message SendMessageResponse {
-  uint64 message_id = 1; // 消息id
+  // 生成的消息 ID。
+  uint64 message_id = 1;
 }
 
-// ListMessagesRequest 获取消息列表请求
+// 收件箱查询请求。
 message ListMessagesRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  bool include_read = 2; // 是否包含已读消息
-  uint32 page_size = 3; // 页码大小
-  uint32 page_num = 4; // 页码num
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 筛选条件：是否包含已读记录。
+  bool include_read = 2;
+  // 分页大小。
+  uint32 page_size = 3;
+  // 页码。
+  uint32 page_num = 4;
 }
 
-// ListMessagesResponse 获取消息列表响应
+// 收件箱响应。
 message ListMessagesResponse {
-  repeated Message messages = 1; // 消息列表
-  uint64 total_count = 2; // 总数计数
+  // 消息序列。
+  repeated Message messages = 1;
+  // 总笔数。
+  uint64 total_count = 2;
 }
 
-// MarkMessageAsReadRequest 标记消息为已读请求
+// 已读标记请求。
 message MarkMessageAsReadRequest {
-  uint64 message_id = 1; // 消息id
-  uint64 user_id = 2; // 用于权限校验
+  // 消息 ID。
+  uint64 message_id = 1;
+  // 用户 ID。
+  uint64 user_id = 2;
 }
 
-// MarkMessageAsReadResponse 标记消息为已读响应
+// 已读标记响应。
 message MarkMessageAsReadResponse {}
 
-// GetUnreadCountRequest 获取未读消息数请求
+// 未读数请求。
 message GetUnreadCountRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// GetUnreadCountResponse 获取未读消息数响应
+// 未读数响应。
 message GetUnreadCountResponse {
-  int64 count = 1; // 计数
+  // 统计结果。
+  int64 count = 1;
 }

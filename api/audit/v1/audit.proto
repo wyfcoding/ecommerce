@@ -2,169 +2,244 @@ syntax = "proto3";
 
 package api.audit.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/audit/v1;v1";
 
-// AuditService 定义了审计服务接口
+// 审计服务，负责记录关键操作日志、管理审计策略及生成合规报告。
 service AuditService {
-  // 记录审计事件
+  // 记录单条审计事件。
   rpc LogEvent(LogEventRequest) returns (google.protobuf.Empty);
 
-  // 查询审计日志
+  // 根据多种条件过滤查询审计流水。
   rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
 
   // --- 策略管理 ---
+  // 定义新的审计监控规则。
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
-// UpdatePolicy 处理更新Policy请求。
+  // 更新策略范围或开关状态。
   rpc UpdatePolicy(UpdatePolicyRequest) returns (google.protobuf.Empty);
-// ListPolicies 处理列出Policies请求。
+  // 获取当前生效的所有审计策略。
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
 
   // --- 报告管理 ---
+  // 定义报告模板。
   rpc CreateReport(CreateReportRequest) returns (CreateReportResponse);
-// GenerateReport 处理GenerateReport请求。
+  // 异步触发审计报告生成。
   rpc GenerateReport(GenerateReportRequest) returns (google.protobuf.Empty);
-// ListReports 处理列出Reports请求。
+  // 获取已生成的历史报告列表。
   rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
 }
 
-// AuditLog 审计日志
+// 审计流水详情。
 message AuditLog {
-  uint64 id = 1; // 唯一标识
-  string audit_no = 2; // 审计no
-  uint64 user_id = 3; // 用户唯一标识
-  string username = 4; // 用户名
-  string event_type = 5; // event类型
-  string level = 6; // 等级
-  string module = 7; // 模块
-  string action = 8; // 动作
-  string resource_type = 9; // resource类型
-  string resource_id = 10; // 资源ID
-  string old_value = 11; // old值
-  string new_value = 12; // 创建一个新的实例value
-  string ip = 13; // IP地址
-  string user_agent = 14; // 用户agent
-  string status = 15; // 状态
-  string error_msg = 16; // 错误msg
-  int64 duration = 17; // 时长
-  google.protobuf.Timestamp timestamp = 18; // 时间戳
+  // 唯一 ID。
+  uint64 id = 1;
+  // 审计流水号。
+  string audit_no = 2;
+  // 操作人 ID。
+  uint64 user_id = 3;
+  // 操作人姓名快照。
+  string username = 4;
+  // 事件类别。
+  string event_type = 5;
+  // 告警级别。
+  string level = 6;
+  // 所属微服务/模块。
+  string module = 7;
+  // 具体操作行为。
+  string action = 8;
+  // 操作资源类型。
+  string resource_type = 9;
+  // 资源 ID。
+  string resource_id = 10;
+  // 变更前原始值。
+  string old_value = 11;
+  // 变更后新值。
+  string new_value = 12;
+  // 操作者 IP。
+  string ip = 13;
+  // 客户端 Agent。
+  string user_agent = 14;
+  // 操作结果状态。
+  string status = 15;
+  // 失败时的错误信息。
+  string error_msg = 16;
+  // 接口耗时（毫秒）。
+  int64 duration = 17;
+  // 事件发生时间。
+  google.protobuf.Timestamp timestamp = 18;
 }
 
-// LogEventRequest 记录审计事件请求
+// 记录请求。
 message LogEventRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string username = 2; // 用户名
-  string event_type = 3; // event类型
-  string module = 4; // 模块
-  string action = 5; // 动作
-  // Optional fields
-  string resource_type = 6; // resource类型
-  string resource_id = 7; // 资源ID
-  string old_value = 8; // old值
-  string new_value = 9; // 创建一个新的实例value
-  string ip = 10; // IP地址
-  string user_agent = 11; // 用户agent
-  int64 duration = 12; // 时长
-  string error_msg = 13; // 错误msg
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 用户名。
+  string username = 2;
+  // 事件类型。
+  string event_type = 3;
+  // 模块名。
+  string module = 4;
+  // 动作描述。
+  string action = 5;
+  // 资源类型。
+  string resource_type = 6;
+  // 资源唯一标识。
+  string resource_id = 7;
+  // 修改前数据。
+  string old_value = 8;
+  // 修改后数据。
+  string new_value = 9;
+  // 来源 IP。
+  string ip = 10;
+  // 客户端信息。
+  string user_agent = 11;
+  // 耗时。
+  int64 duration = 12;
+  // 错误信息。
+  string error_msg = 13;
 }
 
-// QueryLogsRequest 查询审计日志请求
+// 审计查询。
 message QueryLogsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string module = 2; // 模块
-  string event_type = 3; // event类型
-  google.protobuf.Timestamp start_time = 4; // 开始时间
-  google.protobuf.Timestamp end_time = 5; // 结束时间
-  string status = 6; // 状态
-  uint32 page_size = 7; // 页码大小
-  uint32 page_num = 8; // 页码num
+  // 按用户筛选。
+  uint64 user_id = 1;
+  // 按模块。
+  string module = 2;
+  // 按事件。
+  string event_type = 3;
+  // 范围开始日期。
+  google.protobuf.Timestamp start_time = 4;
+  // 结束日期。
+  google.protobuf.Timestamp end_time = 5;
+  // 结果状态。
+  string status = 6;
+  // 每页数量。
+  uint32 page_size = 7;
+  // 页码。
+  uint32 page_num = 8;
 }
 
-// QueryLogsResponse 查询审计日志响应
+// 查询结果。
 message QueryLogsResponse {
-  repeated AuditLog logs = 1; // 日志列表
-  uint64 total_count = 2; // 总数计数
+  // 日志列表。
+  repeated AuditLog logs = 1;
+  // 总记录数。
+  uint64 total_count = 2;
 }
 
-// AuditPolicy 审计策略
+// 审计监控策略。
 message AuditPolicy {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  repeated string event_types = 4; // 事件types
-  repeated string modules = 5; // 模块
-  bool enabled = 6; // 启用
-  int32 retention_days = 7; // 留存days
+  // 策略 ID。
+  uint64 id = 1;
+  // 策略名称。
+  string name = 2;
+  // 规则描述。
+  string description = 3;
+  // 监控的事件列表。
+  repeated string event_types = 4;
+  // 监控的模块列表。
+  repeated string modules = 5;
+  // 是否激活。
+  bool enabled = 6;
+  // 记录保存天数。
+  int32 retention_days = 7;
 }
 
-// CreatePolicyRequest 创建审计策略请求
+// 创建策略。
 message CreatePolicyRequest {
-  string name = 1; // 名称
-  string description = 2; // 描述
+  // 名称。
+  string name = 1;
+  // 描述。
+  string description = 2;
 }
 
-// CreatePolicyResponse 创建审计策略响应
+// 创建策略响应。
 message CreatePolicyResponse {
-  AuditPolicy policy = 1; // 策略
+  // 策略详情。
+  AuditPolicy policy = 1;
 }
 
-// UpdatePolicyRequest 更新审计策略请求
+// 更新策略。
 message UpdatePolicyRequest {
-  uint64 id = 1; // 唯一标识
-  repeated string event_types = 2; // 事件types
-  repeated string modules = 3; // 模块
-  bool enabled = 4; // 启用
+  // 策略 ID。
+  uint64 id = 1;
+  // 事件范围。
+  repeated string event_types = 2;
+  // 模块范围。
+  repeated string modules = 3;
+  // 开关。
+  bool enabled = 4;
 }
 
-// ListPoliciesRequest 获取审计策略列表请求
+// 策略列表查询。
 message ListPoliciesRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListPoliciesResponse 获取审计策略列表响应
+// 策略响应。
 message ListPoliciesResponse {
-  repeated AuditPolicy policies = 1; // 策略
-  uint64 total_count = 2; // 总数计数
+  // 策略列表数据。
+  repeated AuditPolicy policies = 1;
+  // 总数。
+  uint64 total_count = 2;
 }
 
-// AuditReport 审计报告
+// 审计报告元数据。
 message AuditReport {
-  uint64 id = 1; // 唯一标识
-  string report_no = 2; // 报告no
-  string title = 3; // 标题
-  string description = 4; // 描述
-  string status = 5; // 状态
-  google.protobuf.Timestamp created_at = 6; // 创建时间
-  google.protobuf.Timestamp generated_at = 7; // generated在
+  // 报告 ID。
+  uint64 id = 1;
+  // 报告编号。
+  string report_no = 2;
+  // 标题。
+  string title = 3;
+  // 摘要描述。
+  string description = 4;
+  // 状态 (PENDING, FINISHED, FAILED)。
+  string status = 5;
+  // 提交时间。
+  google.protobuf.Timestamp created_at = 6;
+  // 实际生成时间。
+  google.protobuf.Timestamp generated_at = 7;
 }
 
-// CreateReportRequest 创建审计报告请求
+// 创建报告请求。
 message CreateReportRequest {
-  string title = 1; // 标题
-  string description = 2; // 描述
+  // 标题。
+  string title = 1;
+  // 描述。
+  string description = 2;
 }
 
-// CreateReportResponse 创建审计报告响应
+// 报告详情响应。
 message CreateReportResponse {
-  AuditReport report = 1; // 报告
+  // 报告元数据。
+  AuditReport report = 1;
 }
 
-// GenerateReportRequest 生成报告内容请求
+// 报告内容生成触发。
 message GenerateReportRequest {
-  uint64 id = 1; // 唯一标识
+  // 报告 ID。
+  uint64 id = 1;
 }
 
-// ListReportsRequest 获取审计报告列表请求
+// 报告列表请求。
 message ListReportsRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListReportsResponse 获取审计报告列表响应
+// 报告列表响应。
 message ListReportsResponse {
-  repeated AuditReport reports = 1; // 报告
-  uint64 total_count = 2; // 总数计数
+  // 报告序列。
+  repeated AuditReport reports = 1;
+  // 总笔数。
+  uint64 total_count = 2;
 }

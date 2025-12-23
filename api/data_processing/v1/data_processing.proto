@@ -3,45 +3,52 @@ syntax = "proto3";
 package api.data_processing.v1;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/data_processing/v1;v1";
 
-// DataProcessing 数据处理服务定义了所有与数据处理相关的RPC接口。
+// 数据处理服务，负责对摄取的原始数据进行清洗、转换及聚合。
 service DataProcessing {
-  // --- 核心数据处理接口 ---
-
-  // ProcessData 处理数据。
+  // 提交一个异步数据处理任务。
   rpc ProcessData(ProcessDataRequest) returns (ProcessDataResponse);
-  // GetProcessingStatus 获取数据处理状态。
+
+  // 查询特定任务的执行状态及结果。
   rpc GetProcessingStatus(GetProcessingStatusRequest) returns (ProcessingStatusResponse);
 }
 
-// --- 消息定义 ---
-
-// ProcessDataRequest 数据处理请求消息。
+// 数据处理请求。
 message ProcessDataRequest {
-  string data_id = 1; // 数据id
-  string processing_type = 2; // processing类型
-  map<string, string> processing_params = 3; // processingparams
+  // 待处理数据 ID。
+  string data_id = 1;
+  // 任务类型 (CLEAN, AGGREGATE, EXPORT)。
+  string processing_type = 2;
+  // 任务参数键值对。
+  map<string, string> processing_params = 3;
 }
 
-// ProcessDataResponse 数据处理响应消息。
+// 提交响应。
 message ProcessDataResponse {
-  string processing_id = 1; // processing唯一标识
-  string status = 2; // 状态
+  // 任务唯一 ID。
+  string processing_id = 1;
+  // 初始状态。
+  string status = 2;
 }
 
-// GetProcessingStatusRequest 获取数据处理状态请求消息。
+// 状态查询请求。
 message GetProcessingStatusRequest {
-  string processing_id = 1; // processing唯一标识
+  // 任务 ID。
+  string processing_id = 1;
 }
 
-// ProcessingStatusResponse 数据处理状态响应消息。
+// 任务状态详情。
 message ProcessingStatusResponse {
-  string processing_id = 1; // processing唯一标识
-  string status = 2; // 状态
+  // 任务 ID。
+  string processing_id = 1;
+  // 状态 (RUNNING, SUCCESS, FAILED)。
+  string status = 2;
+  // 结果文件下载地址。
   optional string result_data_url = 3;
-  google.protobuf.Timestamp started_at = 4; // started在
+  // 任务启动时间。
+  google.protobuf.Timestamp started_at = 4;
+  // 任务完成时间。
   optional google.protobuf.Timestamp completed_at = 5;
 }

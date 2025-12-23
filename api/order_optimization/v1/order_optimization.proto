@@ -6,106 +6,154 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/order_optimization/v1;orderoptimizationv1";
 
-// OrderOptimizationService 订单Optimization服务服务定义。
+// 订单优化服务，负责订单合并、拆分以及智能仓库分配逻辑。
 service OrderOptimizationService {
-// MergeOrders 处理MergeOrders请求。
+  // 将同一用户、同一地址的多个订单合并为一个。
   rpc MergeOrders(MergeOrdersRequest) returns (MergeOrdersResponse);
-// SplitOrder 处理Split订单请求。
+
+  // 将超大或需异地发货的订单拆分为多个子订单。
   rpc SplitOrder(SplitOrderRequest) returns (SplitOrderResponse);
-// AllocateWarehouse 处理AllocateWarehouse请求。
+
+  // 根据库存和距离自动为订单分配最合适的发货仓库。
   rpc AllocateWarehouse(AllocateWarehouseRequest) returns (AllocateWarehouseResponse);
 }
 
-// OrderItem 订单Item消息结构。
+// 商品项。
 message OrderItem {
-  uint64 product_id = 1; // 产品id
-  int32 quantity = 2; // 数量
-  int64 price = 3; // 价格
+  // 商品 ID。
+  uint64 product_id = 1;
+  // 数量。
+  int32 quantity = 2;
+  // 单价。
+  int64 price = 3;
 }
 
-// ShippingAddress Shipping地址消息结构。
+// 配送地址。
 message ShippingAddress {
-  string name = 1; // 名称
-  string phone = 2; // 电话
-  string province = 3; // 省份
-  string city = 4; // 城市
-  string district = 5; // 区县
-  string address = 6; // 地址
+  // 收件人姓名。
+  string name = 1;
+  // 电话。
+  string phone = 2;
+  // 省。
+  string province = 3;
+  // 市。
+  string city = 4;
+  // 区。
+  string district = 5;
+  // 详细地址。
+  string address = 6;
 }
 
-// MergedOrder Merged订单消息结构。
+// 合并后的新订单详情。
 message MergedOrder {
-  uint64 id = 1; // 唯一标识
-  uint64 user_id = 2; // 用户唯一标识
-  repeated uint64 original_order_ids = 3; // 订单唯一标识
-  repeated OrderItem items = 4; // 项列表
-  int64 total_amount = 5; // 总数金额
-  int64 discount_amount = 6; // 折扣金额
-  int64 final_amount = 7; // final金额
-  ShippingAddress shipping_address = 8; // shipping地址
-  string status = 9; // 状态
-  google.protobuf.Timestamp created_at = 10; // 创建时间
-  google.protobuf.Timestamp updated_at = 11; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 用户 ID。
+  uint64 user_id = 2;
+  // 原原始订单 ID 集合。
+  repeated uint64 original_order_ids = 3;
+  // 合并后的商品清单。
+  repeated OrderItem items = 4;
+  // 总金额。
+  int64 total_amount = 5;
+  // 合并产生的额外折扣。
+  int64 discount_amount = 6;
+  // 最终应付金额。
+  int64 final_amount = 7;
+  // 配送地址。
+  ShippingAddress shipping_address = 8;
+  // 状态。
+  string status = 9;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 10;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 11;
 }
 
-// SplitOrder Split订单消息结构。
+// 拆分出的子订单详情。
 message SplitOrder {
-  uint64 id = 1; // 唯一标识
-  uint64 original_order_id = 2; // 订单唯一标识
-  int32 split_index = 3; // split索引
-  repeated OrderItem items = 4; // 项列表
-  int64 amount = 5; // 金额
-  uint64 warehouse_id = 6; // 仓库ID
-  ShippingAddress shipping_address = 7; // shipping地址
-  string status = 8; // 状态
-  google.protobuf.Timestamp created_at = 9; // 创建时间
-  google.protobuf.Timestamp updated_at = 10; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 原父订单 ID。
+  uint64 original_order_id = 2;
+  // 子订单序号。
+  int32 split_index = 3;
+  // 该子订单包含的商品。
+  repeated OrderItem items = 4;
+  // 子订单金额。
+  int64 amount = 5;
+  // 分配的仓库 ID。
+  uint64 warehouse_id = 6;
+  // 配送地址。
+  ShippingAddress shipping_address = 7;
+  // 状态。
+  string status = 8;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 9;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 10;
 }
 
-// WarehouseAllocation WarehouseAllocation消息结构。
+// 仓库分配明细。
 message WarehouseAllocation {
-  uint64 product_id = 1; // 产品id
-  int32 quantity = 2; // 数量
-  uint64 warehouse_id = 3; // 仓库ID
-  double distance = 4; // 距离
+  // 商品 ID。
+  uint64 product_id = 1;
+  // 数量。
+  int32 quantity = 2;
+  // 目标仓库 ID。
+  uint64 warehouse_id = 3;
+  // 仓库到配送地的预计距离（公里）。
+  double distance = 4;
 }
 
-// WarehouseAllocationPlan WarehouseAllocationPlan消息结构。
+// 整体分配计划。
 message WarehouseAllocationPlan {
-  uint64 id = 1; // 唯一标识
-  uint64 order_id = 2; // 订单唯一标识
-  repeated WarehouseAllocation allocations = 3; // 分配
-  google.protobuf.Timestamp created_at = 4; // 创建时间
-  google.protobuf.Timestamp updated_at = 5; // 更新时间
+  // 分配 ID。
+  uint64 id = 1;
+  // 关联订单 ID。
+  uint64 order_id = 2;
+  // 各商品的仓库分配策略。
+  repeated WarehouseAllocation allocations = 3;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 4;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 5;
 }
 
-// MergeOrdersRequest MergeOrders请求消息结构。
+// 合并请求。
 message MergeOrdersRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  repeated uint64 order_ids = 2; // 订单唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 待合并订单 ID 列表。
+  repeated uint64 order_ids = 2;
 }
 
-// MergeOrdersResponse MergeOrders响应消息结构。
+// 合并响应。
 message MergeOrdersResponse {
-  MergedOrder merged_order = 1; // merged订单
+  // 合并后的新订单。
+  MergedOrder merged_order = 1;
 }
 
-// SplitOrderRequest Split订单请求消息结构。
+// 拆分请求。
 message SplitOrderRequest {
-  uint64 order_id = 1; // 订单唯一标识
+  // 待拆分的订单 ID。
+  uint64 order_id = 1;
 }
 
-// SplitOrderResponse Split订单响应消息结构。
+// 拆分响应。
 message SplitOrderResponse {
-  repeated SplitOrder split_orders = 1; // 拆分orders
+  // 生成的子订单序列。
+  repeated SplitOrder split_orders = 1;
 }
 
-// AllocateWarehouseRequest AllocateWarehouse请求消息结构。
+// 分配请求。
 message AllocateWarehouseRequest {
-  uint64 order_id = 1; // 订单唯一标识
+  // 目标订单 ID。
+  uint64 order_id = 1;
 }
 
-// AllocateWarehouseResponse AllocateWarehouse响应消息结构。
+// 分配响应。
 message AllocateWarehouseResponse {
-  WarehouseAllocationPlan plan = 1; // 计划
+  // 计算出的最优分配计划。
+  WarehouseAllocationPlan plan = 1;
 }

@@ -6,103 +6,135 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/flashsale/v1;v1";
 
-// FlashSale FlashSale服务。
+// 秒杀服务，处理高并发下的限时抢购活动、库存扣减及资格校验。
 service FlashSale {
-// CreateFlashSaleEvent 创建FlashSale事件。
-    rpc CreateFlashSaleEvent(CreateFlashSaleEventRequest) returns (CreateFlashSaleEventResponse);
+  // 录入新的秒杀活动场次。
+  rpc CreateFlashSaleEvent(CreateFlashSaleEventRequest) returns (CreateFlashSaleEventResponse);
 
-// GetFlashSaleEvent 获取FlashSale事件。
-    rpc GetFlashSaleEvent(GetFlashSaleEventRequest) returns (GetFlashSaleEventResponse);
+  // 查询特定活动场次的详情。
+  rpc GetFlashSaleEvent(GetFlashSaleEventRequest) returns (GetFlashSaleEventResponse);
 
-// ListActiveFlashSaleEvents 列出列表活跃FlashSaleEvents。
-    rpc ListActiveFlashSaleEvents(ListActiveFlashSaleEventsRequest) returns (ListActiveFlashSaleEventsResponse);
+  // 获取当前正在进行或即将开始的秒杀列表。
+  rpc ListActiveFlashSaleEvents(ListActiveFlashSaleEventsRequest) returns (ListActiveFlashSaleEventsResponse);
 
-    // 参与秒杀活动（例如：下订单）
-    rpc ParticipateInFlashSale(ParticipateInFlashSaleRequest) returns (ParticipateInFlashSaleResponse);
+  // 用户下单参与秒杀（核心高并发接口）。
+  rpc ParticipateInFlashSale(ParticipateInFlashSaleRequest) returns (ParticipateInFlashSaleResponse);
 
-// GetFlashSaleProductDetails 获取FlashSale商品Details。
-    rpc GetFlashSaleProductDetails(GetFlashSaleProductDetailsRequest) returns (GetFlashSaleProductDetailsResponse);
+  // 获取单件秒杀商品的库存及限购详情。
+  rpc GetFlashSaleProductDetails(GetFlashSaleProductDetailsRequest) returns (GetFlashSaleProductDetailsResponse);
 }
 
-// FlashSaleEvent FlashSale事件消息。
+// 秒杀活动场次。
 message FlashSaleEvent {
-    string id = 1; // 唯一标识
-    string name = 2; // 名称
-    string description = 3; // 描述
-    google.protobuf.Timestamp start_time = 4; // 开始时间
-    google.protobuf.Timestamp end_time = 5; // 结束时间
-    string status = 6; // 状态
-    repeated FlashSaleProduct products = 7; // 商品列表
-    google.protobuf.Timestamp created_at = 8; // 创建时间
-    google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 系统 ID。
+  string id = 1;
+  // 活动标题。
+  string name = 2;
+  // 详细说明。
+  string description = 3;
+  // 场次开始时间。
+  google.protobuf.Timestamp start_time = 4;
+  // 场次结束时间。
+  google.protobuf.Timestamp end_time = 5;
+  // 状态 (UPCOMING, ONGOING, FINISHED)。
+  string status = 6;
+  // 该场次包含的特价商品。
+  repeated FlashSaleProduct products = 7;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// FlashSaleProduct FlashSale商品消息。
+// 秒杀商品明细。
 message FlashSaleProduct {
-    string product_id = 1; // 产品id
-    double flash_price = 2; // flash价格
-    int32 total_stock = 3; // 总数stock
-    int32 remaining_stock = 4; // remaining库存
-    int32 max_per_user = 5; // 最大per用户
+  // 商品 ID。
+  string product_id = 1;
+  // 秒杀特价。
+  double flash_price = 2;
+  // 总投放库存。
+  int32 total_stock = 3;
+  // 当前剩余库存。
+  int32 remaining_stock = 4;
+  // 单用户限购数量。
+  int32 max_per_user = 5;
 }
 
-// 创建秒杀活动请求
+// 创建活动请求。
 message CreateFlashSaleEventRequest {
-    string name = 1; // 名称
-    string description = 2; // 描述
-    google.protobuf.Timestamp start_time = 3; // 开始时间
-    google.protobuf.Timestamp end_time = 4; // 结束时间
-    repeated FlashSaleProduct products = 5; // 商品列表
+  // 标题。
+  string name = 1;
+  // 描述。
+  string description = 2;
+  // 开始时间。
+  google.protobuf.Timestamp start_time = 3;
+  // 结束时间。
+  google.protobuf.Timestamp end_time = 4;
+  // 商品清单。
+  repeated FlashSaleProduct products = 5;
 }
 
-// 创建秒杀活动响应
+// 创建响应。
 message CreateFlashSaleEventResponse {
-    FlashSaleEvent event = 1; // 事件
+  // 活动实体。
+  FlashSaleEvent event = 1;
 }
 
-// 获取秒杀活动请求
+// 查询请求。
 message GetFlashSaleEventRequest {
-    string id = 1; // 唯一标识
+  // 活动 ID。
+  string id = 1;
 }
 
-// 获取秒杀活动响应
+// 查询响应。
 message GetFlashSaleEventResponse {
-    FlashSaleEvent event = 1; // 事件
+  // 活动实体。
+  FlashSaleEvent event = 1;
 }
 
-// 获取活跃秒杀活动列表请求
-message ListActiveFlashSaleEventsRequest {
-    // 目前不需要特定字段
-}
+// 活跃列表请求。
+message ListActiveFlashSaleEventsRequest {}
 
-// 获取活跃秒杀活动列表响应
+// 活跃列表响应。
 message ListActiveFlashSaleEventsResponse {
-    repeated FlashSaleEvent events = 1; // 事件列表
-    int32 total_count = 2; // 总数计数
+  // 活动序列。
+  repeated FlashSaleEvent events = 1;
+  // 总笔数。
+  int32 total_count = 2;
 }
 
-// 参与秒杀请求
+// 抢购请求。
 message ParticipateInFlashSaleRequest {
-    string event_id = 1; // 事件ID
-    string product_id = 2; // 产品id
-    string user_id = 3; // 用户唯一标识
-    int32 quantity = 4; // 数量
+  // 活动场次 ID。
+  string event_id = 1;
+  // 商品 ID。
+  string product_id = 2;
+  // 用户 ID。
+  string user_id = 3;
+  // 数量。
+  int32 quantity = 4;
 }
 
-// 参与秒杀响应
+// 抢购结果。
 message ParticipateInFlashSaleResponse {
-    string order_id = 1; // 订单唯一标识
-    string status = 2; // 状态
-    string message = 3; // 消息
+  // 生成的预订单 ID。
+  string order_id = 1;
+  // 处理结果状态。
+  string status = 2;
+  // 提示消息。
+  string message = 3;
 }
 
-// 获取秒杀商品详情请求
+// 商品详情请求。
 message GetFlashSaleProductDetailsRequest {
-    string event_id = 1; // 事件ID
-    string product_id = 2; // 产品id
+  // 活动 ID。
+  string event_id = 1;
+  // 商品 ID。
+  string product_id = 2;
 }
 
-// 获取秒杀商品详情响应
+// 商品详情响应。
 message GetFlashSaleProductDetailsResponse {
-    FlashSaleProduct product = 1; // 产品
+  // 规格详情。
+  FlashSaleProduct product = 1;
 }

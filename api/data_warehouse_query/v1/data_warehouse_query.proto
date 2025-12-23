@@ -2,52 +2,59 @@ syntax = "proto3";
 
 package api.data_warehouse_query.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
-
 option go_package = "github.com/wyfcoding/ecommerce/go-api/data_warehouse_query/v1;v1";
 
-// DataWarehouseQuery 数据仓库查询服务定义了所有与数据仓库查询相关的RPC接口。
+// 数据仓库查询服务，负责执行 OLAP 复杂查询并获取大规模分析结果。
 service DataWarehouseQuery {
-  // --- 核心数据仓库查询接口 ---
-
-  // ExecuteQuery 执行数据仓库查询。
+  // 提交一个 SQL 或特定引擎的查询任务。
   rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
-  // GetQueryResult 获取查询结果。
+
+  // 分页获取已执行查询的结果集。
   rpc GetQueryResult(GetQueryResultRequest) returns (GetQueryResultResponse);
 }
 
-// --- 消息定义 ---
-
-// ExecuteQueryRequest 执行查询请求消息。
+// 查询提交请求。
 message ExecuteQueryRequest {
-  string query_string = 1; // 查询字符串
-  map<string, string> query_params = 2; // queryparams
-  optional string query_engine = 3; // e.g., "Presto", "Hive", "Spark"
+  // SQL 或查询语句。
+  string query_string = 1;
+  // 注入参数。
+  map<string, string> query_params = 2;
+  // 目标引擎 (Presto, Hive, Spark)。
+  optional string query_engine = 3;
 }
 
-// ExecuteQueryResponse 执行查询响应消息。
+// 提交结果。
 message ExecuteQueryResponse {
-  string query_id = 1; // 查询ID
-  string status = 2; // 状态
+  // 任务 ID。
+  string query_id = 1;
+  // 初始执行状态。
+  string status = 2;
 }
 
-// GetQueryResultRequest 获取查询结果请求消息。
+// 结果拉取请求。
 message GetQueryResultRequest {
-  string query_id = 1; // 查询ID
+  // 任务 ID。
+  string query_id = 1;
+  // 每页行数。
   optional int32 page_size = 2;
+  // 目标页码。
   optional int32 page_number = 3;
 }
 
-// QueryRow 查询结果行
+// 数据行。
 message QueryRow {
-  map<string, string> columns = 1; // columns
+  // 列名与值的映射。
+  map<string, string> columns = 1;
 }
 
-// GetQueryResultResponse 获取查询结果响应消息。
+// 结果响应。
 message GetQueryResultResponse {
-  string query_id = 1; // 查询ID
-  string status = 2; // 状态
-  repeated QueryRow rows = 3; // 行
-  bool has_more = 4; // 有more
+  // 任务 ID。
+  string query_id = 1;
+  // 任务当前状态。
+  string status = 2;
+  // 命中的数据行。
+  repeated QueryRow rows = 3;
+  // 是否还有更多结果。
+  bool has_more = 4;
 }

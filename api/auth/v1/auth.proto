@@ -2,51 +2,56 @@ syntax = "proto3";
 
 package api.auth.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
-
 option go_package = "github.com/wyfcoding/ecommerce/go-api/auth/v1;v1";
 
-// Auth 认证服务定义了所有与用户认证和授权相关的RPC接口。
+// 统一认证与授权服务，负责用户身份校验、令牌分发及有效期管理。
 service Auth {
-  // --- 核心认证接口 ---
-
-  // Authenticate 验证用户凭据并返回JWT Token。
+  // 验证用户账密凭据，成功后颁发 JWT 访问令牌。
   rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
-  // RefreshToken 刷新JWT Token。
+
+  // 使用刷新令牌获取新的访问令牌，延长会话生命周期。
   rpc RefreshToken(RefreshTokenRequest) returns (AuthenticateResponse);
-  // ValidateToken 验证JWT Token的有效性。
+
+  // 验证现有令牌的合法性、完整性及是否过期。
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
 }
 
-// --- 消息定义 ---
-
-// AuthenticateRequest 认证请求消息。
+// 认证请求。
 message AuthenticateRequest {
-  string username = 1; // 用户名
-  string password = 2; // 密码
+  // 账号名。
+  string username = 1;
+  // 凭证原文。
+  string password = 2;
 }
 
-// AuthenticateResponse 认证响应消息。
+// 认证响应。
 message AuthenticateResponse {
-  string token = 1; // 令牌
-  int64 expires_at = 2; // Token 过期时间戳 (Unix seconds)
+  // JWT 访问令牌。
+  string token = 1;
+  // 过期时间戳。
+  int64 expires_at = 2;
 }
 
-// RefreshTokenRequest 刷新Token请求消息。
+// 令牌刷新请求。
 message RefreshTokenRequest {
-  string refresh_token = 1; // refresh令牌
+  // 长效刷新令牌。
+  string refresh_token = 1;
 }
 
-// ValidateTokenRequest 验证Token请求消息。
+// 验证请求。
 message ValidateTokenRequest {
-  string token = 1; // 令牌
+  // 待核验令牌。
+  string token = 1;
 }
 
-// ValidateTokenResponse 验证Token响应消息。
+// 验证响应。
 message ValidateTokenResponse {
-  bool valid = 1; // 有效
-  uint64 user_id = 2; // 用户唯一标识
-  string username = 3; // 用户名
-  int64 expires_at = 4; // expires在
+  // 令牌是否有效。
+  bool valid = 1;
+  // 解析出的用户 ID。
+  uint64 user_id = 2;
+  // 解析出的用户名。
+  string username = 3;
+  // 到期日期戳。
+  int64 expires_at = 4;
 }

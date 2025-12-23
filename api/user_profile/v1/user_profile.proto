@@ -6,64 +6,94 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/user_profile/v1;v1";
 
-// UserProfileService 定义了用户画像服务接口
+// 用户画像服务，负责聚合用户行为、偏好标签及消费特征，支持精准营销。
 service UserProfileService {
-  // 获取用户画像
+  // 获取指定用户的深度画像快照。
   rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile);
 
-  // 更新用户画像 (部分更新)
+  // 更新画像中的特定维度数据（通常由策略引擎调用）。
   rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfile);
 
-  // 记录用户行为事件 (用于画像构建)
+  // 记录用户实时发生的行为事件，用于异步更新画像。
   rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse);
 }
 
-// UserProfile 用户画像信息
+// 画像全量信息。
 message UserProfile {
-  string user_id = 1; // 用户唯一标识
-  string gender = 2; // 性别
-  string age_group = 3; // 年龄段
-  string city = 4; // 城市
-  repeated string interests = 5; // 兴趣标签
-  repeated string recent_categories = 6; // 最近浏览的品类
-  repeated string recent_brands = 7; // 最近浏览的品牌
-  uint64 total_spent = 8; // 总消费金额
-  uint32 order_count = 9; // 订单数量
-  google.protobuf.Timestamp last_active_time = 10; // 最后活跃时间
-  map<string, string> custom_tags = 11; // 自定义标签
+  // 用户 ID。
+  string user_id = 1;
+  // 预估性别。
+  string gender = 2;
+  // 年龄分段。
+  string age_group = 3;
+  // 常驻城市。
+  string city = 4;
+  // 兴趣偏好标签。
+  repeated string interests = 5;
+  // 最近 30 天高频浏览品类。
+  repeated string recent_categories = 6;
+  // 最近 30 天偏好品牌。
+  repeated string recent_brands = 7;
+  // 累计实付金额。
+  uint64 total_spent = 8;
+  // 累计成功订单数。
+  uint32 order_count = 9;
+  // 最后一次活跃时间点。
+  google.protobuf.Timestamp last_active_time = 10;
+  // 业务扩展标签集。
+  map<string, string> custom_tags = 11;
 }
 
-// GetUserProfileRequest 获取用户画像请求
+// 详情请求。
 message GetUserProfileRequest {
-  string user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  string user_id = 1;
 }
 
-// UpdateUserProfileRequest 更新用户画像请求
+// 更新请求（部分字段修改）。
 message UpdateUserProfileRequest {
-  string user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  string user_id = 1;
+  // 性别。
   optional string gender = 2;
+  // 年龄段。
   optional string age_group = 3;
+  // 城市。
   optional string city = 4;
-  repeated string interests = 5; // 兴趣
-  repeated string recent_categories = 6; // 最近categories
-  repeated string recent_brands = 7; // 最近品牌
+  // 兴趣集合。
+  repeated string interests = 5;
+  // 近期类目。
+  repeated string recent_categories = 6;
+  // 近期品牌。
+  repeated string recent_brands = 7;
+  // 消费总额。
   optional uint64 total_spent = 8;
+  // 订单计数。
   optional uint32 order_count = 9;
+  // 活跃时间戳。
   optional google.protobuf.Timestamp last_active_time = 10;
-  map<string, string> custom_tags = 11; // customtags
+  // 扩展标签。
+  map<string, string> custom_tags = 11;
 }
 
-// RecordUserBehaviorRequest 记录用户行为请求
+// 行为日志请求。
 message RecordUserBehaviorRequest {
-  string user_id = 1; // 用户唯一标识
-  string behavior_type = 2; // behavior类型
-  string item_id = 3; // 行为关联的商品ID或其他实体ID
-  map<string, string> properties = 4; // 行为属性
-  google.protobuf.Timestamp event_time = 5; // event时间
+  // 触发人。
+  string user_id = 1;
+  // 动作类别 (CLICK, PURCHASE, SEARCH)。
+  string behavior_type = 2;
+  // 操作目标 ID (商品或内容)。
+  string item_id = 3;
+  // 行为附带的上下文参数。
+  map<string, string> properties = 4;
+  // 发生时间。
+  google.protobuf.Timestamp event_time = 5;
 }
 
-// RecordUserBehaviorResponse 记录用户行为响应
+// 记录回执。
 message RecordUserBehaviorResponse {
-  bool success = 1; // 成功
-  string message = 2; // 消息
+  // 是否处理成功。
+  bool success = 1;
+  // 结果说明。
+  string message = 2;
 }

@@ -2,180 +2,228 @@ syntax = "proto3";
 
 package api.asset.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/asset/v1;v1";
 
-// AssetService 定义了所有与资产管理相关的RPC接口。
+// 资产管理服务，负责多媒体资产的生命周期、预签名授权及图像动态处理。
 service AssetService {
-  // --- 文件上传与管理 ---
+  // --- 通用存储管理 ---
 
-  // UploadFile 上传一个文件到存储系统。
+  // 上传单个文件。
   rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
-  // GetFileMetadata 获取文件的元数据。
+  // 查询文件详细属性及自定义元数据。
   rpc GetFileMetadata(GetFileMetadataRequest) returns (FileMetadataResponse);
-  // DeleteFile 删除存储系统中的文件。
+  // 安全移除存储系统中的文件。
   rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty);
-  // ListFiles 获取文件列表。
+  // 分页检索资产库文件。
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
-  // GeneratePresignedURL 生成一个预签名URL，用于直接上传或下载文件。
+  // 为大文件或受限访问文件生成临时授权 URL。
   rpc GeneratePresignedURL(GeneratePresignedURLRequest) returns (GeneratePresignedURLResponse);
 
-  // --- 图片处理 ---
+  // --- 媒体渲染处理 ---
 
-  // GetImageURL 获取指定尺寸和格式的图片URL。
+  // 动态缩放或转换图片格式并获取 URL。
   rpc GetImageURL(GetImageURLRequest) returns (ImageURLResponse);
-  // ProcessImage 对图片进行处理 (例如: 缩放, 裁剪, 添加水印)。
+  // 触发一次持久化的图片处理（如裁剪、加水印）。
   rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse);
 
-  // --- CDN集成 (可选) ---
+  // --- 内容分发加速 ---
 
-  // PurgeCDNCache 清除CDN缓存。
+  // 刷新全网 CDN 缓存节点。
   rpc PurgeCDNCache(PurgeCDNCacheRequest) returns (google.protobuf.Empty);
 }
 
-// --- 消息定义 ---
-
-// FileType 定义了文件类型。
+// 资产分类。
 enum FileType {
-  FILE_TYPE_UNSPECIFIED = 0; // 未指定
-  FILE_TYPE_IMAGE = 1;       // 图片
-  FILE_TYPE_VIDEO = 2;       // 视频
-  FILE_TYPE_DOCUMENT = 3;    // 文档
-  FILE_TYPE_OTHER = 4;       // 其他
+  FILE_TYPE_UNSPECIFIED = 0;
+  FILE_TYPE_IMAGE = 1; // 图像
+  FILE_TYPE_VIDEO = 2; // 视频/流媒体
+  FILE_TYPE_DOCUMENT = 3; // PDF/文档
+  FILE_TYPE_OTHER = 4; // 其他二进制
 }
 
-// FileMetadata 代表一个文件的元数据。
+// 资产元数据详情。
 message FileMetadata {
-  string id = 1; // 文件ID (例如: UUID)
-  string filename = 2; // 原始文件名
-  string bucket = 3; // 存储桶名称
-  string path = 4; // 文件在存储桶中的路径
-  string url = 5; // 文件的可访问URL
-  FileType file_type = 6; // 文件类型
-  string mime_type = 7; // MIME类型
-  int64 size = 8; // 文件大小 (字节)
-  uint64 uploader_id = 9; // 上传者ID (用户ID或管理员ID)
-  google.protobuf.Timestamp uploaded_at = 10; // 上传时间
-  map<string, string> custom_metadata = 11; // 自定义元数据
+  // 文件全局 ID。
+  string id = 1;
+  // 系统保存的文件名。
+  string filename = 2;
+  // OSS/S3 桶名。
+  string bucket = 3;
+  // 桶内相对路径。
+  string path = 4;
+  // 持久化访问 URL。
+  string url = 5;
+  // 分类标签。
+  FileType file_type = 6;
+  // 标准 MIME 字符串。
+  string mime_type = 7;
+  // 字节长度。
+  int64 size = 8;
+  // 归属人/上传人 ID。
+  uint64 uploader_id = 9;
+  // 录入时间。
+  google.protobuf.Timestamp uploaded_at = 10;
+  // 额外的业务属性键值对。
+  map<string, string> custom_metadata = 11;
 }
 
-// UploadFileRequest 上传文件请求。
+// 上传请求。
 message UploadFileRequest {
-  string filename = 1; // 原始文件名
-  bytes content = 2; // 文件内容 (对于小文件直接上传)
-  FileType file_type = 3; // 文件类型
-  optional string folder = 4; // 存储的文件夹路径
-  map<string, string> custom_metadata = 5; // 自定义元数据
-  optional uint64 uploader_id = 6; // 上传者ID
+  // 文件名。
+  string filename = 1;
+  // 原始字节（适用于小文件）。
+  bytes content = 2;
+  // 显式声明分类。
+  FileType file_type = 3;
+  // 指定存储目录。
+  optional string folder = 4;
+  // 业务元数据。
+  map<string, string> custom_metadata = 5;
+  // 操作人。
+  optional uint64 uploader_id = 6;
 }
 
-// UploadFileResponse 上传文件响应。
+// 上传结果。
 message UploadFileResponse {
-  FileMetadata file_metadata = 1; // 文件metadata
+  // 完备的元数据对象。
+  FileMetadata file_metadata = 1;
 }
 
-// GetFileMetadataRequest 获取文件元数据请求。
+// ID 查询请求。
 message GetFileMetadataRequest {
-  string id = 1; // 文件ID
+  // 文件 ID。
+  string id = 1;
 }
 
-// FileMetadataResponse 文件元数据响应。
+// 查询响应。
 message FileMetadataResponse {
-  FileMetadata file_metadata = 1; // 文件metadata
+  // 元数据对象。
+  FileMetadata file_metadata = 1;
 }
 
-// DeleteFileRequest 删除文件请求。
+// 移除请求。
 message DeleteFileRequest {
-  string id = 1; // 文件ID
+  // 目标 ID。
+  string id = 1;
 }
 
-// ListFilesRequest 获取文件列表请求。
+// 库检索请求。
 message ListFilesRequest {
-  int32 page_size = 1; // 页码大小
-  int32 page_token = 2; // 页码令牌
-  optional FileType file_type = 3; // 按文件类型过滤
-  optional string filename_keyword = 4; // 按文件名关键词过滤
-  optional uint64 uploader_id = 5; // 按上传者ID过滤
+  // 数量。
+  int32 page_size = 1;
+  // 令牌。
+  int32 page_token = 2;
+  // 类型筛选。
+  optional FileType file_type = 3;
+  // 名字模糊搜索。
+  optional string filename_keyword = 4;
+  // 所属人筛选。
+  optional uint64 uploader_id = 5;
+  // 起止时间。
   optional google.protobuf.Timestamp start_date = 6;
   optional google.protobuf.Timestamp end_date = 7;
 }
 
-// ListFilesResponse 获取文件列表响应。
+// 库检索响应。
 message ListFilesResponse {
-  repeated FileMetadata files = 1; // 文件列表
-  int32 total_count = 2; // 总数计数
-  int32 next_page_token = 3; // 下一个页码令牌
+  // 文件对象列表。
+  repeated FileMetadata files = 1;
+  // 总计数。
+  int32 total_count = 2;
+  // 翻页令牌。
+  int32 next_page_token = 3;
 }
 
-// PresignedURLType 预签名URL类型。
+// 授权链接类型。
 enum PresignedURLType {
-  PRESIGNED_URL_TYPE_UNSPECIFIED = 0; // 未指定
-  PRESIGNED_URL_TYPE_UPLOAD = 1;      // 上传
-  PRESIGNED_URL_TYPE_DOWNLOAD = 2;    // 下载
+  PRESIGNED_URL_TYPE_UNSPECIFIED = 0;
+  PRESIGNED_URL_TYPE_UPLOAD = 1; // 授权直传
+  PRESIGNED_URL_TYPE_DOWNLOAD = 2; // 授权下载/查看
 }
 
-// GeneratePresignedURLRequest 生成预签名URL请求。
+// 预签名请求。
 message GeneratePresignedURLRequest {
-  string filename = 1; // 目标文件名
-  PresignedURLType type = 2; // URL类型 (上传或下载)
-  optional string content_type = 3; // 文件MIME类型 (上传时需要)
-  optional int64 expires_in_seconds = 4; // URL有效期 (秒), 默认为3600秒
-  optional string file_id = 5; // 如果是下载，需要文件ID
+  // 期望文件名。
+  string filename = 1;
+  // 操作意图。
+  PresignedURLType type = 2;
+  // MIME 校验（上传必填）。
+  optional string content_type = 3;
+  // 有效期秒数。
+  optional int64 expires_in_seconds = 4;
+  // 下载的目标 ID。
+  optional string file_id = 5;
 }
 
-// GeneratePresignedURLResponse 生成预签名URL响应。
+// 授权响应。
 message GeneratePresignedURLResponse {
-  string url = 1; // 生成的预签名URL
-  string file_id = 2; // 如果是上传，返回生成的文件ID
+  // 具备授权参数的 URL。
+  string url = 1;
+  // 预生成的 ID。
+  string file_id = 2;
 }
 
-// ImageFormat 图片格式。
+// 图像编码。
 enum ImageFormat {
-  IMAGE_FORMAT_UNSPECIFIED = 0; // 未指定
-  IMAGE_FORMAT_JPEG = 1;        // JPEG
-  IMAGE_FORMAT_PNG = 2;         // PNG
-  IMAGE_FORMAT_WEBP = 3;        // WEBP
+  IMAGE_FORMAT_UNSPECIFIED = 0;
+  IMAGE_FORMAT_JPEG = 1;
+  IMAGE_FORMAT_PNG = 2;
+  IMAGE_FORMAT_WEBP = 3;
 }
 
-// GetImageURLRequest 获取指定尺寸和格式的图片URL请求。
+// 动态处理请求。
 message GetImageURLRequest {
-  string file_id = 1; // 原始图片文件ID
-  optional int32 width = 2; // 目标宽度
-  optional int32 height = 3; // 目标高度
-  optional ImageFormat format = 4; // 目标格式
-  optional bool crop = 5; // 是否裁剪
+  // 原图 ID。
+  string file_id = 1;
+  // 目标宽。
+  optional int32 width = 2;
+  // 目标高。
+  optional int32 height = 3;
+  // 指定格式。
+  optional ImageFormat format = 4;
+  // 是否自动裁切以适配宽高。
+  optional bool crop = 5;
 }
 
-// ImageURLResponse 图片URL响应。
+// 处理后 URL。
 message ImageURLResponse {
-  string url = 1; // 处理后的图片URL
+  // 经 CDN 处理的地址。
+  string url = 1;
 }
 
-// ImageProcessOperation 图片处理操作。
+// 操作指令。
 enum ImageProcessOperation {
-  IMAGE_PROCESS_OPERATION_UNSPECIFIED = 0; // 未指定
-  IMAGE_PROCESS_OPERATION_RESIZE = 1;      // 缩放
-  IMAGE_PROCESS_OPERATION_CROP = 2;        // 裁剪
-  IMAGE_PROCESS_OPERATION_WATERMARK = 3;   // 添加水印
+  IMAGE_PROCESS_OPERATION_UNSPECIFIED = 0;
+  IMAGE_PROCESS_OPERATION_RESIZE = 1; // 缩放
+  IMAGE_PROCESS_OPERATION_CROP = 2; // 裁剪
+  IMAGE_PROCESS_OPERATION_WATERMARK = 3; // 水印
 }
 
-// ProcessImageRequest 对图片进行处理请求。
+// 持久化处理请求。
 message ProcessImageRequest {
-  string file_id = 1; // 原始图片文件ID
-  ImageProcessOperation operation = 2; // 操作类型
-  map<string, string> params = 3; // 操作参数 (例如: width, height, x, y, watermark_text)
+  // 原图 ID。
+  string file_id = 1;
+  // 指令。
+  ImageProcessOperation operation = 2;
+  // 参数集（如水印文字等）。
+  map<string, string> params = 3;
 }
 
-// ProcessImageResponse 图片处理响应。
+// 持久化结果。
 message ProcessImageResponse {
-  string processed_image_url = 1; // 处理后的图片URL
-  string processed_file_id = 2; // 处理后的文件ID (如果生成了新文件)
+  // 预览地址。
+  string processed_image_url = 1;
+  // 若生成新文件则返回其 ID。
+  string processed_file_id = 2;
 }
 
-// PurgeCDNCacheRequest 清除CDN缓存请求。
+// 缓存刷新请求。
 message PurgeCDNCacheRequest {
-  repeated string urls = 1; // 需要清除缓存的URL列表
-  optional bool purge_all = 2; // 是否清除所有缓存 (谨慎使用)
+  // 资源地址集。
+  repeated string urls = 1;
+  // 是否刷掉全部（风险操作）。
+  optional bool purge_all = 2;
 }

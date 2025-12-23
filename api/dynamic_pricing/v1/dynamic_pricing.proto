@@ -2,90 +2,125 @@ syntax = "proto3";
 
 package api.dynamic_pricing.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/dynamic_pricing/v1;v1";
 
-// DynamicPricingService 动态定价服务定义了所有与动态定价相关的RPC接口。
+// 动态定价服务，基于库存、需求及竞品价格实时计算最优售价。
 service DynamicPricingService {
-  // CalculatePrice 计算动态价格
+  // 根据多因子实时计算商品的动态价格。
   rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
-  
-  // GetLatestPrice 获取最新价格
+
+  // 查询指定商品当前生效的最新的动态价格。
   rpc GetLatestPrice(GetLatestPriceRequest) returns (GetLatestPriceResponse);
 
   // --- 策略管理 ---
+  // 保存或修改定价算法策略配置。
   rpc SaveStrategy(SaveStrategyRequest) returns (google.protobuf.Empty);
-// ListStrategies 处理列出Strategies请求。
+
+  // 分页列出系统中的定价策略。
   rpc ListStrategies(ListStrategiesRequest) returns (ListStrategiesResponse);
 }
 
-// PricingRequest 定价请求
+// 调价请求。
 message CalculatePriceRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int64 base_price = 2; // base价格
-  int32 current_stock = 3; // 当前库存
-  int32 total_stock = 4; // 总数stock
-  int32 daily_demand = 5; // 每日需求
-  int32 average_daily_demand = 6; // 平均每日需求
-  int64 competitor_price = 7; // competitor价格
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 成本价。
+  int64 base_price = 2;
+  // 实时可用库存。
+  int32 current_stock = 3;
+  // 投放总库存。
+  int32 total_stock = 4;
+  // 24小时内实时销量需求。
+  int32 daily_demand = 5;
+  // 历史日均销量。
+  int32 average_daily_demand = 6;
+  // 采集到的竞争对手最低售价。
+  int64 competitor_price = 7;
 }
 
-// DynamicPrice 动态价格
+// 调价结果详情。
 message DynamicPrice {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int64 base_price = 2; // base价格
-  int64 final_price = 3; // final价格
-  double price_adjustment = 4; // 价格adjustment
-  double inventory_factor = 5; // 库存factor
-  double demand_factor = 6; // 需求factor
-  double competitor_factor = 7; // 竞争对手factor
-  google.protobuf.Timestamp effective_time = 8; // effective时间
-  google.protobuf.Timestamp expiry_time = 9; // expiry时间
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 原始价格。
+  int64 base_price = 2;
+  // 计算后的最终售价。
+  int64 final_price = 3;
+  // 价格调整总幅度（百分比）。
+  double price_adjustment = 4;
+  // 库存稀缺性系数影响值。
+  double inventory_factor = 5;
+  // 需求热度系数影响值。
+  double demand_factor = 6;
+  // 竞品对标系数影响值。
+  double competitor_factor = 7;
+  // 价格生效起始时间。
+  google.protobuf.Timestamp effective_time = 8;
+  // 价格失效过期时间。
+  google.protobuf.Timestamp expiry_time = 9;
 }
 
-// CalculatePriceResponse Calculate价格响应消息结构。
+// 计算响应。
 message CalculatePriceResponse {
-  DynamicPrice price = 1; // 价格
+  // 价格对象。
+  DynamicPrice price = 1;
 }
 
-// GetLatestPriceRequest 获取Latest价格请求消息结构。
+// 查询请求。
 message GetLatestPriceRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
+  // SKU ID。
+  uint64 sku_id = 1;
 }
 
-// GetLatestPriceResponse 获取Latest价格响应消息结构。
+// 查询响应。
 message GetLatestPriceResponse {
-  DynamicPrice price = 1; // 价格
+  // 价格对象。
+  DynamicPrice price = 1;
 }
 
-// PricingStrategy 定价策略
+// 定价策略规则配置。
 message PricingStrategy {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  string strategy_type = 3; // strategy类型
-  int64 min_price = 4; // 最小价格
-  int64 max_price = 5; // 最大价格
-  int32 inventory_threshold = 6; // 库存threshold
-  int32 demand_threshold = 7; // 需求阈值
-  int64 competitor_price_offset = 8; // competitor价格偏移
-  bool enabled = 9; // 启用
+  // 唯一 ID。
+  uint64 id = 1;
+  // 目标 SKU。
+  uint64 sku_id = 2;
+  // 策略类别 (INVENTORY_BASED, DEMAND_BASED)。
+  string strategy_type = 3;
+  // 允许的最低底价限制。
+  int64 min_price = 4;
+  // 允许的最高天花板价。
+  int64 max_price = 5;
+  // 触发调价的库存阈值。
+  int32 inventory_threshold = 6;
+  // 触发调价的需求阈值。
+  int32 demand_threshold = 7;
+  // 竞品对标的偏移值（如固定便宜 5 分）。
+  int64 competitor_price_offset = 8;
+  // 是否启用该策略。
+  bool enabled = 9;
 }
 
-// SaveStrategyRequest 保存Strategy请求消息结构。
+// 策略保存请求。
 message SaveStrategyRequest {
-  PricingStrategy strategy = 1; // 策略
+  // 策略详情。
+  PricingStrategy strategy = 1;
 }
 
-// ListStrategiesRequest 列出Strategies请求消息结构。
+// 策略查询。
 message ListStrategiesRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListStrategiesResponse 列出Strategies响应消息结构。
+// 策略查询结果。
 message ListStrategiesResponse {
-  repeated PricingStrategy strategies = 1; // 策略列表
-  uint64 total_count = 2; // 总数计数
+  // 策略列表数据。
+  repeated PricingStrategy strategies = 1;
+  // 总笔数。
+  uint64 total_count = 2;
 }

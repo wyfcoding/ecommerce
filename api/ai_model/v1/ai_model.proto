@@ -3,250 +3,328 @@ syntax = "proto3";
 package api.ai_model.v1;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/ai_model/v1;v1";
 
-// AIModelService 定义了所有与AI模型推理和管理相关的RPC接口。
+// AI 智能模型服务，提供个性化推荐、图像分析、NLP 情感识别及风控评分等机器学习能力。
 service AIModelService {
-  // --- 推荐系统 ---
+  // --- 智能推荐 ---
 
-  // GetProductRecommendations 获取个性化商品推荐。
+  // 获取千人千面的个性化商品推荐清单。
   rpc GetProductRecommendations(GetProductRecommendationsRequest) returns (GetProductRecommendationsResponse);
-  // GetRelatedProducts 获取相关商品。
+
+  // 查询与特定商品在属性或行为上相似的相关商品。
   rpc GetRelatedProducts(GetRelatedProductsRequest) returns (GetRelatedProductsResponse);
-  // GetPersonalizedFeed 获取个性化内容流。
+
+  // 生成个性化首页或发现页内容流。
   rpc GetPersonalizedFeed(GetPersonalizedFeedRequest) returns (GetPersonalizedFeedResponse);
 
-  // --- 图像识别 ---
+  // --- 计算机视觉 ---
 
-  // RecognizeImageContent 识别图片内容，例如商品分类、品牌、属性。
+  // 深度识别图片内容（分类、品牌识别及标签提取）。
   rpc RecognizeImageContent(RecognizeImageContentRequest) returns (RecognizeImageContentResponse);
-  // SearchImageByImage 通过图片搜索相似商品。
+
+  // 根据图片特征搜索库中外观相似的商品。
   rpc SearchImageByImage(SearchImageByImageRequest) returns (SearchImageByImageResponse);
 
-  // --- 自然语言处理 (NLP) ---
+  // --- 自然语言处理 ---
 
-  // AnalyzeReviewSentiment 分析用户评论情感。
+  // 分析用户评价的文本，提取正负面情感倾向。
   rpc AnalyzeReviewSentiment(AnalyzeReviewSentimentRequest) returns (AnalyzeReviewSentimentResponse);
-  // ExtractKeywordsFromText 从文本中提取关键词。
+
+  // 从长文本中自动提取核心业务关键词。
   rpc ExtractKeywordsFromText(ExtractKeywordsFromTextRequest) returns (ExtractKeywordsFromTextResponse);
-  // SummarizeText 总结长文本内容。
+
+  // 对冗长描述或文章进行智能摘要。
   rpc SummarizeText(SummarizeTextRequest) returns (SummarizeTextResponse);
 
-  // --- 欺诈检测 ---
+  // --- 风险评估 ---
 
-  // GetFraudScore 获取交易或用户行为的欺诈评分。
+  // 针对交易或账号行为计算多维度的欺诈概率评分。
   rpc GetFraudScore(GetFraudScoreRequest) returns (GetFraudScoreResponse);
 
-  // --- 模型管理 (内部/管理员接口) ---
+  // --- 模型运维 ---
 
-  // DeployModel 部署一个新的AI模型版本。
+  // 将训练好的新版本模型上线。
   rpc DeployModel(DeployModelRequest) returns (DeployModelResponse);
-  // GetModelStatus 获取已部署AI模型的运行状态。
+
+  // 监控模型实例运行健康度及版本信息。
   rpc GetModelStatus(GetModelStatusRequest) returns (GetModelStatusResponse);
-  // RetrainModel 触发AI模型重新训练。
+
+  // 触发模型的异步增量或全量重新训练任务。
   rpc RetrainModel(RetrainModelRequest) returns (RetrainModelResponse);
 }
 
-// --- 消息定义 ---
-
-// GetProductRecommendationsRequest 获取商品推荐请求。
+// 推荐查询请求。
 message GetProductRecommendationsRequest {
-  uint64 user_id = 1; // 用户ID
-  int32 count = 2; // 推荐数量
-  repeated uint64 exclude_product_ids = 3; // 排除的商品ID列表
-  optional string context_page = 4; // 推荐上下文页面 (例如: "homepage", "product_detail")
-  optional uint64 current_product_id = 5; // 当前浏览的商品ID (用于相关推荐)
+  // 目标用户 ID。
+  uint64 user_id = 1;
+  // 需要推荐的数量。
+  int32 count = 2;
+  // 过滤掉已购买或已忽略的 ID。
+  repeated uint64 exclude_product_ids = 3;
+  // 触发场景 (homepage, cart)。
+  optional string context_page = 4;
+  // 参照物 ID（用于关联推荐）。
+  optional uint64 current_product_id = 5;
 }
 
-// GetProductRecommendationsResponse 获取商品推荐响应。
+// 推荐结果。
 message GetProductRecommendationsResponse {
-  repeated ProductRecommendation recommendations = 1; // 推荐
+  // 推荐条目列表。
+  repeated ProductRecommendation recommendations = 1;
 }
 
-// ProductRecommendation 代表一个商品推荐。
+// 推荐条目详情。
 message ProductRecommendation {
-  uint64 product_id = 1; // 推荐的商品ID
-  double score = 2; // 推荐分数
-  optional string reason = 3; // 推荐理由
+  // 商品 ID。
+  uint64 product_id = 1;
+  // 算法置信度分数。
+  double score = 2;
+  // 推荐理由标记（如 "因为你买过..."）。
+  optional string reason = 3;
 }
 
-// GetRelatedProductsRequest 获取相关商品请求。
+// 相关商品请求。
 message GetRelatedProductsRequest {
-  uint64 product_id = 1; // 基础商品ID
-  int32 count = 2; // 返回数量
+  // 原商品 ID。
+  uint64 product_id = 1;
+  // 数量。
+  int32 count = 2;
 }
 
-// GetRelatedProductsResponse 获取相关商品响应。
+// 相关商品响应。
 message GetRelatedProductsResponse {
-  repeated ProductRecommendation related_products = 1; // related商品列表
+  // 相似/相关商品列表。
+  repeated ProductRecommendation related_products = 1;
 }
 
-// GetPersonalizedFeedRequest 获取个性化内容流请求。
+// 发现流请求。
 message GetPersonalizedFeedRequest {
-  uint64 user_id = 1; // 用户ID
-  int32 page_size = 2; // 每页数量
-  int32 page_token = 3; // 页码
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 数量。
+  int32 page_size = 2;
+  // 翻页索引。
+  int32 page_token = 3;
 }
 
-// GetPersonalizedFeedResponse 获取个性化内容流响应。
+// 发现流响应。
 message GetPersonalizedFeedResponse {
-  repeated FeedItem feed_items = 1; // Feed项列表
-  int32 total_count = 2; // 总数计数
-  int32 next_page_token = 3; // 下一个页码令牌
+  // Feed 流条目。
+  repeated FeedItem feed_items = 1;
+  // 总笔数。
+  int32 total_count = 2;
+  // 令牌。
+  int32 next_page_token = 3;
 }
 
-// FeedItem 代表内容流中的一个项目。
+// Feed 单元项。
 message FeedItem {
-  string item_type = 1; // 项目类型 (例如: "product", "article", "ad")
-  string item_id = 2; // 项目ID
-  string title = 3; // 标题
-  string image_url = 4; // 图片URL
-  string target_url = 5; // 目标URL
-  double score = 6; // 个性化分数
+  // 项目种类 (product, news, ad)。
+  string item_type = 1;
+  // 业务 ID。
+  string item_id = 2;
+  // 展示标题。
+  string title = 3;
+  // 封面图。
+  string image_url = 4;
+  // 深度链接 URL。
+  string target_url = 5;
+  // 排序权重。
+  double score = 6;
 }
 
-// RecognizeImageContentRequest 识别图片内容请求。
+// 图像识别请求。
 message RecognizeImageContentRequest {
-  string image_url = 1; // 图片URL
-  bytes image_data = 2; // 图片二进制数据 (可选，如果提供了URL则优先使用URL)
+  // 外部图片地址。
+  string image_url = 1;
+  // 图片原始字节流。
+  bytes image_data = 2;
 }
 
-// RecognizeImageContentResponse 识别图片内容响应。
+// 识别结果。
 message RecognizeImageContentResponse {
-  repeated ImageTag tags = 1; // 识别出的标签
-  repeated ImageCategory categories = 2; // 识别出的分类
-  optional string dominant_color = 3; // 主导颜色
+  // 特征标签。
+  repeated ImageTag tags = 1;
+  // 所属分类。
+  repeated ImageCategory categories = 2;
+  // 提取的主色调。
+  optional string dominant_color = 3;
 }
 
-// ImageTag 代表图片中的一个标签。
+// 图片标签。
 message ImageTag {
-  string name = 1; // 标签名称
-  double confidence = 2; // 置信度
+  // 标签名。
+  string name = 1;
+  // 算法准确度。
+  double confidence = 2;
 }
 
-// ImageCategory 代表图片中的一个分类。
+// 类别标签。
 message ImageCategory {
-  string name = 1; // 分类名称
-  double confidence = 2; // 置信度
+  // 分类名。
+  string name = 1;
+  // 准确度分数。
+  double confidence = 2;
 }
 
-// SearchImageByImageRequest 通过图片搜索相似商品请求。
+// 以图搜图请求。
 message SearchImageByImageRequest {
-  string image_url = 1; // 图片URL
-  bytes image_data = 2; // 图片二进制数据 (可选)
-  int32 count = 3; // 返回数量
+  // 搜索图 URL。
+  string image_url = 1;
+  // 搜索图字节。
+  bytes image_data = 2;
+  // 召回数量。
+  int32 count = 3;
 }
 
-// SearchImageByImageResponse 通过图片搜索相似商品响应。
+// 搜图响应。
 message SearchImageByImageResponse {
-  repeated ProductSearchResult results = 1; // 结果列表
+  // 检索到的相似产品。
+  repeated ProductSearchResult results = 1;
 }
 
-// ProductSearchResult 代表图片搜索结果中的一个商品。
+// 检索结果项。
 message ProductSearchResult {
-  uint64 product_id = 1; // 商品ID
-  double similarity_score = 2; // 相似度分数
+  // 商品 ID。
+  uint64 product_id = 1;
+  // 视觉相似度评分。
+  double similarity_score = 2;
 }
 
-// AnalyzeReviewSentimentRequest 分析用户评论情感请求。
+// 评论分析请求。
 message AnalyzeReviewSentimentRequest {
-  string review_text = 1; // 评论文本
+  // 待分析文本。
+  string review_text = 1;
 }
 
-// AnalyzeReviewSentimentResponse 分析用户评论情感响应。
+// 情感分析结果。
 message AnalyzeReviewSentimentResponse {
-  Sentiment sentiment = 1; // 情感分类
-  double score = 2; // 情感分数 (例如: -1到1)
-  optional string explanation = 3; // 情感分析解释
+  // 情感分类标记。
+  Sentiment sentiment = 1;
+  // 分值（如 0-1）。
+  double score = 2;
+  // 分析理由说明。
+  optional string explanation = 3;
 }
 
-// Sentiment 情感分类。
+// 情感类别。
 enum Sentiment {
-  SENTIMENT_UNSPECIFIED = 0; // 未指定
-  SENTIMENT_POSITIVE = 1;    // 积极
-  SENTIMENT_NEUTRAL = 2;     // 中性
-  SENTIMENT_NEGATIVE = 3;    // 消极
+  SENTIMENT_UNSPECIFIED = 0;
+  SENTIMENT_POSITIVE = 1; // 正面/满意
+  SENTIMENT_NEUTRAL = 2; // 中性/一般
+  SENTIMENT_NEGATIVE = 3; // 负面/差评
 }
 
-// ExtractKeywordsFromTextRequest 从文本中提取关键词请求。
+// 关键词提取请求。
 message ExtractKeywordsFromTextRequest {
-  string text = 1; // 文本内容
-  int32 count = 2; // 提取关键词数量
+  // 原始内容。
+  string text = 1;
+  // 期望提取数量。
+  int32 count = 2;
 }
 
-// ExtractKeywordsFromTextResponse 从文本中提取关键词响应。
+// 关键词列表响应。
 message ExtractKeywordsFromTextResponse {
-  repeated string keywords = 1; // 关键词列表
+  // 提取出的核心词序列。
+  repeated string keywords = 1;
 }
 
-// SummarizeTextRequest 总结长文本内容请求。
+// 文本摘要请求。
 message SummarizeTextRequest {
-  string text = 1; // 长文本内容
-  int32 summary_length = 2; // 总结长度 (例如: 句子数量或字数)
+  // 冗长文本。
+  string text = 1;
+  // 摘要长度约束。
+  int32 summary_length = 2;
 }
 
-// SummarizeTextResponse 总结长文本内容响应。
+// 摘要结果。
 message SummarizeTextResponse {
-  string summary = 1; // 总结后的文本
+  // 精简后的摘要。
+  string summary = 1;
 }
 
-// GetFraudScoreRequest 获取欺诈评分请求。
+// 欺诈评分请求。
 message GetFraudScoreRequest {
-  uint64 user_id = 1; // 用户ID
-  uint64 order_id = 2; // 订单ID
-  double transaction_amount = 3; // 交易金额
-  string ip_address = 4; // IP地址
-  string device_info = 5; // 设备信息
-  // 更多与欺诈检测相关的字段
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 订单 ID。
+  uint64 order_id = 2;
+  // 涉及金额。
+  double transaction_amount = 3;
+  // 请求 IP 地址。
+  string ip_address = 4;
+  // 设备指纹。
+  string device_info = 5;
 }
 
-// GetFraudScoreResponse 获取欺诈评分响应。
+// 评分结果。
 message GetFraudScoreResponse {
-  double fraud_score = 1; // 欺诈评分 (例如: 0到1)
-  bool is_fraudulent = 2; // 是否被判定为欺诈
-  repeated string reasons = 3; // 欺诈判定理由
+  // 风险得分 (0-1)。
+  double fraud_score = 1;
+  // 是否判定为风险。
+  bool is_fraudulent = 2;
+  // 判定触发的规则原因。
+  repeated string reasons = 3;
 }
 
-// DeployModelRequest 部署AI模型请求。
+// 模型部署请求。
 message DeployModelRequest {
-  string model_name = 1; // 模型名称
-  string model_version = 2; // 模型版本
-  string model_uri = 3; // 模型存储URI (例如: S3路径)
-  map<string, string> metadata = 4; // 模型元数据
+  // 模型名。
+  string model_name = 1;
+  // 发布版本号。
+  string model_version = 2;
+  // 权重文件存储位置。
+  string model_uri = 3;
+  // 部署参数。
+  map<string, string> metadata = 4;
 }
 
-// DeployModelResponse 部署AI模型响应。
+// 部署响应。
 message DeployModelResponse {
-  string deployment_id = 1; // 部署ID
-  string status = 2; // 部署状态 (例如: "PENDING", "SUCCESS", "FAILED")
+  // 部署任务 ID。
+  string deployment_id = 1;
+  // 当前执行状态。
+  string status = 2;
 }
 
-// GetModelStatusRequest 获取模型状态请求。
+// 状态查询。
 message GetModelStatusRequest {
-  string deployment_id = 1; // 部署ID
+  // 部署任务 ID。
+  string deployment_id = 1;
 }
 
-// GetModelStatusResponse 获取模型状态响应。
+// 状态详情。
 message GetModelStatusResponse {
-  string deployment_id = 1; // 部署ID
-  string model_name = 2; // 模型名称
-  string model_version = 3; // 模型版本
-  string status = 4; // 运行状态 (例如: "RUNNING", "STOPPED", "ERROR")
-  google.protobuf.Timestamp deployed_at = 5; // 部署时间
-  optional string error_message = 6; // 错误信息
+  // 任务 ID。
+  string deployment_id = 1;
+  // 正在运行的模型。
+  string model_name = 2;
+  // 当前版本。
+  string model_version = 3;
+  // 运行时健康状态。
+  string status = 4;
+  // 部署完成日期。
+  google.protobuf.Timestamp deployed_at = 5;
+  // 运行错误提示。
+  optional string error_message = 6;
 }
 
-// RetrainModelRequest 触发模型重新训练请求。
+// 训练触发。
 message RetrainModelRequest {
-  string model_name = 1; // 模型名称
-  optional string dataset_uri = 2; // 训练数据集URI
-  map<string, string> training_params = 3; // 训练参数
+  // 模型 ID。
+  string model_name = 1;
+  // 训练源数据集路径。
+  optional string dataset_uri = 2;
+  // 超参数。
+  map<string, string> training_params = 3;
 }
 
-// RetrainModelResponse 触发模型重新训练响应。
+// 训练响应。
 message RetrainModelResponse {
-  string training_job_id = 1; // 训练任务ID
-  string status = 2; // 训练任务状态 (例如: "STARTED", "FAILED")
+  // 异步训练作业 ID。
+  string training_job_id = 1;
+  // 任务启动状态。
+  string status = 2;
 }

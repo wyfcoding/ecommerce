@@ -6,44 +6,57 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/sales_forecasting/v1;v1";
 
-// SalesForecastingService 定义了销售预测服务接口
+// 销售预测服务，利用历史交易数据和趋势模型预测未来的商品销量。
 service SalesForecastingService {
-  // 获取商品销量预测
+  // 获取指定商品的未来销量预测曲线。
   rpc GetProductSalesForecast(GetProductSalesForecastRequest) returns (GetProductSalesForecastResponse);
 
-  // 训练销售预测模型 (后台操作)
+  // 异步触发销量预测模型的重新训练。
   rpc TrainSalesForecastModel(TrainSalesForecastModelRequest) returns (TrainSalesForecastModelResponse);
 }
 
-// ForecastResult 预测结果
+// 销量预测数据点。
 message ForecastResult {
-  uint64 product_id = 1; // 产品id
-  google.protobuf.Timestamp forecast_date = 2; // 预测date
-  double predicted_sales_quantity = 3; // predictedsales数量
-  double confidence_interval_lower = 4; // 置信度间隔lower
-  double confidence_interval_upper = 5; // 置信度间隔upper
+  // 商品 ID。
+  uint64 product_id = 1;
+  // 预测的具体日期。
+  google.protobuf.Timestamp forecast_date = 2;
+  // 预测当天的销售件数。
+  double predicted_sales_quantity = 3;
+  // 置信区间下限。
+  double confidence_interval_lower = 4;
+  // 置信区间上限。
+  double confidence_interval_upper = 5;
 }
 
-// GetProductSalesForecastRequest 获取商品销量预测请求
+// 销量预测查询。
 message GetProductSalesForecastRequest {
-  uint64 product_id = 1; // 产品id
-  uint32 forecast_days = 2; // 预测未来多少天
+  // 商品 ID。
+  uint64 product_id = 1;
+  // 向后预测的天数限制。
+  uint32 forecast_days = 2;
 }
 
-// GetProductSalesForecastResponse 获取商品销量预测响应
+// 销量预测响应。
 message GetProductSalesForecastResponse {
-  repeated ForecastResult forecasts = 1; // 预测列表
+  // 时间序列预测结果。
+  repeated ForecastResult forecasts = 1;
 }
 
-// TrainSalesForecastModelRequest 训练销售预测模型请求
+// 模型训练请求。
 message TrainSalesForecastModelRequest {
-  string model_name = 1; // model名称
-  string data_source = 2; // 训练数据来源
-  map<string, string> parameters = 3; // 模型训练参数
+  // 模型算法名称。
+  string model_name = 1;
+  // 数据清洗后的源路径。
+  string data_source = 2;
+  // 超参数配置。
+  map<string, string> parameters = 3;
 }
 
-// TrainSalesForecastModelResponse 训练销售预测模型响应
+// 训练任务响应。
 message TrainSalesForecastModelResponse {
-  string model_id = 1; // 模型ID
-  string status = 2; // 状态
+  // 训练任务 ID。
+  string model_id = 1;
+  // 任务当前状态 (STARTING, IN_PROGRESS, FINISHED)。
+  string status = 2;
 }

@@ -2,134 +2,170 @@ syntax = "proto3";
 
 package api.user.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/user/v1;v1";
 
-// User 用户服务定义了所有与用户和地址相关的RPC接口。
+// 用户账号服务，管理用户注册、登录、个人资料及收货地址。
 service User {
-  // --- 用户核心接口 ---
+  // --- 账号核心接口 ---
 
-  // RegisterByPassword 通过用户名和密码注册一个新用户。
+  // 用户注册。
   rpc RegisterByPassword(RegisterByPasswordRequest) returns (RegisterResponse);
-  // LoginByPassword 通过用户名和密码登录，成功后返回JWT Token。
+  // 用户登录并换取认证令牌。
   rpc LoginByPassword(LoginByPasswordRequest) returns (LoginByPasswordResponse);
-  // GetUserByID 根据用户ID获取公开的用户信息。
+  // 通过 ID 获取用户基础公开信息。
   rpc GetUserByID(GetUserByIDRequest) returns (UserResponse);
-  // UpdateUserInfo 更新当前登录用户的个人信息。
+  // 修改当前用户的昵称、头像等资料。
   rpc UpdateUserInfo(UpdateUserInfoRequest) returns (UserResponse);
 
-  // --- 地址管理接口 ---
+  // --- 地址簿管理 ---
 
-  // AddAddress 为当前登录用户添加一个新的收货地址。
+  // 新增收货地址。
   rpc AddAddress(AddAddressRequest) returns (Address);
-  // GetAddress 获取指定ID的收货地址信息。
+  // 获取单条地址详情。
   rpc GetAddress(GetAddressRequest) returns (Address);
-  // UpdateAddress 更新指定ID的收货地址信息。
+  // 修改已有的收货地址。
   rpc UpdateAddress(UpdateAddressRequest) returns (Address);
-  // DeleteAddress 删除指定ID的收货地址。
+  // 物理删除收货地址。
   rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty);
-  // ListAddresses 获取当前登录用户的所有收货地址列表。
+  // 查询用户名下的全部地址。
   rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
 
-  // --- 内部接口 ---
+  // --- 内部验证接口 ---
 
-  // VerifyPassword 验证用户名和密码是否匹配 (通常供Auth等内部服务调用)。
+  // 内部鉴权调用：核对密码是否正确。
   rpc VerifyPassword(VerifyPasswordRequest) returns (VerifyPasswordResponse);
 }
 
-// --- 消息定义 ---
-
-// UserInfo 代表用户的公开信息。
+// 用户基础信息。
 message UserInfo {
-  uint64 user_id = 1; // 用户ID
-  string username = 2; // 用户名
-  string nickname = 3; // 昵称
-  string avatar = 4; // 头像URL
-  int32 gender = 5; // 性别, 1:男, 2:女
-  google.protobuf.Timestamp birthday = 6; // 生日
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 账号名。
+  string username = 2;
+  // 显示昵称。
+  string nickname = 3;
+  // 头像图片地址。
+  string avatar = 4;
+  // 性别 (1:男, 2:女)。
+  int32 gender = 5;
+  // 出生日期。
+  google.protobuf.Timestamp birthday = 6;
 }
 
-// RegisterByPasswordRequest 注册请求消息。
+// 注册请求。
 message RegisterByPasswordRequest {
-  string username = 1; // 用户名
-  string password = 2; // 密码
+  // 登录名。
+  string username = 1;
+  // 明文或哈希后的初始密码。
+  string password = 2;
 }
 
-// RegisterResponse 注册响应消息。
+// 注册响应。
 message RegisterResponse {
-  uint64 user_id = 1; // 用户唯一标识
+  // 新用户的系统 ID。
+  uint64 user_id = 1;
 }
 
-// LoginByPasswordRequest 登录请求消息。
+// 登录请求。
 message LoginByPasswordRequest {
-  string username = 1; // 用户名
-  string password = 2; // 密码
+  // 用户名。
+  string username = 1;
+  // 凭证。
+  string password = 2;
 }
 
-// LoginByPasswordResponse 登录响应消息。
+// 登录响应。
 message LoginByPasswordResponse {
-  string token = 1; // 令牌
-  int64 expires_at = 2; // Token 过期时间戳 (Unix seconds)
+  // 身份令牌。
+  string token = 1;
+  // 到期时间戳。
+  int64 expires_at = 2;
 }
 
-// GetUserByIDRequest 获取用户信息请求。
+// 用户单查请求。
 message GetUserByIDRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// UserResponse 获取用户信息响应。
+// 用户信息响应。
 message UserResponse {
-  UserInfo user = 1; // 用户
+  // 用户实体。
+  UserInfo user = 1;
 }
 
-// UpdateUserInfoRequest 更新用户信息请求。
-// 所有字段都是可选的，只更新提供的字段。
+// 资料更新请求。
 message UpdateUserInfoRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 新昵称。
   optional string nickname = 2;
+  // 新头像。
   optional string avatar = 3;
+  // 性别变更。
   optional int32 gender = 4;
+  // 生日变更。
   optional google.protobuf.Timestamp birthday = 5;
 }
 
-// Address 代表一个收货地址。
+// 收货地址。
 message Address {
-  uint64 id = 1; // 地址ID
-  uint64 user_id = 2; // 所属用户ID
-  string name = 3; // 收货人姓名
-  string phone = 4; // 手机号
-  string province = 5; // 省份
-  string city = 6; // 城市
-  string district = 7; // 区县
-  string detailed_address = 8; // 详细地址
-  bool is_default = 9; // 是否为默认地址
+  // 地址记录 ID。
+  uint64 id = 1;
+  // 用户 ID。
+  uint64 user_id = 2;
+  // 姓名。
+  string name = 3;
+  // 联系手机号。
+  string phone = 4;
+  // 省份。
+  string province = 5;
+  // 城市。
+  string city = 6;
+  // 区县。
+  string district = 7;
+  // 门牌号及详细描述。
+  string detailed_address = 8;
+  // 是否默认。
+  bool is_default = 9;
 }
 
-// AddAddressRequest 添加地址请求。
+// 新增地址请求。
 message AddAddressRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string name = 2; // 名称
-  string phone = 3; // 电话
-  string province = 4; // 省份
-  string city = 5; // 城市
-  string district = 6; // 区县
-  string detailed_address = 7; // detailed地址
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 收件人。
+  string name = 2;
+  // 电话。
+  string phone = 3;
+  // 行政区划。
+  string province = 4;
+  string city = 5;
+  string district = 6;
+  // 详细地址。
+  string detailed_address = 7;
+  // 是否设为默认。
   optional bool is_default = 8;
 }
 
-// GetAddressRequest 获取单个地址请求。
+// 地址单查请求。
 message GetAddressRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 id = 2; // 唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 地址 ID。
+  uint64 id = 2;
 }
 
-// UpdateAddressRequest 更新地址请求。
-// 所有地址信息字段都是可选的。
+// 地址更新请求。
 message UpdateAddressRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 id = 2; // 唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 地址 ID。
+  uint64 id = 2;
+  // 变更项。
   optional string name = 3;
   optional string phone = 4;
   optional string province = 5;
@@ -139,30 +175,38 @@ message UpdateAddressRequest {
   optional bool is_default = 9;
 }
 
-// DeleteAddressRequest 删除地址请求。
+// 地址删除。
 message DeleteAddressRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 id = 2; // 唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 地址 ID。
+  uint64 id = 2;
 }
 
-// ListAddressesRequest 获取地址列表请求。
+// 用户地址簿列表请求。
 message ListAddressesRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// ListAddressesResponse 获取地址列表响应。
+// 用户地址簿列表响应。
 message ListAddressesResponse {
-  repeated Address addresses = 1; // 地址列表
+  // 地址集合。
+  repeated Address addresses = 1;
 }
 
-// VerifyPasswordRequest 验证密码请求 (内部使用)。
+// 内部验密请求。
 message VerifyPasswordRequest {
-    string username = 1; // 用户名
-    string password = 2; // 密码
+  // 账号。
+  string username = 1;
+  // 待核对密码。
+  string password = 2;
 }
 
-// VerifyPasswordResponse 验证密码响应 (内部使用)。
+// 内部验密结果。
 message VerifyPasswordResponse {
-    bool success = 1; // 是否成功
-    UserInfo user = 2; // 成功时返回用户信息
+  // 是否匹配。
+  bool success = 1;
+  // 匹配成功时的用户信息快照。
+  UserInfo user = 2;
 }

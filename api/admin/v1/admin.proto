@@ -2,289 +2,376 @@ syntax = "proto3";
 
 package admin.v1;
 
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/wyfcoding/ecommerce/go-api/admin/v1;v1";
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
-
-// AdminUser 表示管理员用户
-message AdminUser {
-  uint64 id = 1; // 管理员用户ID
-  string username = 2; // 用户名
-  string email = 3; // 邮箱
-  string nickname = 4; // 昵称
-  bool is_active = 5; // 是否活跃
-  repeated string roles = 6; // 角色列表
-  google.protobuf.Timestamp created_at = 7; // 创建时间
-  google.protobuf.Timestamp updated_at = 8; // 更新时间
-}
-
-// Role 表示管理员角色
-message Role {
-  uint64 id = 1; // 角色ID
-  string name = 2; // 角色名称 (e.g., "super_admin", "product_manager")
-  string description = 3; // 角色描述
-  repeated string permissions = 4; // 权限列表 (e.g., "product:read", "product:write")
-  google.protobuf.Timestamp created_at = 5; // 创建时间
-  google.protobuf.Timestamp updated_at = 6; // 更新时间
-}
-
-// Permission 表示权限
-message Permission {
-  uint64 id = 1; // 权限ID
-  string name = 2; // 权限名称 (e.g., "product:read")
-  string description = 3; // 权限描述
-}
-
-// AuditLog 表示审计日志
-message AuditLog {
-  uint64 id = 1; // 日志ID
-  uint64 admin_user_id = 2; // 执行操作的管理员用户ID
-  string admin_username = 3; // 执行操作的管理员用户名
-  string action = 4; // 操作类型 (e.g., "CREATE_PRODUCT", "UPDATE_USER")
-  string entity_type = 5; // 被操作实体类型 (e.g., "Product", "User")
-  uint64 entity_id = 6; // 被操作实体ID
-  string details = 7; // 操作详情 (JSON string)
-  string ip_address = 8; // 操作IP地址
-  google.protobuf.Timestamp created_at = 9; // 操作时间
-}
-
-// SystemSetting 表示系统配置项
-message SystemSetting {
-  string key = 1; // 配置项键
-  string value = 2; // 配置项值
-  string description = 3; // 配置项描述
-  google.protobuf.Timestamp updated_at = 4; // 更新时间
-}
-
-// CreateAdminUserRequest 创建Admin用户请求消息。
-
-// CreateAdminUserRequest 创建管理员用户的请求
-message CreateAdminUserRequest {
-  string username = 1; // 用户名
-  string password = 2; // 密码
-  string email = 3; // 邮箱
-  string nickname = 4; // 昵称
-  repeated uint64 role_ids = 5; // 角色ID列表
-}
-
-// CreateAdminUserResponse 创建管理员用户的响应
-message CreateAdminUserResponse {
-  AdminUser admin_user = 1; // 创建成功的管理员用户
-}
-
-// GetAdminUserRequest 获取管理员用户的请求
-message GetAdminUserRequest {
-  uint64 id = 1; // 管理员用户ID
-}
-
-// GetAdminUserResponse 获取管理员用户的响应
-message GetAdminUserResponse {
-  AdminUser admin_user = 1; // 管理员用户
-}
-
-// UpdateAdminUserRequest 更新管理员用户的请求
-message UpdateAdminUserRequest {
-  uint64 id = 1; // 管理员用户ID
-  string username = 2; // 用户名 (可选)
-  string email = 3; // 邮箱 (可选)
-  string nickname = 4; // 昵称 (可选)
-  bool is_active = 5; // 是否活跃 (可选)
-  repeated uint64 role_ids = 6; // 角色ID列表 (可选，会覆盖现有角色)
-}
-
-// UpdateAdminUserResponse 更新管理员用户的响应
-message UpdateAdminUserResponse {
-  AdminUser admin_user = 1; // 更新后的管理员用户
-}
-
-// DeleteAdminUserRequest 删除管理员用户的请求
-message DeleteAdminUserRequest {
-  uint64 id = 1; // 管理员用户ID
-}
-
-// ListAdminUsersRequest 列出管理员用户的请求
-message ListAdminUsersRequest {
-  int32 page_size = 1; // 每页大小
-  int32 page_token = 2; // 页码
-  string query = 3; // 搜索查询 (e.g., by username, email)
-}
-
-// ListAdminUsersResponse 列出管理员用户的响应
-message ListAdminUsersResponse {
-  repeated AdminUser admin_users = 1; // 管理员用户列表
-  int32 total_count = 2; // 总数
-}
-
-// CreateRoleRequest 创建角色请求消息。
-
-// CreateRoleRequest 创建角色的请求
-message CreateRoleRequest {
-  string name = 1; // 角色名称
-  string description = 2; // 角色描述
-  repeated uint64 permission_ids = 3; // 权限ID列表
-}
-
-// CreateRoleResponse 创建角色的响应
-message CreateRoleResponse {
-  Role role = 1; // 创建成功的角色
-}
-
-// GetRoleRequest 获取角色的请求
-message GetRoleRequest {
-  uint64 id = 1; // 角色ID
-}
-
-// GetRoleResponse 获取角色的响应
-message GetRoleResponse {
-  Role role = 1; // 角色
-}
-
-// UpdateRoleRequest 更新角色的请求
-message UpdateRoleRequest {
-  uint64 id = 1; // 角色ID
-  string name = 2; // 角色名称 (可选)
-  string description = 3; // 角色描述 (可选)
-  repeated uint64 permission_ids = 4; // 权限ID列表 (可选，会覆盖现有权限)
-}
-
-// UpdateRoleResponse 更新角色的响应
-message UpdateRoleResponse {
-  Role role = 1; // 更新后的角色
-}
-
-// DeleteRoleRequest 删除角色的请求
-message DeleteRoleRequest {
-  uint64 id = 1; // 角色ID
-}
-
-// ListRolesRequest 列出角色的请求
-message ListRolesRequest {
-  int32 page_size = 1; // 每页大小
-  int32 page_token = 2; // 页码
-}
-
-// ListRolesResponse 列出角色的响应
-message ListRolesResponse {
-  repeated Role roles = 1; // 角色列表
-  int32 total_count = 2; // 总数
-}
-
-// CreatePermissionRequest 创建权限请求消息。
-
-// CreatePermissionRequest 创建权限的请求
-message CreatePermissionRequest {
-  string name = 1; // 权限名称
-  string description = 2; // 权限描述
-}
-
-// CreatePermissionResponse 创建权限的响应
-message CreatePermissionResponse {
-  Permission permission = 1; // 创建成功的权限
-}
-
-// GetPermissionRequest 获取权限的请求
-message GetPermissionRequest {
-  uint64 id = 1; // 权限ID
-}
-
-// GetPermissionResponse 获取权限的响应
-message GetPermissionResponse {
-  Permission permission = 1; // 权限
-}
-
-// ListPermissionsRequest 列出权限的请求
-message ListPermissionsRequest {
-  int32 page_size = 1; // 每页大小
-  int32 page_token = 2; // 页码
-}
-
-// ListPermissionsResponse 列出权限的响应
-message ListPermissionsResponse {
-  repeated Permission permissions = 1; // 权限列表
-  int32 total_count = 2; // 总数
-}
-
-// ListAuditLogsRequest 列表审计Logs请求消息。
-
-// ListAuditLogsRequest 列出审计日志的请求
-message ListAuditLogsRequest {
-  int32 page_size = 1; // 每页大小
-  int32 page_token = 2; // 页码
-  uint64 admin_user_id = 3; // 按管理员用户ID过滤
-  string action = 4; // 按操作类型过滤
-  string entity_type = 5; // 按实体类型过滤
-  uint64 entity_id = 6; // 按实体ID过滤
-  google.protobuf.Timestamp start_time = 7; // 开始时间
-  google.protobuf.Timestamp end_time = 8; // 结束时间
-}
-
-// ListAuditLogsResponse 列出审计日志的响应
-message ListAuditLogsResponse {
-  repeated AuditLog audit_logs = 1; // 审计日志列表
-  int32 total_count = 2; // 总数
-}
-
-// GetSystemSettingRequest 获取系统设置请求消息。
-
-// GetSystemSettingRequest 获取系统配置的请求
-message GetSystemSettingRequest {
-  string key = 1; // 配置项键
-}
-
-// GetSystemSettingResponse 获取系统配置的响应
-message GetSystemSettingResponse {
-  SystemSetting setting = 1; // 系统配置项
-}
-
-// UpdateSystemSettingRequest 更新系统配置的请求
-message UpdateSystemSettingRequest {
-  string key = 1; // 配置项键
-  string value = 2; // 配置项值
-  string description = 3; // 配置项描述 (可选)
-}
-
-// UpdateSystemSettingResponse 更新系统配置的响应
-message UpdateSystemSettingResponse {
-  SystemSetting setting = 1; // 更新后的系统配置项
-}
-
-// AdminService 定义管理员服务
+// 后台管理员账号服务，处理管理端权限、系统配置及操作审计。
 service AdminService {
-  // --- AdminUser 管理 ---
+  // --- 管理员账号管理 ---
+  // 录入新的管理员。
   rpc CreateAdminUser(CreateAdminUserRequest) returns (CreateAdminUserResponse);
-// GetAdminUser 处理获取Admin用户请求。
+  // 获取管理员详情。
   rpc GetAdminUser(GetAdminUserRequest) returns (GetAdminUserResponse);
-// UpdateAdminUser 处理更新Admin用户请求。
+  // 修改管理员资料或角色。
   rpc UpdateAdminUser(UpdateAdminUserRequest) returns (UpdateAdminUserResponse);
-// DeleteAdminUser 处理删除Admin用户请求。
+  // 注销管理员账号。
   rpc DeleteAdminUser(DeleteAdminUserRequest) returns (google.protobuf.Empty);
-// ListAdminUsers 处理列出AdminUsers请求。
+  // 分页查询管理员列表。
   rpc ListAdminUsers(ListAdminUsersRequest) returns (ListAdminUsersResponse);
 
-  // --- Role 管理 ---
+  // --- 角色与权限管理 ---
+  // 定义管理角色。
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
-// GetRole 处理获取角色请求。
+  // 查询角色详情。
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
-// UpdateRole 处理更新角色请求。
+  // 修改角色权限配置。
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
-// DeleteRole 处理删除角色请求。
+  // 移除管理角色。
   rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
-// ListRoles 处理列出Roles请求。
+  // 列出所有可用角色。
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
 
-  // --- Permission 管理 ---
+  // --- 权限项管理 ---
+  // 注册权限原子项。
   rpc CreatePermission(CreatePermissionRequest) returns (CreatePermissionResponse);
-// GetPermission 处理获取权限请求。
+  // 查询权限项。
   rpc GetPermission(GetPermissionRequest) returns (GetPermissionResponse);
-// ListPermissions 处理列出Permissions请求。
+  // 列出所有权限点。
   rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
 
-  // --- AuditLog 查询 ---
+  // --- 审计管理 ---
+  // 查询管理员操作轨迹。
   rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
 
-  // --- SystemSetting 管理 ---
+  // --- 业务配置 ---
+  // 读取系统全局开关。
   rpc GetSystemSetting(GetSystemSettingRequest) returns (GetSystemSettingResponse);
-// UpdateSystemSetting 处理更新SystemSetting请求。
+  // 实时修改系统配置。
   rpc UpdateSystemSetting(UpdateSystemSettingRequest) returns (UpdateSystemSettingResponse);
+}
+
+// 管理员实体。
+message AdminUser {
+  // 系统 ID。
+  uint64 id = 1;
+  // 登录名。
+  string username = 2;
+  // 工作邮箱。
+  string email = 3;
+  // 显示名称。
+  string nickname = 4;
+  // 是否允许登录。
+  bool is_active = 5;
+  // 拥有的角色标识序列。
+  repeated string roles = 6;
+  // 录入时间。
+  google.protobuf.Timestamp created_at = 7;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// 管理角色。
+message Role {
+  // 角色 ID。
+  uint64 id = 1;
+  // 唯一名称。
+  string name = 2;
+  // 职能描述。
+  string description = 3;
+  // 权限点序列。
+  repeated string permissions = 4;
+  // 录入时间。
+  google.protobuf.Timestamp created_at = 5;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// 权限原子项。
+message Permission {
+  // 权限 ID。
+  uint64 id = 1;
+  // 权限名。
+  string name = 2;
+  // 业务含义描述。
+  string description = 3;
+}
+
+// 管理端操作日志。
+message AuditLog {
+  // 日志 ID。
+  uint64 id = 1;
+  // 操作管理员 ID。
+  uint64 admin_user_id = 2;
+  // 管理员账号。
+  string admin_username = 3;
+  // 操作行为名。
+  string action = 4;
+  // 目标资源类型。
+  string entity_type = 5;
+  // 目标 ID。
+  uint64 entity_id = 6;
+  // 变更前后 JSON。
+  string details = 7;
+  // 来源 IP。
+  string ip_address = 8;
+  // 记录时间。
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// 系统全局动态设置。
+message SystemSetting {
+  // 配置键。
+  string key = 1;
+  // 当前值。
+  string value = 2;
+  // 描述。
+  string description = 3;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+// 创建管理员请求。
+message CreateAdminUserRequest {
+  // 登录名。
+  string username = 1;
+  // 初始密码。
+  string password = 2;
+  // 邮箱。
+  string email = 3;
+  // 昵称。
+  string nickname = 4;
+  // 授予角色 ID 集。
+  repeated uint64 role_ids = 5;
+}
+
+// 创建管理员结果。
+message CreateAdminUserResponse {
+  // 管理员实体。
+  AdminUser admin_user = 1;
+}
+
+// 管理员单查。
+message GetAdminUserRequest {
+  // 系统 ID。
+  uint64 id = 1;
+}
+
+// 单查响应。
+message GetAdminUserResponse {
+  // 管理员实体。
+  AdminUser admin_user = 1;
+}
+
+// 修改管理员请求。
+message UpdateAdminUserRequest {
+  // 目标 ID。
+  uint64 id = 1;
+  // 修改名。
+  string username = 2;
+  // 修改邮箱。
+  string email = 3;
+  // 修改昵称。
+  string nickname = 4;
+  // 切换开关。
+  bool is_active = 5;
+  // 全量角色 ID 覆盖。
+  repeated uint64 role_ids = 6;
+}
+
+// 修改管理员响应。
+message UpdateAdminUserResponse {
+  // 管理员实体。
+  AdminUser admin_user = 1;
+}
+
+// 管理员移除。
+message DeleteAdminUserRequest {
+  // 系统 ID。
+  uint64 id = 1;
+}
+
+// 管理员分页请求。
+message ListAdminUsersRequest {
+  // 数量。
+  int32 page_size = 1;
+  // 令牌。
+  int32 page_token = 2;
+  // 搜索词。
+  string query = 3;
+}
+
+// 管理员列表响应。
+message ListAdminUsersResponse {
+  // 管理员序列。
+  repeated AdminUser admin_users = 1;
+  // 总笔数。
+  int32 total_count = 2;
+}
+
+// 角色创建。
+message CreateRoleRequest {
+  // 名称。
+  string name = 1;
+  // 描述。
+  string description = 2;
+  // 权限 ID 集合。
+  repeated uint64 permission_ids = 3;
+}
+
+// 角色结果。
+message CreateRoleResponse {
+  // 角色实体。
+  Role role = 1;
+}
+
+// 角色查询。
+message GetRoleRequest {
+  // 角色 ID。
+  uint64 id = 1;
+}
+
+// 角色响应。
+message GetRoleResponse {
+  // 角色实体。
+  Role role = 1;
+}
+
+// 角色修改。
+message UpdateRoleRequest {
+  // 目标 ID。
+  uint64 id = 1;
+  // 修改名。
+  string name = 2;
+  // 修改描述。
+  string description = 3;
+  // 全量权限 ID 覆盖。
+  repeated uint64 permission_ids = 4;
+}
+
+// 角色修改结果。
+message UpdateRoleResponse {
+  // 角色实体。
+  Role role = 1;
+}
+
+// 角色删除。
+message DeleteRoleRequest {
+  // 角色 ID。
+  uint64 id = 1;
+}
+
+// 角色分页。
+message ListRolesRequest {
+  // 数量。
+  int32 page_size = 1;
+  // 令牌。
+  int32 page_token = 2;
+}
+
+// 角色列表。
+message ListRolesResponse {
+  // 角色序列。
+  repeated Role roles = 1;
+  // 总数。
+  int32 total_count = 2;
+}
+
+// 权限项创建。
+message CreatePermissionRequest {
+  // 名称。
+  string name = 1;
+  // 说明。
+  string description = 2;
+}
+
+// 权限项结果。
+message CreatePermissionResponse {
+  // 权限实体。
+  Permission permission = 1;
+}
+
+// 权限项查询。
+message GetPermissionRequest {
+  // 权限 ID。
+  uint64 id = 1;
+}
+
+// 权限项响应。
+message GetPermissionResponse {
+  // 权限实体。
+  Permission permission = 1;
+}
+
+// 权限分页请求。
+message ListPermissionsRequest {
+  // 数量。
+  int32 page_size = 1;
+  // 令牌。
+  int32 page_token = 2;
+}
+
+// 权限列表响应。
+message ListPermissionsResponse {
+  // 权限集合。
+  repeated Permission permissions = 1;
+  // 总数。
+  int32 total_count = 2;
+}
+
+// 审计查询。
+message ListAuditLogsRequest {
+  // 数量。
+  int32 page_size = 1;
+  // 令牌。
+  int32 page_token = 2;
+  // 管理员 ID。
+  uint64 admin_user_id = 3;
+  // 动作。
+  string action = 4;
+  // 实体类。
+  string entity_type = 5;
+  // 实体 ID。
+  uint64 entity_id = 6;
+  // 起始。
+  google.protobuf.Timestamp start_time = 7;
+  // 结束。
+  google.protobuf.Timestamp end_time = 8;
+}
+
+// 审计响应。
+message ListAuditLogsResponse {
+  // 审计日志序列。
+  repeated AuditLog audit_logs = 1;
+  // 总笔数。
+  int32 total_count = 2;
+}
+
+// 配置获取。
+message GetSystemSettingRequest {
+  // 配置键。
+  string key = 1;
+}
+
+// 配置结果。
+message GetSystemSettingResponse {
+  // 配置项。
+  SystemSetting setting = 1;
+}
+
+// 配置更新。
+message UpdateSystemSettingRequest {
+  // 键。
+  string key = 1;
+  // 新值。
+  string value = 2;
+  // 说明。
+  string description = 3;
+}
+
+// 配置修改回执。
+message UpdateSystemSettingResponse {
+  // 配置项。
+  SystemSetting setting = 1;
 }

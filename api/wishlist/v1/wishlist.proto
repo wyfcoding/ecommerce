@@ -6,58 +6,74 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/wishlist/v1;v1";
 
-// Wishlist Wishlist服务。
+// 收藏夹与心愿单服务。
 service Wishlist {
-    // 将商品添加到用户的心愿单
-    rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse);
+  // 加入收藏。
+  rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse);
 
-// RemoveItemFromWishlist 删除Item来源Wishlist。
-    rpc RemoveItemFromWishlist(RemoveItemFromWishlistRequest) returns (RemoveItemFromWishlistResponse);
+  // 取消收藏。
+  rpc RemoveItemFromWishlist(RemoveItemFromWishlistRequest) returns (RemoveItemFromWishlistResponse);
 
-    // 列出用户心愿单中的所有商品
-    rpc ListWishlistItems(ListWishlistItemsRequest) returns (ListWishlistItemsResponse);
+  // 获取心愿单列表。
+  rpc ListWishlistItems(ListWishlistItemsRequest) returns (ListWishlistItemsResponse);
 }
 
-// 代表用户心愿单中的一个商品
+// 收藏项详情。
 message WishlistItem {
-    string id = 1; // 唯一标识
-    string user_id = 2; // 用户唯一标识
-    string product_id = 3; // 产品id
-    google.protobuf.Timestamp added_at = 4; // added在
+  // 记录 ID。
+  string id = 1;
+  // 所属用户。
+  string user_id = 2;
+  // 商品 ID。
+  string product_id = 3;
+  // 加入时刻。
+  google.protobuf.Timestamp added_at = 4;
 }
 
-// 添加商品到心愿单的请求
+// 加入请求。
 message AddItemToWishlistRequest {
-    string user_id = 1; // 用户唯一标识
-    string product_id = 2; // 产品id
+  // 用户。
+  string user_id = 1;
+  // 商品。
+  string product_id = 2;
 }
 
-// 添加商品到心愿单的响应
+// 加入回执。
 message AddItemToWishlistResponse {
-    WishlistItem item = 1; // 项
+  // 实体条目。
+  WishlistItem item = 1;
 }
 
-// 从心愿单移除商品的请求
+// 移除请求。
 message RemoveItemFromWishlistRequest {
-    string user_id = 1; // 用户唯一标识
-    string product_id = 2; // 产品id
+  // 用户。
+  string user_id = 1;
+  // 商品。
+  string product_id = 2;
 }
 
-// 从心愿单移除商品的响应
+// 移除回执。
 message RemoveItemFromWishlistResponse {
-    bool success = 1; // 成功
-    string message = 2; // 消息
+  // 是否成功。
+  bool success = 1;
+  // 消息。
+  string message = 2;
 }
 
-// 获取心愿单商品列表的请求
+// 列表查询。
 message ListWishlistItemsRequest {
-    string user_id = 1; // 用户唯一标识
-    int32 page_size = 2; // 页码大小
-    int32 page_token = 3; // 页码令牌
+  // 用户 ID。
+  string user_id = 1;
+  // 数量。
+  int32 page_size = 2;
+  // 分页令牌。
+  int32 page_token = 3;
 }
 
-// 获取心愿单商品列表的响应
+// 列表响应。
 message ListWishlistItemsResponse {
-    repeated WishlistItem items = 1; // 项列表
-    int32 total_count = 2; // 总数计数
+  // 收藏序列。
+  repeated WishlistItem items = 1;
+  // 总记录数。
+  int32 total_count = 2;
 }

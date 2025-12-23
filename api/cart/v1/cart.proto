@@ -2,118 +2,149 @@ syntax = "proto3";
 
 package api.cart.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/cart/v1;v1";
 
-// Cart 购物车服务定义了所有与用户购物车管理相关的RPC接口。
+// 购物车服务，管理用户的预选购商品列表、数量变更及促销应用。
 service Cart {
-  // AddItemToCart 向用户的购物车添加一个商品SKU。
-  // 如果商品已存在，则更新数量。
+  // 向购物车中加入新商品或增加已有商品数量。
   rpc AddItemToCart(AddItemToCartRequest) returns (CartInfo);
 
-  // UpdateCartItem 更新购物车中某个商品的数量。
+  // 精确覆盖购物车中某项商品的购买数量。
   rpc UpdateCartItem(UpdateCartItemRequest) returns (CartInfo);
 
-  // RemoveItemFromCart 从购物车中移除一个或多个商品SKU。
+  // 从购物车中移除选中的商品项。
   rpc RemoveItemFromCart(RemoveItemFromCartRequest) returns (CartInfo);
 
-  // GetCart 获取指定用户的购物车详细信息。
+  // 查询用户当前购物车中的所有商品及价格总计。
   rpc GetCart(GetCartRequest) returns (CartInfo);
 
-  // ClearCart 清空指定用户的购物车。
+  // 清空用户的所有购物车内容。
   rpc ClearCart(ClearCartRequest) returns (google.protobuf.Empty);
 
-  // MergeCarts 合并两个购物车。
-  // 通常用于用户登录后，将匿名购物车与用户已有的购物车合并。
+  // 合并购物车（如：将匿名状态的商品同步到登录账号下）。
   rpc MergeCarts(MergeCartsRequest) returns (CartInfo);
 
-  // ApplyCouponToCart 为购物车应用优惠券。
+  // 为购物车中的符合条件的商品尝试应用一张优惠券。
   rpc ApplyCouponToCart(ApplyCouponToCartRequest) returns (CartInfo);
 
-  // RemoveCouponFromCart 从购物车移除已应用的优惠券。
+  // 移除购物车中当前已绑定的优惠券。
   rpc RemoveCouponFromCart(RemoveCouponFromCartRequest) returns (CartInfo);
 }
 
-// --- 核心消息定义 ---
-
-// CartInfo 代表一个用户的购物车完整信息。
+// 购物车视图详情。
 message CartInfo {
-  uint64 user_id = 1;                             // 用户ID
-  repeated CartItem items = 2;                    // 购物车中的商品列表
-  int64 total_quantity = 3;                       // 购物车中商品总数量
-  int64 total_amount = 4;                         // 购物车中商品总金额 (原价，单位: 分)
-  int64 discount_amount = 5;                      // 优惠金额 (单位: 分)
-  int64 actual_amount = 6;                        // 实际支付金额 (总金额 - 优惠金额，单位: 分)
-  google.protobuf.StringValue applied_coupon_code = 7; // 已应用的优惠券码
-  google.protobuf.Timestamp created_at = 8;       // 购物车创建时间
-  google.protobuf.Timestamp updated_at = 9;       // 最后更新时间
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 包含的商品行列表。
+  repeated CartItem items = 2;
+  // 累计商品件数。
+  int64 total_quantity = 3;
+  // 合计原价总额（分）。
+  int64 total_amount = 4;
+  // 优惠减免总额（分）。
+  int64 discount_amount = 5;
+  // 最终预估支付总额（分）。
+  int64 actual_amount = 6;
+  // 当前绑定的优惠券码。
+  google.protobuf.StringValue applied_coupon_code = 7;
+  // 初次创建时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 最后变动时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// CartItem 代表购物车中的一个商品项。
+// 购物车内单个商品行。
 message CartItem {
-  uint64 id = 1;                                  // 购物车项ID
-  uint64 user_id = 2;                             // 所属用户ID
-  uint64 product_id = 3;                          // 商品SPU ID
-  uint64 sku_id = 4;                              // 商品SKU ID
-  string product_name = 5;                        // 商品名称
-  string sku_name = 6;                            // SKU名称
-  string product_image_url = 7;                   // 商品图片URL
-  int64 price = 8;                                // 商品单价 (单位: 分)
-  int32 quantity = 9;                             // 购买数量
-  int64 total_price = 10;                         // 该购物车项总价 (单位: 分)
-  google.protobuf.Timestamp created_at = 11;      // 添加到购物车时间
-  google.protobuf.Timestamp updated_at = 12;      // 最后更新时间
+  // 购物车项唯一 ID。
+  uint64 id = 1;
+  // 用户 ID。
+  uint64 user_id = 2;
+  // 商品 SPU ID。
+  uint64 product_id = 3;
+  // 规格 SKU ID。
+  uint64 sku_id = 4;
+  // 商品标题。
+  string product_name = 5;
+  // 规格描述。
+  string sku_name = 6;
+  // 缩略图。
+  string product_image_url = 7;
+  // 实时单价（分）。
+  int64 price = 8;
+  // 加入数量。
+  int32 quantity = 9;
+  // 该行小计（分）。
+  int64 total_price = 10;
+  // 首次加入时间。
+  google.protobuf.Timestamp created_at = 11;
+  // 最后修改时间。
+  google.protobuf.Timestamp updated_at = 12;
 }
 
-// --- RPC 请求/响应 消息 ---
-
-// AddItemToCartRequest 向购物车添加商品的请求。
+// 加入请求。
 message AddItemToCartRequest {
-  uint64 user_id = 1;                             // 用户ID
-  uint64 product_id = 2;                          // 商品SPU ID
-  uint64 sku_id = 3;                              // 商品SKU ID
-  int32 quantity = 4;                             // 添加数量
+  // 买家。
+  uint64 user_id = 1;
+  // 商品。
+  uint64 product_id = 2;
+  // 规格。
+  uint64 sku_id = 3;
+  // 增量数量。
+  int32 quantity = 4;
 }
 
-// UpdateCartItemRequest 更新购物车商品数量的请求。
+// 数量更新请求。
 message UpdateCartItemRequest {
-  uint64 user_id = 1;                             // 用户ID
-  uint64 cart_item_id = 2;                        // 购物车项ID
-  int32 quantity = 3;                             // 新的数量
+  // 买家。
+  uint64 user_id = 1;
+  // 目标项 ID。
+  uint64 cart_item_id = 2;
+  // 覆盖数量。
+  int32 quantity = 3;
 }
 
-// RemoveItemFromCartRequest 从购物车移除商品的请求。
+// 移除请求。
 message RemoveItemFromCartRequest {
-  uint64 user_id = 1;                             // 用户ID
-  repeated uint64 cart_item_ids = 2;              // 要移除的购物车项ID列表
+  // 买家。
+  uint64 user_id = 1;
+  // 待删项 ID 集合。
+  repeated uint64 cart_item_ids = 2;
 }
 
-// GetCartRequest 获取购物车信息的请求。
+// 查询请求。
 message GetCartRequest {
-  uint64 user_id = 1;                             // 用户ID
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// ClearCartRequest 清空购物车的请求。
+// 清空请求。
 message ClearCartRequest {
-  uint64 user_id = 1;                             // 用户ID
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// MergeCartsRequest 合并购物车的请求。
+// 合并请求。
 message MergeCartsRequest {
-  uint64 source_user_id = 1;                      // 源用户ID (通常是匿名用户)
-  uint64 target_user_id = 2;                      // 目标用户ID (登录用户)
+  // 离线/源 ID。
+  uint64 source_user_id = 1;
+  // 在线/目标 ID。
+  uint64 target_user_id = 2;
 }
 
-// ApplyCouponToCartRequest 应用优惠券到购物车的请求。
+// 用券请求。
 message ApplyCouponToCartRequest {
-  uint64 user_id = 1;                             // 用户ID
-  string coupon_code = 2;                         // 优惠券码
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 券业务码。
+  string coupon_code = 2;
 }
 
-// RemoveCouponFromCartRequest 移除优惠券的请求。
+// 删券请求。
 message RemoveCouponFromCartRequest {
-  uint64 user_id = 1;                             // 用户ID
+  // 用户 ID。
+  uint64 user_id = 1;
 }

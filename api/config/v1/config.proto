@@ -2,56 +2,64 @@ syntax = "proto3";
 
 package api.config.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/config/v1;v1";
 
-// Config 配置服务定义了所有与动态配置管理相关的RPC接口。
+// 动态配置服务，支持分布式系统配置的下发、修改及实时监听。
 service Config {
-  // --- 核心配置接口 ---
-
-  // GetConfig 获取指定键的配置值。
+  // 根据 Key 获取特定配置项。
   rpc GetConfig(GetConfigRequest) returns (ConfigResponse);
-  // SetConfig 设置指定键的配置值。
+
+  // 实时覆盖或新增全局配置键值。
   rpc SetConfig(SetConfigRequest) returns (ConfigResponse);
-  // DeleteConfig 删除指定键的配置。
+
+  // 物理注销特定配置键。
   rpc DeleteConfig(DeleteConfigRequest) returns (google.protobuf.Empty);
-  // WatchConfig 监听配置变更。
+
+  // 使用服务器流式 RPC 实时推送配置变更。
   rpc WatchConfig(WatchConfigRequest) returns (stream ConfigResponse);
 }
 
-// --- 消息定义 ---
-
-// ConfigEntry 代表一个配置项。
+// 配置单元详情。
 message ConfigEntry {
-  string key = 1; // 配置键
-  string value = 2; // 配置值
-  google.protobuf.Timestamp updated_at = 3; // 更新时间
+  // 配置键标识。
+  string key = 1;
+  // 配置负载字符串。
+  string value = 2;
+  // 最后变更日期。
+  google.protobuf.Timestamp updated_at = 3;
 }
 
-// GetConfigRequest 获取配置请求消息。
+// 获取请求。
 message GetConfigRequest {
-  string key = 1; // 键
+  // 配置键。
+  string key = 1;
 }
 
-// ConfigResponse 配置响应消息。
+// 配置响应详情。
 message ConfigResponse {
-  ConfigEntry config = 1; // 配置
+  // 配置对象。
+  ConfigEntry config = 1;
 }
 
-// SetConfigRequest 设置配置请求消息。
+// 设置请求。
 message SetConfigRequest {
-  string key = 1; // 键
-  string value = 2; // 值
+  // 键名。
+  string key = 1;
+  // 目标值。
+  string value = 2;
 }
 
-// DeleteConfigRequest 删除配置请求消息。
+// 注销请求。
 message DeleteConfigRequest {
-  string key = 1; // 键
+  // 键名。
+  string key = 1;
 }
 
-// WatchConfigRequest 监听配置请求消息。
+// 监听请求。
 message WatchConfigRequest {
-  string key = 1; // 键
+  // 监听的目标键名。
+  string key = 1;
 }

@@ -6,60 +6,76 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/realtime_analytics/v1;v1";
 
-// RealtimeAnalyticsService 定义了实时分析服务接口
+// 实时分析服务，提供系统层面的销售、活跃度指标监控及实时埋点接收。
 service RealtimeAnalyticsService {
-  // 获取实时销售指标
+  // 获取当前实时的总成交额、订单量等关键销售指标。
   rpc GetRealtimeSalesMetrics(GetRealtimeSalesMetricsRequest) returns (RealtimeSalesMetricsResponse);
 
-  // 获取实时用户活跃度
+  // 获取当前全站在线人数、新注册用户等活跃度数据。
   rpc GetRealtimeUserActivity(GetRealtimeUserActivityRequest) returns (RealtimeUserActivityResponse);
 
-  // 记录用户行为事件
+  // 接收并立即处理用户的行为埋点事件。
   rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse);
 }
 
-// RealtimeSalesMetrics 实时销售指标
+// 销售实时指标。
 message RealtimeSalesMetrics {
-  uint64 current_gmv = 1; // 当前GMV
-  uint32 current_orders = 2; // 当前订单数
-  uint32 active_users = 3; // 活跃用户数
-  google.protobuf.Timestamp last_updated = 4; // 最后更新时间
+  // 当前总成交额。
+  uint64 current_gmv = 1;
+  // 当前总订单笔数。
+  uint32 current_orders = 2;
+  // 实时在线/活跃用户总数。
+  uint32 active_users = 3;
+  // 指标最后刷新时间。
+  google.protobuf.Timestamp last_updated = 4;
 }
 
-// RealtimeUserActivity 实时用户活跃度
+// 用户活跃度实时数据。
 message RealtimeUserActivity {
-  uint32 online_users = 1; // 在线用户数
-  uint32 new_users_last_hour = 2; // 过去一小时新增用户数
-  map<string, uint32> page_views_per_minute = 3; // 每分钟页面浏览量
+  // 实时在线会话数。
+  uint32 online_users = 1;
+  // 近一小时新增注册数。
+  uint32 new_users_last_hour = 2;
+  // 各核心页面的分钟级访问量 (PV)。
+  map<string, uint32> page_views_per_minute = 3;
 }
 
-// GetRealtimeSalesMetricsRequest 获取实时销售指标请求
+// 销售指标请求。
 message GetRealtimeSalesMetricsRequest {}
 
-// RealtimeSalesMetricsResponse 实时销售指标响应
+// 销售指标响应。
 message RealtimeSalesMetricsResponse {
-  RealtimeSalesMetrics metrics = 1; // 指标
+  // 指标实体。
+  RealtimeSalesMetrics metrics = 1;
 }
 
-// GetRealtimeUserActivityRequest 获取实时用户活跃度请求
+// 活跃度请求。
 message GetRealtimeUserActivityRequest {}
 
-// RealtimeUserActivityResponse 实时用户活跃度响应
+// 活跃度响应。
 message RealtimeUserActivityResponse {
-  RealtimeUserActivity activity = 1; // 活动
+  // 活跃度实体。
+  RealtimeUserActivity activity = 1;
 }
 
-// RecordUserBehaviorRequest 记录用户行为请求
+// 埋点记录请求。
 message RecordUserBehaviorRequest {
-  string user_id = 1; // 用户唯一标识
-  string behavior_type = 2; // behavior类型
-  string item_id = 3; // 行为关联的商品ID或其他实体ID
-  map<string, string> properties = 4; // 行为属性
-  google.protobuf.Timestamp event_time = 5; // event时间
+  // 用户 ID。
+  string user_id = 1;
+  // 动作类别。
+  string behavior_type = 2;
+  // 操作对象 ID。
+  string item_id = 3;
+  // 携带的上下文特征。
+  map<string, string> properties = 4;
+  // 事件发生时间点。
+  google.protobuf.Timestamp event_time = 5;
 }
 
-// RecordUserBehaviorResponse 记录用户行为响应
+// 埋点记录响应。
 message RecordUserBehaviorResponse {
-  bool success = 1; // 成功
-  string message = 2; // 消息
+  // 是否成功接收。
+  bool success = 1;
+  // 结果说明。
+  string message = 2;
 }

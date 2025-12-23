@@ -2,74 +2,94 @@ syntax = "proto3";
 
 package api.file.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/file/v1;v1";
 
-// FileService 定义了文件服务接口
+// 文件基础服务，提供文件的底层上传、查询、元数据管理及清理功能。
 service FileService {
-  // 上传文件
+  // 上传文件原始字节流。
   rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
 
-  // 获取文件信息
+  // 获取文件静态元信息。
   rpc GetFile(GetFileRequest) returns (GetFileResponse);
 
-  // 删除文件
+  // 从存储中物理删除文件。
   rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty);
 
-  // 获取文件列表
+  // 查询文件列表。
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
 }
 
-// FileMetadata 文件元数据
+// 文件元数据。
 message FileMetadata {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  int64 size = 3; // 大小
-  string type = 4; // 类型
-  string url = 5; // 链接
-  string bucket = 6; // 存储桶
-  string checksum = 7; // 校验和
-  google.protobuf.Timestamp created_at = 8; // 创建时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 原始文件名。
+  string name = 2;
+  // 字节数。
+  int64 size = 3;
+  // 扩展名或 MIME。
+  string type = 4;
+  // 访问路径/直连。
+  string url = 5;
+  // 所在存储桶。
+  string bucket = 6;
+  // MD5 或 SHA 校验。
+  string checksum = 7;
+  // 记录时间。
+  google.protobuf.Timestamp created_at = 8;
 }
 
-// UploadFileRequest 上传文件请求
+// 上传请求。
 message UploadFileRequest {
-  string name = 1; // 名称
-  int64 size = 2; // 大小
-  string type = 3; // 类型
-  bytes content = 4; // 内容
+  // 目标名。
+  string name = 1;
+  // 声明大小。
+  int64 size = 2;
+  // 媒体类型。
+  string type = 3;
+  // 原始字节。
+  bytes content = 4;
 }
 
-// UploadFileResponse 上传文件响应
+// 上传响应。
 message UploadFileResponse {
-  FileMetadata file = 1; // 文件
+  // 文件元数据详情。
+  FileMetadata file = 1;
 }
 
-// GetFileRequest 获取文件信息请求
+// 查询请求。
 message GetFileRequest {
-  uint64 id = 1; // 唯一标识
+  // 记录 ID。
+  uint64 id = 1;
 }
 
-// GetFileResponse 获取文件信息响应
+// 查询结果。
 message GetFileResponse {
-  FileMetadata file = 1; // 文件
+  // 文件元数据详情。
+  FileMetadata file = 1;
 }
 
-// DeleteFileRequest 删除文件请求
+// 删除请求。
 message DeleteFileRequest {
-  uint64 id = 1; // 唯一标识
+  // 记录 ID。
+  uint64 id = 1;
 }
 
-// ListFilesRequest 获取文件列表请求
+// 列表查询请求。
 message ListFilesRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListFilesResponse 获取文件列表响应
+// 列表响应。
 message ListFilesResponse {
-  repeated FileMetadata files = 1; // 文件列表
-  uint64 total_count = 2; // 总数计数
+  // 文件序列。
+  repeated FileMetadata files = 1;
+  // 总笔数。
+  uint64 total_count = 2;
 }

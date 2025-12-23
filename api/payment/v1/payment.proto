@@ -2,194 +2,267 @@ syntax = "proto3";
 
 package api.payment.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/payment/v1;v1";
 
-// PaymentStatus 支付交易状态枚举
+// 支付流水状态。
 enum PaymentStatus {
-  PAYMENT_STATUS_UNSPECIFIED = 0; // 未指定
-  PENDING = 1;                    // 待支付/处理中
-  SUCCESS = 2;                    // 支付成功
-  FAILED = 3;                     // 支付失败
-  REFUNDING = 4;                  // 退款中
-  REFUNDED = 5;                   // 已退款
-  CLOSED = 6;                     // 交易关闭 (例如超时未支付)
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PENDING = 1; // 支付中
+  SUCCESS = 2; // 支付成功
+  FAILED = 3; // 支付失败
+  REFUNDING = 4; // 退款中
+  REFUNDED = 5; // 已全额退款
+  CLOSED = 6; // 支付已关闭
 }
 
-// RefundStatus 退款交易状态枚举
+// 退款申请状态。
 enum RefundStatus {
-  REFUND_STATUS_UNSPECIFIED = 0; // 未指定
-  PENDING_REFUND = 1;            // 退款申请中/处理中
-  REFUND_SUCCESS = 2;            // 退款成功
-  REFUND_FAILED = 3;             // 退款失败
-  REFUND_CLOSED = 4;             // 退款关闭
+  REFUND_STATUS_UNSPECIFIED = 0;
+  PENDING_REFUND = 1; // 处理中
+  REFUND_SUCCESS = 2; // 退款成功
+  REFUND_FAILED = 3; // 退款失败
+  REFUND_CLOSED = 4; // 退款已关
 }
 
-// Payment 支付服务定义了所有与支付、退款和支付网关集成相关的RPC接口。
+// 支付服务，处理收银台调起、第三方支付回调、退款申请及支付对账。
 service Payment {
-  // InitiatePayment 发起一笔支付请求。
-  // 返回支付所需的参数，例如支付URL、二维码等。
+  // 创建支付单，获取支付链接或二维码参数。
   rpc InitiatePayment(InitiatePaymentRequest) returns (PaymentResponse);
 
-  // HandlePaymentCallback 处理支付网关的回调通知。
-  // 支付网关通常会异步通知支付结果。
+  // 接收并验证第三方支付渠道（如微信、支付宝）的异步回调。
   rpc HandlePaymentCallback(HandlePaymentCallbackRequest) returns (google.protobuf.Empty);
 
-  // GetPaymentStatus 查询支付交易状态。
+  // 实时查询支付单的最新状态。
   rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentTransaction);
 
-  // RequestRefund 发起一笔退款请求。
+  // 针对已成功的支付发起退款申请。
   rpc RequestRefund(RequestRefundRequest) returns (RefundTransaction);
 
-  // HandleRefundCallback 处理退款网关的回调通知。
+  // 接收并处理退款操作的异步结果回调。
   rpc HandleRefundCallback(HandleRefundCallbackRequest) returns (google.protobuf.Empty);
 
-  // GetRefundStatus 查询退款交易状态。
+  // 查询退款任务的执行进度。
   rpc GetRefundStatus(GetRefundStatusRequest) returns (RefundTransaction);
 
-  // ListPaymentTransactions 列出支付交易记录。
+  // 分页列出系统的支付历史记录。
   rpc ListPaymentTransactions(ListPaymentTransactionsRequest) returns (ListPaymentTransactionsResponse);
 
-  // ListRefundTransactions 列出退款交易记录。
+  // 分页列出系统的退款历史记录。
   rpc ListRefundTransactions(ListRefundTransactionsRequest) returns (ListRefundTransactionsResponse);
 }
 
-// --- 核心消息定义 ---
-
-// PaymentTransaction 代表一笔支付交易的详细信息。
+// 支付流水明细。
 message PaymentTransaction {
-  uint64 id = 1;                                  // 支付交易ID
-  string transaction_no = 2;                      // 支付交易编号 (内部唯一)
-  uint64 order_id = 3;                            // 关联的订单ID
-  uint64 user_id = 4;                             // 用户ID
-  string payment_method = 5;                      // 支付方式 (例如: "WeChatPay", "Alipay", "CreditCard")
-  int64 amount = 6;                               // 支付金额 (单位: 分)
-  PaymentStatus status = 7;                       // 支付交易状态
-  string gateway_transaction_id = 8;              // 支付网关的交易ID
-  string gateway_response = 9;                    // 支付网关的原始响应 (JSON)
-  google.protobuf.Timestamp created_at = 10;      // 交易创建时间
-  google.protobuf.Timestamp updated_at = 11;      // 最后更新时间
-  google.protobuf.Timestamp paid_at = 12;         // 支付成功时间
-  google.protobuf.Timestamp closed_at = 13;       // 交易关闭时间
-  string currency = 14;                           // 货币类型 (例如: CNY)
+  // 流水 ID。
+  uint64 id = 1;
+  // 内部交易号。
+  string transaction_no = 2;
+  // 关联订单 ID。
+  uint64 order_id = 3;
+  // 付款用户 ID。
+  uint64 user_id = 4;
+  // 支付方式 (WECHAT, ALIPAY)。
+  string payment_method = 5;
+  // 支付金额（分）。
+  int64 amount = 6;
+  // 状态。
+  PaymentStatus status = 7;
+  // 第三方渠道流水号。
+  string gateway_transaction_id = 8;
+  // 渠道端原始 JSON。
+  string gateway_response = 9;
+  // 记录生成时间。
+  google.protobuf.Timestamp created_at = 10;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 11;
+  // 支付确认时间。
+  google.protobuf.Timestamp paid_at = 12;
+  // 结单/关闭时间。
+  google.protobuf.Timestamp closed_at = 13;
+  // 币种。
+  string currency = 14;
 }
 
-// RefundTransaction 代表一笔退款交易的详细信息。
+// 退款流水明细。
 message RefundTransaction {
-  uint64 id = 1;                                  // 退款交易ID
-  string refund_no = 2;                           // 退款交易编号 (内部唯一)
-  uint64 payment_transaction_id = 3;              // 关联的支付交易ID
-  uint64 order_id = 4;                            // 关联的订单ID
-  uint64 user_id = 5;                             // 用户ID
-  int64 refund_amount = 6;                        // 退款金额 (单位: 分)
-  RefundStatus status = 7;                        // 退款交易状态
-  string gateway_refund_id = 8;                   // 支付网关的退款ID
-  string gateway_response = 9;                    // 支付网关的原始响应 (JSON)
-  string reason = 10;                             // 退款原因
-  google.protobuf.Timestamp created_at = 11;      // 退款申请时间
-  google.protobuf.Timestamp updated_at = 12;      // 最后更新时间
-  google.protobuf.Timestamp refunded_at = 13;     // 退款成功时间
-  google.protobuf.Timestamp closed_at = 14;       // 退款关闭时间
+  // 退款 ID。
+  uint64 id = 1;
+  // 内部退款号。
+  string refund_no = 2;
+  // 关联原支付流水 ID。
+  uint64 payment_transaction_id = 3;
+  // 关联原订单 ID。
+  uint64 order_id = 4;
+  // 退款用户 ID。
+  uint64 user_id = 5;
+  // 退款金额（分）。
+  int64 refund_amount = 6;
+  // 状态。
+  RefundStatus status = 7;
+  // 第三方退款单号。
+  string gateway_refund_id = 8;
+  // 渠道原始响应。
+  string gateway_response = 9;
+  // 退款理由。
+  string reason = 10;
+  // 申请时间。
+  google.protobuf.Timestamp created_at = 11;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 12;
+  // 成功时间。
+  google.protobuf.Timestamp refunded_at = 13;
+  // 完结时间。
+  google.protobuf.Timestamp closed_at = 14;
 }
 
-// PaymentResponse 支付发起后的响应，包含支付所需信息。
+// 支付拉起响应。
 message PaymentResponse {
-  string payment_url = 1;                         // 支付跳转URL或二维码内容
-  string prepay_id = 2;                           // 预支付ID (例如微信支付)
-  string app_id = 3;                              // 应用ID (例如微信支付)
-  string partner_id = 4;                          // 商户ID (例如微信支付)
-  string package_value = 5;                       // 包值 (例如微信支付)
-  string nonce_str = 6;                           // 随机字符串 (例如微信支付)
-  string timestamp = 7;                           // 时间戳 (例如微信支付)
-  string sign = 8;                                // 签名 (例如微信支付)
-  string transaction_no = 9;                      // 内部支付交易编号
+  // 外部支付跳转地址。
+  string payment_url = 1;
+  // 预支付凭证。
+  string prepay_id = 2;
+  // 微信/支付宝 AppID。
+  string app_id = 3;
+  // 商户号。
+  string partner_id = 4;
+  // 签名包。
+  string package_value = 5;
+  // 随机串。
+  string nonce_str = 6;
+  // 时间戳。
+  string timestamp = 7;
+  // 签名摘要。
+  string sign = 8;
+  // 内部流水号。
+  string transaction_no = 9;
 }
 
-// --- RPC 请求/响应 消息 ---
-
-// InitiatePaymentRequest 发起支付请求。
+// 发起请求。
 message InitiatePaymentRequest {
-  uint64 order_id = 1;                            // 订单ID
-  uint64 user_id = 2;                             // 用户ID
-  string payment_method = 3;                      // 支付方式 (例如: "WeChatPay", "Alipay")
-  int64 amount = 4;                               // 支付金额 (单位: 分)
-  string client_ip = 5;                           // 客户端IP地址
-  string return_url = 6;                          // 支付成功后的回调URL
+  // 订单 ID。
+  uint64 order_id = 1;
+  // 用户 ID。
+  uint64 user_id = 2;
+  // 方式。
+  string payment_method = 3;
+  // 金额（分）。
+  int64 amount = 4;
+  // 发起端 IP。
+  string client_ip = 5;
+  // 前端同步回跳地址。
+  string return_url = 6;
 }
 
-// HandlePaymentCallbackRequest 处理支付网关回调的请求。
-// 实际参数会根据不同的支付网关而异，这里使用通用结构。
+// 回调处理请求。
 message HandlePaymentCallbackRequest {
-  string payment_method = 1;                      // 支付方式
-  map<string, string> callback_data = 2;          // 支付网关回调的原始数据
+  // 支付方式。
+  string payment_method = 1;
+  // 渠道传回的所有参数映射。
+  map<string, string> callback_data = 2;
 }
 
-// GetPaymentStatusRequest 查询支付状态的请求。
+// 状态查询。
 message GetPaymentStatusRequest {
-  uint64 payment_transaction_id = 1;              // 内部支付交易ID
-  google.protobuf.StringValue transaction_no = 2; // 内部支付交易编号 (可选)
-  google.protobuf.StringValue gateway_transaction_id = 3; // 支付网关交易ID (可选)
+  // 内部流水 ID。
+  uint64 payment_transaction_id = 1;
+  // 内部流水号。
+  google.protobuf.StringValue transaction_no = 2;
+  // 渠道流水号。
+  google.protobuf.StringValue gateway_transaction_id = 3;
 }
 
-// RequestRefundRequest 发起退款请求。
+// 退款请求。
 message RequestRefundRequest {
-  uint64 payment_transaction_id = 1;              // 关联的支付交易ID
-  uint64 order_id = 2;                            // 关联的订单ID
-  uint64 user_id = 3;                             // 用户ID
-  int64 refund_amount = 4;                        // 退款金额 (单位: 分)
-  string reason = 5;                              // 退款原因
+  // 原流水 ID。
+  uint64 payment_transaction_id = 1;
+  // 订单 ID。
+  uint64 order_id = 2;
+  // 用户 ID。
+  uint64 user_id = 3;
+  // 退款金额。
+  int64 refund_amount = 4;
+  // 理由。
+  string reason = 5;
 }
 
-// HandleRefundCallbackRequest 处理退款网关回调的请求。
+// 退款回调请求。
 message HandleRefundCallbackRequest {
-  string payment_method = 1;                      // 支付方式
-  map<string, string> callback_data = 2;          // 退款网关回调的原始数据
+  // 方式。
+  string payment_method = 1;
+  // 渠道返回数据。
+  map<string, string> callback_data = 2;
 }
 
-// GetRefundStatusRequest 查询退款状态的请求。
+// 退款查询。
 message GetRefundStatusRequest {
-  uint64 refund_transaction_id = 1;               // 内部退款交易ID
-  google.protobuf.StringValue refund_no = 2;      // 内部退款交易编号 (可选)
-  google.protobuf.StringValue gateway_refund_id = 3; // 支付网关退款ID (可选)
+  // 内部退款 ID。
+  uint64 refund_transaction_id = 1;
+  // 内部退款号。
+  google.protobuf.StringValue refund_no = 2;
+  // 渠道退款 ID。
+  google.protobuf.StringValue gateway_refund_id = 3;
 }
 
-// ListPaymentTransactionsRequest 列出支付交易记录的请求。
+// 流水列表查询。
 message ListPaymentTransactionsRequest {
-  int32 page = 1; // 页码
-  int32 page_size = 2; // 页码大小
-  uint64 user_id = 3;                             // 按用户ID筛选
-  uint64 order_id = 4;                            // 按订单ID筛选
-  PaymentStatus status = 5;                       // 按支付状态筛选
-  google.protobuf.Timestamp start_time = 6;       // 交易创建时间范围开始
-  google.protobuf.Timestamp end_time = 7;         // 交易创建时间范围结束
+  // 页码。
+  int32 page = 1;
+  // 数量。
+  int32 page_size = 2;
+  // 用户。
+  uint64 user_id = 3;
+  // 订单。
+  uint64 order_id = 4;
+  // 状态。
+  PaymentStatus status = 5;
+  // 开始日期。
+  google.protobuf.Timestamp start_time = 6;
+  // 结束日期。
+  google.protobuf.Timestamp end_time = 7;
 }
 
-// ListPaymentTransactionsResponse 列出支付交易记录的响应。
+// 流水列表响应。
 message ListPaymentTransactionsResponse {
-  repeated PaymentTransaction transactions = 1; // 事务列表
-  int32 total = 2; // 总数
-  int32 page = 3; // 页码
-  int32 page_size = 4; // 页码大小
+  // 流水记录。
+  repeated PaymentTransaction transactions = 1;
+  // 总笔数。
+  int32 total = 2;
+  // 当前页。
+  int32 page = 3;
+  // 翻页限制。
+  int32 page_size = 4;
 }
 
-// ListRefundTransactionsRequest 列出退款交易记录的请求。
+// 退款记录列表请求。
 message ListRefundTransactionsRequest {
-  int32 page = 1; // 页码
-  int32 page_size = 2; // 页码大小
-  uint64 user_id = 3;                             // 按用户ID筛选
-  uint64 order_id = 4;                            // 按订单ID筛选
-  RefundStatus status = 5;                        // 按退款状态筛选
-  google.protobuf.Timestamp start_time = 6;       // 退款创建时间范围开始
-  google.protobuf.Timestamp end_time = 7;         // 退款创建时间范围结束
+  // 页码。
+  int32 page = 1;
+  // 数量。
+  int32 page_size = 2;
+  // 用户。
+  uint64 user_id = 3;
+  // 订单。
+  uint64 order_id = 4;
+  // 状态。
+  RefundStatus status = 5;
+  // 开始日期。
+  google.protobuf.Timestamp start_time = 6;
+  // 结束日期。
+  google.protobuf.Timestamp end_time = 7;
 }
 
-// ListRefundTransactionsResponse 列出退款交易记录的响应。
+// 退款记录列表响应。
 message ListRefundTransactionsResponse {
-  repeated RefundTransaction transactions = 1; // 事务列表
-  int32 total = 2; // 总数
-  int32 page = 3; // 页码
-  int32 page_size = 4; // 页码大小
+  // 退款记录。
+  repeated RefundTransaction transactions = 1;
+  // 总记录。
+  int32 total = 2;
+  // 当前页。
+  int32 page = 3;
+  // 翻页限制。
+  int32 page_size = 4;
 }

@@ -2,115 +2,163 @@ syntax = "proto3";
 
 package api.multi_channel.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/multi_channel/v1;multichannelv1";
 
-// MultiChannelService MultiChannel服务服务定义。
+// 多渠道集成服务，负责与其他电商平台（如 Amazon, Shopify）进行对接。
 service MultiChannelService {
-// RegisterChannel 注册Channel接口。
+  // 注册一个新的销售渠道配置。
   rpc RegisterChannel(RegisterChannelRequest) returns (RegisterChannelResponse);
-// ListChannels 处理列出Channels请求。
+
+  // 获取当前系统所有已连接的外部渠道。
   rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
-// SyncOrders 处理SyncOrders请求。
+
+  // 主动触发从指定渠道拉取最新订单。
   rpc SyncOrders(SyncOrdersRequest) returns (google.protobuf.Empty);
 
-// ListOrders 列出列表Orders。
+  // 查询从外部渠道同步下来的统一订单数据。
   rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
 }
 
-// Channel Channel消息结构。
+// 渠道配置。
 message Channel {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string type = 3; // 类型
-  string api_key = 4; // API键
-  string api_secret = 5; // 接口secret
-  bool is_enabled = 6; // 是enabled
-  google.protobuf.Timestamp created_at = 7; // 创建时间
-  google.protobuf.Timestamp updated_at = 8; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 渠道名称。
+  string name = 2;
+  // 渠道类型 (AMAZON, SHOPIFY)。
+  string type = 3;
+  // API 访问密钥。
+  string api_key = 4;
+  // API 访问私钥。
+  string api_secret = 5;
+  // 是否激活。
+  bool is_enabled = 6;
+  // 录入时间。
+  google.protobuf.Timestamp created_at = 7;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 8;
 }
 
-// OrderItem 订单Item消息结构。
+// 订单商品。
 message OrderItem {
-  uint64 product_id = 1; // 产品id
-  string product_name = 2; // 产品名称
-  int32 quantity = 3; // 数量
-  int64 price = 4; // 价格
-  string sku = 5; // 库存单元
+  // 关联产品 ID。
+  uint64 product_id = 1;
+  // 标题。
+  string product_name = 2;
+  // 数量。
+  int32 quantity = 3;
+  // 单价。
+  int64 price = 4;
+  // SKU 码。
+  string sku = 5;
 }
 
-// BuyerInfo BuyerInfo消息结构。
+// 买家档案。
 message BuyerInfo {
-  string name = 1; // 名称
-  string email = 2; // 邮箱
-  string phone = 3; // 电话
-  string country = 4; // 国家
+  // 姓名。
+  string name = 1;
+  // 电子邮箱。
+  string email = 2;
+  // 联系电话。
+  string phone = 3;
+  // 国家代码。
+  string country = 4;
 }
 
-// ShippingInfo ShippingInfo消息结构。
+// 配送详情。
 message ShippingInfo {
-  string address = 1; // 地址
-  string city = 2; // 城市
-  string state = 3; // 状态
-  string zip_code = 4; // zip代码
-  string country = 5; // 国家
+  // 详细地址。
+  string address = 1;
+  // 城市。
+  string city = 2;
+  // 省/州。
+  string state = 3;
+  // 邮编。
+  string zip_code = 4;
+  // 国家。
+  string country = 5;
 }
 
-// LocalOrder Local订单消息结构。
+// 本地化的外部订单。
 message LocalOrder {
-  uint64 id = 1; // 唯一标识
-  uint64 channel_id = 2; // 渠道ID
-  string channel_name = 3; // channel名称
-  string channel_order_id = 4; // 订单唯一标识
-  repeated OrderItem items = 5; // 项列表
-  int64 total_amount = 6; // 总数金额
-  BuyerInfo buyer_info = 7; // buyer信息
-  ShippingInfo shipping_info = 8; // 发货信息
-  string status = 9; // 状态
-  google.protobuf.Timestamp created_at = 10; // 创建时间
-  google.protobuf.Timestamp updated_at = 11; // 更新时间
+  // 本地系统 ID。
+  uint64 id = 1;
+  // 来源渠道 ID。
+  uint64 channel_id = 2;
+  // 渠道名。
+  string channel_name = 3;
+  // 渠道方原始订单号。
+  string channel_order_id = 4;
+  // 商品列表。
+  repeated OrderItem items = 5;
+  // 总额。
+  int64 total_amount = 6;
+  // 买家快照。
+  BuyerInfo buyer_info = 7;
+  // 配送快照。
+  ShippingInfo shipping_info = 8;
+  // 订单状态。
+  string status = 9;
+  // 同步时间。
+  google.protobuf.Timestamp created_at = 10;
+  // 最后修改。
+  google.protobuf.Timestamp updated_at = 11;
 }
 
-// RegisterChannelRequest RegisterChannel请求消息结构。
+// 注册请求。
 message RegisterChannelRequest {
-  string name = 1; // 名称
-  string type = 2; // 类型
-  string api_key = 3; // API键
-  string api_secret = 4; // 接口secret
-  bool is_enabled = 5; // 是enabled
+  // 渠道名。
+  string name = 1;
+  // 类别。
+  string type = 2;
+  // 密钥。
+  string api_key = 3;
+  // 私钥。
+  string api_secret = 4;
+  // 是否启用。
+  bool is_enabled = 5;
 }
 
-// RegisterChannelResponse RegisterChannel响应消息结构。
+// 注册响应。
 message RegisterChannelResponse {
-  Channel channel = 1; // 渠道
+  // 渠道实体。
+  Channel channel = 1;
 }
 
-// ListChannelsRequest 列出Channels请求消息结构。
-message ListChannelsRequest {
-}
+// 列表请求。
+message ListChannelsRequest {}
 
-// ListChannelsResponse 列出Channels响应消息结构。
+// 列表响应。
 message ListChannelsResponse {
-  repeated Channel channels = 1; // 渠道列表
+  // 渠道序列。
+  repeated Channel channels = 1;
 }
 
-// SyncOrdersRequest SyncOrders请求消息结构。
+// 同步请求。
 message SyncOrdersRequest {
-  uint64 channel_id = 1; // 渠道ID
+  // 目标渠道。
+  uint64 channel_id = 1;
 }
 
-// ListOrdersRequest 列出Orders请求消息结构。
+// 订单查询请求。
 message ListOrdersRequest {
-  uint64 channel_id = 1; // 渠道ID
-  string status = 2; // 状态
-  int32 page = 3; // 页码
-  int32 page_size = 4; // 页码大小
+  // 渠道 ID 筛选。
+  uint64 channel_id = 1;
+  // 状态筛选。
+  string status = 2;
+  // 页码。
+  int32 page = 3;
+  // 数量。
+  int32 page_size = 4;
 }
 
-// ListOrdersResponse 列出Orders响应消息结构。
+// 订单查询响应。
 message ListOrdersResponse {
-  repeated LocalOrder orders = 1; // 订单列表
-  int64 total_count = 2; // 总数计数
+  // 订单记录。
+  repeated LocalOrder orders = 1;
+  // 总记录数。
+  int64 total_count = 2;
 }

@@ -2,172 +2,246 @@ syntax = "proto3";
 
 package api.logistics.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/logistics/v1;v1";
 
-// LogisticsService 定义了物流服务接口
+// 物流服务，负责运单管理、轨迹追踪及配送路线优化。
 service LogisticsService {
-  // CreateLogistics 创建物流单
+  // 创建新物流单。
   rpc CreateLogistics(CreateLogisticsRequest) returns (CreateLogisticsResponse);
 
-  // GetLogistics 获取物流信息
+  // 获取物流详细信息。
   rpc GetLogistics(GetLogisticsRequest) returns (GetLogisticsResponse);
 
-  // GetLogisticsByTrackingNo 根据运单号获取物流信息
+  // 根据运单号查询物流详情。
   rpc GetLogisticsByTrackingNo(GetLogisticsByTrackingNoRequest) returns (GetLogisticsResponse);
 
-  // UpdateStatus 更新物流状态
+  // 手动或自动更新物流状态。
   rpc UpdateStatus(UpdateStatusRequest) returns (google.protobuf.Empty);
 
-  // AddTrace 添加物流轨迹
+  // 添加物流流转轨迹点。
   rpc AddTrace(AddTraceRequest) returns (google.protobuf.Empty);
 
-  // SetEstimatedTime 设置预计送达时间
+  // 设置预计送达时间。
   rpc SetEstimatedTime(SetEstimatedTimeRequest) returns (google.protobuf.Empty);
 
-  // ListLogistics 获取物流列表
+  // 分页列出物流单。
   rpc ListLogistics(ListLogisticsRequest) returns (ListLogisticsResponse);
 
-  // OptimizeDeliveryRoute 优化配送路线
+  // 计算并优化配送路线。
   rpc OptimizeDeliveryRoute(OptimizeDeliveryRouteRequest) returns (OptimizeDeliveryRouteResponse);
 }
 
-// Logistics 物流信息
+// 物流信息实体。
 message Logistics {
-  uint64 id = 1; // 唯一标识
-  uint64 order_id = 2; // 订单唯一标识
-  string order_no = 3; // 订单no
-  string tracking_no = 4; // 追踪no
-  string carrier = 5; // 承运商
-  string carrier_code = 6; // carrier代码
-  string sender_name = 7; // sender名称
-  string sender_phone = 8; // sender电话
-  string sender_address = 9; // sender地址
-  string receiver_name = 10; // receiver名称
-  string receiver_phone = 11; // receiver电话
-  string receiver_address = 12; // receiver地址
-  double sender_lat = 13; // 发送者纬度
-  double sender_lon = 14; // 发送者经度
-  double receiver_lat = 15; // 收件人lat
-  double receiver_lon = 16; // 收件人lon
-  int32 status = 17; // 状态
-  string current_location = 18; // 当前位置
-  google.protobuf.Timestamp estimated_time = 19; // estimated时间
-  google.protobuf.Timestamp delivered_at = 20; // delivered在
-  repeated LogisticsTrace traces = 21; // 轨迹
-  DeliveryRoute route = 22; // 路由
-  google.protobuf.Timestamp created_at = 23; // 创建时间
-  google.protobuf.Timestamp updated_at = 24; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 关联订单 ID。
+  uint64 order_id = 2;
+  // 订单编号快照。
+  string order_no = 3;
+  // 物流运单号。
+  string tracking_no = 4;
+  // 承运商名称（如顺丰、中通）。
+  string carrier = 5;
+  // 承运商代码。
+  string carrier_code = 6;
+  // 发货人姓名。
+  string sender_name = 7;
+  // 发货人电话。
+  string sender_phone = 8;
+  // 发货详细地址。
+  string sender_address = 9;
+  // 收货人姓名。
+  string receiver_name = 10;
+  // 收货人电话。
+  string receiver_phone = 11;
+  // 收货详细地址。
+  string receiver_address = 12;
+  // 发货地纬度。
+  double sender_lat = 13;
+  // 发货地经度。
+  double sender_lon = 14;
+  // 收货地纬度。
+  double receiver_lat = 15;
+  // 收货地经度。
+  double receiver_lon = 16;
+  // 物流状态。
+  int32 status = 17;
+  // 当前包裹位置描述。
+  string current_location = 18;
+  // 预计送达时间。
+  google.protobuf.Timestamp estimated_time = 19;
+  // 实际送达时间。
+  google.protobuf.Timestamp delivered_at = 20;
+  // 历史轨迹点列表。
+  repeated LogisticsTrace traces = 21;
+  // 规划的配送路线。
+  DeliveryRoute route = 22;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 23;
+  // 最后更新时间。
+  google.protobuf.Timestamp updated_at = 24;
 }
 
-// LogisticsTrace 物流轨迹
+// 物流轨迹节点。
 message LogisticsTrace {
-  uint64 id = 1; // 唯一标识
-  uint64 logistics_id = 2; // 物流id
-  string tracking_no = 3; // 追踪no
-  string location = 4; // 位置
-  string description = 5; // 描述
-  string status = 6; // 状态
-  google.protobuf.Timestamp created_at = 7; // 创建时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 关联物流单 ID。
+  uint64 logistics_id = 2;
+  // 运单号。
+  string tracking_no = 3;
+  // 轨迹点地理位置。
+  string location = 4;
+  // 轨迹详情描述。
+  string description = 5;
+  // 该节点对应的状态。
+  string status = 6;
+  // 记录时间。
+  google.protobuf.Timestamp created_at = 7;
 }
 
-// DeliveryRoute 配送路线
+// 配送路径数据。
 message DeliveryRoute {
-  uint64 id = 1; // 唯一标识
-  uint64 logistics_id = 2; // 物流id
-  string route_data = 3; // route数据
-  double distance = 4; // 距离
+  // 唯一 ID。
+  uint64 id = 1;
+  // 关联物流单 ID。
+  uint64 logistics_id = 2;
+  // 路线坐标或关键点 JSON 数据。
+  string route_data = 3;
+  // 总配送距离（单位：米）。
+  double distance = 4;
 }
 
-// CreateLogisticsRequest 创建物流请求消息结构。
+// 创建物流请求。
 message CreateLogisticsRequest {
-  uint64 order_id = 1; // 订单唯一标识
-  string order_no = 2; // 订单no
-  string tracking_no = 3; // 追踪no
-  string carrier = 4; // 承运商
-  string carrier_code = 5; // carrier代码
-  string sender_name = 6; // sender名称
-  string sender_phone = 7; // sender电话
-  string sender_address = 8; // sender地址
-  double sender_lat = 9; // 发送者纬度
-  double sender_lon = 10; // 发送者经度
-  string receiver_name = 11; // receiver名称
-  string receiver_phone = 12; // receiver电话
-  string receiver_address = 13; // receiver地址
-  double receiver_lat = 14; // 收件人lat
-  double receiver_lon = 15; // 收件人lon
+  // 订单 ID。
+  uint64 order_id = 1;
+  // 订单编号。
+  string order_no = 2;
+  // 运单号。
+  string tracking_no = 3;
+  // 承运商。
+  string carrier = 4;
+  // 承运商代码。
+  string carrier_code = 5;
+  // 发货人名。
+  string sender_name = 6;
+  // 发货人电话。
+  string sender_phone = 7;
+  // 发货地址。
+  string sender_address = 8;
+  // 发货纬度。
+  double sender_lat = 9;
+  // 发货经度。
+  double sender_lon = 10;
+  // 收货人名。
+  string receiver_name = 11;
+  // 收货人电话。
+  string receiver_phone = 12;
+  // 收货地址。
+  string receiver_address = 13;
+  // 收货纬度。
+  double receiver_lat = 14;
+  // 收货经度。
+  double receiver_lon = 15;
 }
 
-// CreateLogisticsResponse 创建物流响应消息结构。
+// 创建响应。
 message CreateLogisticsResponse {
-  Logistics logistics = 1; // 物流
+  // 创建后的物流单。
+  Logistics logistics = 1;
 }
 
-// GetLogisticsRequest 获取物流请求消息结构。
+// 查询请求。
 message GetLogisticsRequest {
-  uint64 id = 1; // 唯一标识
+  // 物流单 ID。
+  uint64 id = 1;
 }
 
-// GetLogisticsResponse 获取物流响应消息结构。
+// 查询响应。
 message GetLogisticsResponse {
-  Logistics logistics = 1; // 物流
+  // 物流单详情。
+  Logistics logistics = 1;
 }
 
-// GetLogisticsByTrackingNoRequest 获取物流被TrackingNo请求消息结构。
+// 运单号查询请求。
 message GetLogisticsByTrackingNoRequest {
-  string tracking_no = 1; // 追踪no
+  // 物流运单号。
+  string tracking_no = 1;
 }
 
-// UpdateStatusRequest 更新状态请求消息结构。
+// 状态更新请求。
 message UpdateStatusRequest {
-  uint64 id = 1; // 唯一标识
-  int32 status = 2; // 状态
-  string location = 3; // 位置
-  string description = 4; // 描述
+  // 物流单 ID。
+  uint64 id = 1;
+  // 新的状态码。
+  int32 status = 2;
+  // 当前位置描述。
+  string location = 3;
+  // 处理详情描述。
+  string description = 4;
 }
 
-// AddTraceRequest AddTrace请求消息结构。
+// 添加轨迹请求。
 message AddTraceRequest {
-  uint64 id = 1; // 唯一标识
-  string location = 2; // 位置
-  string description = 3; // 描述
-  string status = 4; // 状态
+  // 物流单 ID。
+  uint64 id = 1;
+  // 轨迹点位置。
+  string location = 2;
+  // 轨迹描述。
+  string description = 3;
+  // 轨迹状态。
+  string status = 4;
 }
 
-// SetEstimatedTimeRequest SetEstimated时间请求消息结构。
+// 设置预计时间请求。
 message SetEstimatedTimeRequest {
-  uint64 id = 1; // 唯一标识
-  google.protobuf.Timestamp estimated_time = 2; // estimated时间
+  // 物流单 ID。
+  uint64 id = 1;
+  // 预计送达时间。
+  google.protobuf.Timestamp estimated_time = 2;
 }
 
-// ListLogisticsRequest 列出物流请求消息结构。
+// 列表查询请求。
 message ListLogisticsRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 每页数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListLogisticsResponse 列出物流响应消息结构。
+// 列表响应。
 message ListLogisticsResponse {
-  repeated Logistics logistics = 1; // 物流
-  uint64 total_count = 2; // 总数计数
+  // 物流单列表。
+  repeated Logistics logistics = 1;
+  // 总记录数。
+  uint64 total_count = 2;
 }
 
-// Location Location消息结构。
+// 坐标。
 message Location {
-  uint64 id = 1; // 唯一标识
-  double lat = 2; // 纬度
-  double lon = 3; // 经度
+  // 唯一 ID。
+  uint64 id = 1;
+  // 纬度。
+  double lat = 2;
+  // 经度。
+  double lon = 3;
 }
 
-// OptimizeDeliveryRouteRequest OptimizeDeliveryRoute请求消息结构。
+// 路径优化请求。
 message OptimizeDeliveryRouteRequest {
-  uint64 logistics_id = 1; // 物流id
-  repeated Location destinations = 2; // 目的地列表
+  // 物流单 ID。
+  uint64 logistics_id = 1;
+  // 待访问的目的地坐标列表。
+  repeated Location destinations = 2;
 }
 
-// OptimizeDeliveryRouteResponse OptimizeDeliveryRoute响应消息结构。
+// 路径优化响应。
 message OptimizeDeliveryRouteResponse {
-  DeliveryRoute route = 1; // 路由
+  // 计算出的最优配送路线。
+  DeliveryRoute route = 1;
 }

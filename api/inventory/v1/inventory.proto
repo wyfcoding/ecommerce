@@ -2,150 +2,203 @@ syntax = "proto3";
 
 package api.inventory.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/inventory/v1;v1";
 
-// InventoryService 定义了库存服务接口
+// 库存中心服务，负责全渠道库存的实时增减、锁定及日志追踪。
 service InventoryService {
-  // CreateInventory 创建库存
+  // 初始化商品库存记录。
   rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
 
-  // GetInventory 获取库存
+  // 查询特定商品的库存余量。
   rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
 
-  // AddStock 增加库存
+  // 直接增加实物库存。
   rpc AddStock(AddStockRequest) returns (google.protobuf.Empty);
 
-  // DeductStock 扣减库存
+  // 直接扣减实物库存。
   rpc DeductStock(DeductStockRequest) returns (google.protobuf.Empty);
 
-  // LockStock 锁定库存
+  // 预占（锁定）库存，用于下单但未支付阶段。
   rpc LockStock(LockStockRequest) returns (google.protobuf.Empty);
 
-  // UnlockStock 解锁库存
+  // 释放预占库存。
   rpc UnlockStock(UnlockStockRequest) returns (google.protobuf.Empty);
 
-  // ConfirmDeduction 确认扣减
+  // 确认扣减已锁定的库存。
   rpc ConfirmDeduction(ConfirmDeductionRequest) returns (google.protobuf.Empty);
 
-  // ListInventories 获取库存列表
+  // 分页查询库存列表。
   rpc ListInventories(ListInventoriesRequest) returns (ListInventoriesResponse);
 
-  // GetInventoryLogs 获取库存日志
+  // 查询库存变动明细日志。
   rpc GetInventoryLogs(GetInventoryLogsRequest) returns (GetInventoryLogsResponse);
 }
 
-// Inventory 库存信息
+// 库存记录。
 message Inventory {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  uint64 product_id = 3; // 产品id
-  uint64 warehouse_id = 4; // 仓库ID
-  int32 available_stock = 5; // 可用库存
-  int32 locked_stock = 6; // 锁定库存
-  int32 total_stock = 7; // 总数stock
-  int32 status = 8; // 状态
-  int32 warning_threshold = 9; // 警告阈值
-  google.protobuf.Timestamp created_at = 10; // 创建时间
-  google.protobuf.Timestamp updated_at = 11; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 关联 SKU ID。
+  uint64 sku_id = 2;
+  // 关联商品 ID。
+  uint64 product_id = 3;
+  // 关联仓库 ID。
+  uint64 warehouse_id = 4;
+  // 可供下单的有效库存。
+  int32 available_stock = 5;
+  // 处于预占状态的库存。
+  int32 locked_stock = 6;
+  // 实物总库存。
+  int32 total_stock = 7;
+  // 状态。
+  int32 status = 8;
+  // 低库存预警阈值。
+  int32 warning_threshold = 9;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 10;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 11;
 }
 
-// CreateInventoryRequest 创建Inventory请求消息结构。
+// 初始化库存请求。
 message CreateInventoryRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  uint64 product_id = 2; // 产品id
-  uint64 warehouse_id = 3; // 仓库ID
-  int32 total_stock = 4; // 总数stock
-  int32 warning_threshold = 5; // 警告阈值
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 商品 ID。
+  uint64 product_id = 2;
+  // 仓库 ID。
+  uint64 warehouse_id = 3;
+  // 初始总库存。
+  int32 total_stock = 4;
+  // 预警阈值。
+  int32 warning_threshold = 5;
 }
 
-// CreateInventoryResponse 创建Inventory响应消息结构。
+// 响应详情。
 message CreateInventoryResponse {
-  Inventory inventory = 1; // 库存
+  // 生成的库存记录。
+  Inventory inventory = 1;
 }
 
-// GetInventoryRequest 获取Inventory请求消息结构。
+// 查询请求。
 message GetInventoryRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
+  // SKU ID。
+  uint64 sku_id = 1;
 }
 
-// GetInventoryResponse 获取Inventory响应消息结构。
+// 查询响应。
 message GetInventoryResponse {
-  Inventory inventory = 1; // 库存
+  // 库存数据。
+  Inventory inventory = 1;
 }
 
-// AddStockRequest AddStock请求消息结构。
+// 增库存请求。
 message AddStockRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int32 quantity = 2; // 数量
-  string reason = 3; // 原因
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 增加数量。
+  int32 quantity = 2;
+  // 变动理由。
+  string reason = 3;
 }
 
-// DeductStockRequest DeductStock请求消息结构。
+// 减库存请求。
 message DeductStockRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int32 quantity = 2; // 数量
-  string reason = 3; // 原因
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 扣减数量。
+  int32 quantity = 2;
+  // 变动理由。
+  string reason = 3;
 }
 
-// LockStockRequest LockStock请求消息结构。
+// 锁定库存请求。
 message LockStockRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int32 quantity = 2; // 数量
-  string reason = 3; // 原因
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 锁定数量。
+  int32 quantity = 2;
+  // 锁定理由。
+  string reason = 3;
 }
 
-// UnlockStockRequest UnlockStock请求消息结构。
+// 解锁库存请求。
 message UnlockStockRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int32 quantity = 2; // 数量
-  string reason = 3; // 原因
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 释放数量。
+  int32 quantity = 2;
+  // 解锁理由。
+  string reason = 3;
 }
 
-// ConfirmDeductionRequest ConfirmDeduction请求消息结构。
+// 确认扣减请求。
 message ConfirmDeductionRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
-  int32 quantity = 2; // 数量
-  string reason = 3; // 原因
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 确认数量。
+  int32 quantity = 2;
+  // 变动理由。
+  string reason = 3;
 }
 
-// ListInventoriesRequest 列出Inventories请求消息结构。
+// 列表查询请求。
 message ListInventoriesRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 每页数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListInventoriesResponse 列出Inventories响应消息结构。
+// 列表响应。
 message ListInventoriesResponse {
-  repeated Inventory inventories = 1; // 库存列表
-  uint64 total_count = 2; // 总数计数
+  // 库存数据列表。
+  repeated Inventory inventories = 1;
+  // 总记录数。
+  uint64 total_count = 2;
 }
 
-// GetInventoryLogsRequest 获取InventoryLogs请求消息结构。
+// 日志查询请求。
 message GetInventoryLogsRequest {
-  uint64 inventory_id = 1; // 库存ID
-  uint32 page_size = 2; // 页码大小
-  uint32 page_num = 3; // 页码num
+  // 库存记录 ID。
+  uint64 inventory_id = 1;
+  // 每页数量。
+  uint32 page_size = 2;
+  // 页码。
+  uint32 page_num = 3;
 }
 
-// InventoryLog InventoryLog消息结构。
+// 变动日志实体。
 message InventoryLog {
-  uint64 id = 1; // 唯一标识
-  uint64 inventory_id = 2; // 库存ID
-  string action = 3; // 动作
-  int32 change_quantity = 4; // change数量
-  int32 old_available = 5; // 旧可用
-  int32 new_available = 6; // 创建一个新的实例available
-  int32 old_locked = 7; // 旧锁定
-  int32 new_locked = 8; // 创建一个新的实例locked
-  string reason = 9; // 原因
-  google.protobuf.Timestamp created_at = 10; // 创建时间
+  // 日志 ID。
+  uint64 id = 1;
+  // 关联库存记录 ID。
+  uint64 inventory_id = 2;
+  // 操作动作。
+  string action = 3;
+  // 变动数量。
+  int32 change_quantity = 4;
+  // 变动前可用数。
+  int32 old_available = 5;
+  // 变动后可用数。
+  int32 new_available = 6;
+  // 变动前锁定数。
+  int32 old_locked = 7;
+  // 变动后锁定数。
+  int32 new_locked = 8;
+  // 变动原因描述。
+  string reason = 9;
+  // 记录时间。
+  google.protobuf.Timestamp created_at = 10;
 }
 
-// GetInventoryLogsResponse 获取InventoryLogs响应消息结构。
+// 日志响应。
 message GetInventoryLogsResponse {
-  repeated InventoryLog logs = 1; // 日志列表
-  uint64 total_count = 2; // 总数计数
+  // 变动记录序列。
+  repeated InventoryLog logs = 1;
+  // 总记录数。
+  uint64 total_count = 2;
 }

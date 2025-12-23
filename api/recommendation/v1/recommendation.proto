@@ -4,72 +4,92 @@ package recommendation.v1;
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/recommendation/v1;v1";
 
-// RecommendationService Recommendation服务服务定义。
+// 推荐服务，利用图算法及 AI 引擎为用户提供个性化商品及关联商品推荐。
 service RecommendationService {
-  // 定义推荐服务的接口
-  rpc GetRecommendedProducts (GetRecommendedProductsRequest) returns (GetRecommendedProductsResponse);
+  // 基础接口：获取通用的推荐商品列表。
+  rpc GetRecommendedProducts(GetRecommendedProductsRequest) returns (GetRecommendedProductsResponse);
 
-  // 索引产品关系到图数据库
-  rpc IndexProductRelationship (IndexProductRelationshipRequest) returns (IndexProductRelationshipResponse);
+  // 内部调用：将商品及用户关系数据同步至图数据库索引。
+  rpc IndexProductRelationship(IndexProductRelationshipRequest) returns (IndexProductRelationshipResponse);
 
-  // 获取基于图的产品推荐
-  rpc GetGraphRecommendedProducts (GetGraphRecommendedProductsRequest) returns (GetGraphRecommendedProductsResponse);
+  // 社交/关联推荐：基于图关系获取相关的推荐商品（如：买了又买）。
+  rpc GetGraphRecommendedProducts(GetGraphRecommendedProductsRequest) returns (GetGraphRecommendedProductsResponse);
 
-  // 获取高级个性化推荐 (AI驱动)
-  rpc GetAdvancedRecommendedProducts (GetAdvancedRecommendedProductsRequest) returns (GetAdvancedRecommendedProductsResponse);
+  // 高级接口：AI 驱动的实时深度个性化推荐流。
+  rpc GetAdvancedRecommendedProducts(GetAdvancedRecommendedProductsRequest) returns (GetAdvancedRecommendedProductsResponse);
 }
 
-// GetRecommendedProductsRequest 获取RecommendedProducts请求消息结构。
+// 通用推荐请求。
 message GetRecommendedProductsRequest {
-  string user_id = 1; // 用户唯一标识
-  int32 count = 2; // 计数
+  // 目标用户。
+  string user_id = 1;
+  // 期望召回数量。
+  int32 count = 2;
 }
 
-// GetRecommendedProductsResponse 获取RecommendedProducts响应消息结构。
+// 推荐结果集合。
 message GetRecommendedProductsResponse {
-  repeated Product products = 1; // 商品列表
+  // 商品摘要列表。
+  repeated Product products = 1;
 }
 
-// Product 产品消息结构。
+// 推荐商品摘要。
 message Product {
-  string id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  double price = 4; // 价格
-  string image_url = 5; // 图片链接
+  // 商品 ID。
+  string id = 1;
+  // 名称。
+  string name = 2;
+  // 卖点描述。
+  string description = 3;
+  // 当前售价。
+  double price = 4;
+  // 主图。
+  string image_url = 5;
 }
 
-// IndexProductRelationshipRequest Index产品Relationship请求消息结构。
+// 图关系索引请求。
 message IndexProductRelationshipRequest {
-  string product_id_1 = 1; // 产品id
-  string product_id_2 = 2; // 产品id
-  string type = 3; // 类型
-  double weight = 4; // 权重
+  // 节点 A ID。
+  string product_id_1 = 1;
+  // 节点 B ID。
+  string product_id_2 = 2;
+  // 关系类别 (SIMILAR, BOUGHT_TOGETHER)。
+  string type = 3;
+  // 关联权重值。
+  double weight = 4;
 }
 
-// IndexProductRelationshipResponse Index产品Relationship响应消息结构。
+// 索引结果。
 message IndexProductRelationshipResponse {}
 
-// GetGraphRecommendedProductsRequest 获取GraphRecommendedProducts请求消息结构。
+// 图查询请求。
 message GetGraphRecommendedProductsRequest {
-  string product_id = 1; // 产品id
-  int32 count = 2; // 计数
+  // 起始商品 ID。
+  string product_id = 1;
+  // 数量。
+  int32 count = 2;
 }
 
-// GetGraphRecommendedProductsResponse 获取GraphRecommendedProducts响应消息结构。
+// 图查询结果。
 message GetGraphRecommendedProductsResponse {
-  repeated Product products = 1; // 商品列表
+  // 商品列表。
+  repeated Product products = 1;
 }
 
-// GetAdvancedRecommendedProductsRequest 获取高级个性化推荐请求
+// 深度个性化请求。
 message GetAdvancedRecommendedProductsRequest {
-  string user_id = 1; // 用户唯一标识
-  int32 count = 2; // 计数
-  map<string, string> context_features = 3; // 上下文特征，如当前浏览商品ID，会话信息
+  // 用户 ID。
+  string user_id = 1;
+  // 数量。
+  int32 count = 2;
+  // 实时环境特征（如：当前页面、会话 ID）。
+  map<string, string> context_features = 3;
 }
 
-// GetAdvancedRecommendedProductsResponse 获取高级个性化推荐响应
+// 深度个性化响应。
 message GetAdvancedRecommendedProductsResponse {
-  repeated Product products = 1; // 商品列表
-  string explanation = 2; // 推荐解释 (可选)
+  // 商品列表。
+  repeated Product products = 1;
+  // 推荐理由（解释性文字）。
+  string explanation = 2;
 }

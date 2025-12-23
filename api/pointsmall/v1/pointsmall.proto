@@ -2,146 +2,214 @@ syntax = "proto3";
 
 package api.pointsmall.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1;pointsmallv1";
 
-// PointsmallService Pointsmall服务服务定义。
+// 积分商城服务，提供纯积分或积分加现金的商品换购逻辑。
 service PointsmallService {
-// CreateProduct 创建商品。
+  // 上架新的积分专供商品。
   rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
-// ListProducts 处理列出Products请求。
+
+  // 获取积分商城前台展示的商品列表。
   rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
 
-// ExchangeProduct Exchange商品接口。
+  // 用户消耗积分下单换购商品。
   rpc ExchangeProduct(ExchangeProductRequest) returns (ExchangeProductResponse);
-// ListOrders 处理列出Orders请求。
+
+  // 查询用户在积分商城的历史兑换单据。
   rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
 
-// GetAccount 获取账户。
+  // 获取用户在积分商城的实时账户结余。
   rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
-// AddPoints 处理AddPoints请求。
+
+  // 代理接口：手动或任务发放积分至商城账户。
   rpc AddPoints(AddPointsRequest) returns (google.protobuf.Empty);
 }
 
-// PointsProduct Points产品消息结构。
+// 积分商品档案。
 message PointsProduct {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  string image_url = 4; // 图片链接
-  int64 points = 5; // 积分
-  int32 stock = 6; // 库存
-  int32 sold_count = 7; // sold计数
-  int32 limit_per_user = 8; // 限制per用户
-  int32 status = 9; // 状态
-  google.protobuf.Timestamp created_at = 10; // 创建时间
-  google.protobuf.Timestamp updated_at = 11; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 显示名称。
+  string name = 2;
+  // 规格及卖点描述。
+  string description = 3;
+  // 视觉图 URL。
+  string image_url = 4;
+  // 所需积分单价。
+  int64 points = 5;
+  // 剩余可兑换库存。
+  int32 stock = 6;
+  // 累计兑换成功件数。
+  int32 sold_count = 7;
+  // 每人终身限购量。
+  int32 limit_per_user = 8;
+  // 上架状态。
+  int32 status = 9;
+  // 录入时刻。
+  google.protobuf.Timestamp created_at = 10;
+  // 最后修改。
+  google.protobuf.Timestamp updated_at = 11;
 }
 
-// PointsOrder Points订单消息结构。
+// 兑换订单详情。
 message PointsOrder {
-  uint64 id = 1; // 唯一标识
-  string order_no = 2; // 订单no
-  uint64 user_id = 3; // 用户唯一标识
-  uint64 product_id = 4; // 产品id
-  string product_name = 5; // 产品名称
-  int32 quantity = 6; // 数量
-  int64 points = 7; // 积分
-  int64 total_points = 8; // 总数points
-  int32 status = 9; // 状态
-  string address = 10; // 地址
-  string phone = 11; // 电话
-  string receiver = 12; // 收件人
-  google.protobuf.Timestamp shipped_at = 13; // shipped在
-  google.protobuf.Timestamp completed_at = 14; // completed在
-  google.protobuf.Timestamp created_at = 15; // 创建时间
-  google.protobuf.Timestamp updated_at = 16; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 系统生成的订单号。
+  string order_no = 2;
+  // 买家 ID。
+  uint64 user_id = 3;
+  // 关联商品。
+  uint64 product_id = 4;
+  // 商品标题。
+  string product_name = 5;
+  // 件数。
+  int32 quantity = 6;
+  // 单件积分。
+  int64 points = 7;
+  // 合计扣除总积分。
+  int64 total_points = 8;
+  // 当前履行状态 (0:待发货, 1:已结单)。
+  int32 status = 9;
+  // 配送地址。
+  string address = 10;
+  // 联系电话。
+  string phone = 11;
+  // 收件人名。
+  string receiver = 12;
+  // 发货时刻。
+  google.protobuf.Timestamp shipped_at = 13;
+  // 签收时刻。
+  google.protobuf.Timestamp completed_at = 14;
+  // 下单时间。
+  google.protobuf.Timestamp created_at = 15;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 16;
 }
 
-// PointsAccount Points账户消息结构。
+// 积分账户档案。
 message PointsAccount {
-  uint64 id = 1; // 唯一标识
-  uint64 user_id = 2; // 用户唯一标识
-  int64 total_points = 3; // 总数points
-  int64 used_points = 4; // 用points
-  google.protobuf.Timestamp created_at = 5; // 创建时间
-  google.protobuf.Timestamp updated_at = 6; // 更新时间
+  // 系统 ID。
+  uint64 id = 1;
+  // 用户。
+  uint64 user_id = 2;
+  // 累计收入总额。
+  int64 total_points = 3;
+  // 累计支出总额。
+  int64 used_points = 4;
+  // 账户创建时间。
+  google.protobuf.Timestamp created_at = 5;
+  // 最后变动日期。
+  google.protobuf.Timestamp updated_at = 6;
 }
 
-// CreateProductRequest 创建产品请求消息结构。
+// 商品录入请求。
 message CreateProductRequest {
-  string name = 1; // 名称
-  string description = 2; // 描述
-  string image_url = 3; // 图片链接
-  int64 points = 4; // 积分
-  int32 stock = 5; // 库存
-  int32 limit_per_user = 6; // 限制per用户
-  int32 status = 7; // 状态
+  // 名称。
+  string name = 1;
+  // 介绍。
+  string description = 2;
+  // 图片。
+  string image_url = 3;
+  // 所需分。
+  int64 points = 4;
+  // 投放库存。
+  int32 stock = 5;
+  // 用户限额。
+  int32 limit_per_user = 6;
+  // 初始状态。
+  int32 status = 7;
 }
 
-// CreateProductResponse 创建产品响应消息结构。
+// 商品结果。
 message CreateProductResponse {
-  PointsProduct product = 1; // 产品
+  // 积分商品实体。
+  PointsProduct product = 1;
 }
 
-// ListProductsRequest 列出Products请求消息结构。
+// 商城检索。
 message ListProductsRequest {
-  int32 status = 1; // 状态
-  int32 page = 2; // 页码
-  int32 page_size = 3; // 页码大小
+  // 状态。
+  int32 status = 1;
+  // 页码。
+  int32 page = 2;
+  // 数量。
+  int32 page_size = 3;
 }
 
-// ListProductsResponse 列出Products响应消息结构。
+// 商城响应。
 message ListProductsResponse {
-  repeated PointsProduct products = 1; // 商品列表
-  int64 total_count = 2; // 总数计数
+  // 商品序列。
+  repeated PointsProduct products = 1;
+  // 总项数。
+  int64 total_count = 2;
 }
 
-// ExchangeProductRequest Exchange产品请求消息结构。
+// 换购请求。
 message ExchangeProductRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 product_id = 2; // 产品id
-  int32 quantity = 3; // 数量
-  string address = 4; // 地址
-  string phone = 5; // 电话
-  string receiver = 6; // 收件人
+  // 买家。
+  uint64 user_id = 1;
+  // 目标 ID。
+  uint64 product_id = 2;
+  // 数量。
+  int32 quantity = 3;
+  // 收货地址。
+  string address = 4;
+  // 电话。
+  string phone = 5;
+  // 收件人。
+  string receiver = 6;
 }
 
-// ExchangeProductResponse Exchange产品响应消息结构。
+// 换购响应。
 message ExchangeProductResponse {
-  PointsOrder order = 1; // 订单
+  // 生成的订单详情。
+  PointsOrder order = 1;
 }
 
-// ListOrdersRequest 列出Orders请求消息结构。
+// 订单查询请求。
 message ListOrdersRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  int32 status = 2; // 状态
-  int32 page = 3; // 页码
-  int32 page_size = 4; // 页码大小
+  // 用户。
+  uint64 user_id = 1;
+  // 状态。
+  int32 status = 2;
+  // 页码。
+  int32 page = 3;
+  // 数量。
+  int32 page_size = 4;
 }
 
-// ListOrdersResponse 列出Orders响应消息结构。
+// 订单查询响应。
 message ListOrdersResponse {
-  repeated PointsOrder orders = 1; // 订单列表
-  int64 total_count = 2; // 总数计数
+  // 兑换单序列。
+  repeated PointsOrder orders = 1;
+  // 总笔数。
+  int64 total_count = 2;
 }
 
-// GetAccountRequest 获取账户请求消息结构。
+// 账户请求。
 message GetAccountRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// GetAccountResponse 获取账户响应消息结构。
+// 账户结果。
 message GetAccountResponse {
-  PointsAccount account = 1; // 账户
+  // 账户档案。
+  PointsAccount account = 1;
 }
 
-// AddPointsRequest AddPoints请求消息结构。
+// 积分下发请求。
 message AddPointsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  int64 points = 2; // 积分
-  string description = 3; // 描述
-  string ref_id = 4; // ref唯一标识
+  // 目标。
+  uint64 user_id = 1;
+  // 数值。
+  int64 points = 2;
+  // 摘要。
+  string description = 3;
+  // 关联业务 ID。
+  string ref_id = 4;
 }

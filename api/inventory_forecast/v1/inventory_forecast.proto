@@ -3,165 +3,230 @@ syntax = "proto3";
 package api.inventory_forecast.v1;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/inventory_forecast/v1;v1";
 
-// InventoryForecastService 定义了库存预测服务接口
+// 库存预测服务，提供销量预测、库存预警及智能补货建议。
 service InventoryForecastService {
-  // GenerateForecast 生成销售预测
+  // 针对指定 SKU 生成未来一段时间的销售预测。
   rpc GenerateForecast(GenerateForecastRequest) returns (GenerateForecastResponse);
 
-  // GetForecast 获取预测
+  // 获取已生成的销量预测报表。
   rpc GetForecast(GetForecastRequest) returns (GetForecastResponse);
 
-  // ListWarnings 获取预警列表
+  // 查询当前的库存不足或积压预警。
   rpc ListWarnings(ListWarningsRequest) returns (ListWarningsResponse);
 
-  // ListSlowMovingItems 获取滞销品列表
+  // 识别并列出库龄较长、周转缓慢的滞销品。
   rpc ListSlowMovingItems(ListSlowMovingItemsRequest) returns (ListSlowMovingItemsResponse);
 
-  // ListReplenishmentSuggestions 获取补货建议
+  // 获取基于预测数据的自动补货清单。
   rpc ListReplenishmentSuggestions(ListReplenishmentSuggestionsRequest) returns (ListReplenishmentSuggestionsResponse);
 
-  // ListStockoutRisks 获取缺货风险
+  // 获取高风险缺货商品的实时预警。
   rpc ListStockoutRisks(ListStockoutRisksRequest) returns (ListStockoutRisksResponse);
 }
 
-// DailyForecast 日预测
+// 单日预测详情。
 message DailyForecast {
-  google.protobuf.Timestamp date = 1; // 日期
-  int32 quantity = 2; // 数量
-  double confidence = 3; // 置信度
+  // 预测日期。
+  google.protobuf.Timestamp date = 1;
+  // 预估件数。
+  int32 quantity = 2;
+  // 置信度权重 (0-1.0)。
+  double confidence = 3;
 }
 
-// SalesForecast 销售预测
+// 销售预测档案。
 message SalesForecast {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 average_daily_sales = 3; // 平均每日销售
-  double trend_rate = 4; // 趋势率
-  repeated DailyForecast predictions = 5; // 预测
-  google.protobuf.Timestamp created_at = 6; // 创建时间
-  google.protobuf.Timestamp updated_at = 7; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 目标 SKU。
+  uint64 sku_id = 2;
+  // 历史日均销。
+  int32 average_daily_sales = 3;
+  // 增长/下降趋势率。
+  double trend_rate = 4;
+  // 每日预测序列。
+  repeated DailyForecast predictions = 5;
+  // 生成时间。
+  google.protobuf.Timestamp created_at = 6;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 7;
 }
 
-// GenerateForecastRequest GenerateForecast请求消息结构。
+// 生成请求。
 message GenerateForecastRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
+  // SKU ID。
+  uint64 sku_id = 1;
 }
 
-// GenerateForecastResponse GenerateForecast响应消息结构。
+// 生成响应。
 message GenerateForecastResponse {
-  SalesForecast forecast = 1; // 预测
+  // 预测实体。
+  SalesForecast forecast = 1;
 }
 
-// GetForecastRequest 获取Forecast请求消息结构。
+// 查询请求。
 message GetForecastRequest {
-  uint64 sku_id = 1; // 库存单元唯一标识
+  // SKU ID。
+  uint64 sku_id = 1;
 }
 
-// GetForecastResponse 获取Forecast响应消息结构。
+// 查询响应。
 message GetForecastResponse {
-  SalesForecast forecast = 1; // 预测
+  // 预测实体。
+  SalesForecast forecast = 1;
 }
 
-// InventoryWarning 库存预警
+// 库存预警详情。
 message InventoryWarning {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 current_stock = 3; // 当前库存
-  int32 warning_threshold = 4; // 警告阈值
-  int32 days_until_empty = 5; // daysuntil空
-  google.protobuf.Timestamp estimated_empty_date = 6; // estimated空date
-  bool need_replenishment = 7; // 需要replenishment
-  int32 recommended_replenishment_qty = 8; // recommended补货qty
-  google.protobuf.Timestamp created_at = 9; // 创建时间
+  // 预警 ID。
+  uint64 id = 1;
+  // 目标 SKU。
+  uint64 sku_id = 2;
+  // 当前结余。
+  int32 current_stock = 3;
+  // 安全水位线。
+  int32 warning_threshold = 4;
+  // 预计售罄天数。
+  int32 days_until_empty = 5;
+  // 预计缺货日期。
+  google.protobuf.Timestamp estimated_empty_date = 6;
+  // 补货推荐标记。
+  bool need_replenishment = 7;
+  // 建议补货量。
+  int32 recommended_replenishment_qty = 8;
+  // 录入时刻。
+  google.protobuf.Timestamp created_at = 9;
 }
 
-// ListWarningsRequest 列出Warnings请求消息结构。
+// 预警查询。
 message ListWarningsRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListWarningsResponse 列出Warnings响应消息结构。
+// 预警响应。
 message ListWarningsResponse {
-  repeated InventoryWarning warnings = 1; // 警告数
-  uint64 total_count = 2; // 总数计数
+  // 预警记录。
+  repeated InventoryWarning warnings = 1;
+  // 总数。
+  uint64 total_count = 2;
 }
 
-// SlowMovingItem 滞销品
+// 滞销品详情。
 message SlowMovingItem {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  string product_name = 3; // 产品名称
-  int32 current_stock = 4; // 当前库存
-  double daily_sales_rate = 5; // 每日销售率
-  int32 days_in_stock = 6; // days在...里面stock
-  double turnover_rate = 7; // 周转率
-  string recommend_action = 8; // recommend动作
-  google.protobuf.Timestamp created_at = 9; // 创建时间
+  // 记录 ID。
+  uint64 id = 1;
+  // 商品 SKU。
+  uint64 sku_id = 2;
+  // 名称快照。
+  string product_name = 3;
+  // 实物库存。
+  int32 current_stock = 4;
+  // 实际日销率。
+  double daily_sales_rate = 5;
+  // 库存天数。
+  int32 days_in_stock = 6;
+  // 周转速率。
+  double turnover_rate = 7;
+  // 建议清理方案。
+  string recommend_action = 8;
+  // 判定时间。
+  google.protobuf.Timestamp created_at = 9;
 }
 
-// ListSlowMovingItemsRequest 列出SlowMovingItems请求消息结构。
+// 滞销查询。
 message ListSlowMovingItemsRequest {
-  uint32 page_size = 1; // 页码大小
-  uint32 page_num = 2; // 页码num
+  // 数量。
+  uint32 page_size = 1;
+  // 页码。
+  uint32 page_num = 2;
 }
 
-// ListSlowMovingItemsResponse 列出SlowMovingItems响应消息结构。
+// 滞销响应。
 message ListSlowMovingItemsResponse {
-  repeated SlowMovingItem items = 1; // 项列表
-  uint64 total_count = 2; // 总数计数
+  // 滞销列表。
+  repeated SlowMovingItem items = 1;
+  // 总数。
+  uint64 total_count = 2;
 }
 
-// ReplenishmentSuggestion 补货建议
+// 补货方案。
 message ReplenishmentSuggestion {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  string product_name = 3; // 产品名称
-  int32 current_stock = 4; // 当前库存
-  int32 suggested_qty = 5; // 建议qty
-  string priority = 6; // 优先级
-  string reason = 7; // 原因
-  int64 estimated_cost = 8; // estimated成本
-  google.protobuf.Timestamp created_at = 9; // 创建时间
+  // 建议 ID。
+  uint64 id = 1;
+  // 商品 SKU。
+  uint64 sku_id = 2;
+  // 名称。
+  string product_name = 3;
+  // 余量。
+  int32 current_stock = 4;
+  // 补货建议量。
+  int32 suggested_qty = 5;
+  // 紧迫度 (HIGH, LOW)。
+  string priority = 6;
+  // 计算依据说明。
+  string reason = 7;
+  // 预估补货金额。
+  int64 estimated_cost = 8;
+  // 生成日期。
+  google.protobuf.Timestamp created_at = 9;
 }
 
-// ListReplenishmentSuggestionsRequest 列出ReplenishmentSuggestions请求消息结构。
+// 补货查询。
 message ListReplenishmentSuggestionsRequest {
-  string priority = 1; // 优先级
-  uint32 page_size = 2; // 页码大小
-  uint32 page_num = 3; // 页码num
+  // 优先级筛选。
+  string priority = 1;
+  // 数量。
+  uint32 page_size = 2;
+  // 页码。
+  uint32 page_num = 3;
 }
 
-// ListReplenishmentSuggestionsResponse 列出ReplenishmentSuggestions响应消息结构。
+// 补货响应。
 message ListReplenishmentSuggestionsResponse {
-  repeated ReplenishmentSuggestion suggestions = 1; // 建议列表
-  uint64 total_count = 2; // 总数计数
+  // 建议序列。
+  repeated ReplenishmentSuggestion suggestions = 1;
+  // 总数。
+  uint64 total_count = 2;
 }
 
-// StockoutRisk 缺货风险
+// 缺货风险详情。
 message StockoutRisk {
-  uint64 id = 1; // 唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 current_stock = 3; // 当前库存
-  int32 days_until_stockout = 4; // daysuntil缺货
-  google.protobuf.Timestamp estimated_stockout_date = 5; // 预计缺货date
-  string risk_level = 6; // risk等级
-  google.protobuf.Timestamp created_at = 7; // 创建时间
+  // 记录 ID。
+  uint64 id = 1;
+  // 商品 SKU。
+  uint64 sku_id = 2;
+  // 结余库存。
+  int32 current_stock = 3;
+  // 倒计时天数。
+  int32 days_until_stockout = 4;
+  // 预估售罄点。
+  google.protobuf.Timestamp estimated_stockout_date = 5;
+  // 风险量级 (CRITICAL)。
+  string risk_level = 6;
+  // 识别时间。
+  google.protobuf.Timestamp created_at = 7;
 }
 
-// ListStockoutRisksRequest 列出StockoutRisks请求消息结构。
+// 风险查询。
 message ListStockoutRisksRequest {
-  string level = 1; // 等级
-  uint32 page_size = 2; // 页码大小
-  uint32 page_num = 3; // 页码num
+  // 风险级。
+  string level = 1;
+  // 数量。
+  uint32 page_size = 2;
+  // 页码。
+  uint32 page_num = 3;
 }
 
-// ListStockoutRisksResponse 列出StockoutRisks响应消息结构。
+// 风险响应。
 message ListStockoutRisksResponse {
-  repeated StockoutRisk risks = 1; // 风险
-  uint64 total_count = 2; // 总数计数
+  // 风险列表。
+  repeated StockoutRisk risks = 1;
+  // 总记录数。
+  uint64 total_count = 2;
 }

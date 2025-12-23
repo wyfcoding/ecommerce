@@ -2,116 +2,168 @@ syntax = "proto3";
 
 package api.scheduler.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/scheduler/v1;schedulerv1";
 
-// SchedulerService Scheduler服务服务定义。
+// 任务调度服务，管理定时任务 (Cron Job) 的配置、状态切换及执行日志。
 service SchedulerService {
-// CreateJob 创建作业。
+  // 注册一个新的定时作业。
   rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
-// UpdateJob 处理更新Job请求。
+
+  // 更新作业的 Cron 表达式或参数。
   rpc UpdateJob(UpdateJobRequest) returns (google.protobuf.Empty);
-// ToggleJobStatus 处理ToggleJob状态请求。
+
+  // 启用或禁用定时作业。
   rpc ToggleJobStatus(ToggleJobStatusRequest) returns (google.protobuf.Empty);
-// RunJob 处理RunJob请求。
+
+  // 手动立即触发一次作业执行。
   rpc RunJob(RunJobRequest) returns (google.protobuf.Empty);
-// ListJobs 处理列出Jobs请求。
+
+  // 列表查询所有注册的作业。
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
 
-// ListJobLogs 列出列表作业Logs。
+  // 查询作业的执行历史日志。
   rpc ListJobLogs(ListJobLogsRequest) returns (ListJobLogsResponse);
 }
 
-// Job Job消息结构。
+// 定时作业配置信息。
 message Job {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  string cron_expr = 4; // 定时expr
-  string handler = 5; // 处理器
-  string params = 6; // 参数
-  int32 status = 7; // 状态
-  google.protobuf.Timestamp last_run_time = 8; // lastrun时间
-  google.protobuf.Timestamp next_run_time = 9; // 下一个run时间
-  int64 run_count = 10; // run计数
-  int64 fail_count = 11; // fail计数
-  google.protobuf.Timestamp created_at = 12; // 创建时间
-  google.protobuf.Timestamp updated_at = 13; // 更新时间
+  // 作业 ID。
+  uint64 id = 1;
+  // 作业名称。
+  string name = 2;
+  // 功能描述。
+  string description = 3;
+  // 定时规则 (Cron 表达式)。
+  string cron_expr = 4;
+  // 业务逻辑处理标识。
+  string handler = 5;
+  // 运行时参数。
+  string params = 6;
+  // 状态 (0:禁用, 1:激活)。
+  int32 status = 7;
+  // 上次成功运行时间。
+  google.protobuf.Timestamp last_run_time = 8;
+  // 预计下次触发时间。
+  google.protobuf.Timestamp next_run_time = 9;
+  // 累计运行次数。
+  int64 run_count = 10;
+  // 累计失败次数。
+  int64 fail_count = 11;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 12;
+  // 最后更新时间。
+  google.protobuf.Timestamp updated_at = 13;
 }
 
-// JobLog JobLog消息结构。
+// 作业执行流水日志。
 message JobLog {
-  uint64 id = 1; // 唯一标识
-  uint64 job_id = 2; // 作业ID
-  string job_name = 3; // job名称
-  string handler = 4; // 处理器
-  string params = 5; // 参数
-  string status = 6; // 状态
-  string result = 7; // 结果
-  string error = 8; // 错误
-  int64 duration = 9; // 时长
-  google.protobuf.Timestamp start_time = 10; // 开始时间
-  google.protobuf.Timestamp end_time = 11; // 结束时间
-  google.protobuf.Timestamp created_at = 12; // 创建时间
-  google.protobuf.Timestamp updated_at = 13; // 更新时间
+  // 日志 ID。
+  uint64 id = 1;
+  // 关联作业 ID。
+  uint64 job_id = 2;
+  // 作业名称快照。
+  string job_name = 3;
+  // 处理标识。
+  string handler = 4;
+  // 执行时参数。
+  string params = 5;
+  // 执行状态 (SUCCESS, FAIL)。
+  string status = 6;
+  // 返回结果概要。
+  string result = 7;
+  // 错误堆栈或原因。
+  string error = 8;
+  // 耗时（毫秒）。
+  int64 duration = 9;
+  // 开始时间。
+  google.protobuf.Timestamp start_time = 10;
+  // 结束时间。
+  google.protobuf.Timestamp end_time = 11;
+  // 记录时间。
+  google.protobuf.Timestamp created_at = 12;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 13;
 }
 
-// CreateJobRequest 创建Job请求消息结构。
+// 创建作业请求。
 message CreateJobRequest {
-  string name = 1; // 名称
-  string description = 2; // 描述
-  string cron_expr = 3; // 定时expr
-  string handler = 4; // 处理器
-  string params = 5; // 参数
+  // 名称。
+  string name = 1;
+  // 描述。
+  string description = 2;
+  // Cron 规则。
+  string cron_expr = 3;
+  // 处理器。
+  string handler = 4;
+  // 参数。
+  string params = 5;
 }
 
-// CreateJobResponse 创建Job响应消息结构。
+// 创建响应。
 message CreateJobResponse {
-  Job job = 1; // 作业
+  // 生成的作业详情。
+  Job job = 1;
 }
 
-// UpdateJobRequest 更新Job请求消息结构。
+// 更新请求。
 message UpdateJobRequest {
-  uint64 id = 1; // 唯一标识
-  string cron_expr = 2; // 定时expr
-  string params = 3; // 参数
+  // 作业 ID。
+  uint64 id = 1;
+  // 新的 Cron 规则。
+  string cron_expr = 2;
+  // 新的参数。
+  string params = 3;
 }
 
-// ToggleJobStatusRequest ToggleJob状态请求消息结构。
+// 状态切换请求。
 message ToggleJobStatusRequest {
-  uint64 id = 1; // 唯一标识
-  bool enable = 2; // 启用
+  // 作业 ID。
+  uint64 id = 1;
+  // 是否启用。
+  bool enable = 2;
 }
 
-// RunJobRequest RunJob请求消息结构。
+// 手动触发请求。
 message RunJobRequest {
-  uint64 id = 1; // 唯一标识
+  // 作业 ID。
+  uint64 id = 1;
 }
 
-// ListJobsRequest 列出Jobs请求消息结构。
+// 作业列表查询请求。
 message ListJobsRequest {
-  int32 status = 1; // 状态
-  int32 page = 2; // 页码
-  int32 page_size = 3; // 页码大小
+  // 状态过滤。
+  int32 status = 1;
+  // 页码。
+  int32 page = 2;
+  // 每页数量。
+  int32 page_size = 3;
 }
 
-// ListJobsResponse 列出Jobs响应消息结构。
+// 作业列表响应。
 message ListJobsResponse {
-  repeated Job jobs = 1; // 作业列表
-  int64 total_count = 2; // 总数计数
+  // 作业序列。
+  repeated Job jobs = 1;
+  // 总记录数。
+  int64 total_count = 2;
 }
 
-// ListJobLogsRequest 列出JobLogs请求消息结构。
+// 日志查询请求。
 message ListJobLogsRequest {
-  uint64 job_id = 1; // 作业ID
-  int32 page = 2; // 页码
-  int32 page_size = 3; // 页码大小
+  // 针对特定作业过滤。
+  uint64 job_id = 1;
+  // 页码。
+  int32 page = 2;
+  // 每页数量。
+  int32 page_size = 3;
 }
 
-// ListJobLogsResponse 列出JobLogs响应消息结构。
+// 日志查询响应。
 message ListJobLogsResponse {
-  repeated JobLog logs = 1; // 日志列表
-  int64 total_count = 2; // 总数计数
+  // 日志序列。
+  repeated JobLog logs = 1;
+  // 总条数。
+  int64 total_count = 2;
 }

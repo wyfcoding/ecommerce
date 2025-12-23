@@ -2,32 +2,34 @@ syntax = "proto3";
 
 package api.data_ingestion.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/data_ingestion/v1;v1";
 
-// DataIngestion 数据摄取服务定义了所有与数据摄取相关的RPC接口。
+// 原始数据采集与摄取服务。
 service DataIngestion {
-  // --- 核心数据摄取接口 ---
-
-  // IngestEvent 摄取一个事件数据点。
+  // 上报单点事件。
   rpc IngestEvent(IngestEventRequest) returns (google.protobuf.Empty);
-  // IngestBatch 批量摄取数据。
+
+  // 批量上报事件流。
   rpc IngestBatch(IngestBatchRequest) returns (google.protobuf.Empty);
 }
 
-// --- 消息定义 ---
-
-// IngestEventRequest 摄取事件请求消息。
+// 摄取载荷。
 message IngestEventRequest {
-  string event_type = 1; // event类型
-  map<string, string> event_data = 2; // event数据
-  google.protobuf.Timestamp timestamp = 3; // 时间戳
+  // 类型标识。
+  string event_type = 1;
+  // 事件字段集。
+  map<string, string> event_data = 2;
+  // 发生时间。
+  google.protobuf.Timestamp timestamp = 3;
+  // 来源系统。
   optional string source = 4;
 }
 
-// IngestBatchRequest 批量摄取请求消息。
+// 批量载荷。
 message IngestBatchRequest {
-  repeated IngestEventRequest events = 1; // 事件列表
+  // 事件集合。
+  repeated IngestEventRequest events = 1;
 }

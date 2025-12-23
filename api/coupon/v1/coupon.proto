@@ -2,125 +2,175 @@ syntax = "proto3";
 
 package api.coupon.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/coupon/v1;v1";
 
-// Coupon 优惠券服务定义了所有与优惠券管理相关的RPC接口。
+// 优惠券服务，提供券模板管理、用户领券及核销功能。
 service Coupon {
-  // --- 核心优惠券接口 ---
-
-  // CreateCoupon 创建一个新优惠券。
+  // 创建新的优惠券活动模板。
   rpc CreateCoupon(CreateCouponRequest) returns (CouponResponse);
-  // GetCouponByID 根据优惠券ID获取优惠券信息。
+
+  // 获取特定优惠券模板的配置。
   rpc GetCouponByID(GetCouponByIDRequest) returns (CouponResponse);
-  // UpdateCoupon 更新优惠券信息。
+
+  // 修改优惠券活动参数。
   rpc UpdateCoupon(UpdateCouponRequest) returns (CouponResponse);
-  // DeleteCoupon 删除优惠券。
+
+  // 终止或物理删除优惠券。
   rpc DeleteCoupon(DeleteCouponRequest) returns (google.protobuf.Empty);
-  // IssueCoupon 向用户发放优惠券。
+
+  // 将一张优惠券发放给指定用户。
   rpc IssueCoupon(IssueCouponRequest) returns (UserCouponResponse);
-  // GetUserCoupons 获取用户拥有的优惠券列表。
+
+  // 查询用户账户内持有的优惠券列表。
   rpc GetUserCoupons(GetUserCouponsRequest) returns (GetUserCouponsResponse);
-  // UseCoupon 使用优惠券。
+
+  // 在支付环节核销优惠券。
   rpc UseCoupon(UseCouponRequest) returns (UserCouponResponse);
 }
 
-// --- 消息定义 ---
-
-// CouponInfo 代表优惠券信息。
+// 优惠券模板信息。
 message CouponInfo {
-  uint64 coupon_id = 1; // 优惠券ID
-  string code = 2; // 优惠券代码
-  string name = 3; // 优惠券名称
-  string description = 4; // 描述
-  string discount_type = 5; // 折扣类型 (e.g., PERCENTAGE, FIXED_AMOUNT)
-  double discount_value = 6; // 折扣值
-  double min_order_amount = 7; // 最低订单金额
-  google.protobuf.Timestamp valid_from = 8; // valid从
-  google.protobuf.Timestamp valid_until = 9; // 有效until
-  int32 total_quantity = 10; // 总发行量
-  int32 issued_quantity = 11; // 已发行量
+  // 模板 ID。
+  uint64 coupon_id = 1;
+  // 业务券码。
+  string code = 2;
+  // 显示标题。
+  string name = 3;
+  // 详情介绍。
+  string description = 4;
+  // 减免类型 (PERCENTAGE, CASH)。
+  string discount_type = 5;
+  // 减免数值。
+  double discount_value = 6;
+  // 满减门槛金额。
+  double min_order_amount = 7;
+  // 有效期开始。
+  google.protobuf.Timestamp valid_from = 8;
+  // 有效期截止。
+  google.protobuf.Timestamp valid_until = 9;
+  // 总预算张数。
+  int32 total_quantity = 10;
+  // 已派发张数。
+  int32 issued_quantity = 11;
 }
 
-// UserCouponInfo 代表用户拥有的优惠券信息。
+// 用户持有券详情。
 message UserCouponInfo {
-  uint64 user_coupon_id = 1; // 用户优惠券ID
-  uint64 user_id = 2; // 用户ID
-  uint64 coupon_id = 3; // 优惠券ID
-  string code = 4; // 优惠券代码
-  string status = 5; // 状态 (e.g., UNUSED, USED, EXPIRED)
-  google.protobuf.Timestamp issued_at = 6; // issued在
+  // 持有记录 ID。
+  uint64 user_coupon_id = 1;
+  // 所属用户 ID。
+  uint64 user_id = 2;
+  // 关联模板 ID。
+  uint64 coupon_id = 3;
+  // 券业务码快照。
+  string code = 4;
+  // 使用状态 (UNUSED, USED, EXPIRED)。
+  string status = 5;
+  // 领券时间。
+  google.protobuf.Timestamp issued_at = 6;
+  // 核销时间（若已用）。
   optional google.protobuf.Timestamp used_at = 7;
 }
 
-// CreateCouponRequest 创建优惠券请求消息。
+// 创建模板请求。
 message CreateCouponRequest {
-  string code = 1; // 代码
-  string name = 2; // 名称
-  string description = 3; // 描述
-  string discount_type = 4; // 折扣类型
-  double discount_value = 5; // 折扣value
-  double min_order_amount = 6; // 最小订单金额
-  google.protobuf.Timestamp valid_from = 7; // valid从
-  google.protobuf.Timestamp valid_until = 8; // 有效until
-  int32 total_quantity = 9; // 总数数量
+  // 业务码。
+  string code = 1;
+  // 名称。
+  string name = 2;
+  // 描述。
+  string description = 3;
+  // 类型。
+  string discount_type = 4;
+  // 数值。
+  double discount_value = 5;
+  // 门槛。
+  double min_order_amount = 6;
+  // 开始日期。
+  google.protobuf.Timestamp valid_from = 7;
+  // 截止日期。
+  google.protobuf.Timestamp valid_until = 8;
+  // 总量。
+  int32 total_quantity = 9;
 }
 
-// CouponResponse 优惠券响应消息。
+// 创建结果。
 message CouponResponse {
-  CouponInfo coupon = 1; // 优惠券
+  // 模板档案。
+  CouponInfo coupon = 1;
 }
 
-// GetCouponByIDRequest 获取优惠券信息请求。
+// ID 查询请求。
 message GetCouponByIDRequest {
-  uint64 coupon_id = 1; // 优惠券id
+  // 系统 ID。
+  uint64 coupon_id = 1;
 }
 
-// UpdateCouponRequest 更新优惠券信息请求。
+// 修改请求。
 message UpdateCouponRequest {
-  uint64 coupon_id = 1; // 优惠券id
+  // 系统 ID。
+  uint64 coupon_id = 1;
+  // 标题修改。
   optional string name = 2;
+  // 描述修改。
   optional string description = 3;
+  // 类型修改。
   optional string discount_type = 4;
+  // 数值修改。
   optional double discount_value = 5;
+  // 门槛修改。
   optional double min_order_amount = 6;
+  // 生效日期修改。
   optional google.protobuf.Timestamp valid_from = 7;
+  // 失效日期修改。
   optional google.protobuf.Timestamp valid_until = 8;
+  // 库存修改。
   optional int32 total_quantity = 9;
 }
 
-// DeleteCouponRequest 删除优惠券请求。
+// 删除请求。
 message DeleteCouponRequest {
-  uint64 coupon_id = 1; // 优惠券id
+  // 系统 ID。
+  uint64 coupon_id = 1;
 }
 
-// IssueCouponRequest 发放优惠券请求消息。
+// 发放请求。
 message IssueCouponRequest {
-  uint64 coupon_id = 1; // 优惠券id
-  uint64 user_id = 2; // 用户唯一标识
+  // 目标模板。
+  uint64 coupon_id = 1;
+  // 目标用户。
+  uint64 user_id = 2;
 }
 
-// UserCouponResponse 用户优惠券响应消息。
+// 发放结果。
 message UserCouponResponse {
-  UserCouponInfo user_coupon = 1; // 用户优惠券
+  // 用户券对象。
+  UserCouponInfo user_coupon = 1;
 }
 
-// GetUserCouponsRequest 获取用户优惠券列表请求消息。
+// 个人券查询请求。
 message GetUserCouponsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  optional string status = 2; // e.g., "UNUSED", "USED", "EXPIRED"
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 状态筛选。
+  optional string status = 2;
 }
 
-// GetUserCouponsResponse 获取用户优惠券列表响应消息。
+// 个人券列表响应。
 message GetUserCouponsResponse {
-  repeated UserCouponInfo user_coupons = 1; // 用户coupons
+  // 用户持有的券序列。
+  repeated UserCouponInfo user_coupons = 1;
 }
 
-// UseCouponRequest 使用优惠券请求消息。
+// 核销请求。
 message UseCouponRequest {
-  uint64 user_coupon_id = 1; // 用户优惠券id
-  uint64 user_id = 2; // 用户唯一标识
-  uint64 order_id = 3; // 订单唯一标识
+  // 持有记录 ID。
+  uint64 user_coupon_id = 1;
+  // 使用者。
+  uint64 user_id = 2;
+  // 关联订单。
+  uint64 order_id = 3;
 }

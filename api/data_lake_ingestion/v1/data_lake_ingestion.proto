@@ -2,25 +2,24 @@ syntax = "proto3";
 
 package api.data_lake_ingestion.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/data_lake_ingestion/v1;v1";
 
-// DataLakeIngestion 数据湖摄取服务定义了所有与数据湖摄取相关的RPC接口。
+// 数据湖摄取服务，负责将各类异构数据源的原始数据流式或批量导入数据湖。
 service DataLakeIngestion {
-  // --- 核心数据湖摄取接口 ---
-
-  // IngestToDataLake 摄取数据到数据湖。
+  // 执行数据摄取操作。
   rpc IngestToDataLake(IngestToDataLakeRequest) returns (google.protobuf.Empty);
 }
 
-// --- 消息定义 ---
-
-// IngestToDataLakeRequest 摄取数据到数据湖请求消息。
+// 摄取请求。
 message IngestToDataLakeRequest {
-  string data_source = 1; // 数据source
-  string data_format = 2; // 数据format
-  bytes data_content = 3; // 数据内容
-  map<string, string> metadata = 4; // metadata
+  // 源系统标识。
+  string data_source = 1;
+  // 负载编码格式 (JSON, PARQUET, AVRO)。
+  string data_format = 2;
+  // 原始字节数据。
+  bytes data_content = 3;
+  // 业务元数据描述。
+  map<string, string> metadata = 4;
 }

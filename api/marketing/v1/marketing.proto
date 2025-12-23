@@ -2,154 +2,221 @@ syntax = "proto3";
 
 package api.marketing.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/marketing/v1;marketingv1";
 
-// MarketingService Marketing服务服务定义。
+// 营销服务，负责管理营销活动策划、多端横幅广告及活动参与统计。
 service MarketingService {
-// CreateCampaign 创建Campaign。
+  // 创建并录入新的营销策划方案。
   rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
-// GetCampaign 处理获取Campaign请求。
+
+  // 通过 ID 查询策划详情。
   rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
-// UpdateCampaignStatus 处理更新Campaign状态请求。
+
+  // 实时切换活动的运行状态。
   rpc UpdateCampaignStatus(UpdateCampaignStatusRequest) returns (google.protobuf.Empty);
-// ListCampaigns 处理列出Campaigns请求。
+
+  // 分页列表展示历史及当前活动。
   rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
-// RecordParticipation 处理RecordParticipation请求。
+
+  // 内部接口：核销或记录用户对活动的参与行为。
   rpc RecordParticipation(RecordParticipationRequest) returns (google.protobuf.Empty);
 
-// CreateBanner 创建Banner。
+  // 配置并展示首页或特定的 Banner 广告。
   rpc CreateBanner(CreateBannerRequest) returns (CreateBannerResponse);
-// ListBanners 处理列出Banners请求。
+
+  // 获取不同终端位置的 Banner 列表。
   rpc ListBanners(ListBannersRequest) returns (ListBannersResponse);
-// DeleteBanner 处理删除Banner请求。
+
+  // 物理移除特定的 Banner 配置。
   rpc DeleteBanner(DeleteBannerRequest) returns (google.protobuf.Empty);
-// ClickBanner 处理ClickBanner请求。
+
+  // 点击统计接口：记录 Banner 被触发的次数。
   rpc ClickBanner(ClickBannerRequest) returns (google.protobuf.Empty);
 }
 
-// Campaign Campaign消息结构。
+// 营销活动实体。
 message Campaign {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string campaign_type = 3; // campaign类型
-  string description = 4; // 描述
-  google.protobuf.Timestamp start_time = 5; // 开始时间
-  google.protobuf.Timestamp end_time = 6; // 结束时间
-  uint64 budget = 7; // 预算
-  uint64 spent = 8; // 花费
-  int64 target_users = 9; // 目标users
-  int64 reached_users = 10; // 触达users
-  int32 status = 11; // 状态
-  string rules_json = 12; // 规则的 JSON 字符串
-  google.protobuf.Timestamp created_at = 13; // 创建时间
-  google.protobuf.Timestamp updated_at = 14; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 标题。
+  string name = 2;
+  // 分类 (PROMO, NEW_USER)。
+  string campaign_type = 3;
+  // 活动简介。
+  string description = 4;
+  // 开始日期。
+  google.protobuf.Timestamp start_time = 5;
+  // 结束日期。
+  google.protobuf.Timestamp end_time = 6;
+  // 总预算。
+  uint64 budget = 7;
+  // 已销预算。
+  uint64 spent = 8;
+  // 预估覆盖人数。
+  int64 target_users = 9;
+  // 实际触达人数。
+  int64 reached_users = 10;
+  // 状态。
+  int32 status = 11;
+  // 业务逻辑规则 (JSON)。
+  string rules_json = 12;
+  // 录入时间。
+  google.protobuf.Timestamp created_at = 13;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 14;
 }
 
-// Banner Banner消息结构。
+// 广告实体。
 message Banner {
-  uint64 id = 1; // 唯一标识
-  string title = 2; // 标题
-  string image_url = 3; // 图片链接
-  string link_url = 4; // link链接
-  string position = 5; // 位置
-  int32 priority = 6; // 优先级
-  google.protobuf.Timestamp start_time = 7; // 开始时间
-  google.protobuf.Timestamp end_time = 8; // 结束时间
-  int64 click_count = 9; // click计数
-  bool enabled = 10; // 启用
-  google.protobuf.Timestamp created_at = 11; // 创建时间
-  google.protobuf.Timestamp updated_at = 12; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 广告标题。
+  string title = 2;
+  // 视觉图 URL。
+  string image_url = 3;
+  // 落地页 URL。
+  string link_url = 4;
+  // 挂载位置标识。
+  string position = 5;
+  // 渲染权重。
+  int32 priority = 6;
+  // 上线日期。
+  google.protobuf.Timestamp start_time = 7;
+  // 下线日期。
+  google.protobuf.Timestamp end_time = 8;
+  // 累计曝光/点击。
+  int64 click_count = 9;
+  // 生效开关。
+  bool enabled = 10;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 11;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 12;
 }
 
-// CreateCampaignRequest 创建Campaign请求消息结构。
+// 策划创建请求。
 message CreateCampaignRequest {
-  string name = 1; // 名称
-  string campaign_type = 2; // campaign类型
-  string description = 3; // 描述
-  google.protobuf.Timestamp start_time = 4; // 开始时间
-  google.protobuf.Timestamp end_time = 5; // 结束时间
-  uint64 budget = 6; // 预算
-  string rules_json = 7; // 规则列表JSON数据
+  // 名称。
+  string name = 1;
+  // 类型。
+  string campaign_type = 2;
+  // 说明。
+  string description = 3;
+  // 起始。
+  google.protobuf.Timestamp start_time = 4;
+  // 截止。
+  google.protobuf.Timestamp end_time = 5;
+  // 预算。
+  uint64 budget = 6;
+  // 规则。
+  string rules_json = 7;
 }
 
-// CreateCampaignResponse 创建Campaign响应消息结构。
+// 策划创建响应。
 message CreateCampaignResponse {
-  Campaign campaign = 1; // 活动
+  // 方案档案。
+  Campaign campaign = 1;
 }
 
-// GetCampaignRequest 获取Campaign请求消息结构。
+// 活动单查。
 message GetCampaignRequest {
-  uint64 id = 1; // 唯一标识
+  // 记录 ID。
+  uint64 id = 1;
 }
 
-// GetCampaignResponse 获取Campaign响应消息结构。
+// 活动单查结果。
 message GetCampaignResponse {
-  Campaign campaign = 1; // 活动
+  // 方案档案。
+  Campaign campaign = 1;
 }
 
-// UpdateCampaignStatusRequest 更新Campaign状态请求消息结构。
+// 状态干预。
 message UpdateCampaignStatusRequest {
-  uint64 id = 1; // 唯一标识
-  int32 status = 2; // 状态
+  // 记录 ID。
+  uint64 id = 1;
+  // 目标状态。
+  int32 status = 2;
 }
 
-// ListCampaignsRequest 列出Campaigns请求消息结构。
+// 活动分页。
 message ListCampaignsRequest {
-  int32 status = 1; // 状态
-  int32 page = 2; // 页码
-  int32 page_size = 3; // 页码大小
+  // 状态。
+  int32 status = 1;
+  // 页码。
+  int32 page = 2;
+  // 数量。
+  int32 page_size = 3;
 }
 
-// ListCampaignsResponse 列出Campaigns响应消息结构。
+// 活动列表响应。
 message ListCampaignsResponse {
-  repeated Campaign campaigns = 1; // 活动列表
-  int64 total_count = 2; // 总数计数
+  // 策划序列。
+  repeated Campaign campaigns = 1;
+  // 总数。
+  int64 total_count = 2;
 }
 
-// RecordParticipationRequest RecordParticipation请求消息结构。
+// 参与同步请求。
 message RecordParticipationRequest {
-  uint64 campaign_id = 1; // 活动ID
-  uint64 user_id = 2; // 用户唯一标识
-  uint64 order_id = 3; // 订单唯一标识
-  uint64 discount = 4; // 折扣
+  // 活动 ID。
+  uint64 campaign_id = 1;
+  // 用户 ID。
+  uint64 user_id = 2;
+  // 关联订单。
+  uint64 order_id = 3;
+  // 计算折扣。
+  uint64 discount = 4;
 }
 
-// CreateBannerRequest 创建Banner请求消息结构。
+// 广告创建请求。
 message CreateBannerRequest {
-  string title = 1; // 标题
-  string image_url = 2; // 图片链接
-  string link_url = 3; // link链接
-  string position = 4; // 位置
-  int32 priority = 5; // 优先级
-  google.protobuf.Timestamp start_time = 6; // 开始时间
-  google.protobuf.Timestamp end_time = 7; // 结束时间
+  // 标题。
+  string title = 1;
+  // 图片。
+  string image_url = 2;
+  // 跳转地。
+  string link_url = 3;
+  // 档位/位置。
+  string position = 4;
+  // 顺序。
+  int32 priority = 5;
+  // 起始。
+  google.protobuf.Timestamp start_time = 6;
+  // 截止。
+  google.protobuf.Timestamp end_time = 7;
 }
 
-// CreateBannerResponse 创建Banner响应消息结构。
+// 广告结果。
 message CreateBannerResponse {
-  Banner banner = 1; // 横幅
+  // 广告实体。
+  Banner banner = 1;
 }
 
-// ListBannersRequest 列出Banners请求消息结构。
+// 广告列表请求。
 message ListBannersRequest {
-  string position = 1; // 位置
-  bool active_only = 2; // 激活only
+  // 过滤位置。
+  string position = 1;
+  // 仅限生效。
+  bool active_only = 2;
 }
 
-// ListBannersResponse 列出Banners响应消息结构。
+// 广告列表结果。
 message ListBannersResponse {
-  repeated Banner banners = 1; // 横幅
+  // 广告序列。
+  repeated Banner banners = 1;
 }
 
-// DeleteBannerRequest 删除Banner请求消息结构。
+// 广告移除。
 message DeleteBannerRequest {
-  uint64 id = 1; // 唯一标识
+  // 系统 ID。
+  uint64 id = 1;
 }
 
-// ClickBannerRequest ClickBanner请求消息结构。
+// 点击统计请求。
 message ClickBannerRequest {
-  uint64 id = 1; // 唯一标识
+  // 系统 ID。
+  uint64 id = 1;
 }

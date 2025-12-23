@@ -6,81 +6,109 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/review/v1;v1";
 
-// Review 评论服务。
+// 商品评价服务，处理用户的商品评分、文字内容及历史查询。
 service Review {
-// CreateReview 创建评论。
-    rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse);
+  // 提交新评价。
+  rpc CreateReview(CreateReviewRequest) returns (CreateReviewResponse);
 
-    // 获取特定商品的评论
-    rpc ListProductReviews(ListProductReviewsRequest) returns (ListProductReviewsResponse);
+  // 获取特定商品的全部评价。
+  rpc ListProductReviews(ListProductReviewsRequest) returns (ListProductReviewsResponse);
 
-// ListUserReviews 列出列表用户Reviews。
-    rpc ListUserReviews(ListUserReviewsRequest) returns (ListUserReviewsResponse);
+  // 获取特定用户发布的所有评价。
+  rpc ListUserReviews(ListUserReviewsRequest) returns (ListUserReviewsResponse);
 
-    // 获取商品的总体评分
-    rpc GetProductRating(GetProductRatingRequest) returns (GetProductRatingResponse);
+  // 查询商品的平均评分及评价总数。
+  rpc GetProductRating(GetProductRatingRequest) returns (GetProductRatingResponse);
 }
 
-// ReviewInfo 评论信息消息。
+// 评价详情数据。
 message ReviewInfo {
-    string id = 1; // 唯一标识
-    string product_id = 2; // 产品id
-    string user_id = 3; // 用户唯一标识
-    int32 rating = 4; // 评分
-    string title = 5; // 标题
-    string content = 6; // 内容
-    google.protobuf.Timestamp created_at = 7; // 创建时间
-    google.protobuf.Timestamp updated_at = 8; // 更新时间
+  // 评价唯一 ID。
+  string id = 1;
+  // 关联商品 ID。
+  string product_id = 2;
+  // 发布用户 ID。
+  string user_id = 3;
+  // 评分星级 (1-5)。
+  int32 rating = 4;
+  // 评价标题。
+  string title = 5;
+  // 评价详细文字。
+  string content = 6;
+  // 发布时间。
+  google.protobuf.Timestamp created_at = 7;
+  // 最后修改时间。
+  google.protobuf.Timestamp updated_at = 8;
 }
 
-// 创建评论请求
+// 发布评价请求。
 message CreateReviewRequest {
-    string product_id = 1; // 产品id
-    string user_id = 2; // 用户唯一标识
-    int32 rating = 3; // 评分
-    string title = 4; // 标题
-    string content = 5; // 内容
+  // 商品 ID。
+  string product_id = 1;
+  // 用户 ID。
+  string user_id = 2;
+  // 星级评分。
+  int32 rating = 3;
+  // 标题。
+  string title = 4;
+  // 正文。
+  string content = 5;
 }
 
-// 创建评论响应
+// 发布结果。
 message CreateReviewResponse {
-    ReviewInfo review = 1; // 评论
+  // 生成的评价。
+  ReviewInfo review = 1;
 }
 
-// 获取商品评论列表请求
+// 商品评价查询。
 message ListProductReviewsRequest {
-    string product_id = 1; // 产品id
-    int32 page_size = 2; // 页码大小
-    int32 page_token = 3; // 页码令牌
+  // 商品 ID。
+  string product_id = 1;
+  // 每页条数。
+  int32 page_size = 2;
+  // 分页令牌。
+  int32 page_token = 3;
 }
 
-// 获取商品评论列表响应
+// 商品评价列表响应。
 message ListProductReviewsResponse {
-    repeated ReviewInfo reviews = 1; // 评论列表
-    int32 total_count = 2; // 总数计数
-    double average_rating = 3; // average评分
+  // 评价列表。
+  repeated ReviewInfo reviews = 1;
+  // 总条数。
+  int32 total_count = 2;
+  // 当前平均分。
+  double average_rating = 3;
 }
 
-// 获取用户评论列表请求
+// 用户评价查询。
 message ListUserReviewsRequest {
-    string user_id = 1; // 用户唯一标识
-    int32 page_size = 2; // 页码大小
-    int32 page_token = 3; // 页码令牌
+  // 用户 ID。
+  string user_id = 1;
+  // 每页条数。
+  int32 page_size = 2;
+  // 令牌。
+  int32 page_token = 3;
 }
 
-// 获取用户评论列表响应
+// 用户评价列表响应。
 message ListUserReviewsResponse {
-    repeated ReviewInfo reviews = 1; // 评论列表
-    int32 total_count = 2; // 总数计数
+  // 评价记录。
+  repeated ReviewInfo reviews = 1;
+  // 总记录数。
+  int32 total_count = 2;
 }
 
-// 获取商品评分请求
+// 评分统计查询。
 message GetProductRatingRequest {
-    string product_id = 1; // 产品id
+  // 商品 ID。
+  string product_id = 1;
 }
 
-// 获取商品评分响应
+// 评分统计响应。
 message GetProductRatingResponse {
-    double average_rating = 1; // average评分
-    int32 total_reviews = 2; // 总数reviews
+  // 平均星级。
+  double average_rating = 1;
+  // 总评价数。
+  int32 total_reviews = 2;
 }

@@ -2,162 +2,238 @@ syntax = "proto3";
 
 package api.warehouse.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/warehouse/v1;warehousev1";
 
-// WarehouseService Warehouse服务服务定义。
+// 仓库管理服务，负责物理仓库配置、库存增减、库间调拨及库存锁定逻辑。
 service WarehouseService {
-// CreateWarehouse 创建仓库。
+  // 创建新仓库节点。
   rpc CreateWarehouse(CreateWarehouseRequest) returns (CreateWarehouseResponse);
-// ListWarehouses 处理列出Warehouses请求。
+
+  // 列出系统所有仓库。
   rpc ListWarehouses(ListWarehousesRequest) returns (ListWarehousesResponse);
 
-// UpdateStock 更新Stock。
+  // 更新仓库内特定 SKU 的库存数量（如入库或手动盘点）。
   rpc UpdateStock(UpdateStockRequest) returns (google.protobuf.Empty);
-// GetStock 处理获取Stock请求。
+
+  // 查询特定仓库下商品的详细库存情况。
   rpc GetStock(GetStockRequest) returns (GetStockResponse);
 
-// CreateTransfer 创建Transfer。
+  // 发起库间调拨任务。
   rpc CreateTransfer(CreateTransferRequest) returns (CreateTransferResponse);
-// CompleteTransfer 处理CompleteTransfer请求。
+
+  // 确认调拨完成，更新两端库存。
   rpc CompleteTransfer(CompleteTransferRequest) returns (google.protobuf.Empty);
 
-// DeductStock DeductStock接口。
+  // 下单时扣减并锁定库存。
   rpc DeductStock(DeductStockRequest) returns (google.protobuf.Empty);
-// RevertStock 处理RevertStock请求。
+
+  // 订单取消或超时时回滚库存。
   rpc RevertStock(RevertStockRequest) returns (google.protobuf.Empty);
 }
 
-// Warehouse Warehouse消息结构。
+// 仓库详情实体。
 message Warehouse {
-  uint64 id = 1; // 唯一标识
-  string code = 2; // 代码
-  string name = 3; // 名称
-  string warehouse_type = 4; // warehouse类型
-  string province = 5; // 省份
-  string city = 6; // 城市
-  string district = 7; // 区县
-  string address = 8; // 地址
-  double longitude = 9; // 经度
-  double latitude = 10; // 纬度
-  string contact_name = 11; // contact名称
-  string contact_phone = 12; // contact电话
-  int32 priority = 13; // 优先级
-  string status = 14; // 状态
-  int64 capacity = 15; // 容量
-  string description = 16; // 描述
-  google.protobuf.Timestamp created_at = 17; // 创建时间
-  google.protobuf.Timestamp updated_at = 18; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 仓库内部编码。
+  string code = 2;
+  // 仓库名称。
+  string name = 3;
+  // 仓库类型（如 RDC, FDC）。
+  string warehouse_type = 4;
+  // 省。
+  string province = 5;
+  // 市。
+  string city = 6;
+  // 区。
+  string district = 7;
+  // 详细地址。
+  string address = 8;
+  // 经度。
+  double longitude = 9;
+  // 纬度。
+  double latitude = 10;
+  // 仓库联系人。
+  string contact_name = 11;
+  // 联系电话。
+  string contact_phone = 12;
+  // 发货优先级。
+  int32 priority = 13;
+  // 状态。
+  string status = 14;
+  // 最大库容（件数或体积）。
+  int64 capacity = 15;
+  // 备注描述。
+  string description = 16;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 17;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 18;
 }
 
-// WarehouseStock WarehouseStock消息结构。
+// 库存记录明细。
 message WarehouseStock {
-  uint64 id = 1; // 唯一标识
-  uint64 warehouse_id = 2; // 仓库ID
-  uint64 sku_id = 3; // 库存单元唯一标识
-  int32 stock = 4; // 库存
-  int32 locked_stock = 5; // 锁定库存
-  int32 safe_stock = 6; // 安全库存
-  int32 max_stock = 7; // 最大stock
-  google.protobuf.Timestamp created_at = 8; // 创建时间
-  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 记录 ID。
+  uint64 id = 1;
+  // 关联仓库 ID。
+  uint64 warehouse_id = 2;
+  // 关联 SKU ID。
+  uint64 sku_id = 3;
+  // 当前实物总库存。
+  int32 stock = 4;
+  // 已锁定（预占）的库存。
+  int32 locked_stock = 5;
+  // 安全库存水位。
+  int32 safe_stock = 6;
+  // 库容上限限制。
+  int32 max_stock = 7;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 最后变动时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// StockTransfer StockTransfer消息结构。
+// 调拨任务单。
 message StockTransfer {
-  uint64 id = 1; // 唯一标识
-  string transfer_no = 2; // 转移no
-  uint64 from_warehouse_id = 3; // 从warehouseid
-  uint64 to_warehouse_id = 4; // 去warehouseid
-  uint64 sku_id = 5; // 库存单元唯一标识
-  int32 quantity = 6; // 数量
-  string status = 7; // 状态
-  string reason = 8; // 原因
-  uint64 approved_by = 9; // approved被
-  google.protobuf.Timestamp approved_at = 10; // approved在
-  google.protobuf.Timestamp shipped_at = 11; // shipped在
-  google.protobuf.Timestamp received_at = 12; // received在
-  google.protobuf.Timestamp completed_at = 13; // completed在
-  string remark = 14; // 备注
-  uint64 created_by = 15; // created被
-  google.protobuf.Timestamp created_at = 16; // 创建时间
-  google.protobuf.Timestamp updated_at = 17; // 更新时间
+  // 调拨单 ID。
+  uint64 id = 1;
+  // 调拨单号。
+  string transfer_no = 2;
+  // 源仓库 ID。
+  uint64 from_warehouse_id = 3;
+  // 目标仓库 ID。
+  uint64 to_warehouse_id = 4;
+  // SKU ID。
+  uint64 sku_id = 5;
+  // 调拨数量。
+  int32 quantity = 6;
+  // 任务状态。
+  string status = 7;
+  // 调拨原因。
+  string reason = 8;
+  // 审核人。
+  uint64 approved_by = 9;
+  // 审核时间。
+  google.protobuf.Timestamp approved_at = 10;
+  // 发货时间。
+  google.protobuf.Timestamp shipped_at = 11;
+  // 收货时间。
+  google.protobuf.Timestamp received_at = 12;
+  // 归档完成时间。
+  google.protobuf.Timestamp completed_at = 13;
+  // 备注。
+  string remark = 14;
+  // 创建人 ID。
+  uint64 created_by = 15;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 16;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 17;
 }
 
-// CreateWarehouseRequest 创建Warehouse请求消息结构。
+// 仓库创建请求。
 message CreateWarehouseRequest {
-  string code = 1; // 代码
-  string name = 2; // 名称
+  // 编码。
+  string code = 1;
+  // 名称。
+  string name = 2;
 }
 
-// CreateWarehouseResponse 创建Warehouse响应消息结构。
+// 仓库创建响应。
 message CreateWarehouseResponse {
-  Warehouse warehouse = 1; // 仓库
+  // 仓库详情。
+  Warehouse warehouse = 1;
 }
 
-// ListWarehousesRequest 列出Warehouses请求消息结构。
+// 仓库列表查询请求。
 message ListWarehousesRequest {
-  int32 page = 1; // 页码
-  int32 page_size = 2; // 页码大小
+  // 页码。
+  int32 page = 1;
+  // 每页大小。
+  int32 page_size = 2;
 }
 
-// ListWarehousesResponse 列出Warehouses响应消息结构。
+// 仓库列表响应。
 message ListWarehousesResponse {
-  repeated Warehouse warehouses = 1; // 仓库列表
-  int64 total_count = 2; // 总数计数
+  // 仓库数据。
+  repeated Warehouse warehouses = 1;
+  // 总数。
+  int64 total_count = 2;
 }
 
-// UpdateStockRequest 更新Stock请求消息结构。
+// 库存更新请求。
 message UpdateStockRequest {
-  uint64 warehouse_id = 1; // 仓库ID
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 quantity = 3; // 数量 (扣减时可为负数)
+  // 仓库 ID。
+  uint64 warehouse_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
+  // 变更数量。
+  int32 quantity = 3;
 }
 
-// GetStockRequest 获取Stock请求消息结构。
+// 库存查询请求。
 message GetStockRequest {
-  uint64 warehouse_id = 1; // 仓库ID
-  uint64 sku_id = 2; // 库存单元唯一标识
+  // 仓库 ID。
+  uint64 warehouse_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
 }
 
-// GetStockResponse 获取Stock响应消息结构。
+// 库存响应。
 message GetStockResponse {
-  WarehouseStock stock = 1; // 库存
+  // 库存详情。
+  WarehouseStock stock = 1;
 }
 
-// CreateTransferRequest 创建Transfer请求消息结构。
+// 调拨创建请求。
 message CreateTransferRequest {
-  uint64 from_warehouse_id = 1; // 从warehouseid
-  uint64 to_warehouse_id = 2; // 去warehouseid
-  uint64 sku_id = 3; // 库存单元唯一标识
-  int32 quantity = 4; // 数量
-  uint64 created_by = 5; // created被
+  // 出库仓库 ID。
+  uint64 from_warehouse_id = 1;
+  // 入库仓库 ID。
+  uint64 to_warehouse_id = 2;
+  // SKU ID。
+  uint64 sku_id = 3;
+  // 调拨数量。
+  int32 quantity = 4;
+  // 操作人。
+  uint64 created_by = 5;
 }
 
-// CreateTransferResponse 创建Transfer响应消息结构。
+// 调拨响应。
 message CreateTransferResponse {
-  StockTransfer transfer = 1; // 转移
+  // 生成的调拨单。
+  StockTransfer transfer = 1;
 }
 
-// CompleteTransferRequest CompleteTransfer请求消息结构。
+// 调拨确认请求。
 message CompleteTransferRequest {
-  uint64 transfer_id = 1; // 转移ID
+  // 调拨单 ID。
+  uint64 transfer_id = 1;
 }
 
-// DeductStockRequest DeductStock请求消息结构。
+// 库存扣减请求。
 message DeductStockRequest {
-  uint64 order_id = 1; // 订单唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 quantity = 3; // 数量
-  uint64 warehouse_id = 4; // 仓库ID
+  // 关联订单 ID。
+  uint64 order_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
+  // 数量。
+  int32 quantity = 3;
+  // 指定仓库（可选）。
+  uint64 warehouse_id = 4;
 }
 
-// RevertStockRequest RevertStock请求消息结构。
+// 库存回滚请求。
 message RevertStockRequest {
-  uint64 order_id = 1; // 订单唯一标识
-  uint64 sku_id = 2; // 库存单元唯一标识
-  int32 quantity = 3; // 数量
-  uint64 warehouse_id = 4; // 仓库ID
+  // 关联订单 ID。
+  uint64 order_id = 1;
+  // SKU ID。
+  uint64 sku_id = 2;
+  // 数量。
+  int32 quantity = 3;
+  // 指定仓库（可选）。
+  uint64 warehouse_id = 4;
 }

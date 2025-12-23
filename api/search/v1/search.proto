@@ -4,31 +4,42 @@ package search.v1;
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/search/v1;v1";
 
-// SearchService 搜索服务服务定义。
+// 搜索中心服务，基于索引库提供商品及其属性的全文检索功能。
 service SearchService {
-  // 定义搜索服务的接口
-  rpc SearchProducts (SearchProductsRequest) returns (SearchProductsResponse);
+  // 核心查询接口：根据关键词搜索商品列表。
+  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
 }
 
-// SearchProductsRequest 搜索Products请求消息结构。
+// 搜索请求。
 message SearchProductsRequest {
-  string query = 1; // 查询
-  int32 page_size = 2; // 页码大小
-  int32 page_token = 3; // 页码令牌
+  // 关键词字符串。
+  string query = 1;
+  // 每页结果数。
+  int32 page_size = 2;
+  // 分页令牌。
+  int32 page_token = 3;
 }
 
-// SearchProductsResponse 搜索Products响应消息结构。
+// 搜索响应。
 message SearchProductsResponse {
-  repeated Product products = 1; // 商品列表
-  int32 total_size = 2; // 总数大小
-  int32 next_page_token = 3; // 下一个页码令牌
+  // 命中结果列表。
+  repeated Product products = 1;
+  // 总命中记录数。
+  int32 total_size = 2;
+  // 下一页翻页令牌。
+  int32 next_page_token = 3;
 }
 
-// Product 产品消息结构。
+// 搜索结果中的商品摘要。
 message Product {
-  string id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  double price = 4; // 价格
-  string image_url = 5; // 图片链接
+  // 商品 ID。
+  string id = 1;
+  // 商品名称。
+  string name = 2;
+  // 简短描述或卖点。
+  string description = 3;
+  // 标价。
+  double price = 4;
+  // 主图 URL。
+  string image_url = 5;
 }

@@ -2,123 +2,175 @@ syntax = "proto3";
 
 package api.settlement.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/settlement/v1;settlementv1";
 
-// SettlementService Settlement服务服务定义。
+// 结算服务，负责平台与商家间的资金清算、对账及账务管理。
 service SettlementService {
-// CreateSettlement 创建Settlement。
+  // 生成结算单。
   rpc CreateSettlement(CreateSettlementRequest) returns (CreateSettlementResponse);
-// AddOrderToSettlement 处理Add订单去Settlement请求。
+
+  // 将已完成订单归入特定结算单。
   rpc AddOrderToSettlement(AddOrderToSettlementRequest) returns (google.protobuf.Empty);
-// ProcessSettlement 处理ProcessSettlement请求。
+
+  // 执行金额核算。
   rpc ProcessSettlement(ProcessSettlementRequest) returns (google.protobuf.Empty);
-// CompleteSettlement 处理CompleteSettlement请求。
+
+  // 确认资金划转完成。
   rpc CompleteSettlement(CompleteSettlementRequest) returns (google.protobuf.Empty);
-// ListSettlements 处理列出Settlements请求。
+
+  // 查询历史结算记录。
   rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
 
-// RecordPaymentSuccess Record支付成功接口。
+  // 记录订单实时入账。
   rpc RecordPaymentSuccess(RecordPaymentSuccessRequest) returns (google.protobuf.Empty);
 
-// GetMerchantAccount 获取Merchant账户。
+  // 获取商家实时余额及费率。
   rpc GetMerchantAccount(GetMerchantAccountRequest) returns (GetMerchantAccountResponse);
 }
 
-// Settlement Settlement消息结构。
+// 结算单详情。
 message Settlement {
-  uint64 id = 1; // 唯一标识
-  string settlement_no = 2; // 结算no
-  uint64 merchant_id = 3; // merchant唯一标识
-  string cycle = 4; // 周期
-  google.protobuf.Timestamp start_date = 5; // 开始date
-  google.protobuf.Timestamp end_date = 6; // 结束date
-  int64 order_count = 7; // 订单计数
-  uint64 total_amount = 8; // 总数金额
-  uint64 platform_fee = 9; // platform费用
-  uint64 settlement_amount = 10; // settlement金额
-  int32 status = 11; // 状态
-  google.protobuf.Timestamp settled_at = 12; // settled在
-  string fail_reason = 13; // 失败reason
-  google.protobuf.Timestamp created_at = 14; // 创建时间
-  google.protobuf.Timestamp updated_at = 15; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 结算单号。
+  string settlement_no = 2;
+  // 商家 ID。
+  uint64 merchant_id = 3;
+  // 周期名。
+  string cycle = 4;
+  // 开始日期。
+  google.protobuf.Timestamp start_date = 5;
+  // 结束日期。
+  google.protobuf.Timestamp end_date = 6;
+  // 订单总数。
+  int64 order_count = 7;
+  // 订单总额。
+  uint64 total_amount = 8;
+  // 平台佣金。
+  uint64 platform_fee = 9;
+  // 应结金额。
+  uint64 settlement_amount = 10;
+  // 状态。
+  int32 status = 11;
+  // 结算完成时刻。
+  google.protobuf.Timestamp settled_at = 12;
+  // 失败理由。
+  string fail_reason = 13;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 14;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 15;
 }
 
-// MerchantAccount Merchant账户消息结构。
+// 商家账务。
 message MerchantAccount {
-  uint64 id = 1; // 唯一标识
-  uint64 merchant_id = 2; // merchant唯一标识
-  uint64 balance = 3; // 余额
-  uint64 frozen_balance = 4; // frozen余额
-  uint64 total_income = 5; // 总数income
-  uint64 total_withdraw = 6; // 总数withdraw
-  double fee_rate = 7; // 费用rate
-  google.protobuf.Timestamp created_at = 8; // 创建时间
-  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 系统 ID。
+  uint64 id = 1;
+  // 商家 ID。
+  uint64 merchant_id = 2;
+  // 可用余额。
+  uint64 balance = 3;
+  // 待结算金额。
+  uint64 frozen_balance = 4;
+  // 累计收入。
+  uint64 total_income = 5;
+  // 累计提现。
+  uint64 total_withdraw = 6;
+  // 扣率。
+  double fee_rate = 7;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// CreateSettlementRequest 创建Settlement请求消息结构。
+// 创建请求。
 message CreateSettlementRequest {
-  uint64 merchant_id = 1; // merchant唯一标识
-  string cycle = 2; // 周期
-  google.protobuf.Timestamp start_date = 3; // 开始date
-  google.protobuf.Timestamp end_date = 4; // 结束date
+  // 商家 ID。
+  uint64 merchant_id = 1;
+  // 周期。
+  string cycle = 2;
+  // 起始。
+  google.protobuf.Timestamp start_date = 3;
+  // 结束。
+  google.protobuf.Timestamp end_date = 4;
 }
 
-// CreateSettlementResponse 创建Settlement响应消息结构。
+// 创建结果。
 message CreateSettlementResponse {
-  Settlement settlement = 1; // 结算
+  // 结算单实体。
+  Settlement settlement = 1;
 }
 
-// AddOrderToSettlementRequest Add订单去Settlement请求消息结构。
+// 关联订单请求。
 message AddOrderToSettlementRequest {
-  uint64 settlement_id = 1; // 结算唯一标识
-  uint64 order_id = 2; // 订单唯一标识
-  string order_no = 3; // 订单no
-  uint64 amount = 4; // 金额
+  // 目标 ID。
+  uint64 settlement_id = 1;
+  // 订单 ID。
+  uint64 order_id = 2;
+  // 业务订单号。
+  string order_no = 3;
+  // 金额。
+  uint64 amount = 4;
 }
 
-// ProcessSettlementRequest ProcessSettlement请求消息结构。
+// 核算请求。
 message ProcessSettlementRequest {
-  uint64 id = 1; // 唯一标识
+  // 记录 ID。
+  uint64 id = 1;
 }
 
-// CompleteSettlementRequest CompleteSettlement请求消息结构。
+// 完成请求。
 message CompleteSettlementRequest {
-  uint64 id = 1; // 唯一标识
+  // 记录 ID。
+  uint64 id = 1;
 }
 
-// ListSettlementsRequest 列出Settlements请求消息结构。
+// 列表查询请求。
 message ListSettlementsRequest {
-  uint64 merchant_id = 1; // merchant唯一标识
-  int32 status = 2; // 状态
-  int32 page = 3; // 页码
-  int32 page_size = 4; // 页码大小
+  // 商家 ID。
+  uint64 merchant_id = 1;
+  // 状态筛选。
+  int32 status = 2;
+  // 页码。
+  int32 page = 3;
+  // 数量。
+  int32 page_size = 4;
 }
 
-// ListSettlementsResponse 列出Settlements响应消息结构。
+// 列表查询响应。
 message ListSettlementsResponse {
-  repeated Settlement settlements = 1; // 结算列表
-  int64 total_count = 2; // 总数计数
+  // 结算记录序列。
+  repeated Settlement settlements = 1;
+  // 总笔数。
+  int64 total_count = 2;
 }
 
-// GetMerchantAccountRequest 获取Merchant账户请求消息结构。
+// 账户查询请求。
 message GetMerchantAccountRequest {
-  uint64 merchant_id = 1; // merchant唯一标识
+  // 商家 ID。
+  uint64 merchant_id = 1;
 }
 
-// GetMerchantAccountResponse 获取Merchant账户响应消息结构。
+// 账户查询响应。
 message GetMerchantAccountResponse {
-  MerchantAccount account = 1; // 账户
+  // 账户档案。
+  MerchantAccount account = 1;
 }
 
-// RecordPaymentSuccessRequest Record支付Success请求消息结构。
+// 支付同步请求。
 message RecordPaymentSuccessRequest {
-  uint64 order_id = 1; // 订单唯一标识
-  string order_no = 2; // 订单no
-  uint64 merchant_id = 3; // merchant唯一标识
-  int64 amount = 4; // 金额
-  int64 channel_cost = 5; // 渠道成本
+  // 订单 ID。
+  uint64 order_id = 1;
+  // 业务单号。
+  string order_no = 2;
+  // 商家 ID。
+  uint64 merchant_id = 3;
+  // 付款金额。
+  int64 amount = 4;
+  // 通道成本。
+  int64 channel_cost = 5;
 }

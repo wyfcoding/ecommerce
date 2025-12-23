@@ -4,27 +4,34 @@ package api.smart_product_selection.v1;
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/smart_product_selection/v1;v1";
 
-// SmartProductSelectionService 定义了智能选品服务接口
+// 智能选品服务，利用大数据分析辅助商家进行商品铺货建议及选品决策。
 service SmartProductSelectionService {
-  // 获取智能选品推荐
+  // 获取基于大数据分析的智能选品建议列表。
   rpc GetSmartProductRecommendations(GetSmartProductRecommendationsRequest) returns (GetSmartProductRecommendationsResponse);
 }
 
-// ProductRecommendation 智能选品推荐结果
+// 选品建议结果。
 message ProductRecommendation {
-  uint64 product_id = 1; // 产品id
-  string product_name = 2; // 产品名称
-  double score = 3; // 推荐分数
-  string reason = 4; // 推荐理由
+  // 建议商品 ID。
+  uint64 product_id = 1;
+  // 建议商品名称。
+  string product_name = 2;
+  // 潜力评分 (0-1.0)。
+  double score = 3;
+  // 推荐依据（如：流行趋势、季节性缺口）。
+  string reason = 4;
 }
 
-// GetSmartProductRecommendationsRequest 获取智能选品推荐请求
+// 选品推荐请求。
 message GetSmartProductRecommendationsRequest {
-  string merchant_id = 1; // 商家ID
-  map<string, string> context_features = 2; // 选品上下文特征，如季节、流行趋势、库存情况
+  // 商家 ID。
+  string merchant_id = 1;
+  // 选品维度特征（如：目标季节、地域偏好）。
+  map<string, string> context_features = 2;
 }
 
-// GetSmartProductRecommendationsResponse 获取智能选品推荐响应
+// 选品推荐响应。
 message GetSmartProductRecommendationsResponse {
-  repeated ProductRecommendation recommendations = 1; // 推荐
+  // 建议序列。
+  repeated ProductRecommendation recommendations = 1;
 }

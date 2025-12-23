@@ -2,149 +2,204 @@ syntax = "proto3";
 
 package api.loyalty.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/loyalty/v1;v1";
 
-// LoyaltyService 定义了会员服务接口
+// 忠诚度与会员权益服务，负责积分体系、会员等级及专属折扣管理。
 service LoyaltyService {
-  // GetMemberAccount 获取会员账户
+  // 查询用户的会员档案、等级状态及积分余额。
   rpc GetMemberAccount(GetMemberAccountRequest) returns (GetMemberAccountResponse);
 
-  // AddPoints 增加积分
+  // 系统或手动增加用户账户积分。
   rpc AddPoints(AddPointsRequest) returns (google.protobuf.Empty);
 
-  // DeductPoints 扣减积分
+  // 扣减用户已持有的积分。
   rpc DeductPoints(DeductPointsRequest) returns (google.protobuf.Empty);
 
-  // AddSpent 增加消费金额
+  // 补录用户的消费额，用于等级晋升逻辑。
   rpc AddSpent(AddSpentRequest) returns (google.protobuf.Empty);
 
-  // ListPointsTransactions 获取积分交易记录
+  // 查询积分的来源与消耗流水记录。
   rpc ListPointsTransactions(ListPointsTransactionsRequest) returns (ListPointsTransactionsResponse);
 
-  // AddBenefit 添加会员权益
+  // 定义并添加特定等级的会员专属权益。
   rpc AddBenefit(AddBenefitRequest) returns (AddBenefitResponse);
 
-  // ListBenefits 获取会员权益列表
+  // 获取各等级生效的权益配置列表。
   rpc ListBenefits(ListBenefitsRequest) returns (ListBenefitsResponse);
 
-  // DeleteBenefit 删除会员权益
+  // 撤销/删除特定的权益条目。
   rpc DeleteBenefit(DeleteBenefitRequest) returns (google.protobuf.Empty);
 }
 
-// MemberAccount 会员账户
+// 会员账户信息。
 message MemberAccount {
-  uint64 id = 1; // 唯一标识
-  uint64 user_id = 2; // 用户唯一标识
-  string level = 3; // 等级
-  int64 total_points = 4; // 总数points
-  int64 available_points = 5; // 可用points
-  int64 frozen_points = 6; // 冻结points
-  uint64 total_spent = 7; // 总数spent
-  google.protobuf.Timestamp created_at = 8; // 创建时间
-  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 系统 ID。
+  uint64 id = 1;
+  // 归属用户。
+  uint64 user_id = 2;
+  // 等级名。
+  string level = 3;
+  // 累计获赠总分。
+  int64 total_points = 4;
+  // 实时可用余额。
+  int64 available_points = 5;
+  // 待结算/冻结积分。
+  int64 frozen_points = 6;
+  // 累计成功消费金额。
+  uint64 total_spent = 7;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// PointsTransaction 积分交易
+// 积分交易流水。
 message PointsTransaction {
-  uint64 id = 1; // 唯一标识
-  uint64 user_id = 2; // 用户唯一标识
-  string transaction_type = 3; // transaction类型
-  int64 points = 4; // 积分
-  int64 balance = 5; // 余额
-  uint64 order_id = 6; // 订单唯一标识
-  string description = 7; // 描述
-  google.protobuf.Timestamp expire_at = 8; // expire在
-  google.protobuf.Timestamp created_at = 9; // 创建时间
+  // 流水 ID。
+  uint64 id = 1;
+  // 行为用户。
+  uint64 user_id = 2;
+  // 类别 (EARN, REDEEM)。
+  string transaction_type = 3;
+  // 数值。
+  int64 points = 4;
+  // 变动后结余。
+  int64 balance = 5;
+  // 关联业务订单 ID。
+  uint64 order_id = 6;
+  // 说明。
+  string description = 7;
+  // 该笔积分有效期点。
+  google.protobuf.Timestamp expire_at = 8;
+  // 发生时刻。
+  google.protobuf.Timestamp created_at = 9;
 }
 
-// MemberBenefit 会员权益
+// 等级权益配置。
 message MemberBenefit {
-  uint64 id = 1; // 唯一标识
-  string level = 2; // 等级
-  string name = 3; // 名称
-  string description = 4; // 描述
-  double discount_rate = 5; // 折扣rate
-  double points_rate = 6; // points率
-  bool enabled = 7; // 启用
-  google.protobuf.Timestamp created_at = 8; // 创建时间
-  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 权益 ID。
+  uint64 id = 1;
+  // 目标会员级。
+  string level = 2;
+  // 权益标题。
+  string name = 3;
+  // 详细权益介绍。
+  string description = 4;
+  // 专享折扣率（如 0.9）。
+  double discount_rate = 5;
+  // 积分加倍倍率。
+  double points_rate = 6;
+  // 状态开关。
+  bool enabled = 7;
+  // 录入时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// GetMemberAccountRequest 获取Member账户请求消息结构。
+// 账户查询。
 message GetMemberAccountRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// GetMemberAccountResponse 获取Member账户响应消息结构。
+// 账户响应。
 message GetMemberAccountResponse {
-  MemberAccount account = 1; // 账户
+  // 账户档案。
+  MemberAccount account = 1;
 }
 
-// AddPointsRequest AddPoints请求消息结构。
+// 积分发放请求。
 message AddPointsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  int64 points = 2; // 积分
-  string transaction_type = 3; // transaction类型
-  string description = 4; // 描述
-  uint64 order_id = 5; // 订单唯一标识
+  // 目标用户。
+  uint64 user_id = 1;
+  // 增量值。
+  int64 points = 2;
+  // 业务动作标识。
+  string transaction_type = 3;
+  // 摘要说明。
+  string description = 4;
+  // 关联单号。
+  uint64 order_id = 5;
 }
 
-// DeductPointsRequest DeductPoints请求消息结构。
+// 积分扣减请求。
 message DeductPointsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  int64 points = 2; // 积分
-  string transaction_type = 3; // transaction类型
-  string description = 4; // 描述
-  uint64 order_id = 5; // 订单唯一标识
+  // 目标用户。
+  uint64 user_id = 1;
+  // 减量值。
+  int64 points = 2;
+  // 业务标识。
+  string transaction_type = 3;
+  // 说明。
+  string description = 4;
+  // 关联单号。
+  uint64 order_id = 5;
 }
 
-// AddSpentRequest AddSpent请求消息结构。
+// 消费额更新请求。
 message AddSpentRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 amount = 2; // 金额
+  // 目标用户。
+  uint64 user_id = 1;
+  // 累计增加金额。
+  uint64 amount = 2;
 }
 
-// ListPointsTransactionsRequest 列出PointsTransactions请求消息结构。
+// 流水查询请求。
 message ListPointsTransactionsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint32 page_size = 2; // 页码大小
-  uint32 page_num = 3; // 页码num
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 数量。
+  uint32 page_size = 2;
+  // 页码。
+  uint32 page_num = 3;
 }
 
-// ListPointsTransactionsResponse 列出PointsTransactions响应消息结构。
+// 流水查询响应。
 message ListPointsTransactionsResponse {
-  repeated PointsTransaction transactions = 1; // 事务列表
-  uint64 total_count = 2; // 总数计数
+  // 流水序列。
+  repeated PointsTransaction transactions = 1;
+  // 总笔数。
+  uint64 total_count = 2;
 }
 
-// AddBenefitRequest AddBenefit请求消息结构。
+// 权益创建。
 message AddBenefitRequest {
-  string level = 1; // 等级
-  string name = 2; // 名称
-  string description = 3; // 描述
-  double discount_rate = 4; // 折扣rate
-  double points_rate = 5; // points率
+  // 适用等级。
+  string level = 1;
+  // 名称。
+  string name = 2;
+  // 描述。
+  string description = 3;
+  // 折扣值。
+  double discount_rate = 4;
+  // 积分率。
+  double points_rate = 5;
 }
 
-// AddBenefitResponse AddBenefit响应消息结构。
+// 权益创建响应。
 message AddBenefitResponse {
-  MemberBenefit benefit = 1; // 权益
+  // 权益条目。
+  MemberBenefit benefit = 1;
 }
 
-// ListBenefitsRequest 列出Benefits请求消息结构。
+// 权益检索。
 message ListBenefitsRequest {
-  string level = 1; // 等级
+  // 等级名。
+  string level = 1;
 }
 
-// ListBenefitsResponse 列出Benefits响应消息结构。
+// 权益响应。
 message ListBenefitsResponse {
-  repeated MemberBenefit benefits = 1; // 权益列表
+  // 权益列表。
+  repeated MemberBenefit benefits = 1;
 }
 
-// DeleteBenefitRequest 删除Benefit请求消息结构。
+// 权益移除。
 message DeleteBenefitRequest {
-  uint64 id = 1; // 唯一标识
+  // 权益 ID。
+  uint64 id = 1;
 }

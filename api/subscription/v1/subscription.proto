@@ -2,104 +2,144 @@ syntax = "proto3";
 
 package api.subscription.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/subscription/v1;subscriptionv1";
 
-// SubscriptionService Subscription服务服务定义。
+// 订阅会员服务，管理各类增值服务的收费计划、用户契约及有效期自动续费。
 service SubscriptionService {
-// CreatePlan 创建Plan。
+  // 定义并发布一套新的付费权益套餐。
   rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
-// ListPlans 处理列出Plans请求。
+
+  // 获取当前所有面向用户开放的套餐配置。
   rpc ListPlans(google.protobuf.Empty) returns (ListPlansResponse);
 
-// Subscribe 订阅接口。
+  // 用户发起购买并确认订阅特定套餐。
   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
-// Cancel 处理Cancel请求。
+
+  // 物理或逻辑终止当前的订阅协议。
   rpc Cancel(CancelRequest) returns (google.protobuf.Empty);
-// Renew 处理Renew请求。
+
+  // 手动延长现有订阅合约的有效期。
   rpc Renew(RenewRequest) returns (google.protobuf.Empty);
-// ListSubscriptions 处理列出Subscriptions请求。
+
+  // 分页列表检索用户的订阅历史。
   rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse);
 }
 
-// SubscriptionPlan SubscriptionPlan消息结构。
+// 会员套餐配置。
 message SubscriptionPlan {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  uint64 price = 4; // 价格
-  int32 duration = 5; // 时长
-  repeated string features = 6; // 特性
-  bool enabled = 7; // 启用
-  google.protobuf.Timestamp created_at = 8; // 创建时间
-  google.protobuf.Timestamp updated_at = 9; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 显示名 (如 "月度黄金会员")。
+  string name = 2;
+  // 权益详细介绍。
+  string description = 3;
+  // 售卖价。
+  uint64 price = 4;
+  // 赋予的有效天数。
+  int32 duration = 5;
+  // 套餐包含的权益标签集。
+  repeated string features = 6;
+  // 发售开关。
+  bool enabled = 7;
+  // 录入时间。
+  google.protobuf.Timestamp created_at = 8;
+  // 修改时间。
+  google.protobuf.Timestamp updated_at = 9;
 }
 
-// Subscription Subscription消息结构。
+// 用户订阅契约。
 message Subscription {
-  uint64 id = 1; // 唯一标识
-  uint64 user_id = 2; // 用户唯一标识
-  uint64 plan_id = 3; // 计划ID
-  int32 status = 4; // 状态
-  google.protobuf.Timestamp start_date = 5; // 开始date
-  google.protobuf.Timestamp end_date = 6; // 结束date
-  bool auto_renew = 7; // auto续费
-  google.protobuf.Timestamp canceled_at = 8; // canceled在
-  google.protobuf.Timestamp created_at = 9; // 创建时间
-  google.protobuf.Timestamp updated_at = 10; // 更新时间
+  // 唯一记录 ID。
+  uint64 id = 1;
+  // 归属人。
+  uint64 user_id = 2;
+  // 关联套餐 ID。
+  uint64 plan_id = 3;
+  // 当前存续状态 (0:无效, 1:存续中)。
+  int32 status = 4;
+  // 生效起始。
+  google.protobuf.Timestamp start_date = 5;
+  // 合约到期。
+  google.protobuf.Timestamp end_date = 6;
+  // 自动续费标识。
+  bool auto_renew = 7;
+  // 协议解约时刻。
+  google.protobuf.Timestamp canceled_at = 8;
+  // 合同创建。
+  google.protobuf.Timestamp created_at = 9;
+  // 状态变更。
+  google.protobuf.Timestamp updated_at = 10;
 }
 
-// CreatePlanRequest 创建Plan请求消息结构。
+// 套餐定义请求。
 message CreatePlanRequest {
-  string name = 1; // 名称
-  string description = 2; // 描述
-  uint64 price = 3; // 价格
-  int32 duration = 4; // 时长
-  repeated string features = 5; // 特性
+  // 名称。
+  string name = 1;
+  // 简介。
+  string description = 2;
+  // 售价。
+  uint64 price = 3;
+  // 时长天数。
+  int32 duration = 4;
+  // 权益列表。
+  repeated string features = 5;
 }
 
-// CreatePlanResponse 创建Plan响应消息结构。
+// 套餐定义响应。
 message CreatePlanResponse {
-  SubscriptionPlan plan = 1; // 计划
+  // 套餐档案。
+  SubscriptionPlan plan = 1;
 }
 
-// ListPlansResponse 列出Plans响应消息结构。
+// 套餐列表结果。
 message ListPlansResponse {
-  repeated SubscriptionPlan plans = 1; // 计划列表
+  // 套餐序列。
+  repeated SubscriptionPlan plans = 1;
 }
 
-// SubscribeRequest Subscribe请求消息结构。
+// 签约请求。
 message SubscribeRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 plan_id = 2; // 计划ID
+  // 用户。
+  uint64 user_id = 1;
+  // 选中的套餐。
+  uint64 plan_id = 2;
 }
 
-// SubscribeResponse Subscribe响应消息结构。
+// 签约结果。
 message SubscribeResponse {
-  Subscription subscription = 1; // 订阅
+  // 契约档案。
+  Subscription subscription = 1;
 }
 
-// CancelRequest Cancel请求消息结构。
+// 解约请求。
 message CancelRequest {
-  uint64 id = 1; // 唯一标识
+  // 契约 ID。
+  uint64 id = 1;
 }
 
-// RenewRequest Renew请求消息结构。
+// 续期请求。
 message RenewRequest {
-  uint64 id = 1; // 唯一标识
+  // 契约 ID。
+  uint64 id = 1;
 }
 
-// ListSubscriptionsRequest 列出Subscriptions请求消息结构。
+// 合约列表查询。
 message ListSubscriptionsRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  int32 page = 2; // 页码
-  int32 page_size = 3; // 页码大小
+  // 用户。
+  uint64 user_id = 1;
+  // 页码。
+  int32 page = 2;
+  // 数量。
+  int32 page_size = 3;
 }
 
-// ListSubscriptionsResponse 列出Subscriptions响应消息结构。
+// 合约列表结果。
 message ListSubscriptionsResponse {
-  repeated Subscription subscriptions = 1; // 订阅列表
-  int64 total_count = 2; // 总数计数
+  // 契约序列。
+  repeated Subscription subscriptions = 1;
+  // 总笔数。
+  int64 total_count = 2;
 }

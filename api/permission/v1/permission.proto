@@ -2,132 +2,174 @@ syntax = "proto3";
 
 package api.permission.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/permission/v1;permissionv1";
 
-// PermissionService 权限服务服务定义。
+// 权限管理服务，负责角色定义、权限项管理及用户权限校验。
 service PermissionService {
-// CreateRole 创建角色。
+  // 创建新角色。
   rpc CreateRole(CreateRoleRequest) returns (Role);
-// GetRole 处理获取角色请求。
+
+  // 获取角色详情。
   rpc GetRole(GetRoleRequest) returns (Role);
-// ListRoles 处理列出Roles请求。
+
+  // 列出所有系统角色。
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
-// DeleteRole 处理删除角色请求。
+
+  // 物理或逻辑删除角色。
   rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
 
-// CreatePermission 创建权限。
+  // 创建一个原子权限项（如 "order.delete"）。
   rpc CreatePermission(CreatePermissionRequest) returns (Permission);
-// ListPermissions 处理列出Permissions请求。
+
+  // 列出所有可用权限项。
   rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
 
-// AssignRole Assign角色接口。
+  // 将角色授予指定用户。
   rpc AssignRole(AssignRoleRequest) returns (google.protobuf.Empty);
-// RevokeRole 处理Revoke角色请求。
+
+  // 撤回用户的特定角色。
   rpc RevokeRole(RevokeRoleRequest) returns (google.protobuf.Empty);
-// GetUserRoles 处理获取用户Roles请求。
+
+  // 查询用户拥有的所有角色。
   rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
-// CheckPermission 处理Check权限请求。
+
+  // 核心校验接口：检查用户是否具备特定权限。
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
 }
 
-// Role 角色消息结构。
+// 角色实体。
 message Role {
-  uint64 id = 1; // 唯一标识
-  string name = 2; // 名称
-  string description = 3; // 描述
-  repeated Permission permissions = 4; // 权限列表
-  google.protobuf.Timestamp created_at = 5; // 创建时间
-  google.protobuf.Timestamp updated_at = 6; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 角色名称（如 "管理员", "店长"）。
+  string name = 2;
+  // 角色描述。
+  string description = 3;
+  // 该角色绑定的权限列表。
+  repeated Permission permissions = 4;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 5;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 6;
 }
 
-// Permission 权限消息结构。
+// 权限项实体。
 message Permission {
-  uint64 id = 1; // 唯一标识
-  string code = 2; // 代码
-  string description = 3; // 描述
-  google.protobuf.Timestamp created_at = 4; // 创建时间
-  google.protobuf.Timestamp updated_at = 5; // 更新时间
+  // 唯一 ID。
+  uint64 id = 1;
+  // 权限代码标识符。
+  string code = 2;
+  // 权限项描述。
+  string description = 3;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 4;
+  // 更新时间。
+  google.protobuf.Timestamp updated_at = 5;
 }
 
-// CreateRoleRequest 创建角色请求消息结构。
+// 角色创建请求。
 message CreateRoleRequest {
-  string name = 1; // 名称
-  string description = 2; // 描述
-  repeated uint64 permission_ids = 3; // 权限ids
+  // 名称。
+  string name = 1;
+  // 描述。
+  string description = 2;
+  // 赋予的权限 ID 集合。
+  repeated uint64 permission_ids = 3;
 }
 
-// GetRoleRequest 获取角色请求消息结构。
+// 角色查询请求。
 message GetRoleRequest {
-  uint64 id = 1; // 唯一标识
+  // 角色 ID。
+  uint64 id = 1;
 }
 
-// ListRolesRequest 列出Roles请求消息结构。
+// 角色列表请求。
 message ListRolesRequest {
-  int32 page = 1; // 页码
-  int32 page_size = 2; // 页码大小
+  // 页码。
+  int32 page = 1;
+  // 每页数量。
+  int32 page_size = 2;
 }
 
-// ListRolesResponse 列出Roles响应消息结构。
+// 角色列表响应。
 message ListRolesResponse {
-  repeated Role roles = 1; // 角色列表
-  int64 total_count = 2; // 总数计数
+  // 角色序列。
+  repeated Role roles = 1;
+  // 总记录数。
+  int64 total_count = 2;
 }
 
-// DeleteRoleRequest 删除角色请求消息结构。
+// 角色删除请求。
 message DeleteRoleRequest {
-  uint64 id = 1; // 唯一标识
+  // 角色 ID。
+  uint64 id = 1;
 }
 
-// CreatePermissionRequest 创建权限请求消息结构。
+// 权限项创建请求。
 message CreatePermissionRequest {
-  string code = 1; // 代码
-  string description = 2; // 描述
+  // 权限代码。
+  string code = 1;
+  // 权限描述。
+  string description = 2;
 }
 
-// ListPermissionsRequest 列出Permissions请求消息结构。
+// 权限项查询请求。
 message ListPermissionsRequest {
-  int32 page = 1; // 页码
-  int32 page_size = 2; // 页码大小
+  // 页码。
+  int32 page = 1;
+  // 每页数量。
+  int32 page_size = 2;
 }
 
-// ListPermissionsResponse 列出Permissions响应消息结构。
+// 权限项查询响应。
 message ListPermissionsResponse {
-  repeated Permission permissions = 1; // 权限列表
-  int64 total_count = 2; // 总数计数
+  // 权限序列。
+  repeated Permission permissions = 1;
+  // 总记录数。
+  int64 total_count = 2;
 }
 
-// AssignRoleRequest Assign角色请求消息结构。
+// 用户授权请求。
 message AssignRoleRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 role_id = 2; // 角色id
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 授予的角色 ID。
+  uint64 role_id = 2;
 }
 
-// RevokeRoleRequest Revoke角色请求消息结构。
+// 权限撤销请求。
 message RevokeRoleRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  uint64 role_id = 2; // 角色id
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 撤销的角色 ID。
+  uint64 role_id = 2;
 }
 
-// GetUserRolesRequest 获取用户Roles请求消息结构。
+// 用户角色查询请求。
 message GetUserRolesRequest {
-  uint64 user_id = 1; // 用户唯一标识
+  // 用户 ID。
+  uint64 user_id = 1;
 }
 
-// GetUserRolesResponse 获取用户Roles响应消息结构。
+// 用户角色列表响应。
 message GetUserRolesResponse {
-  repeated Role roles = 1; // 角色列表
+  // 拥有的角色列表。
+  repeated Role roles = 1;
 }
 
-// CheckPermissionRequest Check权限请求消息结构。
+// 权限校验请求。
 message CheckPermissionRequest {
-  uint64 user_id = 1; // 用户唯一标识
-  string permission_code = 2; // 权限代码
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 需要检查的权限代码。
+  string permission_code = 2;
 }
 
-// CheckPermissionResponse Check权限响应消息结构。
+// 校验结果响应。
 message CheckPermissionResponse {
-  bool allowed = 1; // 允许
+  // 是否允许访问。
+  bool allowed = 1;
 }
