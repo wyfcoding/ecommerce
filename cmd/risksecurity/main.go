@@ -1,4 +1,4 @@
-package risksecurity
+package main
 
 import (
 	"fmt"

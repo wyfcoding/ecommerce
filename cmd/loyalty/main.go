@@ -1,4 +1,4 @@
-package loyalty
+package main
 
 import (
 	"fmt"

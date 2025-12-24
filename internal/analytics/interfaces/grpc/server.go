@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/analytics/v1"         // 导入分析模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/analytics/v1"          // 导入分析模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/analytics/application" // 导入分析模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"      // 导入分析模块的领域层。
 

@@ -1,4 +1,4 @@
-package multichannel
+package main
 
 import (
 	"fmt"

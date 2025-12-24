@@ -1,4 +1,4 @@
-package logistics
+package main
 
 import (
 	"fmt"

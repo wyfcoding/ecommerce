@@ -1,4 +1,4 @@
-package dynamicpricing
+package main
 
 import (
 	"fmt"

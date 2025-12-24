@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"         // 导入购物车模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"          // 导入购物车模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/cart/application" // 导入购物车模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/cart/domain"      // 导入购物车模块的领域层。
 

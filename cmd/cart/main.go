@@ -1,4 +1,4 @@
-package cart
+package main
 
 import (
 	"fmt"

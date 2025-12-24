@@ -1,4 +1,4 @@
-package orderoptimization
+package main
 
 import (
 	"fmt"

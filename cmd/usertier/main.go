@@ -1,4 +1,4 @@
-package usertier
+package main
 
 import (
 	"fmt"

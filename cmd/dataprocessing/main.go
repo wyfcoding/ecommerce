@@ -1,4 +1,4 @@
-package dataprocessing
+package main
 
 import (
 	"fmt"

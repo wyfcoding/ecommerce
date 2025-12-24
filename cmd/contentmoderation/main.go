@@ -1,4 +1,4 @@
-package contentmoderation
+package main
 
 import (
 	"fmt"

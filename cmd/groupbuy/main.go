@@ -1,4 +1,4 @@
-package groupbuy
+package main
 
 import (
 	"fmt"

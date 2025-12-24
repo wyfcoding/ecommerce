@@ -1,4 +1,4 @@
-package settlement
+package main
 
 import (
 	"fmt"

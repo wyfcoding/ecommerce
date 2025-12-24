@@ -1,4 +1,4 @@
-package inventoryforecast
+package main
 
 import (
 	"fmt"

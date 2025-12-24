@@ -1,4 +1,4 @@
-package flashsale
+package main
 
 import (
 	"fmt"

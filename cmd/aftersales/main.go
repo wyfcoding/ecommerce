@@ -1,4 +1,4 @@
-package aftersales
+package main
 
 import (
 	"fmt"

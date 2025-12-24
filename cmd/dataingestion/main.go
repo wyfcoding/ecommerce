@@ -1,4 +1,4 @@
-package dataingestion
+package main
 
 import (
 	"fmt"

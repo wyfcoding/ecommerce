@@ -1,4 +1,4 @@
-package recommendation
+package main
 
 import (
 	"fmt"

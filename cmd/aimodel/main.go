@@ -1,4 +1,4 @@
-package aimodel
+package main
 
 import (
 	"fmt"

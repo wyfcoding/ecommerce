@@ -1,4 +1,4 @@
-package pointsmall
+package main
 
 import (
 	"fmt"

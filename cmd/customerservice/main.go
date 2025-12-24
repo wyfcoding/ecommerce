@@ -1,4 +1,4 @@
-package customerservice
+package main
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package financialsettlement
+package main
 
 import (
 	"fmt"

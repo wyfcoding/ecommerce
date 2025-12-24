@@ -1,4 +1,4 @@
-package product
+package main
 
 import (
 	"fmt"

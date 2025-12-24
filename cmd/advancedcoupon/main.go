@@ -1,4 +1,4 @@
-package advancedcoupon
+package main
 
 import (
 	"fmt"
