@@ -1,4 +1,4 @@
-package main
+package cart
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/cart/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"
 	"github.com/wyfcoding/ecommerce/internal/cart/application"
 	"github.com/wyfcoding/ecommerce/internal/cart/infrastructure/persistence"
 	cartgrpc "github.com/wyfcoding/ecommerce/internal/cart/interfaces/grpc"

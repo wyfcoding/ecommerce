@@ -4,7 +4,7 @@ import (
 	"context" // 导入上下文。
 	"fmt"     // 导入格式化库。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/product/v1"         // 导入产品模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/product/v1"         // 导入产品模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/product/application" // 导入产品模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/product/domain"      // 导入产品模块的领域实体。
 

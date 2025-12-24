@@ -1,4 +1,4 @@
-package main
+package settlement
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain/ledger"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"

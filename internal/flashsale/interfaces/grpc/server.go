@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/flashsale/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 

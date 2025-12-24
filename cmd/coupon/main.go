@@ -1,4 +1,4 @@
-package main
+package coupon
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/coupon/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/coupon/application"
 	"github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence"
 	coupongrpc "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/grpc"

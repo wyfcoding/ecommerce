@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 

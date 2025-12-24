@@ -4,7 +4,7 @@ import (
 	"context" // 导入标准错误处理包。
 	"fmt"     // 导入格式化包。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/aftersales/v1"               // 导入售后模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"               // 导入售后模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"       // 导入售后模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后模块的领域实体。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后模块的仓储层查询对象。

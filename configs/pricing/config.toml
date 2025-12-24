@@ -16,7 +16,7 @@ timeout = "1s"
 driver = "mysql"
 dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_pricing?charset=utf8mb4&parseTime=True&loc=Local"
 
-[services.ai_model]
+[services.aimodel]
 addr = "127.0.0.1:9090"
 
 [log]

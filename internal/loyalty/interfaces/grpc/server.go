@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/loyalty/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/loyalty/v1"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/application"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/domain"
 

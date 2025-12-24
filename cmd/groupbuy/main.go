@@ -1,4 +1,4 @@
-package main
+package groupbuy
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/groupbuy/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/groupbuy/v1"
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/application"
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/infrastructure/persistence"
 	groupbuygrpc "github.com/wyfcoding/ecommerce/internal/groupbuy/interfaces/grpc"

@@ -1,0 +1,27 @@
+[server]
+name = "orderoptimization"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8105
+timeout = "1s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9125
+timeout = "1s"
+
+[data.database]
+driver = "mysql"
+dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_orderoptimization?charset=utf8mb4&parseTime=True&loc=Local"
+
+[log]
+level = "debug"
+format = "json"
+output = "stdout"
+
+[metrics]
+enabled = true
+port = "9090"
+path = "/metrics"

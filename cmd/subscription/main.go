@@ -1,4 +1,4 @@
-package main
+package subscription
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/subscription/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/subscription/v1"
 	"github.com/wyfcoding/ecommerce/internal/subscription/application"
 	"github.com/wyfcoding/ecommerce/internal/subscription/infrastructure/persistence"
 	subscriptiongrpc "github.com/wyfcoding/ecommerce/internal/subscription/interfaces/grpc"

@@ -21,7 +21,7 @@ uri = "bolt://127.0.0.1:7687"
 username = "neo4j"
 password = "password"
 
-[services.ai_model]
+[services.aimodel]
 addr = "127.0.0.1:9090"
 
 [log]

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"         // 导入订单模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"         // 导入订单模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/order/application" // 导入订单模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 

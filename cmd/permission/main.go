@@ -1,4 +1,4 @@
-package main
+package permission
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/pkg/grpcclient"
 
 	"github.com/gin-gonic/gin"
-	pb "github.com/wyfcoding/ecommerce/go-api/permission/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/permission/v1"
 	"github.com/wyfcoding/ecommerce/internal/permission/application"
 	"github.com/wyfcoding/ecommerce/internal/permission/infrastructure/persistence"
 	permissiongrpc "github.com/wyfcoding/ecommerce/internal/permission/interfaces/grpc"

@@ -1,4 +1,4 @@
-package main
+package scheduler
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/scheduler/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/scheduler/v1"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/application"
 	"github.com/wyfcoding/ecommerce/internal/scheduler/infrastructure/persistence"
 	schedulergrpc "github.com/wyfcoding/ecommerce/internal/scheduler/interfaces/grpc"

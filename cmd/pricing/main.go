@@ -1,4 +1,4 @@
-package main
+package pricing
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/pricing/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/pricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/pricing/application"
 	"github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence"
 	pricinggrpc "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/grpc"

@@ -1,4 +1,4 @@
-package main
+package payment
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	v1 "github.com/wyfcoding/ecommerce/go-api/payment/v1"
-	settlementv1 "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
+	v1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	settlementv1 "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"

@@ -5,7 +5,7 @@ import (
 	"fmt"     // 导入格式化库。
 	"strconv" // 导入字符串转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/go-api/wishlist/v1"         // 导入收藏夹模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/wishlist/v1"         // 导入收藏夹模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/wishlist/application" // 导入收藏夹模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain"      // 导入收藏夹模块的领域层。
 

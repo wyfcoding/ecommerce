@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/subscription/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/subscription/v1"
 	"github.com/wyfcoding/ecommerce/internal/subscription/application"
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain"
 

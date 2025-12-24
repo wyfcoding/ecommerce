@@ -1,4 +1,4 @@
-package main
+package order
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
 	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"

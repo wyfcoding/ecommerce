@@ -1,4 +1,4 @@
-package main
+package user
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/user/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
 	"github.com/wyfcoding/ecommerce/internal/user/application"
 	mysqlRepo "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/mysql"
 	usergrpc "github.com/wyfcoding/ecommerce/internal/user/interfaces/grpc"

@@ -1,4 +1,4 @@
-package main
+package inventory
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
 	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"

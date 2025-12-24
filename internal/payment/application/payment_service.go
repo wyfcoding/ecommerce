@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	settlementv1 "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
+	settlementv1 "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 

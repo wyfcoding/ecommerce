@@ -1,4 +1,4 @@
-package main
+package loyalty
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/loyalty/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/loyalty/v1"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/application"
 	"github.com/wyfcoding/ecommerce/internal/loyalty/infrastructure/persistence"
 	loyaltygrpc "github.com/wyfcoding/ecommerce/internal/loyalty/interfaces/grpc"

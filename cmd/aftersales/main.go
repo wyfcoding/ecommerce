@@ -1,4 +1,4 @@
-package main
+package aftersales
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/aftersales/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/persistence"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"

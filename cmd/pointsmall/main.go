@@ -1,4 +1,4 @@
-package main
+package pointsmall
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idgen"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/pointsmall/v1"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence"
 	pointsgrpc "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/grpc"

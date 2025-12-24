@@ -1,4 +1,4 @@
-package main
+package message
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/message/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/message/v1"
 	"github.com/wyfcoding/ecommerce/internal/message/application"
 	"github.com/wyfcoding/ecommerce/internal/message/infrastructure/persistence"
 	messagegrpc "github.com/wyfcoding/ecommerce/internal/message/interfaces/grpc"
