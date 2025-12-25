@@ -15,14 +15,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Server 结构体实现了 LoyaltyService 的 gRPC 服务端接口。
+// Server 结构体实现了 Loyalty 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedLoyaltyServiceServer
-	app *application.LoyaltyService
+	pb.UnimplementedLoyaltyServer
+	app *application.Loyalty
 }
 
 // NewServer 创建并返回一个新的 Loyalty gRPC 服务端实例。
-func NewServer(app *application.LoyaltyService) *Server {
+func NewServer(app *application.Loyalty) *Server {
 	return &Server{app: app}
 }
 

@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: file-service
+  repository: file
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -63,10 +63,10 @@ affinity: {}
 
 config:
   minio:
-    host: "minio-service"
+    host: "minio"
     port: 9000
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 networkPolicy:

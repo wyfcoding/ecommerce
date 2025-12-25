@@ -16,12 +16,12 @@ import (
 
 // Handler 结构体定义了Coupon模块的HTTP处理层。
 type Handler struct {
-	app    *application.CouponService // 依赖Coupon应用服务（Facade）。
+	app    *application.Coupon // 依赖Coupon应用服务（Facade）。
 	logger *slog.Logger               // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Coupon HTTP Handler 实例。
-func NewHandler(app *application.CouponService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Coupon, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

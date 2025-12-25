@@ -1,7 +1,7 @@
 # Payment Service Configuration
 
 [server]
-name = "payment-service"
+name = "payment"
 environment = "dev"
 
 [server.http]

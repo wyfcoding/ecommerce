@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/settlement-service cmd/settlement/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/settlement cmd/settlement/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/settlement-service .
+COPY --from=builder /app/bin/settlement .
 COPY --from=builder /app/configs/settlement/config.toml ./configs/settlement/config.toml
 
 # Expose ports
 EXPOSE 8113 9133
 
 # Run the application
-CMD ["./settlement-service"]
+CMD ["./settlement"]

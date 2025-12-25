@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"reflect"
 
 	"github.com/wyfcoding/pkg/grpcclient"
 
@@ -36,7 +35,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "pricing-service"
+const BootstrapName = "pricing"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -54,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterPricingServiceServer(s, pricinggrpc.NewServer(service))
+	pb.RegisterPricingServer(s, pricinggrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
@@ -91,7 +90,8 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewPricingRepository(db)
 
 	// 下游客户端
-	clients, clientCleanups, err := initClients(c)
+	clients := &ServiceClients{}
+	clientCleanups, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
@@ -109,63 +109,4 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	return &AppContext{AppService: service, Config: c, Clients: clients}, cleanup, nil
-}
-
-// initClients 使用反射自动初始化下游 gRPC 客户端
-// 它会遍历 ServiceClients 的字段，并在配置中查找同名字段
-func initClients(cfg *configpkg.Config) (*ServiceClients, func(), error) {
-	clients := &ServiceClients{}
-	var conns []*grpc.ClientConn
-
-	// 反射获取目标结构体（ServiceClients）的值和类型
-	clientsVal := reflect.ValueOf(clients).Elem()
-	// 反射获取配置源结构体（ServicesConfig）的值
-	servicesCfgVal := reflect.ValueOf(cfg.Services)
-
-	for i := 0; i < clientsVal.NumField(); i++ {
-		field := clientsVal.Type().Field(i)
-		fieldName := field.Name
-
-		// 在配置中查找同名字段
-		cfgField := servicesCfgVal.FieldByName(fieldName)
-		if !cfgField.IsValid() {
-			continue // 配置中没有这个服务，跳过
-		}
-
-		// 获取 ServiceAddr.GRPCAddr 字段的值
-		// 假设 cfgField 是 configpkg.ServiceAddr 类型
-		addrField := cfgField.FieldByName("GRPCAddr")
-		if !addrField.IsValid() || addrField.String() == "" {
-			continue // 地址为空，跳过
-		}
-
-		addr := addrField.String()
-		slog.Debug("initializing grpc client", "service", fieldName, "addr", addr)
-
-		conn, err := grpcclient.NewClient(grpcclient.ClientConfig{
-			Target:      addr,
-			Timeout:     5000,
-			ConnTimeout: 5000,
-		})
-		if err != nil {
-			// 关闭已打开的连接
-			for _, c := range conns {
-				c.Close()
-			}
-			return nil, nil, fmt.Errorf("failed to create client for %s: %w", fieldName, err)
-		}
-
-		conns = append(conns, conn)
-		// 将连接赋值给 clients 结构体对应的字段
-		clientsVal.Field(i).Set(reflect.ValueOf(conn))
-	}
-
-	cleanup := func() {
-		for _, conn := range conns {
-			if conn != nil {
-				conn.Close()
-			}
-		}
-	}
-	return clients, cleanup, nil
 }

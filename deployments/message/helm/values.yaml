@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: message-service
+  repository: message
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8103
   grpcPort: 9123
-  grpcService: "api.message.v1.MessageService"
+  grpcService: "api.message.v1.Message"
 
 ingress:
   enabled: false
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

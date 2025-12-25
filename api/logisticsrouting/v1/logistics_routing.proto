@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/logistics_routing/v1;v1";
 
 // 物流路由服务，负责配送商管理及多订单智能分拨优化。
-service LogisticsRoutingService {
+service LogisticsRouting {
   // 录入合作的配送商/承运商信息。
   rpc RegisterCarrier(RegisterCarrierRequest) returns (google.protobuf.Empty);
 

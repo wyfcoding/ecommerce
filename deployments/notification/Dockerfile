@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/notification-service cmd/notification/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/notification cmd/notification/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/notification-service .
+COPY --from=builder /app/bin/notification .
 COPY --from=builder /app/configs/notification/config.toml ./configs/notification/config.toml
 
 # Expose ports
 EXPOSE 8115 9115
 
 # Run the application
-CMD ["./notification-service"]
+CMD ["./notification"]

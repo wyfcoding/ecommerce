@@ -28,7 +28,7 @@ const BootstrapName = "inventory"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.InventoryService
+	AppService *application.Inventory
 	Clients    *ServiceClients
 }
 
@@ -55,7 +55,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterInventoryServiceServer(s, inventorygrpc.NewServer(ctx.AppService))
+	pb.RegisterInventoryServer(s, inventorygrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, svc any) {
@@ -85,7 +85,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -102,7 +102,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	inventoryManager := application.NewInventoryManager(repo, warehouseRepo, logging.Default().Logger)
 
 	// 创建门面
-	service := application.NewInventoryService(inventoryManager, inventoryQuery)
+	service := application.NewInventory(inventoryManager, inventoryQuery)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

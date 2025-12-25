@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: advancedcoupon-service
+  repository: advancedcoupon
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -15,7 +15,7 @@ serviceAccount:
   name: ""
   httpPort: 8119
   grpcPort: 9139
-  grpcService: "api.advancedcoupon.v1.AdvancedCouponService"
+  grpcService: "api.advancedcoupon.v1.AdvancedCoupon"
 
 podAnnotations: {}
 podSecurityContext: {}
@@ -65,7 +65,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

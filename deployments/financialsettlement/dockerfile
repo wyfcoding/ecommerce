@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/financialsettlement-service cmd/financialsettlement/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/financialsettlement cmd/financialsettlement/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/financialsettlement-service .
+COPY --from=builder /app/bin/financialsettlement .
 COPY --from=builder /app/configs/financialsettlement/config.toml ./configs/financialsettlement/config.toml
 
 # Expose ports
 EXPOSE 8096 9106
 
 # Run the application
-CMD ["./financialsettlement-service"]
+CMD ["./financialsettlement"]

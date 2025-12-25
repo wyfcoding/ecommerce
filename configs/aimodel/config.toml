@@ -21,7 +21,7 @@ dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_aimodel?charset=utf8mb4&
 # JWT 配置
 [jwt]
 secret = "your-secret-key" # 请在生产环境中修改为更复杂的密钥
-issuer = "ecommerce-aimodel-service"
+issuer = "ecommerce-aimodel"
 expire_duration = "24h"
 
 # 链路追踪配置

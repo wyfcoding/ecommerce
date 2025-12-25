@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/pricing-service cmd/pricing/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/pricing cmd/pricing/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/pricing-service .
+COPY --from=builder /app/bin/pricing .
 COPY --from=builder /app/configs/pricing/config.toml ./configs/pricing/config.toml
 
 # Expose ports
 EXPOSE 8107 9127
 
 # Run the application
-CMD ["./pricing-service"]
+CMD ["./pricing"]

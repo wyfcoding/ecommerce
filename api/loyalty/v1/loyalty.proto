@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/loyalty/v1;v1";
 
 // 忠诚度与会员权益服务，负责积分体系、会员等级及专属折扣管理。
-service LoyaltyService {
+service Loyalty {
   // 查询用户的会员档案、等级状态及积分余额。
   rpc GetMemberAccount(GetMemberAccountRequest) returns (GetMemberAccountResponse);
 

@@ -28,7 +28,7 @@ const BootstrapName = "cart"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.CartService
+	AppService *application.Cart
 	Clients    *ServiceClients
 }
 
@@ -88,7 +88,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -104,7 +104,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	cartManager := application.NewCartManager(repo, logging.Default().Logger, cartQuery)
 
 	// 创建门面
-	service := application.NewCartService(cartManager, cartQuery)
+	service := application.NewCart(cartManager, cartQuery)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

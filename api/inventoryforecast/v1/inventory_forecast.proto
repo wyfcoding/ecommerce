@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/inventory_forecast/v1;v1";
 
 // 库存预测服务，提供销量预测、库存预警及智能补货建议。
-service InventoryForecastService {
+service InventoryForecast {
   // 针对指定 SKU 生成未来一段时间的销售预测。
   rpc GenerateForecast(GenerateForecastRequest) returns (GenerateForecastResponse);
 

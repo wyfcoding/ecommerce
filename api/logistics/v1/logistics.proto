@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/logistics/v1;v1";
 
 // 物流服务，负责运单管理、轨迹追踪及配送路线优化。
-service LogisticsService {
+service Logistics {
   // 创建新物流单。
   rpc CreateLogistics(CreateLogisticsRequest) returns (CreateLogisticsResponse);
 

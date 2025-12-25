@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/usertier-service cmd/usertier/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/usertier cmd/usertier/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/usertier-service .
+COPY --from=builder /app/bin/usertier .
 COPY --from=builder /app/configs/usertier/config.toml ./configs/usertier/config.toml
 
 # Expose ports
 EXPOSE 8116 9136
 
 # Run the application
-CMD ["./usertier-service"]
+CMD ["./usertier"]

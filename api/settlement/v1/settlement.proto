@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/settlement/v1;settlementv1";
 
 // 结算服务，负责平台与商家间的资金清算、对账及账务管理。
-service SettlementService {
+service Settlement {
   // 生成结算单。
   rpc CreateSettlement(CreateSettlementRequest) returns (CreateSettlementResponse);
 

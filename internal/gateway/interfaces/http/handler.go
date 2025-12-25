@@ -14,12 +14,12 @@ import (
 // Handler 结构体定义了Gateway模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	service *application.GatewayService // 依赖Gateway应用服务，处理核心业务逻辑。
+	service *application.Gateway // 依赖Gateway应用服务，处理核心业务逻辑。
 	logger  *slog.Logger                // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Gateway HTTP Handler 实例。
-func NewHandler(service *application.GatewayService, logger *slog.Logger) *Handler {
+func NewHandler(service *application.Gateway, logger *slog.Logger) *Handler {
 	return &Handler{
 		service: service,
 		logger:  logger,

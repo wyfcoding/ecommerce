@@ -15,12 +15,12 @@ import (
 
 // Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
-	app    *application.MarketingService
+	app    *application.Marketing
 	logger *slog.Logger
 }
 
 // NewHandler 处理 HTTP 或 gRPC 请求。
-func NewHandler(app *application.MarketingService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Marketing, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

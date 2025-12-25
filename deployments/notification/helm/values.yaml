@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: notification-service
+  repository: notification
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8103
   grpcPort: 9123
-  grpcService: "api.notification.v1.NotificationService"
+  grpcService: "api.notification.v1.Notification"
 
 ingress:
   enabled: false
@@ -63,10 +63,10 @@ affinity: {}
 
 config:
   mq:
-    host: "rabbitmq-service"
+    host: "rabbitmq"
     port: 5672
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

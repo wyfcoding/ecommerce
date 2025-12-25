@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/financial_settlement/v1;v1";
 
 // 财务结算与打款服务。
-service FinancialSettlementService {
+service FinancialSettlement {
   // 建立结算。
   rpc CreateSettlement(CreateSettlementRequest) returns (CreateSettlementResponse);
 

@@ -29,19 +29,19 @@ static_resources:
               - match:
                   prefix: "/api/v1/cart"
                 route:
-                  cluster: cart_service
+                  cluster: cart
           http_filters:
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: cart_service
+  - name: cart
     connect_timeout: 0.25s
     type: LOGICAL_DNS
     lb_policy: ROUND_ROBIN
     load_assignment:
-      cluster_name: cart_service
+      cluster_name: cart
       endpoints:
       - lb_endpoints:
         - endpoint:

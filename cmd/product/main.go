@@ -28,7 +28,7 @@ const BootstrapName = "product"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.ProductService
+	AppService *application.Product
 	Clients    *ServiceClients
 }
 
@@ -93,7 +93,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		multiLevelCache.Close()
 		sqlDB, _ := db.DB()
@@ -113,7 +113,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	brandService := application.NewBrandService(brandRepo, logger)
 	skuService := application.NewSKUService(productRepo, skuRepo, logger)
 
-	appService := application.NewProductService(
+	appService := application.NewProduct(
 		catalogService,
 		categoryService,
 		brandService,

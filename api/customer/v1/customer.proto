@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package api.customer.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/customer/v1;v1";
+
+// 客户服务系统，负责在线咨询工单的生命周期管理及座席交互。
+service Customer {
+  // 创建一个反馈或求助工单。
+  rpc CreateTicket(CreateTicketRequest) returns (TicketResponse);
+
+  // 通过 ID 查询工单状态及历史。
+  rpc GetTicketByID(GetTicketByIDRequest) returns (TicketResponse);
+
+  // 更新工单的执行进度（如解决、关闭）。
+  rpc UpdateTicketStatus(UpdateTicketStatusRequest) returns (TicketResponse);
+
+  // 用户或座席在工单内追加对话内容。
+  rpc AddMessageToTicket(AddMessageToTicketRequest) returns (TicketMessageResponse);
+
+  // 获取单笔工单下的全量聊天记录流。
+  rpc GetTicketMessages(GetTicketMessagesRequest) returns (GetTicketMessagesResponse);
+}
+
+// 工单档案。
+message TicketInfo {
+  // 工单唯一 ID。
+  uint64 ticket_id = 1;
+  // 发起人 ID。
+  uint64 user_id = 2;
+  // 简要主题。
+  string subject = 3;
+  // 详细详情。
+  string description = 4;
+  // 状态。
+  string status = 5;
+  // 创建时间。
+  google.protobuf.Timestamp created_at = 6;
+  // 最后活动时间。
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// 对话消息单元。
+message TicketMessage {
+  // 消息唯一 ID。
+  uint64 message_id = 1;
+  // 关联工单 ID。
+  uint64 ticket_id = 2;
+  // 发件人 ID。
+  uint64 sender_id = 3;
+  // 发件人角色 (USER, AGENT)。
+  string sender_type = 4;
+  // 对话文字。
+  string message_body = 5;
+  // 发送时间。
+  google.protobuf.Timestamp sent_at = 6;
+}
+
+// 创建工单请求。
+message CreateTicketRequest {
+  // 用户 ID。
+  uint64 user_id = 1;
+  // 标题。
+  string subject = 2;
+  // 内容正文。
+  string description = 3;
+}
+
+// 查询响应。
+message TicketResponse {
+  // 工单档案。
+  TicketInfo ticket = 1;
+}
+
+// 查询请求。
+message GetTicketByIDRequest {
+  // 目标 ID。
+  uint64 ticket_id = 1;
+}
+
+// 状态更新。
+message UpdateTicketStatusRequest {
+  // 工单 ID。
+  uint64 ticket_id = 1;
+  // 目标状态。
+  string status = 2;
+}
+
+// 发送消息。
+message AddMessageToTicketRequest {
+  // 工单 ID。
+  uint64 ticket_id = 1;
+  // 发送方。
+  uint64 sender_id = 2;
+  // 发送角色。
+  string sender_type = 3;
+  // 消息体。
+  string message_body = 4;
+}
+
+// 消息响应。
+message TicketMessageResponse {
+  // 对话单元。
+  TicketMessage message = 1;
+}
+
+// 历史对话查询。
+message GetTicketMessagesRequest {
+  // 工单 ID。
+  uint64 ticket_id = 1;
+}
+
+// 历史对话响应。
+message GetTicketMessagesResponse {
+  // 消息记录序列。
+  repeated TicketMessage messages = 1;
+}

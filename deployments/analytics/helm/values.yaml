@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: analytics-service
+  repository: analytics
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8092
   grpcPort: 9092 # Placeholder if not used
-  grpcService: "api.analytics.v1.AnalyticsService"
+  grpcService: "api.analytics.v1.Analytics"
 
 ingress:
   enabled: false
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

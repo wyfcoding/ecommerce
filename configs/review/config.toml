@@ -17,13 +17,13 @@ driver = "mysql"
 dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_review?charset=utf8mb4&parseTime=True&loc=Local"
 
 [dependencies]
-user_service_grpc_addr = "localhost:9090"
-product_service_grpc_addr = "localhost:9092"
-order_service_grpc_addr = "localhost:9093"
+user_grpc_addr = "localhost:9090"
+product_grpc_addr = "localhost:9092"
+order_grpc_addr = "localhost:9093"
 
 [tracing]
 jaeger_endpoint = "http://localhost:14268/api/traces"
-service_name = "review-service"
+service_name = "review"
 
 [log]
 level = "debug"

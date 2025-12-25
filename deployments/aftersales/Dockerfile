@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/aftersales-service cmd/aftersales/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/aftersales cmd/aftersales/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/aftersales-service .
+COPY --from=builder /app/bin/aftersales .
 COPY --from=builder /app/configs/aftersales/config.toml ./configs/aftersales/config.toml
 
 # Expose ports
 EXPOSE 8091 9102
 
 # Run the application
-CMD ["./aftersales-service"]
+CMD ["./aftersales"]

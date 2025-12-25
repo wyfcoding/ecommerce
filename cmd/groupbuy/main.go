@@ -36,7 +36,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "groupbuy-service"
+const BootstrapName = "groupbuy"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -54,7 +54,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterGroupbuyServiceServer(s, groupbuygrpc.NewServer(service))
+	pb.RegisterGroupbuyServer(s, groupbuygrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered for groupbuy service (DDD)")
 }
 
@@ -89,7 +89,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 下游客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		if sqlDB != nil {
 			sqlDB.Close()

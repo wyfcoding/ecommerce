@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/scheduler/v1;schedulerv1";
 
 // 任务调度服务，管理定时任务 (Cron Job) 的配置、状态切换及执行日志。
-service SchedulerService {
+service Scheduler {
   // 注册一个新的定时作业。
   rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
 

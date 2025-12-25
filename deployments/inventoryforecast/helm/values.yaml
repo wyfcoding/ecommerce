@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: inventoryforecast-service
+  repository: inventoryforecast
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

@@ -5,7 +5,7 @@
 replicaCount: 2
 
 image:
-  repository: user-service
+  repository: user
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -83,10 +83,10 @@ config:
   # This section will be populated with the content of config.toml
   # It allows overriding config values via Helm
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
   redis:
-    host: "redis-service"
+    host: "redis"
     port: 6379
 
 istio:

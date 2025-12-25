@@ -14,12 +14,12 @@ import (
 
 // Handler 结构体定义了Review模块的HTTP处理层。
 type Handler struct {
-	app    *application.ReviewService // 依赖Review应用服务 (Facade)。
+	app    *application.Review // 依赖Review应用服务 (Facade)。
 	logger *slog.Logger               // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Review HTTP Handler 实例。
-func NewHandler(app *application.ReviewService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Review, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

@@ -26,13 +26,13 @@ db = 2 # 使用不同于其他服务的 DB
 
 # 依赖服务 gRPC 地址
 [dependencies]
-user_service_grpc_addr = "localhost:9090"
-product_service_grpc_addr = "localhost:9092"
+user_grpc_addr = "localhost:9090"
+product_grpc_addr = "localhost:9092"
 
 # 链路追踪配置
 [tracing]
 jaeger_endpoint = "http://localhost:14268/api/traces"
-service_name = "coupon-service"
+service_name = "coupon"
 
 # 日志配置
 [log]

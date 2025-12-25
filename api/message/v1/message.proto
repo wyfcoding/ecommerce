@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/message/v1;v1";
 
 // 站内消息服务，负责系统通知、私信的下发及阅读状态管理。
-service MessageService {
+service Message {
   // 发送一条即时消息。
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 

@@ -23,7 +23,7 @@ import (
 )
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "permission-service"
+const BootstrapName = "permission"
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
@@ -53,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterPermissionServiceServer(s, permissiongrpc.NewServer(service))
+	pb.RegisterPermissionServer(s, permissiongrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
@@ -86,7 +86,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		// sqlDB.Close() // 如果需要，可以通过 db.DB() 访问 sqlDB，但这里我们直接返回
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)

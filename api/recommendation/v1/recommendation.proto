@@ -5,7 +5,7 @@ package recommendation.v1;
 option go_package = "github.com/wyfcoding/ecommerce/go-api/recommendation/v1;v1";
 
 // 推荐服务，利用图算法及 AI 引擎为用户提供个性化商品及关联商品推荐。
-service RecommendationService {
+service Recommendation {
   // 基础接口：获取通用的推荐商品列表。
   rpc GetRecommendedProducts(GetRecommendedProductsRequest) returns (GetRecommendedProductsResponse);
 

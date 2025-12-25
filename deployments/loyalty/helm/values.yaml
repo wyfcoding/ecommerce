@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: loyalty-service
+  repository: loyalty
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8119
   grpcPort: 9139
-  grpcService: "api.loyalty.v1.LoyaltyService"
+  grpcService: "api.loyalty.v1.Loyalty"
 
 ingress:
   enabled: false
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

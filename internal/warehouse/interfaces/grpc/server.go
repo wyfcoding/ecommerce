@@ -16,7 +16,7 @@ import (
 
 // Server 结构体实现了 WarehouseService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedWarehouseServiceServer                               // 嵌入生成的UnimplementedWarehouseServiceServer。
+	pb.UnimplementedWarehouseServer                               // 嵌入生成的UnimplementedWarehouseServer。
 	app                                    *application.WarehouseService // 依赖Warehouse应用服务 facade。
 }
 

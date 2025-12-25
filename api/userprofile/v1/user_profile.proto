@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/user_profile/v1;v1";
 
 // 用户画像服务，负责聚合用户行为、偏好标签及消费特征，支持精准营销。
-service UserProfileService {
+service UserProfile {
   // 获取指定用户的深度画像快照。
   rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile);
 

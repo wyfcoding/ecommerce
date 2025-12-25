@@ -7,7 +7,7 @@ import "google/protobuf/empty.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/risk_security/v1;risksecurityv1";
 
 // 风控安全服务，负责用户行为风险评估、黑名单管理及异常操作监控。
-service RiskSecurityService {
+service RiskSecurity {
   // 评估当前操作的风险等级（如登录、支付）。
   rpc EvaluateRisk(EvaluateRiskRequest) returns (EvaluateRiskResponse);
 

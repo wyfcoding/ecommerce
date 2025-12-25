@@ -35,7 +35,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "warehouse-service"
+const BootstrapName = "warehouse"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -53,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterWarehouseServiceServer(s, warehousegrpc.NewServer(service))
+	pb.RegisterWarehouseServer(s, warehousegrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
@@ -89,7 +89,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 基础设施层
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)

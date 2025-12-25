@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/analytics/v1;v1";
 
 // 数据分析服务，负责收集用户行为数据并提供各类业务分析报告。
-service AnalyticsService {
+service Analytics {
   // --- 事件跟踪 ---
 
   // 上报单个行为事件（如页面浏览、按钮点击）。

@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/asset/v1;v1";
 
 // 资产管理服务，负责多媒体资产的生命周期、预签名授权及图像动态处理。
-service AssetService {
+service Asset {
   // --- 通用存储管理 ---
 
   // 上传单个文件。

@@ -16,7 +16,7 @@ import (
 
 // Server 结构体实现了 SubscriptionService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedSubscriptionServiceServer
+	pb.UnimplementedSubscriptionServer
 	app *application.SubscriptionService
 }
 

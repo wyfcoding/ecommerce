@@ -15,7 +15,7 @@ import (
 
 // Server 结构体实现了 InventoryForecastService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedInventoryForecastServiceServer
+	pb.UnimplementedInventoryForecastServer
 	app *application.InventoryForecastService
 }
 

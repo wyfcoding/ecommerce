@@ -24,7 +24,7 @@ import (
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
-	AppService *application.LoyaltyService
+	AppService *application.Loyalty
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
@@ -35,7 +35,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "loyalty-service"
+const BootstrapName = "loyalty"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -53,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterLoyaltyServiceServer(s, loyaltygrpc.NewServer(service))
+	pb.RegisterLoyaltyServer(s, loyaltygrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
@@ -88,7 +88,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 下游客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		if sqlDB != nil {
 			sqlDB.Close()
@@ -99,7 +99,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 应用层
 	manager := application.NewLoyaltyManager(repo, slog.Default())
 	query := application.NewLoyaltyQuery(repo)
-	service := application.NewLoyaltyService(manager, query)
+	service := application.NewLoyalty(manager, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

@@ -15,7 +15,7 @@ import (
 
 // Server 结构体实现了 RecommendationService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedRecommendationServiceServer                                    // 嵌入生成的UnimplementedRecommendationServiceServer，确保前向兼容性。
+	pb.UnimplementedRecommendationServer                                    // 嵌入生成的UnimplementedRecommendationServer，确保前向兼容性。
 	app                                         *application.RecommendationService // 依赖Recommendation应用服务，处理核心业务逻辑。
 }
 

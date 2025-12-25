@@ -24,7 +24,7 @@ import (
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
-	AppService *application.MarketingService
+	AppService *application.Marketing
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
@@ -38,7 +38,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "marketing-service"
+const BootstrapName = "marketing"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -56,7 +56,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterMarketingServiceServer(s, marketinggrpc.NewServer(service))
+	pb.RegisterMarketingServer(s, marketinggrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
@@ -90,7 +90,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewMarketingRepository(db)
 
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
@@ -98,7 +98,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	mgr := application.NewMarketingManager(repo, slog.Default())
 	query := application.NewMarketingQuery(repo)
-	service := application.NewMarketingService(mgr, query)
+	service := application.NewMarketing(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)

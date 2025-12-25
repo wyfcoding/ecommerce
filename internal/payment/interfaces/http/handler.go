@@ -11,12 +11,12 @@ import (
 
 // Handler 支付HTTP处理器
 type Handler struct {
-	app    *application.PaymentService
+	app    *application.Payment
 	logger *slog.Logger
 }
 
 // NewHandler 创建HTTP处理器
-func NewHandler(app *application.PaymentService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Payment, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

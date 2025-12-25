@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/admin/v1;v1";
 
 // 后台管理员账号服务，处理管理端权限、系统配置及操作审计。
-service AdminService {
+service Admin {
   // --- 管理员账号管理 ---
   // 录入新的管理员。
   rpc CreateAdminUser(CreateAdminUserRequest) returns (CreateAdminUserResponse);

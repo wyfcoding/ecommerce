@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: cart-service
+  repository: cart
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -62,10 +62,10 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
   redis:
-    host: "redis-service"
+    host: "redis"
     port: 6379
 
 istio:

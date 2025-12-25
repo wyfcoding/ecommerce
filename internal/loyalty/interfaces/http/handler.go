@@ -14,12 +14,12 @@ import (
 
 // Handler 结构体定义了Loyalty模块的HTTP处理层。
 type Handler struct {
-	app    *application.LoyaltyService
+	app    *application.Loyalty
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Loyalty HTTP Handler 实例。
-func NewHandler(app *application.LoyaltyService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Loyalty, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

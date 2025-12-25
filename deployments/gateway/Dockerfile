@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/gateway-service cmd/gateway/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/gateway cmd/gateway/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/gateway-service .
+COPY --from=builder /app/bin/gateway .
 COPY --from=builder /app/configs/gateway/config.toml ./configs/gateway/config.toml
 
 # Expose ports
 EXPOSE 8000 9000
 
 # Run the application
-CMD ["./gateway-service"]
+CMD ["./gateway"]

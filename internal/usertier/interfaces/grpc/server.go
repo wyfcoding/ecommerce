@@ -17,7 +17,7 @@ import (
 // Server 结构体实现了 UserTierService 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedUserTierServiceServer                              // 嵌入生成的UnimplementedUserTierServiceServer，确保前向兼容性。
+	pb.UnimplementedUserTierServer                              // 嵌入生成的UnimplementedUserTierServer，确保前向兼容性。
 	app                                   *application.UserTierService // 依赖UserTier应用服务，处理核心业务逻辑。
 }
 

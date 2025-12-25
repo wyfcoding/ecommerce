@@ -29,19 +29,19 @@ static_resources:
               - match:
                   prefix: "/api/v1/orders"
                 route:
-                  cluster: order_service
+                  cluster: order
           http_filters:
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: order_service
+  - name: order
     connect_timeout: 0.25s
     type: LOGICAL_DNS
     lb_policy: ROUND_ROBIN
     load_assignment:
-      cluster_name: order_service
+      cluster_name: order
       endpoints:
       - lb_endpoints:
         - endpoint:

@@ -14,12 +14,12 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedAdvancedCouponServiceServer
-	app *application.AdvancedCouponService
+	pb.UnimplementedAdvancedCouponServer
+	app *application.AdvancedCoupon
 }
 
 // NewServer 函数。
-func NewServer(app *application.AdvancedCouponService) *Server {
+func NewServer(app *application.AdvancedCoupon) *Server {
 	return &Server{app: app}
 }
 

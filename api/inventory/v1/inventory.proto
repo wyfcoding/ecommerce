@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/inventory/v1;v1";
 
 // 库存中心服务，负责全渠道库存的实时增减、锁定及日志追踪。
-service InventoryService {
+service Inventory {
   // 初始化商品库存记录。
   rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
 

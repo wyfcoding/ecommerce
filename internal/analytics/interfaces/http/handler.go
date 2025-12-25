@@ -16,12 +16,12 @@ import (
 
 // Handler 结构体定义了Analytics模块的HTTP处理层。
 type Handler struct {
-	app    *application.AnalyticsService // 依赖Analytics应用服务 facade。
+	app    *application.Analytics // 依赖Analytics应用服务 facade。
 	logger *slog.Logger                  // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Analytics HTTP Handler 实例。
-func NewHandler(app *application.AnalyticsService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Analytics, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

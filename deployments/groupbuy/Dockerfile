@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/groupbuy-service cmd/groupbuy/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/groupbuy cmd/groupbuy/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/groupbuy-service .
+COPY --from=builder /app/bin/groupbuy .
 COPY --from=builder /app/configs/groupbuy/config.toml ./configs/groupbuy/config.toml
 
 # Expose ports
 EXPOSE 8098 9108
 
 # Run the application
-CMD ["./groupbuy-service"]
+CMD ["./groupbuy"]

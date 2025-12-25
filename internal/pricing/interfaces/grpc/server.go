@@ -16,7 +16,7 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedPricingServiceServer
+	pb.UnimplementedPricingServer
 	app *application.PricingService
 }
 

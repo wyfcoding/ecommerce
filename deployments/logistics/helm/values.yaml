@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: logistics-service
+  repository: logistics
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8087
   grpcPort: 9097
-  grpcService: "api.logistics.v1.LogisticsService"
+  grpcService: "api.logistics.v1.Logistics"
 
 ingress:
   enabled: false
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

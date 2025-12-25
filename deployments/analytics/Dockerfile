@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/analytics-service cmd/analytics/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/analytics cmd/analytics/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/analytics-service .
+COPY --from=builder /app/bin/analytics .
 COPY --from=builder /app/configs/analytics/config.toml ./configs/analytics/config.toml
 
 # Expose ports
 EXPOSE 8092
 
 # Run the application
-CMD ["./analytics-service"]
+CMD ["./analytics"]

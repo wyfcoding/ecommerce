@@ -29,7 +29,7 @@ output = "stdout"
 [messagequeue.kafka]
 brokers = ["localhost:9092"]
 topic = "flashsale-orders"
-group_id = "flashsale-service"
+group_id = "flashsale"
 dial_timeout = "10s"
 read_timeout = "10s"
 write_timeout = "10s"

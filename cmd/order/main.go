@@ -42,7 +42,7 @@ type Config struct {
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *Config
-	AppService *application.OrderService
+	AppService *application.Order
 	Clients    *ServiceClients
 }
 
@@ -132,7 +132,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 下游客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		kafkaProducer.Close()
 		redisCache.Close()
@@ -146,7 +146,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	orderManager := application.NewOrderManager(repo, idGen, kafkaProducer, slog.Default(), c.DTM.Server, c.Warehouse.GrpcAddr, m)
 	orderQuery := application.NewOrderQuery(repo)
 
-	service := application.NewOrderService(orderManager, orderQuery, slog.Default())
+	service := application.NewOrder(orderManager, orderQuery, slog.Default())
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)

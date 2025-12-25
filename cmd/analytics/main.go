@@ -29,7 +29,7 @@ const BootstrapName = "analytics"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.AnalyticsService
+	AppService *application.Analytics
 	Clients    *ServiceClients
 }
 
@@ -53,7 +53,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterAnalyticsServiceServer(s, grpcServer.NewServer(ctx.AppService))
+	pb.RegisterAnalyticsServer(s, grpcServer.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, svc any) {
@@ -83,7 +83,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -105,7 +105,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewAnalyticsRepository(db)
 	query := application.NewAnalyticsQuery(repo)
 	manager := application.NewAnalyticsManager(repo, logging.Default().Logger)
-	service := application.NewAnalyticsService(manager, query, idGen)
+	service := application.NewAnalytics(manager, query, idGen)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

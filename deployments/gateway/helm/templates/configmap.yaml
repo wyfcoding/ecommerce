@@ -23,7 +23,7 @@ data:
 
     [jwt]
     secret = "your-secret-key"
-    issuer = "ecommerce-user-service"
+    issuer = "ecommerce-user"
     expire_duration = "24h"
 
     [tracing]

@@ -17,12 +17,12 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedMarketingServiceServer
-	app *application.MarketingService
+	pb.UnimplementedMarketingServer
+	app *application.Marketing
 }
 
 // NewServer 函数。
-func NewServer(app *application.MarketingService) *Server {
+func NewServer(app *application.Marketing) *Server {
 	return &Server{app: app}
 }
 

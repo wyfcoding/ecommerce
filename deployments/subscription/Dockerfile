@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/subscription-service cmd/subscription/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/subscription cmd/subscription/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/subscription-service .
+COPY --from=builder /app/bin/subscription .
 COPY --from=builder /app/configs/subscription/config.toml ./configs/subscription/config.toml
 
 # Expose ports
 EXPOSE 8114 9134
 
 # Run the application
-CMD ["./subscription-service"]
+CMD ["./subscription"]

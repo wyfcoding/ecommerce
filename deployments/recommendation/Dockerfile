@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/recommendation-service cmd/recommendation/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/recommendation cmd/recommendation/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/recommendation-service .
+COPY --from=builder /app/bin/recommendation .
 COPY --from=builder /app/configs/recommendation/config.toml ./configs/recommendation/config.toml
 
 # Expose ports
 EXPOSE 8108 9128
 
 # Run the application
-CMD ["./recommendation-service"]
+CMD ["./recommendation"]

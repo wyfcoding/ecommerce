@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: gateway-service
+  repository: gateway
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   redis:
-    host: "redis-service"
+    host: "redis"
     port: 6379
 
 istio:

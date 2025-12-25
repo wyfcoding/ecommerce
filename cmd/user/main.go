@@ -27,7 +27,7 @@ const BootstrapName = "user"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.UserService
+	AppService *application.User
 	Clients    *ServiceClients
 }
 
@@ -79,7 +79,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -93,12 +93,12 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 服务层
 	logger := logging.Default().Logger
-	authService := application.NewAuthService(repo, c.JWT.Secret, c.JWT.Issuer, c.JWT.ExpireDuration, logger)
+	authService := application.NewAuth(repo, c.JWT.Secret, c.JWT.Issuer, c.JWT.ExpireDuration, logger)
 	profileService := application.NewProfileService(repo, logger)
 	addressService := application.NewAddressService(repo, addressRepo, logger)
 
 	// 门面层
-	svc := application.NewUserService(
+	svc := application.NewUser(
 		authService,
 		profileService,
 		addressService,

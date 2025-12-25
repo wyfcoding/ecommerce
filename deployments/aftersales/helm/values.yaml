@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: aftersales-service
+  repository: aftersales
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8091
   grpcPort: 9102
-  grpcService: "api.aftersales.v1.AftersalesService"
+  grpcService: "api.aftersales.v1.Aftersales"
 
 ingress:
   enabled: false
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

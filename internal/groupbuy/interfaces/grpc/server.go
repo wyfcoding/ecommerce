@@ -15,7 +15,7 @@ import (
 
 // Server 结构体实现了 GroupbuyService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedGroupbuyServiceServer
+	pb.UnimplementedGroupbuyServer
 	app *application.GroupbuyService
 }
 

@@ -32,7 +32,7 @@ const BootstrapName = "payment"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.PaymentService
+	AppService *application.Payment
 	Clients    *ServiceClients
 }
 
@@ -95,7 +95,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
@@ -117,9 +117,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 创建结算客户端包装器
 	// 注意：如果 clients.Settlement 为 nil，使用时将 panic。
 	// 确保已配置结算服务，或在 ServiceClients 中优雅处理 nil。
-	var settlementCli settlementv1.SettlementServiceClient
+	var settlementCli settlementv1.SettlementClient
 	if clients.Settlement != nil {
-		settlementCli = settlementv1.NewSettlementServiceClient(clients.Settlement)
+		settlementCli = settlementv1.NewSettlementClient(clients.Settlement)
 	}
 
 	// 5. 初始化细粒度应用服务
@@ -146,7 +146,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	paymentQuery := application.NewPaymentQuery(paymentRepo)
 
 	// 6. 创建服务门面
-	appService := application.NewPaymentService(
+	appService := application.NewPayment(
 		processor,
 		callbackHandler,
 		refundService,

@@ -15,12 +15,12 @@ import (
 
 // Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
-	app    *application.AuditService
+	app    *application.Audit
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Audit HTTP Handler 实例。
-func NewHandler(app *application.AuditService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.Audit, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

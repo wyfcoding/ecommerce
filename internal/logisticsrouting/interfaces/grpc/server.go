@@ -16,7 +16,7 @@ import (
 
 // Server 结构体实现了 LogisticsRoutingService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedLogisticsRoutingServiceServer
+	pb.UnimplementedLogisticsRoutingServer
 	app *application.LogisticsRoutingService
 }
 

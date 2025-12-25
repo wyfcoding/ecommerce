@@ -21,7 +21,7 @@ import (
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
-	AppService *application.GatewayService
+	AppService *application.Gateway
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
@@ -42,7 +42,7 @@ type ServiceClients struct {
 	Wishlist          *grpc.ClientConn
 	Logistics         *grpc.ClientConn
 	Aftersales        *grpc.ClientConn
-	CustomerService   *grpc.ClientConn
+	Customer   *grpc.ClientConn
 	ContentModeration *grpc.ClientConn
 	Message           *grpc.ClientConn
 	File              *grpc.ClientConn
@@ -110,11 +110,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewGatewayRepository(db)
 
 	// 应用层
-	service := application.NewGatewayService(repo, slog.Default())
+	service := application.NewGateway(repo, slog.Default())
 
 	// 下游客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)

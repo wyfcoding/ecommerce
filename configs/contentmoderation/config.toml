@@ -21,7 +21,7 @@ dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_contentmoderation?charse
 # JWT 配置
 [jwt]
 secret = "your-secret-key" # 请在生产环境中修改为更复杂的密钥
-issuer = "ecommerce-contentmoderation-service"
+issuer = "ecommerce-contentmoderation"
 expire_duration = "24h"
 
 # 链路追踪配置

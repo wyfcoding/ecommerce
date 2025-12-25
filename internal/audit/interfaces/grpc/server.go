@@ -16,12 +16,12 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedAuditServiceServer
-	app *application.AuditService
+	pb.UnimplementedAuditServer
+	app *application.Audit
 }
 
 // NewServer 创建并返回一个新的 Audit gRPC 服务端实例。
-func NewServer(app *application.AuditService) *Server {
+func NewServer(app *application.Audit) *Server {
 	return &Server{app: app}
 }
 

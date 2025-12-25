@@ -35,7 +35,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "risk-security-service"
+const BootstrapName = "risksecurity"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -53,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterRiskSecurityServiceServer(s, riskgrpc.NewServer(service))
+	pb.RegisterRiskSecurityServer(s, riskgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
@@ -93,7 +93,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 下游客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)

@@ -15,12 +15,12 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedMessageServiceServer
-	app *application.MessageService
+	pb.UnimplementedMessageServer
+	app *application.Message
 }
 
 // NewServer 函数。
-func NewServer(app *application.MessageService) *Server {
+func NewServer(app *application.Message) *Server {
 	return &Server{app: app}
 }
 

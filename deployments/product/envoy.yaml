@@ -29,19 +29,19 @@ static_resources:
               - match:
                   prefix: "/api/v1/product"
                 route:
-                  cluster: product_service
+                  cluster: product
           http_filters:
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: product_service
+  - name: product
     connect_timeout: 0.25s
     type: LOGICAL_DNS
     lb_policy: ROUND_ROBIN
     load_assignment:
-      cluster_name: product_service
+      cluster_name: product
       endpoints:
       - lb_endpoints:
         - endpoint:

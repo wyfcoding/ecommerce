@@ -24,7 +24,7 @@ import (
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
-	AppService *application.MessageService
+	AppService *application.Message
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
@@ -35,7 +35,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "message-service"
+const BootstrapName = "message"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -53,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterMessageServiceServer(s, messagegrpc.NewServer(service))
+	pb.RegisterMessageServer(s, messagegrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered (DDD)", "service", BootstrapName)
 }
 
@@ -88,7 +88,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewMessageRepository(db)
 
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB.Close()
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
@@ -96,7 +96,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	mgr := application.NewMessageManager(repo, slog.Default())
 	query := application.NewMessageQuery(repo)
-	service := application.NewMessageService(mgr, query)
+	service := application.NewMessage(mgr, query)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

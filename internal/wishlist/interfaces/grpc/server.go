@@ -14,15 +14,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
 
-// Server 结构体实现了 WishlistService 的 gRPC 服务端接口。
+// Server 结构体实现了 Wishlist 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
 	pb.UnimplementedWishlistServer                              // 嵌入生成的UnimplementedWishlistServer，确保前向兼容性。
-	app                            *application.WishlistService // 依赖Wishlist应用服务，处理核心业务逻辑。
+	app                            *application.Wishlist // 依赖Wishlist应用服务，处理核心业务逻辑。
 }
 
 // NewServer 创建并返回一个新的 Wishlist gRPC 服务端实例。
-func NewServer(app *application.WishlistService) *Server {
+func NewServer(app *application.Wishlist) *Server {
 	return &Server{app: app}
 }
 

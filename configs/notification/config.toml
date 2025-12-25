@@ -42,7 +42,7 @@ server_key = "your_fcm_server_key"
 
 [tracing]
 jaeger_endpoint = "http://localhost:14268/api/traces"
-service_name = "notification-service"
+service_name = "notification"
 
 [log]
 level = "debug"

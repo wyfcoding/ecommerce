@@ -11,22 +11,22 @@ import (
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
-// AdvancedCouponService 定义了 AdvancedCoupon 相关的服务逻辑。
-type AdvancedCouponService struct {
+// AdvancedCoupon 定义了 AdvancedCoupon 相关的服务逻辑。
+type AdvancedCoupon struct {
 	repo   repository.AdvancedCouponRepository
 	logger *slog.Logger
 }
 
-// NewAdvancedCouponService 创建高级优惠券服务实例。
-func NewAdvancedCouponService(repo repository.AdvancedCouponRepository, logger *slog.Logger) *AdvancedCouponService {
-	return &AdvancedCouponService{
+// NewAdvancedCoupon 创建高级优惠券服务实例。
+func NewAdvancedCoupon(repo repository.AdvancedCouponRepository, logger *slog.Logger) *AdvancedCoupon {
+	return &AdvancedCoupon{
 		repo:   repo,
 		logger: logger,
 	}
 }
 
 // CreateCoupon 创建一个新的高级优惠券模板。
-func (s *AdvancedCouponService) CreateCoupon(ctx context.Context, code string, couponType entity.CouponType, discountValue int64, validFrom, validUntil time.Time, totalQuantity int64) (*entity.Coupon, error) {
+func (s *AdvancedCoupon) CreateCoupon(ctx context.Context, code string, couponType entity.CouponType, discountValue int64, validFrom, validUntil time.Time, totalQuantity int64) (*entity.Coupon, error) {
 	coupon := entity.NewCoupon(code, couponType, discountValue, validFrom, validUntil, totalQuantity)
 	if err := s.repo.Save(ctx, coupon); err != nil {
 		s.logger.Error("failed to create coupon", "error", err)
@@ -36,18 +36,18 @@ func (s *AdvancedCouponService) CreateCoupon(ctx context.Context, code string, c
 }
 
 // GetCoupon 获取指定ID的优惠券详情。
-func (s *AdvancedCouponService) GetCoupon(ctx context.Context, id uint64) (*entity.Coupon, error) {
+func (s *AdvancedCoupon) GetCoupon(ctx context.Context, id uint64) (*entity.Coupon, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
 // ListCoupons 根据状态分页列出优惠券模板。
-func (s *AdvancedCouponService) ListCoupons(ctx context.Context, status entity.CouponStatus, page, pageSize int) ([]*entity.Coupon, int64, error) {
+func (s *AdvancedCoupon) ListCoupons(ctx context.Context, status entity.CouponStatus, page, pageSize int) ([]*entity.Coupon, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, status, offset, pageSize)
 }
 
 // UseCoupon 核心核销逻辑：验证并使用指定的优惠券码。
-func (s *AdvancedCouponService) UseCoupon(ctx context.Context, userID uint64, code string, orderID uint64) error {
+func (s *AdvancedCoupon) UseCoupon(ctx context.Context, userID uint64, code string, orderID uint64) error {
 	coupon, err := s.repo.GetByCode(ctx, code)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (s *AdvancedCouponService) UseCoupon(ctx context.Context, userID uint64, co
 }
 
 // CalculateBestDiscount 核心算法：基于多种约束计算订单的最优优惠组合及最终金额。
-func (s *AdvancedCouponService) CalculateBestDiscount(ctx context.Context, orderAmount int64, couponIDs []uint64) ([]uint64, int64, int64, error) {
+func (s *AdvancedCoupon) CalculateBestDiscount(ctx context.Context, orderAmount int64, couponIDs []uint64) ([]uint64, int64, int64, error) {
 	if len(couponIDs) == 0 {
 		return nil, orderAmount, 0, nil
 	}

@@ -28,7 +28,7 @@ const BootstrapName = "notification"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.NotificationService
+	AppService *application.Notification
 	Clients    *ServiceClients
 }
 
@@ -52,7 +52,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterNotificationServiceServer(s, notifgrpc.NewServer(ctx.AppService))
+	pb.RegisterNotificationServer(s, notifgrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, svc any) {
@@ -82,7 +82,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -98,7 +98,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	notifManager := application.NewNotificationManager(repo, logging.Default().Logger)
 
 	// 创建门面
-	service := application.NewNotificationService(notifManager, notifQuery)
+	service := application.NewNotification(notifManager, notifQuery)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

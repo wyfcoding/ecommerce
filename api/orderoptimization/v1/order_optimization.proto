@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/order_optimization/v1;orderoptimizationv1";
 
 // 订单优化服务，负责订单合并、拆分以及智能仓库分配逻辑。
-service OrderOptimizationService {
+service OrderOptimization {
   // 将同一用户、同一地址的多个订单合并为一个。
   rpc MergeOrders(MergeOrdersRequest) returns (MergeOrdersResponse);
 

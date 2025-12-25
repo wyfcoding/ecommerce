@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/review-service cmd/review/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/review cmd/review/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/review-service .
+COPY --from=builder /app/bin/review .
 COPY --from=builder /app/configs/review/config.toml ./configs/review/config.toml
 
 # Expose ports
 EXPOSE 8121 9141
 
 # Run the application
-CMD ["./review-service"]
+CMD ["./review"]

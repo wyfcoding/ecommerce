@@ -11,12 +11,12 @@ import (
 
 // AuthHandler 处理 HTTP 或 gRPC 请求。
 type AuthHandler struct {
-	authService *application.AdminAuthService
+	authService *application.AdminAuth
 	logger      *slog.Logger
 }
 
 // NewAuthHandler 处理 HTTP 或 gRPC 请求。
-func NewAuthHandler(authService *application.AdminAuthService, logger *slog.Logger) *AuthHandler {
+func NewAuthHandler(authService *application.AdminAuth, logger *slog.Logger) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		logger:      logger,

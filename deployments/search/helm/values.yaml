@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: search-service
+  repository: search
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -15,7 +15,7 @@ serviceAccount:
   name: ""
   httpPort: 8111
   grpcPort: 9131
-  grpcService: "search.v1.SearchService"
+  grpcService: "search.v1.Search"
 
 podAnnotations: {}
 podSecurityContext: {}
@@ -65,10 +65,10 @@ affinity: {}
 
 config:
   elasticsearch:
-    host: "elasticsearch-service"
+    host: "elasticsearch"
     port: 9200
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

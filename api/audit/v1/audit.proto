@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/audit/v1;v1";
 
 // 审计服务，负责记录关键操作日志、管理审计策略及生成合规报告。
-service AuditService {
+service Audit {
   // 记录单条审计事件。
   rpc LogEvent(LogEventRequest) returns (google.protobuf.Empty);
 

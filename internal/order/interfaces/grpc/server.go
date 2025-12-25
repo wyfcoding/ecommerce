@@ -15,15 +15,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
 
-// Server 结构体实现了 OrderService 的 gRPC 服务端接口。
+// Server 结构体实现了 Order 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
 	pb.UnimplementedOrderServer                           // 嵌入生成的UnimplementedOrderServer，确保前向兼容性。
-	app                         *application.OrderService // 依赖Order应用服务，处理核心业务逻辑。
+	app                         *application.Order // 依赖Order应用服务，处理核心业务逻辑。
 }
 
 // NewServer 创建并返回一个新的 Order gRPC 服务端实例。
-func NewServer(app *application.OrderService) *Server {
+func NewServer(app *application.Order) *Server {
 	return &Server{app: app}
 }
 
@@ -41,7 +41,7 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 			// 注意：Proto请求中的OrderItem可能只包含ProductId, SkuId, Quantity。
 			// ProductName, SkuName, ProductImageURL, Price, TotalPrice等字段需要：
 			// 1. 在此接口层通过调用Product服务来填充。
-			// 2. 在应用服务层（application.OrderService）处理时填充。
+			// 2. 在应用服务层（application.Order）处理时填充。
 			// 3. 假设这些信息在创建订单时暂时不需要，或有其他机制补充。
 			// 当前实现直接传递，这意味着应用服务层需要处理这些缺失的信息（例如，通过查询商品服务）。
 		}

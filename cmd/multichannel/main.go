@@ -35,7 +35,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "multi-channel-service"
+const BootstrapName = "multichannel"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -53,7 +53,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterMultiChannelServiceServer(s, channelgrpc.NewServer(service))
+	pb.RegisterMultiChannelServer(s, channelgrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
@@ -83,7 +83,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB, _ := db.DB()
 		sqlDB.Close()

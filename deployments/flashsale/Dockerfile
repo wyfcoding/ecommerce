@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/flashsale-service cmd/flashsale/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/flashsale cmd/flashsale/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/flashsale-service .
+COPY --from=builder /app/bin/flashsale .
 COPY --from=builder /app/configs/flashsale/config.toml ./configs/flashsale/config.toml
 
 # Expose ports
 EXPOSE 8088 9088
 
 # Run the application
-CMD ["./flashsale-service"]
+CMD ["./flashsale"]

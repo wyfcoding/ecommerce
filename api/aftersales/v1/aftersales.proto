@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/aftersales/v1;v1";
 
 // 售后服务，管理退货、退款、换货流程以及客户支持工单。
-service AftersalesService {
+service Aftersales {
   // --- 退换货管理 ---
 
   // 创建一个售后单（退货、退款或换货）。

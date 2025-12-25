@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/user_tier/v1;usertierv1";
 
 // 会员等级与积分服务，负责维护用户成长值体系、多维度积分获取及兑换商城逻辑。
-service UserTierService {
+service UserTier {
   // 获取用户当前的等级权益、成长进度及累计积分。
   rpc GetUserTier(GetUserTierRequest) returns (GetUserTierResponse);
 

@@ -14,10 +14,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
 
-// Server 结构体实现了 AftersalesService 的 gRPC 服务端接口。
+// Server 结构体实现了 Aftersales 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedAftersalesServiceServer                                // 嵌入生成的UnimplementedAftersalesServiceServer，确保前向兼容性。
+	pb.UnimplementedAftersalesServer                                // 嵌入生成的UnimplementedAftersalesServer，确保前向兼容性。
 	app                                     *application.AfterSalesService // 依赖AfterSales应用服务，处理核心业务逻辑。
 }
 

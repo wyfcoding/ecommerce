@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/go-api/realtime_analytics/v1;v1";
 
 // 实时分析服务，提供系统层面的销售、活跃度指标监控及实时埋点接收。
-service RealtimeAnalyticsService {
+service RealtimeAnalytics {
   // 获取当前实时的总成交额、订单量等关键销售指标。
   rpc GetRealtimeSalesMetrics(GetRealtimeSalesMetricsRequest) returns (RealtimeSalesMetricsResponse);
 

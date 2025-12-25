@@ -15,15 +15,15 @@ import (
 	// "google.golang.org/protobuf/types/known/wrapperspb" // 导入包装类型，用于可选字段，此处代码已内联处理。
 )
 
-// Server 结构体实现了 ProductService 的 gRPC 服务端接口。
+// Server 结构体实现了 Product 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
 	pb.UnimplementedProductServer
-	app *application.ProductService
+	app *application.Product
 }
 
 // NewServer 创建并返回一个新的 Product gRPC 服务端实例。
-func NewServer(app *application.ProductService) *Server {
+func NewServer(app *application.Product) *Server {
 	return &Server{app: app}
 }
 

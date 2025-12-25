@@ -36,7 +36,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "order-optimization-service"
+const BootstrapName = "orderoptimization"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -54,7 +54,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterOrderOptimizationServiceServer(s, optigrpc.NewServer(service))
+	pb.RegisterOrderOptimizationServer(s, optigrpc.NewServer(service))
 	slog.Default().Info("gRPC server registered", "service", BootstrapName)
 }
 
@@ -93,7 +93,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB.Close()

@@ -19,11 +19,11 @@ import (
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
 	pb.UnimplementedUserServer
-	app *application.UserService
+	app *application.User
 }
 
 // NewServer 创建并返回一个新的 User gRPC 服务端实例。
-func NewServer(app *application.UserService) *Server {
+func NewServer(app *application.User) *Server {
 	return &Server{app: app}
 }
 

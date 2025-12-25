@@ -28,7 +28,7 @@ const BootstrapName = "admin"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config          *configpkg.Config
-	AdminService    *application.AdminService
+	Admin           *application.Admin
 	Clients         *ServiceClients
 	AuthHandler     *adminhttp.AuthHandler
 	WorkflowHandler *adminhttp.WorkflowHandler
@@ -64,7 +64,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterAdminServiceServer(s, admingrpc.NewServer(ctx.AdminService))
+	pb.RegisterAdminServer(s, admingrpc.NewServer(ctx.Admin))
 }
 
 func registerGin(e *gin.Engine, svc any) {
@@ -107,7 +107,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. Service Clients
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		sqlDB, _ := db.DB()
 		sqlDB.Close()
@@ -116,15 +116,15 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 4. Repositories
 	adminRepo := persistence.NewAdminRepository(db)
-	roleRepo := persistence.NewRoleRepository(db) // 修复：现在已存在
+	roleRepo := persistence.NewRoleRepository(db)
 	auditRepo := persistence.NewAuditRepository(db)
 	approvalRepo := persistence.NewApprovalRepository(db)
 	settingRepo := persistence.NewSettingRepository(db)
 
 	// 5. Domain Services
 	logger := slog.Default()
-	authService := application.NewAdminAuthService(adminRepo, roleRepo, logger)
-	auditService := application.NewAuditService(auditRepo, logger)
+	authService := application.NewAdminAuth(adminRepo, roleRepo, logger)
+	auditService := application.NewAudit(auditRepo, logger)
 
 	opsDeps := application.SystemOpsDependencies{
 		OrderClient:   clients.Order,
@@ -136,7 +136,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	workflowService := application.NewWorkflowService(approvalRepo, opsService, auditService, logger)
 
 	// 6. Application Facade
-	adminService := application.NewAdminService(
+	adminService := application.NewAdmin(
 		adminRepo,
 		roleRepo,
 		auditRepo,
@@ -160,7 +160,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	return &AppContext{
 		Config:          c,
-		AdminService:    adminService,
+		Admin:           adminService,
 		Clients:         clients,
 		AuthHandler:     authHandler,
 		WorkflowHandler: workflowHandler,

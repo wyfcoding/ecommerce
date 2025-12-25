@@ -15,7 +15,7 @@ import (
 
 // Server 结构体实现了 AIModelService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedAIModelServiceServer
+	pb.UnimplementedAIModelServer
 	app *application.AIModelService
 }
 

@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: multichannel-service
+  repository: multichannel
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -62,7 +62,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:

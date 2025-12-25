@@ -25,7 +25,7 @@ import (
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
-	AppService *application.SearchService
+	AppService *application.Search
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
@@ -37,7 +37,7 @@ type ServiceClients struct {
 }
 
 // BootstrapName 服务名称常量。
-const BootstrapName = "search-service"
+const BootstrapName = "search"
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
@@ -55,7 +55,7 @@ func main() {
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
 	service := ctx.AppService
-	pb.RegisterSearchServiceServer(s, searchgrpc.NewServer(service, slog.Default()))
+	pb.RegisterSearchServer(s, searchgrpc.NewServer(service, slog.Default()))
 	slog.Default().Info("gRPC server registered", "service", BootstrapName) // (DDD)
 }
 
@@ -97,7 +97,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -113,7 +113,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	searchManager := application.NewSearchManager(repo, logging.Default().Logger)
 
 	// 创建门面
-	service := application.NewSearchService(searchManager, searchQuery)
+	service := application.NewSearch(searchManager, searchQuery)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)

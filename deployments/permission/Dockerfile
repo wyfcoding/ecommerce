@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/permission-service cmd/permission/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/permission cmd/permission/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/permission-service .
+COPY --from=builder /app/bin/permission .
 COPY --from=builder /app/configs/permission/config.toml ./configs/permission/config.toml
 
 # Expose ports
 EXPOSE 8098 9098
 
 # Run the application
-CMD ["./permission-service"]
+CMD ["./permission"]

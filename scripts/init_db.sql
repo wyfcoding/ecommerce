@@ -28,7 +28,7 @@ CREATE DATABASE IF NOT EXISTS `ecommerce_cdc` CHARACTER SET utf8mb4 COLLATE utf8
 CREATE DATABASE IF NOT EXISTS `ecommerce_cms` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_config` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_content_moderation` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE IF NOT EXISTS `ecommerce_customer_service` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS `ecommerce_customer` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_data_ingestion` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_data_lake_ingestion` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_data_processing` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

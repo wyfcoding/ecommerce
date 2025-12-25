@@ -16,7 +16,7 @@ import (
 
 // Server 结构体实现了 FileService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedFileServiceServer
+	pb.UnimplementedFileServer
 	app *application.FileService
 }
 

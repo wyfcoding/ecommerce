@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: recommendation-service
+  repository: recommendation
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -63,10 +63,10 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
   neo4j:
-    host: "neo4j-service"
+    host: "neo4j"
     port: 7687
 
 istio:

@@ -16,7 +16,7 @@ timeout = "5s"
 driver = "mysql"
 dsn = "root:password@tcp(127.0.0.1:3306)/ecommerce_search?charset=utf8mb4&parseTime=True&loc=Local"
 
-[data.product_service]
+[data.product]
 addr = "localhost:9091"
 
 [log]

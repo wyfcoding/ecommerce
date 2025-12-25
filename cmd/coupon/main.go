@@ -28,7 +28,7 @@ const BootstrapName = "coupon"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.CouponService
+	AppService *application.Coupon
 	Clients    *ServiceClients
 }
 
@@ -82,7 +82,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitServiceClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		sqlDB, _ := db.DB()
@@ -98,7 +98,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	couponManager := application.NewCouponManager(repo, logging.Default().Logger)
 
 	// 创建门面
-	service := application.NewCouponService(couponManager, couponQuery)
+	service := application.NewCoupon(couponManager, couponQuery)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

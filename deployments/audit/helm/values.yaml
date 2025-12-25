@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: audit-service
+  repository: audit
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -22,7 +22,7 @@ service:
   type: ClusterIP
   httpPort: 8093
   grpcPort: 9103
-  grpcService: "api.audit.v1.AuditService"
+  grpcService: "api.audit.v1.Audit"
 
 ingress:
   enabled: false
@@ -63,7 +63,7 @@ affinity: {}
 
 config:
   database:
-    host: "mysql-service"
+    host: "mysql"
     port: 3306
 
 istio:
