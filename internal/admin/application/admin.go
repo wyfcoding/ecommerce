@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/wyfcoding/pkg/security"
 )
 
 // AdminService 门面服务，聚合所有子领域逻辑，供 gRPC Server 使用
@@ -55,7 +55,8 @@ func (s *AdminService) RegisterAdmin(ctx context.Context, username, email, passw
 		return nil, errors.New("username exists")
 	}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// 密码哈希 (使用 pkg/security 封装的 bcrypt 哈希)
+	hashed, err := security.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}

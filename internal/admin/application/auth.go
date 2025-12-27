@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/admin/domain" // 假设有一个密码助手
-	"golang.org/x/crypto/bcrypt"
+	"github.com/wyfcoding/ecommerce/internal/admin/domain"
+	"github.com/wyfcoding/pkg/security"
 )
 
 // AdminAuth 处理认证和权限
@@ -40,8 +40,8 @@ func (s *AdminAuth) Login(ctx context.Context, username, password string) (*doma
 		return nil, errors.New("user is disabled")
 	}
 
-	// 验证密码 (假设存储的是 bcrypt hash)
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+	// 验证密码 (使用 pkg/security 封装的 bcrypt 验证)
+	if !security.CheckPassword(password, user.PasswordHash) {
 		return nil, errors.New("invalid password")
 	}
 
@@ -74,11 +74,11 @@ func (s *AdminAuth) CheckPermission(ctx context.Context, userID uint, requiredPe
 
 // CreateUser 创建新管理员
 func (s *AdminAuth) CreateUser(ctx context.Context, user *domain.AdminUser, password string) error {
-	// 对密码进行哈希
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// 对密码进行哈希 (使用 pkg/security 封装的 bcrypt 哈希)
+	hashed, err := security.HashPassword(password)
 	if err != nil {
 		return err
 	}
-	user.PasswordHash = string(hashed)
+	user.PasswordHash = hashed
 	return s.userRepo.Create(ctx, user)
 }
