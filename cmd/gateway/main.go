@@ -53,18 +53,9 @@ func registerGRPC(s *grpc.Server, srv any) {
 
 func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
-	cfg := ctx.Config
 	handler := gatewayhttp.NewHandler(ctx.AppService, slog.Default())
 
-	// 根据配置应用中间件
-	if cfg.RateLimit.Enabled {
-		slog.Info("Enabling Rate Limit Middleware", "rate", cfg.RateLimit.Rate, "burst", cfg.RateLimit.Burst)
-		e.Use(middleware.NewLocalRateLimitMiddleware(int(cfg.RateLimit.Rate), cfg.RateLimit.Burst))
-	}
-	if cfg.CircuitBreaker.Enabled {
-		slog.Info("Enabling Circuit Breaker Middleware")
-		e.Use(middleware.CircuitBreaker())
-	}
+	// 限流和熔断中间件已由 App Builder 根据配置统一添加，无需在此处手动配置
 
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
