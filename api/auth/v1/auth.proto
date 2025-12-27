@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api.auth.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/auth/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/auth/v1;v1";
 
 // 统一认证与授权服务，负责用户身份校验、令牌分发及有效期管理。
 service Auth {

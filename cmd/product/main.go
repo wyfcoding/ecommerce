@@ -28,16 +28,13 @@ const BootstrapName = "product"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.Product
+	AppService *application.ProductService
 	Clients    *ServiceClients
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	Inventory      *grpc.ClientConn
-	Review         *grpc.ClientConn
-	Pricing        *grpc.ClientConn
-	Recommendation *grpc.ClientConn
+	// No dependencies detected
 }
 
 func main() {
@@ -113,7 +110,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	brandService := application.NewBrandService(brandRepo, logger)
 	skuService := application.NewSKUService(productRepo, skuRepo, logger)
 
-	appService := application.NewProduct(
+	appService := application.NewProductService(
 		catalogService,
 		categoryService,
 		brandService,

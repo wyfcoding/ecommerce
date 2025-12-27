@@ -5,7 +5,7 @@ package api.file.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/file/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/file/v1;v1";
 
 // 文件基础服务，提供文件的底层上传、查询、元数据管理及清理功能。
 service File {

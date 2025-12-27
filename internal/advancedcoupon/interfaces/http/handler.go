@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/application"
-	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/domain/entity"
+	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/domain"
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -43,7 +43,7 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 		return
 	}
 
-	coupon, err := h.service.CreateCoupon(c.Request.Context(), req.Code, entity.CouponType(req.Type), req.DiscountValue, req.ValidFrom, req.ValidUntil, req.TotalQuantity)
+	coupon, err := h.service.CreateCoupon(c.Request.Context(), req.Code, domain.CouponType(req.Type), req.DiscountValue, req.ValidFrom, req.ValidUntil, req.TotalQuantity)
 	if err != nil {
 		h.logger.Error("Failed to create coupon", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create coupon", err.Error())
@@ -59,7 +59,7 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	list, total, err := h.service.ListCoupons(c.Request.Context(), entity.CouponStatus(status), page, pageSize)
+	list, total, err := h.service.ListCoupons(c.Request.Context(), domain.CouponStatus(status), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list coupons", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list coupons", err.Error())
@@ -99,8 +99,6 @@ func (h *Handler) UseCoupon(c *gin.Context) {
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	group := r.Group("/advanced-coupons")
 	{
-		group.POST("", h.CreateCoupon)
-		group.GET("", h.ListCoupons)
 		group.POST("/use", h.UseCoupon)
 	}
 }

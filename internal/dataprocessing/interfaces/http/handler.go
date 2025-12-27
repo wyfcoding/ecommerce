@@ -4,12 +4,13 @@ import (
 	"net/http" // 导入HTTP状态码。
 	"strconv"  // 导入字符串和数字转换工具。
 
-	"github.com/wyfcoding/ecommerce/internal/dataprocessing/application"   // 导入数据处理模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/dataprocessing/domain/entity" // 导入数据处理模块的领域实体。
-	"github.com/wyfcoding/pkg/response"                                    // 导入统一的响应处理工具。
+	"github.com/wyfcoding/ecommerce/internal/dataprocessing/application" // 导入数据处理模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/dataprocessing/domain"      // 导入数据处理模块的领域实体。
+	"github.com/wyfcoding/pkg/response"                                  // 导入统一的响应处理工具。
+
+	"log/slog" // 导入结构化日志库。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
-	"log/slog"                 // 导入结构化日志库。
 )
 
 // Handler 结构体定义了DataProcessing模块的HTTP处理层。
@@ -68,7 +69,7 @@ func (h *Handler) ListTasks(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
 	// 调用应用服务层获取任务列表。
-	list, total, err := h.service.ListTasks(c.Request.Context(), workflowID, entity.TaskStatus(status), page, pageSize)
+	list, total, err := h.service.ListTasks(c.Request.Context(), workflowID, domain.TaskStatus(status), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list tasks", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list tasks", err.Error())

@@ -32,15 +32,13 @@ const BootstrapName = "payment"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.Payment
+	AppService *application.PaymentService
 	Clients    *ServiceClients
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	Order      *grpc.ClientConn
-	User       *grpc.ClientConn
-	Settlement *grpc.ClientConn
+	Settlement *grpc.ClientConn `service:"settlement"`
 }
 
 func main() {
@@ -146,7 +144,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	paymentQuery := application.NewPaymentQuery(paymentRepo)
 
 	// 6. 创建服务门面
-	appService := application.NewPayment(
+	appService := application.NewPaymentService(
 		processor,
 		callbackHandler,
 		refundService,

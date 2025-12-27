@@ -6,7 +6,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/cart/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/cart/v1;v1";
 
 // 购物车服务，管理用户的预选购商品列表、数量变更及促销应用。
 service Cart {

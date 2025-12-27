@@ -4,7 +4,7 @@ package api.sales_forecasting.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/sales_forecasting/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/sales_forecasting/v1;v1";
 
 // 销售预测服务，利用历史交易数据和趋势模型预测未来的商品销量。
 service SalesForecasting {

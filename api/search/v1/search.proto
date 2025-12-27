@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package search.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/search/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/search/v1;v1";
 
 // 搜索中心服务，基于索引库提供商品及其属性的全文检索功能。
 service Search {

@@ -34,10 +34,7 @@ type AppContext struct {
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	Warehouse         *grpc.ClientConn
-	Logistics         *grpc.ClientConn
-	Product           *grpc.ClientConn
-	InventoryForecast *grpc.ClientConn
+	// No dependencies detected
 }
 
 func main() {

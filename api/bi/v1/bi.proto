@@ -4,7 +4,7 @@ package api.bi.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/bi/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/bi/v1;v1";
 
 // 商业智能服务，提供销售数据统计及用户留存分析报告。
 service BI {

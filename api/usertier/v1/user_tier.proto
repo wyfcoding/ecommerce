@@ -5,7 +5,7 @@ package api.user_tier.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/user_tier/v1;usertierv1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/user_tier/v1;usertierv1";
 
 // 会员等级与积分服务，负责维护用户成长值体系、多维度积分获取及兑换商城逻辑。
 service UserTier {

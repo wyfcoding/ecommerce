@@ -47,5 +47,5 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: product-service
-                port_value: 8002
+                address: product
+                port_value: 8080

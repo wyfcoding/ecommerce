@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/cart cmd/cart/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/cart/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/cart .
-COPY --from=builder /app/configs/cart/config.toml ./configs/cart/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/cart/config.toml ./configs/cart/config.toml
 
 # Expose ports
-EXPOSE 8084 9094
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./cart"]
+CMD ["./server"]

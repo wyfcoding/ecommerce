@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/audit cmd/audit/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/audit/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/audit .
-COPY --from=builder /app/configs/audit/config.toml ./configs/audit/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/audit/config.toml ./configs/audit/config.toml
 
 # Expose ports
-EXPOSE 8093 9103
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./audit"]
+CMD ["./server"]

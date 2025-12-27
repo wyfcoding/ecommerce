@@ -5,7 +5,7 @@ package api.user.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/user/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/user/v1;v1";
 
 // 用户账号服务，管理用户注册、登录、个人资料及收货地址。
 service User {

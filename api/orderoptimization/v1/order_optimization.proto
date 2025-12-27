@@ -4,7 +4,7 @@ package api.order_optimization.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/order_optimization/v1;orderoptimizationv1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/order_optimization/v1;orderoptimizationv1";
 
 // 订单优化服务，负责订单合并、拆分以及智能仓库分配逻辑。
 service OrderOptimization {

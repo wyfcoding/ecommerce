@@ -47,5 +47,5 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: logistics-service
-                port_value: 8007
+                address: logistics
+                port_value: 8080

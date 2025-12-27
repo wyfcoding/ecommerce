@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后领域的实体定义。
-	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后领域的仓储接口。
-	"github.com/wyfcoding/pkg/idgen"                                       // 导入ID生成器接口。
+	"github.com/wyfcoding/ecommerce/internal/aftersales/domain" // 导入售后领域的实体定义。
+	// 导入售后领域的仓储接口。
+	"github.com/wyfcoding/pkg/idgen" // 导入ID生成器接口。
 
 	"log/slog" // 导入结构化日志库。
 )
@@ -15,13 +15,13 @@ import (
 // AfterSalesService 结构体定义了售后管理相关的应用服务。
 // 它协调领域层和基础设施层，处理售后申请的创建、审批、拒绝以及查询等业务流程。
 type AfterSalesService struct {
-	repo        repository.AfterSalesRepository // 依赖AfterSalesRepository接口，用于数据持久化操作。
-	idGenerator idgen.Generator                 // 依赖ID生成器接口，用于生成唯一的售后单号。
-	logger      *slog.Logger                    // 日志记录器，用于记录服务运行时的信息和错误。
+	repo        domain.AfterSalesRepository // 依赖domain.AfterSalesRepository接口，用于数据持久化操作。
+	idGenerator idgen.Generator             // 依赖ID生成器接口，用于生成唯一的售后单号。
+	logger      *slog.Logger                // 日志记录器，用于记录服务运行时的信息和错误。
 }
 
 // NewAfterSalesService 创建并返回一个新的 AfterSalesService 实例。
-func NewAfterSalesService(repo repository.AfterSalesRepository, idGenerator idgen.Generator, logger *slog.Logger) *AfterSalesService {
+func NewAfterSalesService(repo domain.AfterSalesRepository, idGenerator idgen.Generator, logger *slog.Logger) *AfterSalesService {
 	return &AfterSalesService{
 		repo:        repo,
 		idGenerator: idGenerator,
@@ -41,12 +41,12 @@ func NewAfterSalesService(repo repository.AfterSalesRepository, idGenerator idge
 // items: 申请售后的商品列表。
 // 返回created successfully的售后实体和可能发生的错误。
 func (s *AfterSalesService) CreateAfterSales(ctx context.Context, orderID uint64, orderNo string, userID uint64,
-	asType entity.AfterSalesType, reason, description string, images []string, items []*entity.AfterSalesItem,
-) (*entity.AfterSales, error) {
+	asType domain.AfterSalesType, reason, description string, images []string, items []*domain.AfterSalesItem,
+) (*domain.AfterSales, error) {
 	// 生成唯一的售后单号。
 	no := fmt.Sprintf("AS%d", s.idGenerator.Generate())
 	// 创建售后实体。
-	afterSales := entity.NewAfterSales(no, orderID, orderNo, userID, asType, reason, description, images)
+	afterSales := domain.NewAfterSales(no, orderID, orderNo, userID, asType, reason, description, images)
 
 	// 添加申请售后的商品项，并计算每个商品的总价。
 	for _, item := range items {
@@ -62,7 +62,7 @@ func (s *AfterSalesService) CreateAfterSales(ctx context.Context, orderID uint64
 	s.logger.InfoContext(ctx, "after-sales request created successfully", "after_sales_id", afterSales.ID, "order_id", orderID)
 
 	// 记录售后操作日志。
-	s.logOperation(ctx, uint64(afterSales.ID), "User", "Create", "", entity.AfterSalesStatusPending.String(), "Created after-sales request")
+	s.logOperation(ctx, uint64(afterSales.ID), "User", "Create", "", domain.AfterSalesStatusPending.String(), "Created after-sales request")
 
 	return afterSales, nil
 }
@@ -81,7 +81,7 @@ func (s *AfterSalesService) Approve(ctx context.Context, id uint64, operator str
 	}
 
 	// 检查售后申请当前的状态是否允许批准操作。
-	if afterSales.Status != entity.AfterSalesStatusPending {
+	if afterSales.Status != domain.AfterSalesStatusPending {
 		return fmt.Errorf("invalid status: %v", afterSales.Status)
 	}
 
@@ -112,7 +112,7 @@ func (s *AfterSalesService) Reject(ctx context.Context, id uint64, operator, rea
 	}
 
 	// 检查售后申请当前的状态是否允许拒绝操作。
-	if afterSales.Status != entity.AfterSalesStatusPending {
+	if afterSales.Status != domain.AfterSalesStatusPending {
 		return fmt.Errorf("invalid status: %v", afterSales.Status)
 	}
 
@@ -133,7 +133,7 @@ func (s *AfterSalesService) Reject(ctx context.Context, id uint64, operator, rea
 // ctx: 上下文。
 // query: 包含过滤条件和分页参数的查询对象。
 // 返回售后申请列表、总数和可能发生的错误。
-func (s *AfterSalesService) List(ctx context.Context, query *repository.AfterSalesQuery) ([]*entity.AfterSales, int64, error) {
+func (s *AfterSalesService) List(ctx context.Context, query *domain.AfterSalesQuery) ([]*domain.AfterSales, int64, error) {
 	return s.repo.List(ctx, query)
 }
 
@@ -141,7 +141,7 @@ func (s *AfterSalesService) List(ctx context.Context, query *repository.AfterSal
 // ctx: 上下文。
 // id: 售后申请的ID。
 // 返回售后实体和可能发生的错误。
-func (s *AfterSalesService) GetDetails(ctx context.Context, id uint64) (*entity.AfterSales, error) {
+func (s *AfterSalesService) GetDetails(ctx context.Context, id uint64) (*domain.AfterSales, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -154,7 +154,7 @@ func (s *AfterSalesService) GetDetails(ctx context.Context, id uint64) (*entity.
 // newStatus: 操作后的状态。
 // remark: 操作备注。
 func (s *AfterSalesService) logOperation(ctx context.Context, asID uint64, operator, action, oldStatus, newStatus, remark string) {
-	log := &entity.AfterSalesLog{
+	log := &domain.AfterSalesLog{
 		AfterSalesID: asID,
 		Operator:     operator,
 		Action:       action,
@@ -176,12 +176,12 @@ func (s *AfterSalesService) ProcessRefund(ctx context.Context, id uint64) error 
 	if err != nil {
 		return err
 	}
-	if afterSales.Status != entity.AfterSalesStatusApproved {
+	if afterSales.Status != domain.AfterSalesStatusApproved {
 		return fmt.Errorf("invalid status for refund: %v", afterSales.Status)
 	}
 
 	// 模拟逻辑 process
-	afterSales.Status = entity.AfterSalesStatusCompleted
+	afterSales.Status = domain.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now
 
@@ -202,12 +202,12 @@ func (s *AfterSalesService) ProcessExchange(ctx context.Context, id uint64) erro
 	if err != nil {
 		return err
 	}
-	if afterSales.Status != entity.AfterSalesStatusApproved {
+	if afterSales.Status != domain.AfterSalesStatusApproved {
 		return fmt.Errorf("invalid status for exchange: %v", afterSales.Status)
 	}
 
 	// 模拟逻辑 process
-	afterSales.Status = entity.AfterSalesStatusCompleted
+	afterSales.Status = domain.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now
 
@@ -222,18 +222,18 @@ func (s *AfterSalesService) ProcessExchange(ctx context.Context, id uint64) erro
 // --- Support Ticket Service Methods ---
 
 // CreateSupportTicket 创建客服工单。
-func (s *AfterSalesService) CreateSupportTicket(ctx context.Context, userID, orderID uint64, subject, description, category string, priority int8) (*entity.SupportTicket, error) {
+func (s *AfterSalesService) CreateSupportTicket(ctx context.Context, userID, orderID uint64, subject, description, category string, priority int8) (*domain.SupportTicket, error) {
 	ticketNo := fmt.Sprintf("TCK%d", s.idGenerator.Generate())
-	ticket := &entity.SupportTicket{
+	ticket := &domain.SupportTicket{
 		TicketNo:    ticketNo,
 		UserID:      userID,
 		OrderID:     orderID,
 		Subject:     subject,
 		Description: description,
-		Status:      entity.SupportTicketStatusOpen,
+		Status:      domain.SupportTicketStatusOpen,
 		Priority:    priority,
 		Category:    category,
-		Messages:    []*entity.SupportTicketMessage{},
+		Messages:    []*domain.SupportTicketMessage{},
 	}
 
 	if err := s.repo.CreateSupportTicket(ctx, ticket); err != nil {
@@ -243,12 +243,12 @@ func (s *AfterSalesService) CreateSupportTicket(ctx context.Context, userID, ord
 }
 
 // GetSupportTicket 获取工单详情。
-func (s *AfterSalesService) GetSupportTicket(ctx context.Context, id uint64) (*entity.SupportTicket, error) {
+func (s *AfterSalesService) GetSupportTicket(ctx context.Context, id uint64) (*domain.SupportTicket, error) {
 	return s.repo.GetSupportTicket(ctx, id)
 }
 
 // UpdateSupportTicketStatus 更新工单状态。
-func (s *AfterSalesService) UpdateSupportTicketStatus(ctx context.Context, id uint64, status entity.SupportTicketStatus) error {
+func (s *AfterSalesService) UpdateSupportTicketStatus(ctx context.Context, id uint64, status domain.SupportTicketStatus) error {
 	ticket, err := s.repo.GetSupportTicket(ctx, id)
 	if err != nil {
 		return err
@@ -262,13 +262,13 @@ func (s *AfterSalesService) UpdateSupportTicketStatus(ctx context.Context, id ui
 }
 
 // ListSupportTickets 获取用户的工单列表。
-func (s *AfterSalesService) ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*entity.SupportTicket, int64, error) {
+func (s *AfterSalesService) ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*domain.SupportTicket, int64, error) {
 	return s.repo.ListSupportTickets(ctx, userID, status, page, pageSize)
 }
 
 // CreateSupportTicketMessage 为工单添加一条新消息（回复）。
-func (s *AfterSalesService) CreateSupportTicketMessage(ctx context.Context, ticketID, senderID uint64, senderType, content string) (*entity.SupportTicketMessage, error) {
-	msg := &entity.SupportTicketMessage{
+func (s *AfterSalesService) CreateSupportTicketMessage(ctx context.Context, ticketID, senderID uint64, senderType, content string) (*domain.SupportTicketMessage, error) {
+	msg := &domain.SupportTicketMessage{
 		TicketID:   ticketID,
 		SenderID:   senderID,
 		SenderType: senderType,
@@ -282,20 +282,20 @@ func (s *AfterSalesService) CreateSupportTicketMessage(ctx context.Context, tick
 }
 
 // ListSupportTicketMessages 获取指定工单的所有消息记录。
-func (s *AfterSalesService) ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*entity.SupportTicketMessage, error) {
+func (s *AfterSalesService) ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*domain.SupportTicketMessage, error) {
 	return s.repo.ListSupportTicketMessages(ctx, ticketID)
 }
 
-// --- AfterSales Config Service Methods ---
+// --- domain.AfterSales Config Service Methods ---
 
 // GetConfig 根据键获取售后配置项。
-func (s *AfterSalesService) GetConfig(ctx context.Context, key string) (*entity.AfterSalesConfig, error) {
+func (s *AfterSalesService) GetConfig(ctx context.Context, key string) (*domain.AfterSalesConfig, error) {
 	return s.repo.GetConfig(ctx, key)
 }
 
 // SetConfig 设置（保存或更新）售后配置项。
-func (s *AfterSalesService) SetConfig(ctx context.Context, key, value, description string) (*entity.AfterSalesConfig, error) {
-	config := &entity.AfterSalesConfig{
+func (s *AfterSalesService) SetConfig(ctx context.Context, key, value, description string) (*domain.AfterSalesConfig, error) {
+	config := &domain.AfterSalesConfig{
 		Key:         key,
 		Value:       value,
 		Description: description,

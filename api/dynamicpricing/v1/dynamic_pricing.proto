@@ -5,7 +5,7 @@ package api.dynamic_pricing.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/dynamic_pricing/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/dynamic_pricing/v1;v1";
 
 // 动态定价服务，基于库存、需求及竞品价格实时计算最优售价。
 service DynamicPricing {

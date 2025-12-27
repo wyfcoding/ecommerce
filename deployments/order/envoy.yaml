@@ -27,7 +27,7 @@ static_resources:
               domains: ["*"]
               routes:
               - match:
-                  prefix: "/api/v1/orders"
+                  prefix: "/api/v1/order"
                 route:
                   cluster: order
           http_filters:
@@ -47,5 +47,5 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: order-service
-                port_value: 8003
+                address: order
+                port_value: 8080

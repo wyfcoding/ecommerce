@@ -47,5 +47,5 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: inventory-service
-                port_value: 8006
+                address: inventory
+                port_value: 8080

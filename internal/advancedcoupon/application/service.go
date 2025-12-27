@@ -6,19 +6,18 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/domain/entity"
-	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // AdvancedCoupon 定义了 AdvancedCoupon 相关的服务逻辑。
 type AdvancedCoupon struct {
-	repo   repository.AdvancedCouponRepository
+	repo   domain.AdvancedCouponRepository
 	logger *slog.Logger
 }
 
 // NewAdvancedCoupon 创建高级优惠券服务实例。
-func NewAdvancedCoupon(repo repository.AdvancedCouponRepository, logger *slog.Logger) *AdvancedCoupon {
+func NewAdvancedCoupon(repo domain.AdvancedCouponRepository, logger *slog.Logger) *AdvancedCoupon {
 	return &AdvancedCoupon{
 		repo:   repo,
 		logger: logger,
@@ -26,8 +25,8 @@ func NewAdvancedCoupon(repo repository.AdvancedCouponRepository, logger *slog.Lo
 }
 
 // CreateCoupon 创建一个新的高级优惠券模板。
-func (s *AdvancedCoupon) CreateCoupon(ctx context.Context, code string, couponType entity.CouponType, discountValue int64, validFrom, validUntil time.Time, totalQuantity int64) (*entity.Coupon, error) {
-	coupon := entity.NewCoupon(code, couponType, discountValue, validFrom, validUntil, totalQuantity)
+func (s *AdvancedCoupon) CreateCoupon(ctx context.Context, code string, couponType domain.CouponType, discountValue int64, validFrom, validUntil time.Time, totalQuantity int64) (*domain.Coupon, error) {
+	coupon := domain.NewCoupon(code, couponType, discountValue, validFrom, validUntil, totalQuantity)
 	if err := s.repo.Save(ctx, coupon); err != nil {
 		s.logger.Error("failed to create coupon", "error", err)
 		return nil, err
@@ -36,12 +35,12 @@ func (s *AdvancedCoupon) CreateCoupon(ctx context.Context, code string, couponTy
 }
 
 // GetCoupon 获取指定ID的优惠券详情。
-func (s *AdvancedCoupon) GetCoupon(ctx context.Context, id uint64) (*entity.Coupon, error) {
+func (s *AdvancedCoupon) GetCoupon(ctx context.Context, id uint64) (*domain.Coupon, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
 // ListCoupons 根据状态分页列出优惠券模板。
-func (s *AdvancedCoupon) ListCoupons(ctx context.Context, status entity.CouponStatus, page, pageSize int) ([]*entity.Coupon, int64, error) {
+func (s *AdvancedCoupon) ListCoupons(ctx context.Context, status domain.CouponStatus, page, pageSize int) ([]*domain.Coupon, int64, error) {
 	offset := (page - 1) * pageSize
 	return s.repo.List(ctx, status, offset, pageSize)
 }
@@ -76,7 +75,7 @@ func (s *AdvancedCoupon) UseCoupon(ctx context.Context, userID uint64, code stri
 	}
 
 	// 记录使用情况
-	usage := &entity.CouponUsage{
+	usage := &domain.CouponUsage{
 		UserID:   userID,
 		CouponID: uint64(coupon.ID),
 		OrderID:  orderID,
@@ -112,7 +111,7 @@ func (s *AdvancedCoupon) CalculateBestDiscount(ctx context.Context, orderAmount 
 		}
 
 		switch coupon.Type {
-		case entity.CouponTypePercentage:
+		case domain.CouponTypePercentage:
 			ac.Type = algorithm.CouponTypeDiscount
 			// DiscountValue 是百分比（例如，20 表示 20% 折扣 -> 0.8 比率？不，20% 折扣意味着 0.8 因子）
 			// 假设 DiscountValue 20 表示 20% 折扣。
@@ -123,10 +122,10 @@ func (s *AdvancedCoupon) CalculateBestDiscount(ctx context.Context, orderAmount 
 			// 让我们假设 DiscountValue 是“折扣百分比”，例如 20。
 			ac.DiscountRate = 1.0 - float64(coupon.DiscountValue)/100.0
 			ac.MaxDiscount = coupon.MaxDiscountAmount
-		case entity.CouponTypeFixed:
+		case domain.CouponTypeFixed:
 			ac.Type = algorithm.CouponTypeReduction
 			ac.ReductionAmount = coupon.DiscountValue
-		case entity.CouponTypeFreeShipping:
+		case domain.CouponTypeFreeShipping:
 			// 视为 0 现金减免或具体的运费金额（如果我们知道运费）。
 			// 目前，忽略或视为小额现金减免？
 			// 让我们在价格优化中跳过免运费，或视为 0 减免。

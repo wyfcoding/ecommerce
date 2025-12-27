@@ -4,7 +4,7 @@ package api.advanced_coupon.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/advanced_coupon/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/advanced_coupon/v1;v1";
 
 // 营销优惠券服务，负责优惠券生命周期、领取核销及最优用券方案计算。
 service AdvancedCoupon {

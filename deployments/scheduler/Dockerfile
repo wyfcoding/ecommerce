@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/scheduler cmd/scheduler/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/scheduler/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/scheduler .
-COPY --from=builder /app/configs/scheduler/config.toml ./configs/scheduler/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/scheduler/config.toml ./configs/scheduler/config.toml
 
 # Expose ports
-EXPOSE 8111 9131
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./scheduler"]
+CMD ["./server"]

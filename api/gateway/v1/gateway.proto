@@ -4,7 +4,7 @@ package api.gateway.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/gateway/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/gateway/v1;v1";
 
 // API 网关服务，作为流量入口负责请求分发、安全校验及后端服务发现。
 service Gateway {

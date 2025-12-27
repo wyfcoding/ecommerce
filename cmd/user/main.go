@@ -27,13 +27,13 @@ const BootstrapName = "user"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.User
+	AppService *application.UserService
 	Clients    *ServiceClients
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	// 如果需要，在此处添加依赖项
+	// No dependencies detected
 }
 
 func main() {
@@ -98,7 +98,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	addressService := application.NewAddressService(repo, addressRepo, logger)
 
 	// 门面层
-	svc := application.NewUser(
+	svc := application.NewUserService(
 		authService,
 		profileService,
 		addressService,

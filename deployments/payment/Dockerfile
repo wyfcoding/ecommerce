@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/payment cmd/payment/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/payment/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/payment .
-COPY --from=builder /app/configs/payment/config.toml ./configs/payment/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/payment/config.toml ./configs/payment/config.toml
 
 # Expose ports
-EXPOSE 8086 9096
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./payment"]
+CMD ["./server"]

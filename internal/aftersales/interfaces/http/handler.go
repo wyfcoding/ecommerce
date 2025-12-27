@@ -5,8 +5,7 @@ import (
 	"strconv"  // 导入字符串和数字转换工具。
 
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"       // 导入售后模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/entity"     // 导入售后模块的领域实体。
-	"github.com/wyfcoding/ecommerce/internal/aftersales/domain/repository" // 导入售后模块的领域仓储查询对象。
+	"github.com/wyfcoding/ecommerce/internal/aftersales/domain"     // 导入售后模块的领域实体。
 	"github.com/wyfcoding/pkg/response"                                    // 导入统一的响应处理工具。
 
 	"github.com/gin-gonic/gin" // 导入Gin Web框架。
@@ -37,11 +36,11 @@ func (h *Handler) Create(c *gin.Context) {
 		OrderID     uint64                   `json:"order_id" binding:"required"` // 订单ID，必填。
 		OrderNo     string                   `json:"order_no" binding:"required"` // 订单号，必填。
 		UserID      uint64                   `json:"user_id" binding:"required"`  // 用户ID，必填。
-		Type        entity.AfterSalesType    `json:"type" binding:"required"`     // 售后类型，必填。
+		Type        domain.AfterSalesType    `json:"type" binding:"required"`     // 售后类型，必填。
 		Reason      string                   `json:"reason" binding:"required"`   // 申请原因，必填。
 		Description string                   `json:"description"`                 // 详细描述，选填。
 		Images      []string                 `json:"images"`                      // 凭证图片URL列表，选填。
-		Items       []*entity.AfterSalesItem `json:"items" binding:"required"`    // 申请售后的商品列表，必填。
+		Items       []*domain.AfterSalesItem `json:"items" binding:"required"`    // 申请售后的商品列表，必填。
 	}
 
 	// 绑定并验证请求JSON数据。
@@ -141,7 +140,7 @@ func (h *Handler) List(c *gin.Context) {
 	userID, _ := strconv.ParseUint(c.DefaultQuery("user_id", "0"), 10, 64)
 
 	// 构建查询对象。
-	query := &repository.AfterSalesQuery{
+	query := &domain.AfterSalesQuery{
 		Page:     page,
 		PageSize: pageSize,
 		UserID:   userID,
@@ -193,8 +192,6 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /aftersales 路由组，用于所有售后相关接口。
 	group := r.Group("/aftersales")
 	{
-		group.POST("", h.Create)              // 创建售后申请。
-		group.GET("", h.List)                 // 获取售后申请列表。
 		group.GET("/:id", h.GetDetails)       // 获取售后申请详情。
 		group.POST("/:id/approve", h.Approve) // 批准售后申请。
 		group.POST("/:id/reject", h.Reject)   // 拒绝售后申请。

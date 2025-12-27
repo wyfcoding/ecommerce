@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: { include "gateway.fullname" . }
+  labels:
+    {- include "gateway.labels" . | nindent 4 }
+spec:
+  podSelector:
+    matchLabels:
+      {- include "gateway.selectorLabels" . | nindent 6 }
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0

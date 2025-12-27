@@ -4,7 +4,7 @@ package api.flashsale.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/flashsale/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/flashsale/v1;v1";
 
 // 秒杀服务，处理高并发下的限时抢购活动、库存扣减及资格校验。
 service FlashSale {

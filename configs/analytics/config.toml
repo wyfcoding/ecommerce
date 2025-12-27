@@ -1,42 +1,64 @@
+version = "1.0.0"
+
 [server]
 name = "analytics"
 environment = "dev"
 
-# 分析服务基础配置
 [server.http]
-# 主要提供给内部仪表盘或数据可视化工具的查询接口
 addr = "0.0.0.0"
-port = 8092
-timeout = "10s" # 分析查询可能耗时较长
+port = 8004
+timeout = "3s"
+read_timeout = "3s"
+write_timeout = "3s"
+idle_timeout = "60s"
 
-# 数据库配置 (使用 ClickHouse 作为示例，它非常适合 OLAP 场景)
-[data.database]
-driver = "clickhouse"
-# DSN 格式: tcp://host1:9000?database=...&username=...&password=...
-dsn = "tcp://127.0.0.1:9000?database=ecommerce_analytics&username=default&password="
+[server.grpc]
+addr = "0.0.0.0"
+port = 9004
+timeout = "3s"
+max_recv_msg_size = 10485760 # 10MB
+max_send_msg_size = 10485760 # 10MB
 
-# 消息队列 (RabbitMQ / Kafka) 配置
-# 消费来自整个平台的各种事件，以收集数据点
-[mq]
-type = "rabbitmq"
-url = "amqp://guest:guest@localhost:5672/"
-# 订阅通配符路由键，捕获所有订单、支付、用户行为等事件
-consumer_queues = [
-  { queue_name = "analytics.events", exchange_name = "all_events_fanout", routing_key = "#" }
-]
-
-# 链路追踪配置
-[tracing]
-jaeger_endpoint = "http://localhost:14268/api/traces"
-service_name = "analytics"
-
-# 日志配置
 [log]
-level = "info" # 分析服务日志量可能很大，默认使用 info 级别
+level = "info"
 format = "json"
 output = "stdout"
+# file = "logs/analytics.log"
+max_size = 100
+max_backups = 3
+max_age = 28
+
+[tracing]
+enabled = true
+service_name = "analytics"
+otlp_endpoint = "localhost:4317"
 
 [metrics]
 enabled = true
-port = "9090"
+port = "18004"
 path = "/metrics"
+
+[snowflake]
+start_time = "2024-01-01"
+machine_id = 1
+
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_analytics?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+slow_threshold = "200ms"
+
+
+[data.redis]
+addr = "127.0.0.1:6379"
+password = "redis_password"
+db = 0
+pool_size = 10
+min_idle_conns = 5
+read_timeout = "0.2s"
+write_timeout = "0.2s"
+
+[services]

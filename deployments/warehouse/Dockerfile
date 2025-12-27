@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/warehouse cmd/warehouse/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/warehouse/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/warehouse .
-COPY --from=builder /app/configs/warehouse/config.toml ./configs/warehouse/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/warehouse/config.toml ./configs/warehouse/config.toml
 
 # Expose ports
-EXPOSE 8117 9137
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./warehouse"]
+CMD ["./server"]

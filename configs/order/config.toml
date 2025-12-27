@@ -1,59 +1,77 @@
+version = "1.0.0"
+
 [server]
 name = "order"
 environment = "dev"
 
-# 订单服务基础配置
 [server.http]
 addr = "0.0.0.0"
-port = 8082  # 为订单服务选择一个不同的端口
-timeout = "1s"
+port = 8027
+timeout = "3s"
+read_timeout = "3s"
+write_timeout = "3s"
+idle_timeout = "60s"
 
 [server.grpc]
 addr = "0.0.0.0"
-port = 9092  # 为订单服务选择一个不同的端口
-timeout = "1s"
+port = 9027
+timeout = "3s"
+max_recv_msg_size = 10485760 # 10MB
+max_send_msg_size = 10485760 # 10MB
 
-[message_queue.kafka]
-brokers = ["localhost:9092"]
-topic = "order-events"
-group_id = "order-group"
-
-[dtm]
-server = "localhost:36790"
-
-[warehouse]
-grpc_addr = "localhost:9004" # Assuming Warehouse gRPC port
-
-# 数据库配置 (指向订单数据库)
-[data.database]
-driver = "mysql"
-dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
-
-[[data.shards]]
-driver = "mysql"
-dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
-
-[[data.shards]]
-driver = "mysql"
-dsn = "root:your_password@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
-
-# 链路追踪配置
-[tracing]
-jaeger_endpoint = "http://localhost:14268/api/traces"
-
-# 日志配置
 [log]
-level = "debug"
-format = "json" # 可选: text 或 json
-output = "stdout" # 可选: stdout, stderr 或 文件路径
+level = "info"
+format = "json"
+output = "stdout"
+# file = "logs/order.log"
+max_size = 100
+max_backups = 3
+max_age = 28
 
-# 业务相关配置
-[business]
-default_page_size = 10 # 列表查询时的默认分页大小
-max_page_size = 100 # 列表查询时允许的最大分页大小
-order_expiration_minutes = 30 # 订单未支付自动关闭时间 (分钟)
+[tracing]
+enabled = true
+service_name = "order"
+otlp_endpoint = "localhost:4317"
 
 [metrics]
 enabled = true
-port = "9093"
+port = "18027"
 path = "/metrics"
+
+[snowflake]
+start_time = "2024-01-01"
+machine_id = 1
+
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+slow_threshold = "200ms"
+
+
+[data.redis]
+addr = "127.0.0.1:6379"
+password = "redis_password"
+db = 0
+pool_size = 10
+min_idle_conns = 5
+read_timeout = "0.2s"
+write_timeout = "0.2s"
+
+
+[messagequeue.kafka]
+brokers = ["localhost:9092"]
+topic = "order-events"
+group_id = "order-group"
+dial_timeout = "10s"
+read_timeout = "10s"
+write_timeout = "10s"
+
+[services]
+
+[services.warehouse]
+grpc_addr = "localhost:9043"
+http_addr = "localhost:8043"

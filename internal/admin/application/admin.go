@@ -9,8 +9,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Admin 门面服务，聚合所有子领域逻辑，供 gRPC Server 使用
-type Admin struct {
+// AdminService 门面服务，聚合所有子领域逻辑，供 gRPC Server 使用
+type AdminService struct {
 	userRepo    domain.AdminRepository
 	roleRepo    domain.RoleRepository
 	auditRepo   domain.AuditRepository
@@ -23,8 +23,8 @@ type Admin struct {
 	logger *slog.Logger
 }
 
-// NewAdmin 定义了 NewAdmin 相关的服务逻辑。
-func NewAdmin(
+// NewAdminService 创建一个新的管理后台应用服务实例。
+func NewAdminService(
 	userRepo domain.AdminRepository,
 	roleRepo domain.RoleRepository,
 	auditRepo domain.AuditRepository,
@@ -33,8 +33,8 @@ func NewAdmin(
 	audit *Audit,
 	workflow *WorkflowService,
 	logger *slog.Logger,
-) *Admin {
-	return &Admin{
+) *AdminService {
+	return &AdminService{
 		userRepo:    userRepo,
 		roleRepo:    roleRepo,
 		auditRepo:   auditRepo,
@@ -49,7 +49,7 @@ func NewAdmin(
 // --- Admin CRUD ---
 
 // RegisterAdmin 注册一个新的管理员。
-func (s *Admin) RegisterAdmin(ctx context.Context, username, email, password, fullName, phone string) (*domain.AdminUser, error) {
+func (s *AdminService) RegisterAdmin(ctx context.Context, username, email, password, fullName, phone string) (*domain.AdminUser, error) {
 	// 检查是否存在
 	if _, err := s.userRepo.GetByUsername(ctx, username); err == nil {
 		return nil, errors.New("username exists")
@@ -75,12 +75,12 @@ func (s *Admin) RegisterAdmin(ctx context.Context, username, email, password, fu
 }
 
 // GetAdminProfile 获取管理员个人资料。
-func (s *Admin) GetAdminProfile(ctx context.Context, id uint64) (*domain.AdminUser, error) {
+func (s *AdminService) GetAdminProfile(ctx context.Context, id uint64) (*domain.AdminUser, error) {
 	return s.userRepo.GetByID(ctx, uint(id))
 }
 
 // UpdateAdmin 更新管理员信息。
-func (s *Admin) UpdateAdmin(ctx context.Context, id uint64, email, fullName, phone string, roleIDs []uint64) (*domain.AdminUser, error) {
+func (s *AdminService) UpdateAdmin(ctx context.Context, id uint64, email, fullName, phone string, roleIDs []uint64) (*domain.AdminUser, error) {
 	user, err := s.userRepo.GetByID(ctx, uint(id))
 	if err != nil {
 		return nil, err
@@ -116,17 +116,17 @@ func (s *Admin) UpdateAdmin(ctx context.Context, id uint64, email, fullName, pho
 }
 
 // DeleteAdmin 删除管理员。
-func (s *Admin) DeleteAdmin(ctx context.Context, id uint64) error {
+func (s *AdminService) DeleteAdmin(ctx context.Context, id uint64) error {
 	return s.userRepo.Delete(ctx, uint(id))
 }
 
 // ListAdmins 分页获取管理员列表。
-func (s *Admin) ListAdmins(ctx context.Context, page, pageSize int) ([]*domain.AdminUser, int64, error) {
+func (s *AdminService) ListAdmins(ctx context.Context, page, pageSize int) ([]*domain.AdminUser, int64, error) {
 	return s.userRepo.List(ctx, page, pageSize)
 }
 
 // AssignRoleToAdmin 为管理员分配角色。
-func (s *Admin) AssignRoleToAdmin(ctx context.Context, adminID, roleID uint64) error {
+func (s *AdminService) AssignRoleToAdmin(ctx context.Context, adminID, roleID uint64) error {
 	// 该方法在旧版中是单角色？还是应该是数组。
 	// 适配单角色添加，但 Repo 期望数组替换。
 	// 假设门面只是简单包装 Repo。
@@ -138,7 +138,7 @@ func (s *Admin) AssignRoleToAdmin(ctx context.Context, adminID, roleID uint64) e
 // --- Role CRUD ---
 
 // CreateRole 创建一个新的角色。
-func (s *Admin) CreateRole(ctx context.Context, name, code, description string) (*domain.Role, error) {
+func (s *AdminService) CreateRole(ctx context.Context, name, code, description string) (*domain.Role, error) {
 	role := &domain.Role{
 		Name:        name,
 		Code:        code,
@@ -151,12 +151,12 @@ func (s *Admin) CreateRole(ctx context.Context, name, code, description string) 
 }
 
 // GetRole 获取指定ID的角色详情。
-func (s *Admin) GetRole(ctx context.Context, id uint64) (*domain.Role, error) {
+func (s *AdminService) GetRole(ctx context.Context, id uint64) (*domain.Role, error) {
 	return s.roleRepo.GetRoleByID(ctx, uint(id))
 }
 
 // UpdateRole 更新角色信息。
-func (s *Admin) UpdateRole(ctx context.Context, id uint64, name, description string, permissionIDs []uint64) (*domain.Role, error) {
+func (s *AdminService) UpdateRole(ctx context.Context, id uint64, name, description string, permissionIDs []uint64) (*domain.Role, error) {
 	role, err := s.roleRepo.GetRoleByID(ctx, uint(id))
 	if err != nil {
 		return nil, err
@@ -192,12 +192,12 @@ func (s *Admin) UpdateRole(ctx context.Context, id uint64, name, description str
 }
 
 // DeleteRole 删除指定ID的角色。
-func (s *Admin) DeleteRole(ctx context.Context, id uint64) error {
+func (s *AdminService) DeleteRole(ctx context.Context, id uint64) error {
 	return s.roleRepo.DeleteRole(ctx, uint(id))
 }
 
 // ListRoles 获取所有角色列表。
-func (s *Admin) ListRoles(ctx context.Context, page, pageSize int) ([]*domain.Role, int64, error) {
+func (s *AdminService) ListRoles(ctx context.Context, page, pageSize int) ([]*domain.Role, int64, error) {
 	// Repo ListRoles 目前返回所有角色（接口中无分页参数）。
 	// 我们目前仅返回所有，或稍后按需修改 repo。
 	roles, err := s.roleRepo.ListRoles(ctx)
@@ -212,7 +212,7 @@ func (s *Admin) ListRoles(ctx context.Context, page, pageSize int) ([]*domain.Ro
 // --- 模块分段 ---
 
 // CreatePermission 创建一个新的权限项。
-func (s *Admin) CreatePermission(ctx context.Context, name, code, permType, path, method string, parentID uint64) (*domain.Permission, error) {
+func (s *AdminService) CreatePermission(ctx context.Context, name, code, permType, path, method string, parentID uint64) (*domain.Permission, error) {
 	perm := &domain.Permission{
 		Name:     name,
 		Code:     code,
@@ -229,24 +229,24 @@ func (s *Admin) CreatePermission(ctx context.Context, name, code, permType, path
 }
 
 // GetPermission 获取指定ID的权限详情。
-func (s *Admin) GetPermission(ctx context.Context, id uint64) (*domain.Permission, error) {
+func (s *AdminService) GetPermission(ctx context.Context, id uint64) (*domain.Permission, error) {
 	return s.roleRepo.GetPermissionByID(ctx, uint(id))
 }
 
 // ListPermissions 获取所有权限列表。
-func (s *Admin) ListPermissions(ctx context.Context) ([]*domain.Permission, error) {
+func (s *AdminService) ListPermissions(ctx context.Context) ([]*domain.Permission, error) {
 	return s.roleRepo.ListPermissions(ctx)
 }
 
 // AssignPermissionToRole 为角色分配权限。
-func (s *Admin) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint64) error {
+func (s *AdminService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint64) error {
 	return s.roleRepo.AssignPermissions(ctx, uint(roleID), []uint{uint(permissionID)})
 }
 
 // --- 模块分段 ---
 
 // ListAuditLogs 获取审计日志列表（分页）。
-func (s *Admin) ListAuditLogs(ctx context.Context, adminID uint64, page, pageSize int) ([]*domain.AuditLog, int64, error) {
+func (s *AdminService) ListAuditLogs(ctx context.Context, adminID uint64, page, pageSize int) ([]*domain.AuditLog, int64, error) {
 	filter := make(map[string]any)
 	if adminID > 0 {
 		filter["user_id"] = adminID
@@ -257,12 +257,12 @@ func (s *Admin) ListAuditLogs(ctx context.Context, adminID uint64, page, pageSiz
 // --- 模块分段 ---
 
 // GetSystemSetting 获取指定键的系统设置。
-func (s *Admin) GetSystemSetting(ctx context.Context, key string) (*domain.SystemSetting, error) {
+func (s *AdminService) GetSystemSetting(ctx context.Context, key string) (*domain.SystemSetting, error) {
 	return s.settingRepo.GetByKey(ctx, key)
 }
 
 // UpdateSystemSetting 更新系统设置信息。
-func (s *Admin) UpdateSystemSetting(ctx context.Context, key, value, description string) (*domain.SystemSetting, error) {
+func (s *AdminService) UpdateSystemSetting(ctx context.Context, key, value, description string) (*domain.SystemSetting, error) {
 	setting := &domain.SystemSetting{
 		Key:         key,
 		Value:       value,

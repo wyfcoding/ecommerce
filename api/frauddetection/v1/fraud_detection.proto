@@ -4,7 +4,7 @@ package api.fraud_detection.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/fraud_detection/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/fraud_detection/v1;v1";
 
 // 欺诈检测服务，负责核心交易流程的实时风险评分、异步评估及手动黑名单标记。
 service FraudDetection {

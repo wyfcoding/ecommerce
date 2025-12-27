@@ -5,7 +5,7 @@ package api.data_ingestion.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/data_ingestion/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/data_ingestion/v1;v1";
 
 // 原始数据采集与摄取服务。
 service DataIngestion {

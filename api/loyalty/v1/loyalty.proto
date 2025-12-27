@@ -5,7 +5,7 @@ package api.loyalty.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/loyalty/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/loyalty/v1;v1";
 
 // 忠诚度与会员权益服务，负责积分体系、会员等级及专属折扣管理。
 service Loyalty {

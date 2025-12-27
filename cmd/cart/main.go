@@ -28,19 +28,13 @@ const BootstrapName = "cart"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *configpkg.Config
-	AppService *application.Cart
+	AppService *application.CartService
 	Clients    *ServiceClients
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	Product   *grpc.ClientConn
-	User      *grpc.ClientConn
-	Pricing   *grpc.ClientConn
-	Inventory *grpc.ClientConn
-	Marketing *grpc.ClientConn
-	Order     *grpc.ClientConn
-	Coupon    *grpc.ClientConn
+	// No dependencies detected
 }
 
 func main() {
@@ -104,7 +98,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	cartManager := application.NewCartManager(repo, logging.Default().Logger, cartQuery)
 
 	// 创建门面
-	service := application.NewCart(cartManager, cartQuery)
+	service := application.NewCartService(cartManager, cartQuery)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

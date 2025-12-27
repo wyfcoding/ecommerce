@@ -5,7 +5,7 @@ package api.pricing.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/pricing/v1;pricingv1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/pricing/v1;pricingv1";
 
 // 动态定价服务，负责管理价格规则及计算商品的最终实时售价。
 service Pricing {

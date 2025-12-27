@@ -42,20 +42,13 @@ type Config struct {
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config     *Config
-	AppService *application.Order
+	AppService *application.OrderService
 	Clients    *ServiceClients
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	User      *grpc.ClientConn
-	Product   *grpc.ClientConn
-	Inventory *grpc.ClientConn
-	Pricing   *grpc.ClientConn
-	Payment   *grpc.ClientConn
-	Marketing *grpc.ClientConn
-	Logistics *grpc.ClientConn
-	Cart      *grpc.ClientConn
+	Warehouse *grpc.ClientConn `service:"warehouse"`
 }
 
 func main() {
@@ -146,7 +139,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	orderManager := application.NewOrderManager(repo, idGen, kafkaProducer, slog.Default(), c.DTM.Server, c.Warehouse.GrpcAddr, m)
 	orderQuery := application.NewOrderQuery(repo)
 
-	service := application.NewOrder(orderManager, orderQuery, slog.Default())
+	service := application.NewOrderService(orderManager, orderQuery, slog.Default())
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)

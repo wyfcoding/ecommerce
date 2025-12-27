@@ -28,7 +28,7 @@ const BootstrapName = "admin"
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
 	Config          *configpkg.Config
-	Admin           *application.Admin
+	Admin           *application.AdminService
 	Clients         *ServiceClients
 	AuthHandler     *adminhttp.AuthHandler
 	WorkflowHandler *adminhttp.WorkflowHandler
@@ -136,7 +136,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	workflowService := application.NewWorkflowService(approvalRepo, opsService, auditService, logger)
 
 	// 6. Application Facade
-	adminService := application.NewAdmin(
+	adminService := application.NewAdminService(
 		adminRepo,
 		roleRepo,
 		auditRepo,

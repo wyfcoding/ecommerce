@@ -5,7 +5,7 @@ package api.financial_settlement.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/financial_settlement/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/financial_settlement/v1;v1";
 
 // 财务结算与打款服务。
 service FinancialSettlement {

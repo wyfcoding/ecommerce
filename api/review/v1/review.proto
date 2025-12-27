@@ -4,7 +4,7 @@ package api.review.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/review/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/review/v1;v1";
 
 // 商品评价服务，处理用户的商品评分、文字内容及历史查询。
 service Review {

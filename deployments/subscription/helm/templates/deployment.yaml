@@ -1,72 +1,66 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "fullname" . }}
+  name: { include "subscription.fullname" . }
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {- include "subscription.labels" . | nindent 4 }
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  {- if not .Values.autoscaling.enabled }
+  replicas: { .Values.replicaCount }
+  {- end }
   selector:
     matchLabels:
-      {{- include "selectorLabels" . | nindent 6 }}
+      {- include "subscription.selectorLabels" . | nindent 6 }
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {- with .Values.podAnnotations }
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {- toYaml . | nindent 8 }
+      {- end }
       labels:
-        {{- include "selectorLabels" . | nindent 8 }}
+        {- include "subscription.selectorLabels" . | nindent 8 }
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {- with .Values.imagePullSecrets }
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "serviceAccountName" . }}
+        {- toYaml . | nindent 8 }
+      {- end }
+      serviceAccountName: { include "subscription.serviceAccountName" . }
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {- toYaml .Values.podSecurityContext | nindent 8 }
       containers:
-        - name: {{ .Chart.Name }}
+        - name: { .Chart.Name }
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+            {- toYaml .Values.securityContext | nindent 12 }
+          image: "{ .Values.image.repository }:{ .Values.image.tag | default .Chart.AppVersion }"
+          imagePullPolicy: { .Values.image.pullPolicy }
           ports:
             - name: http
-              containerPort: {{ .Values.service.httpPort }}
+              containerPort: { .Values.service.httpPort }
               protocol: TCP
             - name: grpc
-              containerPort: {{ .Values.service.grpcPort }}
+              containerPort: { .Values.service.grpcPort }
               protocol: TCP
+          env:
+            {- toYaml .Values.env | nindent 12 }
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /health
               port: http
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /health
               port: http
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-            - name: config-volume
-              mountPath: /app/configs/user/config.toml
-              subPath: config.toml
-      volumes:
-        - name: config-volume
-          configMap:
-            name: {{ include "fullname" . }}-config
-      {{- with .Values.nodeSelector }}
+            {- toYaml .Values.resources | nindent 12 }
+      {- with .Values.nodeSelector }
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
+        {- toYaml . | nindent 8 }
+      {- end }
+      {- with .Values.affinity }
       affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
+        {- toYaml . | nindent 8 }
+      {- end }
+      {- with .Values.tolerations }
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {- toYaml . | nindent 8 }
+      {- end }

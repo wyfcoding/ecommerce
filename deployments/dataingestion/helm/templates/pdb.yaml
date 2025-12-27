@@ -1,18 +1,11 @@
-{{- if .Values.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "fullname" . }}
+  name: { include "dataingestion.fullname" . }
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {- include "dataingestion.labels" . | nindent 4 }
 spec:
-  {{- if .Values.podDisruptionBudget.minAvailable }}
-  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
-  {{- end }}
-  {{- if .Values.podDisruptionBudget.maxUnavailable }}
-  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
-  {{- end }}
+  minAvailable: 1
   selector:
     matchLabels:
-      {{- include "selectorLabels" . | nindent 6 }}
-{{- end }}
+      {- include "dataingestion.selectorLabels" . | nindent 6 }

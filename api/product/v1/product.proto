@@ -6,7 +6,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/product/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/product/v1;v1";
 
 // 商品服务，管理 SPU、SKU、分类、品牌及商品属性。
 service Product {

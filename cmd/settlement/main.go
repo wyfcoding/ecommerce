@@ -8,7 +8,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
-	"github.com/wyfcoding/ecommerce/internal/settlement/domain/ledger"
+	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
 	settlementhttp "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/http"
@@ -32,7 +32,7 @@ type AppContext struct {
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	// 如果需要，在此处添加依赖项
+	// No dependencies detected
 }
 
 // BootstrapName 服务名称常量。
@@ -92,7 +92,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	ledgerRepo := persistence.NewLedgerRepository(db)
 
 	// 领域/服务层
-	ledgerService := ledger.NewLedgerService(ledgerRepo)
+	ledgerService := domain.NewLedgerService(ledgerRepo)
 
 	// 3. 下游服务客户端
 	clients := &ServiceClients{}

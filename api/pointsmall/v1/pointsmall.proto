@@ -5,7 +5,7 @@ package api.pointsmall.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1;pointsmallv1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/pointsmall/v1;pointsmallv1";
 
 // 积分商城服务，提供纯积分或积分加现金的商品换购逻辑。
 service Pointsmall {

@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/pointsmall cmd/pointsmall/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/pointsmall/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/pointsmall .
-COPY --from=builder /app/configs/pointsmall/config.toml ./configs/pointsmall/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/pointsmall/config.toml ./configs/pointsmall/config.toml
 
 # Expose ports
-EXPOSE 8106 9126
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./pointsmall"]
+CMD ["./server"]

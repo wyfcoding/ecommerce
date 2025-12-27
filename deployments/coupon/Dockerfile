@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/coupon cmd/coupon/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/server cmd/coupon/main.go
 
 # Final stage
 FROM alpine:latest
@@ -25,11 +25,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/bin/coupon .
-COPY --from=builder /app/configs/coupon/config.toml ./configs/coupon/config.toml
+COPY --from=builder /app/bin/server .
+# COPY --from=builder /app/configs/coupon/config.toml ./configs/coupon/config.toml
 
 # Expose ports
-EXPOSE 8086 9099
+EXPOSE 8080 9090
 
 # Run the application
-CMD ["./coupon"]
+CMD ["./server"]

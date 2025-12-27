@@ -5,7 +5,7 @@ package api.warehouse.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/warehouse/v1;warehousev1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/warehouse/v1;warehousev1";
 
 // 仓库管理服务，负责物理仓库配置、库存增减、库间调拨及库存锁定逻辑。
 service Warehouse {

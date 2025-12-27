@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+
 	"github.com/wyfcoding/ecommerce/internal/gateway/application"
 	"github.com/wyfcoding/ecommerce/internal/gateway/infrastructure/persistence"
 	gatewayhttp "github.com/wyfcoding/ecommerce/internal/gateway/interfaces/http"
@@ -14,38 +17,18 @@ import (
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
-
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 )
 
 // AppContext 应用上下文，包含配置、服务实例和客户端依赖。
 type AppContext struct {
-	AppService *application.Gateway
+	AppService *application.GatewayService
 	Config     *configpkg.Config
 	Clients    *ServiceClients
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	User              *grpc.ClientConn
-	Product           *grpc.ClientConn
-	Order             *grpc.ClientConn
-	Cart              *grpc.ClientConn
-	Payment           *grpc.ClientConn
-	Inventory         *grpc.ClientConn
-	Marketing         *grpc.ClientConn
-	Notification      *grpc.ClientConn
-	Search            *grpc.ClientConn
-	Recommendation    *grpc.ClientConn
-	Review            *grpc.ClientConn
-	Wishlist          *grpc.ClientConn
-	Logistics         *grpc.ClientConn
-	Aftersales        *grpc.ClientConn
-	Customer   *grpc.ClientConn
-	ContentModeration *grpc.ClientConn
-	Message           *grpc.ClientConn
-	File              *grpc.ClientConn
+	// No dependencies detected
 }
 
 // BootstrapName 服务名称常量。
@@ -92,8 +75,6 @@ func registerGin(e *gin.Engine, srv any) {
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*configpkg.Config)
 
-	// 初始化日志
-
 	// 初始化
 	slog.Info("initializing service dependencies...")
 	db, err := databases.NewDB(c.Data.Database, logging.Default())
@@ -110,7 +91,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewGatewayRepository(db)
 
 	// 应用层
-	service := application.NewGateway(repo, slog.Default())
+	service := application.NewGatewayService(repo, slog.Default())
 
 	// 下游客户端
 	clients := &ServiceClients{}
@@ -128,10 +109,8 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	return &AppContext{
-			AppService: service,
-			Config:     c,
-			Clients:    clients,
-		}, func() {
-			cleanup()
-		}, nil
+		AppService: service,
+		Config:     c,
+		Clients:    clients,
+	}, cleanup, nil
 }
