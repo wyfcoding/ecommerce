@@ -1231,8 +1231,8 @@ github.com/ugorji/go/codec v1.3.1 h1:waO7eEiFDwidsBN6agj1vJQ4AG7lh2yqXyOXqhgQuyY
 github.com/ugorji/go/codec v1.3.1/go.mod h1:pRBVtBSKl77K30Bv8R2P+cLSGaTtex6fsA2Wjqmfxj4=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
-github.com/wyfcoding/pkg v0.0.0-20251227154033-463b325a9aee h1:nEicmREPrOfuDsCyoMutObIdrAlJzSSg0RwCAnsGB2Y=
-github.com/wyfcoding/pkg v0.0.0-20251227154033-463b325a9aee/go.mod h1:x3Kr3FxdAhiC15zFg/o89rGgKE9lVcNnUePuJkKbAq8=
+github.com/wyfcoding/pkg v0.0.0-20251228022545-6552fce97233 h1:Uy1KwH5j6irTgFY6d2PUQgC9f3z8iNRqpr3I0FtteJM=
+github.com/wyfcoding/pkg v0.0.0-20251228022545-6552fce97233/go.mod h1:VUcXrOL2JHFcAL7maDozNjmGMW2mYAA120ItqGM12+0=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.0.2/go.mod h1:1WAq6h33pAW+iRreB34OORO2Nf7qel3VV3fjBj+hCSs=
