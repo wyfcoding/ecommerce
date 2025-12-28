@@ -2,8 +2,6 @@ package domain
 
 import (
 	"context"
-
-
 )
 
 // UserTierRepository 是用户等级模块的仓储接口。

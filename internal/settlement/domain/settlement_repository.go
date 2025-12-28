@@ -2,8 +2,6 @@ package domain
 
 import (
 	"context"
-
-
 )
 
 // SettlementRepository 是结算模块的仓储接口。

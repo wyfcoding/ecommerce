@@ -17,7 +17,7 @@ import (
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
 	app    *application.Notification // 依赖Notification应用服务，处理核心业务逻辑。
-	logger *slog.Logger                     // 日志记录器，用于记录请求处理过程中的信息和错误。
+	logger *slog.Logger              // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Notification HTTP Handler 实例。

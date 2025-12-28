@@ -15,7 +15,7 @@ import (
 // Handler 结构体定义了Wishlist模块的HTTP处理层。
 type Handler struct {
 	app    *application.Wishlist // 依赖Wishlist应用服务 (Facade)。
-	logger *slog.Logger                 // 日志记录器。
+	logger *slog.Logger          // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Wishlist HTTP Handler 实例。

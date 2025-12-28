@@ -60,8 +60,8 @@ func (s *UserTierService) AddScore(ctx context.Context, userID uint64, score int
 	}
 
 	var targetLevel domain.TierLevel = 0
-	var targetName = "普通会员"
-	var targetDiscount = 100.0
+	targetName := "普通会员"
+	targetDiscount := 100.0
 
 	for _, cfg := range configs {
 		if tier.Score >= cfg.MinScore && cfg.Level > targetLevel {

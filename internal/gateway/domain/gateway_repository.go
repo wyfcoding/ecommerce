@@ -2,8 +2,6 @@ package domain
 
 import (
 	"context"
-
-
 )
 
 // GatewayRepository 是API网关模块的仓储接口。

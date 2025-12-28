@@ -2,8 +2,6 @@ package domain
 
 import (
 	"context"
-
-
 )
 
 // AfterSalesRepository 是售后模块的仓储接口。
@@ -48,11 +46,11 @@ type AfterSalesRepository interface {
 // AfterSalesQuery 结构体定义了查询售后申请的条件。
 // 它用于在仓储层进行数据过滤和分页。
 type AfterSalesQuery struct {
-	UserID       uint64                  // 根据用户ID过滤。
-	OrderID      uint64                  // 根据订单ID过滤。
+	UserID       uint64           // 根据用户ID过滤。
+	OrderID      uint64           // 根据订单ID过滤。
 	Type         AfterSalesType   // 根据售后类型过滤。
 	Status       AfterSalesStatus // 根据售后状态过滤。
-	AfterSalesNo string                  // 根据售后单号过滤。
-	Page         int                     // 页码，用于分页。
-	PageSize     int                     // 每页数量，用于分页。
+	AfterSalesNo string           // 根据售后单号过滤。
+	Page         int              // 页码，用于分页。
+	PageSize     int              // 每页数量，用于分页。
 }
