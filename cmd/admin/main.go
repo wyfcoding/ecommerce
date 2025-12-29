@@ -19,6 +19,7 @@ import (
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
@@ -42,6 +43,7 @@ type AppContext struct {
 	WorkflowHandler *adminhttp.WorkflowHandler
 	Metrics         *metrics.Metrics
 	Limiter         limiter.Limiter
+	Idempotency     idempotency.Manager
 }
 
 // ServiceClients 外部 gRPC 服务客户端连接池。
@@ -82,7 +84,7 @@ func registerGin(e *gin.Engine, svc any) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 2. 基础路由层：不应用限流，确保 K8s 探针和监控始终可用
+	// 2. 基础路由层：不应用限流和幂等
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
@@ -102,12 +104,15 @@ func registerGin(e *gin.Engine, svc any) {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 3. 业务保护层：从这里开始应用限流中间件
+	// 3. 业务保护层：限流
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 4. 业务逻辑路由组
+	// 4. 业务逻辑路由组：加入幂等保护
 	api := e.Group("/api/v1")
 	{
+		// 仅针对写操作接口开启幂等保护
+		api.Use(middleware.IdempotencyMiddleware(ctx.Idempotency, 24*time.Hour))
+		
 		ctx.AuthHandler.RegisterRoutes(api)
 		ctx.WorkflowHandler.RegisterRoutes(api)
 	}
@@ -115,7 +120,6 @@ func registerGin(e *gin.Engine, svc any) {
 	slog.Info("HTTP service configured successfully", "service", BootstrapName)
 }
 
-// initService 执行深度依赖注入。
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	bootLog := slog.With("module", "bootstrap")
@@ -129,21 +133,23 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		// 容错：如果数据库已打开需关闭
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("failed to init redis: %w", err)
 	}
 
-	// 2. 分布式限流器 (基于 Redis)
+	// 2. 治理：分布式限流器 (基于 Redis)
 	rateLimiter := limiter.NewRedisLimiter(
 		redisCache.GetClient(),
 		c.RateLimit.Rate,
 		time.Second,
 	)
 
-	// 3. 外部服务连接 (自动发现)
+	// 3. 治理：分布式幂等管理器 (基于 Redis)
+	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), "admin:idem")
+
+	// 4. 外部服务连接 (自动发现)
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
@@ -202,5 +208,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		WorkflowHandler: workflowHandler,
 		Metrics:         m,
 		Limiter:         rateLimiter,
+		Idempotency:     idemManager,
 	}, cleanup, nil
 }

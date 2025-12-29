@@ -10,14 +10,14 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
 )
 
-// OrderConsumer 结构体定义。
+// OrderConsumer 负责异步处理秒杀订单创建。
 type OrderConsumer struct {
 	consumer *kafka.Consumer
 	repo     domain.FlashSaleRepository
 	logger   *slog.Logger
 }
 
-// NewOrderConsumer 函数。
+// NewOrderConsumer 创建 OrderConsumer 实例。
 func NewOrderConsumer(consumer *kafka.Consumer, repo domain.FlashSaleRepository, logger *slog.Logger) *OrderConsumer {
 	return &OrderConsumer{
 		consumer: consumer,
@@ -26,19 +26,29 @@ func NewOrderConsumer(consumer *kafka.Consumer, repo domain.FlashSaleRepository,
 	}
 }
 
+// Start 启动消费者协程。
 func (c *OrderConsumer) Start(ctx context.Context) error {
-	c.logger.Info("Starting OrderConsumer...")
-	return c.consumer.Consume(ctx, c.handleMessage)
+	c.logger.Info("Starting OrderConsumer with concurrent workers...")
+	// 使用优化后的 Start 方法，开启 5 个并发 Worker 进行消费。
+	c.consumer.Start(ctx, 5, c.handleMessage)
+	return nil
 }
 
+// handleMessage 处理单条 Kafka 消息。
 func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) error {
 	var event map[string]any
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
 		c.logger.Error("failed to unmarshal message", "error", err)
-		return nil
+		return nil // 格式错误的消息直接跳过，不重试
 	}
 
-	orderID := uint64(event["order_id"].(float64))
+	// 提取事件字段 (增加防御性检查)
+	val, ok := event["order_id"]
+	if !ok {
+		return nil
+	}
+	orderID := uint64(val.(float64))
+	
 	flashsaleID := uint64(event["flashsale_id"].(float64))
 	userID := uint64(event["user_id"].(float64))
 	productID := uint64(event["product_id"].(float64))
@@ -50,6 +60,7 @@ func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) 
 	order.ID = uint(orderID)
 	order.Status = domain.FlashsaleOrderStatusPending
 
+	// 幂等检查：防止重复保存
 	existing, err := c.repo.GetOrder(ctx, orderID)
 	if err == nil && existing != nil {
 		c.logger.Info("order already exists, skipping", "order_id", orderID)
@@ -65,6 +76,7 @@ func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) 
 	return nil
 }
 
+// Stop 停止消费者并释放资源。
 func (c *OrderConsumer) Stop(ctx context.Context) error {
 	c.logger.Info("Stopping OrderConsumer...")
 	return c.consumer.Close()

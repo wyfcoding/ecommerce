@@ -13,6 +13,8 @@ import (
 	"github.com/wyfcoding/pkg/algorithm"
 	"github.com/wyfcoding/pkg/cache"
 	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/utils"
+	"gorm.io/gorm"
 )
 
 type ProductQuery struct {
@@ -57,27 +59,50 @@ func NewProductQuery(
 	}
 }
 
-// GetProductByID 获取商品详情
+// GetProductByID 获取商品详情（集成了缓存、数据库和终极降级逻辑）
 func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.Product, error) {
-	var product domain.Product
-	cacheKey := fmt.Sprintf("product:%d", id)
-	if err := q.cache.Get(ctx, cacheKey, &product); err == nil {
-		q.cacheHits.WithLabelValues("L1_L2").Inc()
-		return &product, nil
-	}
-	q.cacheMisses.WithLabelValues().Inc()
+	// 定义主逻辑：缓存 -> DB
+	mainFunc := func(c context.Context) (*domain.Product, error) {
+		var product domain.Product
+		cacheKey := fmt.Sprintf("product:%d", id)
 
-	p, err := q.repo.FindByID(ctx, uint(id))
-	if err != nil {
-		q.logger.ErrorContext(ctx, "failed to find product by ID from DB", "product_id", id, "error", err)
-		return nil, err
-	}
-	if p == nil {
-		return nil, nil
+		// 1. 尝试从缓存读取
+		if err := q.cache.Get(c, cacheKey, &product); err == nil {
+			q.cacheHits.WithLabelValues("L1_L2").Inc()
+			return &product, nil
+		}
+		q.cacheMisses.WithLabelValues().Inc()
+
+		// 2. 缓存未命中，查询 DB
+		p, err := q.repo.FindByID(c, uint(id))
+		if err != nil {
+			return nil, err
+		}
+		if p == nil {
+			return nil, nil // 注意：未找到不属于降级场景
+		}
+
+		// 3. 写回缓存 (异步)
+		go func() {
+			_ = q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute)
+		}()
+
+		return p, nil
 	}
 
-	_ = q.cache.Set(ctx, cacheKey, p, 10*time.Minute)
-	return p, nil
+	// 定义终极降级逻辑：DB 宕机或网络中断时的兜底
+	fallbackFunc := func(c context.Context) (*domain.Product, error) {
+		// 返回一个只包含 ID 和名称的极简对象，状态设为“维护中”
+		return &domain.Product{
+			Model:       gorm.Model{ID: uint(id)},
+			Name:        "商品信息暂时不可用 (服务降级)",
+			Description: "目前访问量过大，部分详情暂无法显示，请稍后再试。",
+			Price:       0,
+			Stock:       0,
+		}, nil
+	}
+	// 使用通用 Fallback 包装器执行
+	return utils.ExecuteWithFallback(ctx, "product", "GetProductByID", mainFunc, fallbackFunc)
 }
 
 // ListProducts 列出商品

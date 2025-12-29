@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
+	"time"
 
-	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/groupbuy/v1"
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/application"
@@ -12,113 +15,162 @@ import (
 	groupbuygrpc "github.com/wyfcoding/ecommerce/internal/groupbuy/interfaces/grpc"
 	groupbuyhttp "github.com/wyfcoding/ecommerce/internal/groupbuy/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
-
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 )
 
-// AppContext 应用上下文，包含配置、服务实例和客户端依赖。
-type AppContext struct {
-	AppService *application.GroupbuyService
-	Config     *configpkg.Config
-	Clients    *ServiceClients
-}
-
-// ServiceClients 包含所有下游服务的 gRPC 客户端连接。
-type ServiceClients struct {
-	// No dependencies detected
-}
-
-// BootstrapName 服务名称常量。
+// BootstrapName 服务标识。
 const BootstrapName = "groupbuy"
+
+// Config 扩展配置结构。
+type Config struct {
+	configpkg.Config `mapstructure:",squash"`
+}
+
+// AppContext 应用资源上下文。
+type AppContext struct {
+	Config     *Config
+	AppService *application.GroupbuyService
+	Clients    *ServiceClients
+	Metrics    *metrics.Metrics
+	Limiter    limiter.Limiter
+}
+
+// ServiceClients 下游微服务。
+type ServiceClients struct {
+}
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
-		WithConfig(&configpkg.Config{}).
+		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGinMiddleware(middleware.CORS()).
+		WithGinMiddleware(
+			middleware.MetricsMiddleware(),
+			middleware.CORS(),
+		).
 		Build().
 		Run(); err != nil {
-		slog.Error("application run failed", "error", err)
+		slog.Error("service bootstrap failed", "error", err)
 	}
 }
 
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
-	service := ctx.AppService
-	pb.RegisterGroupbuyServer(s, groupbuygrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for groupbuy service (DDD)")
+	pb.RegisterGroupbuyServer(s, groupbuygrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
-	service := ctx.AppService
-	handler := groupbuyhttp.NewHandler(service, slog.Default())
 
+	if ctx.Config.Server.Environment == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// 1. 系统路由组 (不限流)
+	sys := e.Group("/sys")
+	{
+		sys.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":    "UP",
+				"service":   BootstrapName,
+				"timestamp": time.Now().Unix(),
+			})
+		})
+		sys.GET("/ready", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "READY"})
+		})
+	}
+
+	if ctx.Config.Metrics.Enabled {
+		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
+	}
+
+	// 2. 治理：限流保护
+	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
+
+	// 3. 业务路由
+	handler := groupbuyhttp.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for groupbuy service (DDD)")
+	slog.Info("HTTP service configured successfully", "service", BootstrapName)
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
-	c := cfg.(*configpkg.Config)
-	slog.Info("initializing service dependencies...")
+	c := cfg.(*Config)
+	bootLog := slog.With("module", "bootstrap")
+	logger := logging.Default()
 
-	// 初始化数据库
-	db, err := databases.NewDB(c.Data.Database, logging.Default())
+	// 1. 基础设施
+	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
+		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}
 
-	sqlDB, err := db.DB()
+	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		return nil, nil, err
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("redis init failed: %w", err)
 	}
 
-	// 基础设施层
-	repo := persistence.NewGroupbuyRepository(db)
+	// 2. 治理：分布式限流器
+	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 
-	// 下游客户端
+	// 3. 下游微服务拨号
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
-		if sqlDB != nil {
+		redisCache.Close()
+		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
 	}
 
-	// ID 生成器
-	idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
+	// 4. ID 生成器
+	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
 	if err != nil {
 		clientCleanup()
-		if sqlDB != nil {
+		redisCache.Close()
+		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("failed to create id generator: %w", err)
+		return nil, nil, fmt.Errorf("idgen init failed: %w", err)
 	}
 
-	// 应用层
-	manager := application.NewGroupbuyManager(repo, idGenerator, slog.Default())
+	// 5. DDD 分层装配
+	bootLog.Info("assembling groupbuy domain services...")
+	repo := persistence.NewGroupbuyRepository(db)
+	manager := application.NewGroupbuyManager(repo, idGen, logger.Logger)
 	query := application.NewGroupbuyQuery(repo)
 	service := application.NewGroupbuyService(manager, query)
 
+	// 6. 资源回收
 	cleanup := func() {
-		slog.Default().Info("cleaning up groupbuy service resources (DDD)...")
+		bootLog.Info("performing graceful shutdown...")
 		clientCleanup()
-		if sqlDB != nil {
+		redisCache.Close()
+		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
 	}
 
-	return &AppContext{AppService: service, Config: c, Clients: clients}, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+		Metrics:    m,
+		Limiter:    rateLimiter,
+	}, cleanup, nil
 }

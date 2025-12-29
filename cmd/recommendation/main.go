@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
+	"time"
 
-	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
 	"github.com/wyfcoding/ecommerce/internal/recommendation/application"
@@ -12,98 +15,150 @@ import (
 	recommgrpc "github.com/wyfcoding/ecommerce/internal/recommendation/interfaces/grpc"
 	recommhttp "github.com/wyfcoding/ecommerce/internal/recommendation/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
-
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 )
 
-// AppContext 应用上下文，包含配置、服务实例和客户端依赖。
-type AppContext struct {
-	AppService *application.RecommendationService
-	Config     *configpkg.Config
-	Clients    *ServiceClients
-}
-
-// ServiceClients 包含所有下游服务的 gRPC 客户端连接。
-type ServiceClients struct {
-	// No dependencies detected
-}
-
-// BootstrapName 服务名称常量。
+// BootstrapName 服务标识。
 const BootstrapName = "recommendation"
+
+// Config 扩展配置结构。
+type Config struct {
+	configpkg.Config `mapstructure:",squash"`
+}
+
+// AppContext 应用资源上下文。
+type AppContext struct {
+	Config     *Config
+	AppService *application.RecommendationService
+	Clients    *ServiceClients
+	Metrics    *metrics.Metrics
+	Limiter    limiter.Limiter
+}
+
+// ServiceClients 下游微服务。
+type ServiceClients struct {
+}
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
-		WithConfig(&configpkg.Config{}).
+		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGinMiddleware(middleware.CORS()).
+		WithGinMiddleware(
+			middleware.MetricsMiddleware(),
+			middleware.CORS(),
+		).
 		Build().
 		Run(); err != nil {
-		slog.Error("application run failed", "error", err)
+		slog.Error("service bootstrap failed", "error", err)
 	}
 }
 
-func registerGRPC(s *grpc.Server, srv any) {
-	ctx := srv.(*AppContext)
-	service := ctx.AppService
-	pb.RegisterRecommendationServer(s, recommgrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered for recommendation service (DDD)")
+func registerGRPC(s *grpc.Server, svc any) {
+	ctx := svc.(*AppContext)
+	pb.RegisterRecommendationServer(s, recommgrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
-	service := ctx.AppService
-	handler := recommhttp.NewHandler(service, slog.Default())
 
+	if ctx.Config.Server.Environment == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// 1. 系统路由组 (不限流)
+	sys := e.Group("/sys")
+	{
+		sys.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":    "UP",
+				"service":   BootstrapName,
+				"timestamp": time.Now().Unix(),
+			})
+		})
+		sys.GET("/ready", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "READY"})
+		})
+	}
+
+	if ctx.Config.Metrics.Enabled {
+		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
+	}
+
+	// 2. 治理：限流保护
+	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
+
+	// 3. 业务路由
+	handler := recommhttp.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
 
-	slog.Default().Info("HTTP routes registered for recommendation service (DDD)")
+	slog.Info("HTTP service configured successfully", "service", BootstrapName)
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
-	c := cfg.(*configpkg.Config)
-	slog.Info("initializing service dependencies...")
+	c := cfg.(*Config)
+	bootLog := slog.With("module", "bootstrap")
+	logger := logging.Default()
 
-	// 初始化数据库
-	db, err := databases.NewDB(c.Data.Database, logging.Default())
+	// 1. 基础设施
+	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
+		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}
 
-	sqlDB, err := db.DB()
+	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
-		return nil, nil, err
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("redis init failed: %w", err)
 	}
 
-	// 基础设施层
-	repo := persistence.NewRecommendationRepository(db)
+	// 2. 治理：分布式限流器
+	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 
-	// 下游客户端
+	// 3. 下游微服务拨号
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
-		sqlDB.Close()
-		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+		redisCache.Close()
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
 	}
 
-	// 应用层
+	// 4. DDD 分层装配
+	bootLog.Info("assembling recommendation domain services...")
+	repo := persistence.NewRecommendationRepository(db)
 	query := application.NewRecommendationQuery(repo)
-	manager := application.NewRecommendationManager(repo, logging.Default().Logger)
+	manager := application.NewRecommendationManager(repo, logger.Logger)
 	service := application.NewRecommendationService(manager, query)
 
+	// 5. 资源回收
 	cleanup := func() {
-		slog.Info("cleaning up resources...")
+		bootLog.Info("performing graceful shutdown...")
 		clientCleanup()
-		sqlDB.Close()
+		redisCache.Close()
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
 	}
 
-	return &AppContext{AppService: service, Config: c, Clients: clients}, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+		Metrics:    m,
+		Limiter:    rateLimiter,
+	}, cleanup, nil
 }

@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -19,16 +21,17 @@ import (
 	"github.com/wyfcoding/pkg/databases/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
 
-// BootstrapName 服务名称常量。
+// BootstrapName 服务名称。
 const BootstrapName = "order"
 
-// Config 扩展了基础配置，增加了服务特定的设置
+// Config 扩展配置。
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 	DTM              struct {
@@ -39,116 +42,151 @@ type Config struct {
 	} `mapstructure:"warehouse"`
 }
 
-// AppContext 应用上下文，包含配置、服务实例和客户端依赖。
+// AppContext 应用上下文。
 type AppContext struct {
 	Config     *Config
 	AppService *application.OrderService
 	Clients    *ServiceClients
 	Handler    *httpServer.Handler
+	Metrics    *metrics.Metrics
+	Limiter    limiter.Limiter
 }
 
-// ServiceClients 包含所有下游服务的 gRPC 客户端连接。
+// ServiceClients 下游微服务。
 type ServiceClients struct {
 	Warehouse *grpc.ClientConn `service:"warehouse"`
 }
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).
-		WithConfig(&configpkg.Config{}).
+		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
-		WithGinMiddleware(middleware.CORS()).
+		WithGinMiddleware(
+			middleware.MetricsMiddleware(),
+			middleware.CORS(),
+		).
 		Build().
 		Run(); err != nil {
-		slog.Error("application run failed", "error", err)
+		slog.Error("service bootstrap failed", "error", err)
 	}
 }
 
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
-	service := ctx.AppService
-	pb.RegisterOrderServer(s, ordergrpc.NewServer(service))
-	slog.Default().Info("gRPC server registered", "service", BootstrapName)
+	pb.RegisterOrderServer(s, ordergrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
+
+	if ctx.Config.Server.Environment == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// 1. 基础路由层 (跳过限流)
+	sys := e.Group("/sys")
+	{
+		sys.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":    "UP",
+				"service":   BootstrapName,
+				"timestamp": time.Now().Unix(),
+			})
+		})
+		sys.GET("/ready", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "READY"})
+		})
+	}
+
+	if ctx.Config.Metrics.Enabled {
+		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
+	}
+
+	// 2. 业务限流
+	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
+
+	// 3. 业务路由
 	ctx.Handler.RegisterRoutes(e.Group("/api/v1"))
-	slog.Default().Info("HTTP routes registered", "service", BootstrapName)
+
+	slog.Info("HTTP service configured", "service", BootstrapName)
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
-	slog.Info("initializing service dependencies...", "service", BootstrapName)
+	bootLog := slog.With("module", "bootstrap")
+	logger := logging.Default()
 
-	// 1. 数据库分片管理器
-	slog.Info("initializing database sharding manager...")
-	shardingManager, err := sharding.NewManager(c.Data.Shards, logging.Default())
+	// 1. 基础设施：分片数据库管理器
+	bootLog.Info("initializing sharding database manager...")
+	shardingManager, err := sharding.NewManager(c.Data.Shards, logger)
 	if err != nil {
+		// 容错：如果未配置分片，使用单库
 		if len(c.Data.Shards) == 0 {
-			slog.Info("No shards configured, using single database connection")
-			db, err := databases.NewDB(c.Data.Database, logging.Default())
+			db, err := databases.NewDB(c.Data.Database, logger)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to initialize single db manager: %w", err)
+				return nil, nil, fmt.Errorf("single db init failed: %w", err)
 			}
-			shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logging.Default())
-			if err != nil {
-				sqlDB, _ := db.DB()
-				sqlDB.Close()
-				return nil, nil, fmt.Errorf("failed to initialize single db manager: %w", err)
-			}
+			shardingManager, _ = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
+			_ = db // shardingManager 会接管连接
 		} else {
-			return nil, nil, fmt.Errorf("failed to initialize sharding manager: %w", err)
+			return nil, nil, fmt.Errorf("sharding manager init failed: %w", err)
 		}
 	}
 
-	// 2. Redis 缓存
+	// 2. Redis
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		shardingManager.Close()
-		return nil, nil, fmt.Errorf("failed to connect redis: %w", err)
+		return nil, nil, fmt.Errorf("redis connection failed: %w", err)
 	}
 
-	// 3. ID 生成器
+	// 3. 限流器
+	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
+
+	// 4. ID 生成器 & 消息队列
 	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
 	if err != nil {
 		redisCache.Close()
 		shardingManager.Close()
-		return nil, nil, fmt.Errorf("failed to init id generator: %w", err)
+		return nil, nil, fmt.Errorf("idgen init failed: %w", err)
 	}
+	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logger)
 
-	// 4. Kafka 生产者
-	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logging.Default())
-
-	// 下游客户端
+	// 5. 下游客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		kafkaProducer.Close()
 		redisCache.Close()
 		shardingManager.Close()
-		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
+		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
 	}
 
-	// 5. 基础设施与应用层
+	// 6. DDD 组装
+	bootLog.Info("assembling order application service...")
 	repo := persistence.NewOrderRepository(shardingManager)
-
-	orderManager := application.NewOrderManager(repo, idGen, kafkaProducer, slog.Default(), c.DTM.Server, c.Warehouse.GrpcAddr, m)
+	orderManager := application.NewOrderManager(repo, idGen, kafkaProducer, logger.Logger, c.DTM.Server, c.Warehouse.GrpcAddr, m)
 	orderQuery := application.NewOrderQuery(repo)
 
-	service := application.NewOrderService(orderManager, orderQuery, slog.Default())
-
-	// Handler
-	handler := httpServer.NewHandler(service, slog.Default())
+	service := application.NewOrderService(orderManager, orderQuery, logger.Logger)
+	handler := httpServer.NewHandler(service, logger.Logger)
 
 	cleanup := func() {
-		slog.Info("cleaning up resources...", "service", BootstrapName)
+		bootLog.Info("performing graceful shutdown...")
 		clientCleanup()
 		kafkaProducer.Close()
 		redisCache.Close()
 		shardingManager.Close()
 	}
 
-	return &AppContext{AppService: service, Config: c, Clients: clients, Handler: handler}, cleanup, nil
+	return &AppContext{
+		Config:     c,
+		AppService: service,
+		Clients:    clients,
+		Handler:    handler,
+		Metrics:    m,
+		Limiter:    rateLimiter,
+	}, cleanup, nil
 }
