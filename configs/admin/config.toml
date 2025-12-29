@@ -96,3 +96,13 @@ read_timeout = "10s"
 write_timeout = "10s"
 
 [services]
+[services.order]
+grpc_addr = "127.0.0.1:9027"
+http_addr = "127.0.0.1:8027"
+[services.payment]
+grpc_addr = "127.0.0.1:9029"
+http_addr = "127.0.0.1:8029"
+[services.user]
+grpc_addr = "127.0.0.1:9041"
+http_addr = "127.0.0.1:8041"
+

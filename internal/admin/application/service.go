@@ -1,6 +1,42 @@
 package application
 
-// DTO 定义
+import (
+	"log/slog"
+
+	"github.com/wyfcoding/ecommerce/internal/admin/domain"
+	"google.golang.org/grpc"
+)
+
+// AdminService 门面服务，聚合 Command (Manager) 和 Query (Query)
+type AdminService struct {
+	Manager *AdminManager
+	Query   *AdminQuery
+}
+
+// NewAdminService 创建一个新的管理后台应用服务实例。
+func NewAdminService(
+	userRepo domain.AdminRepository,
+	roleRepo domain.RoleRepository,
+	auditRepo domain.AuditRepository,
+	settingRepo domain.SettingRepository,
+	approvalRepo domain.ApprovalRepository,
+	opsDeps SystemOpsDependencies,
+	logger *slog.Logger,
+) *AdminService {
+	return &AdminService{
+		Manager: NewAdminManager(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo, opsDeps, logger),
+		Query:   NewAdminQuery(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo),
+	}
+}
+
+// SystemOpsDependencies 系统操作依赖的其他服务客户端
+type SystemOpsDependencies struct {
+	OrderClient   *grpc.ClientConn
+	PaymentClient *grpc.ClientConn
+	UserClient    *grpc.ClientConn
+}
+
+// --- DTO Definitions ---
 
 // LoginRequest 定义了请求参数结构。
 type LoginRequest struct {
@@ -19,7 +55,7 @@ type UserInfo struct {
 	ID          uint     `json:"id"`
 	Username    string   `json:"username"`
 	FullName    string   `json:"fullName"`
-	Roles       []string `json:"roles"`
+	Roles       []string `json:"roles"` // Role Codes
 	Permissions []string `json:"permissions"`
 }
 

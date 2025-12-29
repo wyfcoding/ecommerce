@@ -12,15 +12,15 @@ import (
 
 // WorkflowHandler 处理 HTTP 或 gRPC 请求。
 type WorkflowHandler struct {
-	workflowService *application.WorkflowService
-	logger          *slog.Logger
+	svc    *application.AdminService
+	logger *slog.Logger
 }
 
 // NewWorkflowHandler 处理 HTTP 或 gRPC 请求。
-func NewWorkflowHandler(workflowService *application.WorkflowService, logger *slog.Logger) *WorkflowHandler {
+func NewWorkflowHandler(svc *application.AdminService, logger *slog.Logger) *WorkflowHandler {
 	return &WorkflowHandler{
-		workflowService: workflowService,
-		logger:          logger,
+		svc:    svc,
+		logger: logger,
 	}
 }
 
@@ -49,7 +49,7 @@ func (h *WorkflowHandler) Apply(c *gin.Context) {
 		Payload:     req.Payload,
 	}
 
-	if err := h.workflowService.CreateRequest(c.Request.Context(), domainReq); err != nil {
+	if err := h.svc.Manager.CreateRequest(c.Request.Context(), domainReq); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -72,9 +72,9 @@ func (h *WorkflowHandler) Action(c *gin.Context) {
 
 	var err error
 	if req.Action == "approve" {
-		err = h.workflowService.ApproveRequest(c.Request.Context(), uint(id), approverID, req.Comment)
+		err = h.svc.Manager.ApproveRequest(c.Request.Context(), uint(id), approverID, req.Comment)
 	} else {
-		err = h.workflowService.RejectRequest(c.Request.Context(), uint(id), approverID, req.Comment)
+		err = h.svc.Manager.RejectRequest(c.Request.Context(), uint(id), approverID, req.Comment)
 	}
 
 	if err != nil {

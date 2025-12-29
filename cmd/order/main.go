@@ -44,6 +44,7 @@ type AppContext struct {
 	Config     *Config
 	AppService *application.OrderService
 	Clients    *ServiceClients
+	Handler    *httpServer.Handler
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
@@ -73,10 +74,7 @@ func registerGRPC(s *grpc.Server, srv any) {
 
 func registerGin(e *gin.Engine, srv any) {
 	ctx := srv.(*AppContext)
-	handler := httpServer.NewHandler(ctx.AppService, slog.Default())
-	api := e.Group("/api/v1")
-	handler.RegisterRoutes(api)
-
+	ctx.Handler.RegisterRoutes(e.Group("/api/v1"))
 	slog.Default().Info("HTTP routes registered", "service", BootstrapName)
 }
 
@@ -141,6 +139,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	service := application.NewOrderService(orderManager, orderQuery, slog.Default())
 
+	// Handler
+	handler := httpServer.NewHandler(service, slog.Default())
+
 	cleanup := func() {
 		slog.Info("cleaning up resources...", "service", BootstrapName)
 		clientCleanup()
@@ -149,5 +150,5 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		shardingManager.Close()
 	}
 
-	return &AppContext{AppService: service, Config: c, Clients: clients}, cleanup, nil
+	return &AppContext{AppService: service, Config: c, Clients: clients, Handler: handler}, cleanup, nil
 }

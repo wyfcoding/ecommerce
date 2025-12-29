@@ -30,11 +30,12 @@ type AppContext struct {
 	Config     *configpkg.Config
 	AppService *application.ProductService
 	Clients    *ServiceClients
+	Handler    *producthttp.Handler
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	// No dependencies detected
+	// 目前 Product 服务没有强依赖下游服务
 }
 
 func main() {
@@ -57,9 +58,8 @@ func registerGRPC(s *grpc.Server, svc any) {
 
 func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
-	handler := producthttp.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
-	handler.RegisterRoutes(api)
+	ctx.Handler.RegisterRoutes(api)
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
@@ -72,7 +72,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 2. Redis 缓存 & BigCache
+	// 2. Redis 缓存 & BigCache (构建二级缓存)
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		sqlDB, _ := db.DB()
@@ -100,23 +100,25 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 4. 基础设施与应用层
 	productRepo := mysqlRepo.NewProductRepository(db)
-	skuRepo := mysqlRepo.NewSKURepository(db)
-	categoryRepo := mysqlRepo.NewCategoryRepository(db)
+	skuRepo := mysqlRepo.NewSKURepository(db) // 注意：虽然在新架构中这些都在同一个文件，但为了清晰仍可分别初始化
 	brandRepo := mysqlRepo.NewBrandRepository(db)
+	categoryRepo := mysqlRepo.NewCategoryRepository(db)
 
 	logger := logging.Default().Logger
-	catalogService := application.NewCatalogService(productRepo, multiLevelCache, logger, m)
-	categoryService := application.NewCategoryService(categoryRepo, logger)
-	brandService := application.NewBrandService(brandRepo, logger)
-	skuService := application.NewSKUService(productRepo, skuRepo, logger)
 
+	// 初始化应用服务
 	appService := application.NewProductService(
-		catalogService,
-		categoryService,
-		brandService,
-		skuService,
+		productRepo,
+		skuRepo,
+		brandRepo,
+		categoryRepo,
+		multiLevelCache,
 		logger,
+		m,
 	)
+
+	// HTTP Handler
+	handler := producthttp.NewHandler(appService, logger)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")
@@ -130,5 +132,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Config:     c,
 		AppService: appService,
 		Clients:    clients,
+		Handler:    handler,
 	}, cleanup, nil
 }

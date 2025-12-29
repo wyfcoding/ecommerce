@@ -2,16 +2,15 @@ package mysql
 
 import (
 	"context"
-	"errors" // 导入标准错误处理库。
+	"errors"
 
-	"github.com/wyfcoding/ecommerce/internal/product/domain" // 导入商品领域的领域接口和实体。
-
-	"gorm.io/gorm" // 导入GORM ORM框架。
+	"github.com/wyfcoding/ecommerce/internal/product/domain"
+	"gorm.io/gorm"
 )
 
 // ProductRepository 结构体是 ProductRepository 接口的MySQL实现。
 type ProductRepository struct {
-	db *gorm.DB // GORM数据库连接实例。
+	db *gorm.DB
 }
 
 // NewProductRepository 创建并返回一个新的 ProductRepository 实例。
@@ -20,20 +19,13 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 }
 
 // Save 将商品实体保存到数据库。
-// 如果是新商品，则创建；如果商品ID已存在，则更新。
-// 此方法在一个事务中创建商品主实体及其关联的SKU列表。
 func (r *ProductRepository) Save(ctx context.Context, product *domain.Product) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 创建或更新商品主实体。
-		// GORM的Create在没有主键值时插入，有主键值时更新。
-		// 但在这里，我们假设是创建新产品时才调用Save，并且会级联创建SKU。
-		// 如果是Update操作，通常会单独处理Product和SKU。
 		if err := tx.Create(product).Error; err != nil {
 			return err
 		}
-		// 遍历SKU列表，将每个SKU与商品关联并创建。
 		for _, sku := range product.SKUs {
-			sku.ProductID = product.ID // 关联商品ID。
+			sku.ProductID = product.ID
 			if err := tx.Create(sku).Error; err != nil {
 				return err
 			}
@@ -45,12 +37,11 @@ func (r *ProductRepository) Save(ctx context.Context, product *domain.Product) e
 // FindByID 根据ID从数据库获取商品记录，并预加载其关联的SKU列表。
 func (r *ProductRepository) FindByID(ctx context.Context, id uint) (*domain.Product, error) {
 	var product domain.Product
-	// 预加载 "SKUs" 确保在获取商品时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").First(&product, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // 如果记录未找到，返回nil。
+			return nil, nil
 		}
-		return nil, err // 其他错误则返回。
+		return nil, err
 	}
 	return &product, nil
 }
@@ -58,49 +49,39 @@ func (r *ProductRepository) FindByID(ctx context.Context, id uint) (*domain.Prod
 // FindByName 根据名称从数据库获取商品记录，并预加载其关联的SKU列表。
 func (r *ProductRepository) FindByName(ctx context.Context, name string) (*domain.Product, error) {
 	var product domain.Product
-	// 预加载 "SKUs" 确保在获取商品时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Where("name = ?", name).First(&product).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // 如果记录未找到，返回nil。
+			return nil, nil
 		}
-		return nil, err // 其他错误则返回。
+		return nil, err
 	}
 	return &product, nil
 }
 
 // Update 更新商品实体。
-// 此方法更新商品主实体，但SKU的更新需要单独处理或通过其他逻辑。
 func (r *ProductRepository) Update(ctx context.Context, product *domain.Product) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 更新商品主实体。
 		if err := tx.Save(product).Error; err != nil {
 			return err
 		}
-		// 备注：SKU的更新逻辑需要根据业务需求进行更精细的控制。
-		// 例如，如果SKU列表发生变化（增删改），需要单独处理SKU表的插入、更新和删除操作。
-		// 目前这里只更新Product主实体。
 		return nil
 	})
 }
 
 // Delete 根据ID从数据库删除商品记录。
-// GORM默认进行软删除（设置DeletedAt字段）。
 func (r *ProductRepository) Delete(ctx context.Context, id uint) error {
-	// 软删除商品，不删除关联的SKU，但可以配置GORM进行级联删除。
 	return r.db.WithContext(ctx).Delete(&domain.Product{}, id).Error
 }
 
-// List 从数据库列出所有商品记录，支持分页，并预加载其关联的SKU列表。
+// List 从数据库列出所有商品记录，支持分页。
 func (r *ProductRepository) List(ctx context.Context, offset, limit int) ([]*domain.Product, int64, error) {
 	var products []*domain.Product
 	var total int64
 
-	// 统计总记录数。
 	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 预加载 "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Offset(offset).Limit(limit).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
@@ -108,17 +89,15 @@ func (r *ProductRepository) List(ctx context.Context, offset, limit int) ([]*dom
 	return products, total, nil
 }
 
-// ListByCategory 从数据库列出指定分类ID下的商品记录，支持分页，并预加载其关联的SKU列表。
+// ListByCategory 从数据库列出指定分类ID下的商品记录。
 func (r *ProductRepository) ListByCategory(ctx context.Context, categoryID uint, offset, limit int) ([]*domain.Product, int64, error) {
 	var products []*domain.Product
 	var total int64
 
-	// 统计指定分类下的商品总数。
 	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Where("category_id = ?", categoryID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 预加载 "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Where("category_id = ?", categoryID).Offset(offset).Limit(limit).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
@@ -126,20 +105,168 @@ func (r *ProductRepository) ListByCategory(ctx context.Context, categoryID uint,
 	return products, total, nil
 }
 
-// ListByBrand 从数据库列出指定品牌ID下的商品记录，支持分页，并预加载其关联的SKU列表。
+// ListByBrand 从数据库列出指定品牌ID下的商品记录。
 func (r *ProductRepository) ListByBrand(ctx context.Context, brandID uint, offset, limit int) ([]*domain.Product, int64, error) {
 	var products []*domain.Product
 	var total int64
 
-	// 统计指定品牌下的商品总数。
 	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Where("brand_id = ?", brandID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 预加载 "SKUs" 确保在获取商品列表时，同时加载所有关联的SKU。
 	if err := r.db.WithContext(ctx).Preload("SKUs").Where("brand_id = ?", brandID).Offset(offset).Limit(limit).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return products, total, nil
+}
+
+// SKURepository 结构体是 SKURepository 接口的MySQL实现。
+type SKURepository struct {
+	db *gorm.DB
+}
+
+func NewSKURepository(db *gorm.DB) *SKURepository {
+	return &SKURepository{db: db}
+}
+
+func (r *SKURepository) Save(ctx context.Context, sku *domain.SKU) error {
+	return r.db.WithContext(ctx).Create(sku).Error
+}
+
+func (r *SKURepository) FindByID(ctx context.Context, id uint) (*domain.SKU, error) {
+	var sku domain.SKU
+	if err := r.db.WithContext(ctx).First(&sku, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &sku, nil
+}
+
+func (r *SKURepository) FindByProductID(ctx context.Context, productID uint) ([]*domain.SKU, error) {
+	var skus []*domain.SKU
+	if err := r.db.WithContext(ctx).Where("product_id = ?", productID).Find(&skus).Error; err != nil {
+		return nil, err
+	}
+	return skus, nil
+}
+
+func (r *SKURepository) Update(ctx context.Context, sku *domain.SKU) error {
+	return r.db.WithContext(ctx).Save(sku).Error
+}
+
+func (r *SKURepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&domain.SKU{}, id).Error
+}
+
+// CategoryRepository 结构体是 CategoryRepository 接口的MySQL实现。
+type CategoryRepository struct {
+	db *gorm.DB
+}
+
+func NewCategoryRepository(db *gorm.DB) *CategoryRepository {
+	return &CategoryRepository{db: db}
+}
+
+func (r *CategoryRepository) Save(ctx context.Context, category *domain.Category) error {
+	return r.db.WithContext(ctx).Create(category).Error
+}
+
+func (r *CategoryRepository) FindByID(ctx context.Context, id uint) (*domain.Category, error) {
+	var category domain.Category
+	if err := r.db.WithContext(ctx).First(&category, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &category, nil
+}
+
+func (r *CategoryRepository) FindByName(ctx context.Context, name string) (*domain.Category, error) {
+	var category domain.Category
+	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&category).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &category, nil
+}
+
+func (r *CategoryRepository) Update(ctx context.Context, category *domain.Category) error {
+	return r.db.WithContext(ctx).Save(category).Error
+}
+
+func (r *CategoryRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&domain.Category{}, id).Error
+}
+
+func (r *CategoryRepository) List(ctx context.Context) ([]*domain.Category, error) {
+	var categories []*domain.Category
+	if err := r.db.WithContext(ctx).Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+func (r *CategoryRepository) FindByParentID(ctx context.Context, parentID uint) ([]*domain.Category, error) {
+	var categories []*domain.Category
+	if err := r.db.WithContext(ctx).Where("parent_id = ?", parentID).Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+// BrandRepository 结构体是 BrandRepository 接口的MySQL实现。
+type BrandRepository struct {
+	db *gorm.DB
+}
+
+func NewBrandRepository(db *gorm.DB) *BrandRepository {
+	return &BrandRepository{db: db}
+}
+
+func (r *BrandRepository) Save(ctx context.Context, brand *domain.Brand) error {
+	return r.db.WithContext(ctx).Create(brand).Error
+}
+
+func (r *BrandRepository) FindByID(ctx context.Context, id uint) (*domain.Brand, error) {
+	var brand domain.Brand
+	if err := r.db.WithContext(ctx).First(&brand, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &brand, nil
+}
+
+func (r *BrandRepository) FindByName(ctx context.Context, name string) (*domain.Brand, error) {
+	var brand domain.Brand
+	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&brand).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &brand, nil
+}
+
+func (r *BrandRepository) Update(ctx context.Context, brand *domain.Brand) error {
+	return r.db.WithContext(ctx).Save(brand).Error
+}
+
+func (r *BrandRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&domain.Brand{}, id).Error
+}
+
+func (r *BrandRepository) List(ctx context.Context) ([]*domain.Brand, error) {
+	var brands []*domain.Brand
+	if err := r.db.WithContext(ctx).Find(&brands).Error; err != nil {
+		return nil, err
+	}
+	return brands, nil
 }

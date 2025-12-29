@@ -11,6 +11,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/user/application"
 	mysqlRepo "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/mysql"
 	usergrpc "github.com/wyfcoding/ecommerce/internal/user/interfaces/grpc"
+	userhttp "github.com/wyfcoding/ecommerce/internal/user/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -29,11 +30,11 @@ type AppContext struct {
 	Config     *configpkg.Config
 	AppService *application.UserService
 	Clients    *ServiceClients
+	Handler    *userhttp.Handler
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	// No dependencies detected
 }
 
 func main() {
@@ -55,8 +56,9 @@ func registerGRPC(s *grpc.Server, svc any) {
 }
 
 func registerGin(e *gin.Engine, svc any) {
-	// 用户服务目前在原始代码中没有 HTTP 路由，
-	// 但我们保留此回调以备将来使用或用于健康检查。
+	ctx := svc.(*AppContext)
+	api := e.Group("/api/v1")
+	ctx.Handler.RegisterRoutes(api)
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
@@ -91,19 +93,20 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := mysqlRepo.NewUserRepository(db)
 	addressRepo := mysqlRepo.NewAddressRepository(db)
 
-	// 服务层
 	logger := logging.Default().Logger
-	authService := application.NewAuth(repo, c.JWT.Secret, c.JWT.Issuer, c.JWT.ExpireDuration, logger)
-	profileService := application.NewProfileService(repo, logger)
-	addressService := application.NewAddressService(repo, addressRepo, logger)
 
-	// 门面层
+	// 服务层
 	svc := application.NewUserService(
-		authService,
-		profileService,
-		addressService,
+		repo,
+		addressRepo,
+		c.JWT.Secret,
+		c.JWT.Issuer,
+		c.JWT.ExpireDuration,
 		logger,
 	)
+
+	// Handler
+	handler := userhttp.NewHandler(svc, logger)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")
@@ -117,5 +120,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Config:     c,
 		AppService: svc,
 		Clients:    clients,
+		Handler:    handler,
 	}, cleanup, nil
 }

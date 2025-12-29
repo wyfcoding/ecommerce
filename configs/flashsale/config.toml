@@ -96,3 +96,6 @@ read_timeout = "10s"
 write_timeout = "10s"
 
 [services]
+[services.user]
+grpc_addr = "127.0.0.1:9041"
+http_addr = "127.0.0.1:8041"

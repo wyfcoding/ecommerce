@@ -30,6 +30,7 @@ type AppContext struct {
 	Config     *configpkg.Config
 	AppService *application.CartService
 	Clients    *ServiceClients
+	Handler    *carthttp.Handler
 }
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
@@ -57,9 +58,7 @@ func registerGRPC(s *grpc.Server, svc any) {
 
 func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
-	handler := carthttp.NewHandler(ctx.AppService, slog.Default())
-	api := e.Group("/api/v1")
-	handler.RegisterRoutes(api)
+	ctx.Handler.RegisterRoutes(e.Group("/api/v1"))
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
@@ -92,13 +91,17 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 4. 基础设施与应用层
 	repo := persistence.NewCartRepository(db)
+	logger := logging.Default().Logger
 
 	// 创建子服务
-	cartQuery := application.NewCartQuery(repo, logging.Default().Logger)
-	cartManager := application.NewCartManager(repo, logging.Default().Logger, cartQuery)
+	cartQuery := application.NewCartQuery(repo, logger)
+	cartManager := application.NewCartManager(repo, logger, cartQuery)
 
 	// 创建门面
 	service := application.NewCartService(cartManager, cartQuery)
+
+	// Handler
+	handler := carthttp.NewHandler(service, logger)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")
@@ -112,5 +115,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Config:     c,
 		AppService: service,
 		Clients:    clients,
+		Handler:    handler,
 	}, cleanup, nil
 }

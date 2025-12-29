@@ -79,3 +79,27 @@ conn_max_lifetime = "1h"
 slow_threshold = "200ms"
 
 [services]
+[services.cart]
+grpc_addr = "127.0.0.1:9006"
+http_addr = "127.0.0.1:8006"
+[services.coupon]
+grpc_addr = "127.0.0.1:9008"
+http_addr = "127.0.0.1:8008"
+[services.inventory]
+grpc_addr = "127.0.0.1:9018"
+http_addr = "127.0.0.1:8018"
+[services.notification]
+grpc_addr = "127.0.0.1:9026"
+http_addr = "127.0.0.1:8026"
+[services.order]
+grpc_addr = "127.0.0.1:9027"
+http_addr = "127.0.0.1:8027"
+[services.payment]
+grpc_addr = "127.0.0.1:9029"
+http_addr = "127.0.0.1:8029"
+[services.product]
+grpc_addr = "127.0.0.1:9033"
+http_addr = "127.0.0.1:8033"
+[services.user]
+grpc_addr = "127.0.0.1:9041"
+http_addr = "127.0.0.1:8041"

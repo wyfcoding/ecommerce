@@ -7,11 +7,11 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/admin/v1"          // 导入Admin模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/admin/application" // 导入Admin模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	// 导入Admin模块的领域实体。
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
-	"google.golang.org/protobuf/types/known/emptypb"     // 导入空消息类型。
 	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
 )
 
@@ -34,23 +34,26 @@ func NewServer(app *application.AdminService) *Server {
 // 返回created successfully的管理员用户响应和可能发生的gRPC错误。
 func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserRequest) (*pb.CreateAdminUserResponse, error) {
 	// 调用应用服务层注册管理员用户。
-	admin, err := s.app.RegisterAdmin(ctx, req.Username, req.Email, req.Password, req.Nickname, "")
+	// 转换请求
+	createReq := &application.CreateUserRequest{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
+		FullName: req.Nickname,
+	}
+	// 将 req.RoleIds 转为 uint
+	if len(req.RoleIds) > 0 {
+		rIDs := make([]uint, len(req.RoleIds))
+		for i, v := range req.RoleIds {
+			rIDs[i] = uint(v)
+		}
+		createReq.Roles = rIDs
+	}
+
+	admin, err := s.app.Manager.RegisterAdmin(ctx, createReq)
 	if err != nil {
 		// 简单错误处理，生产环境应使用 status.Error 包装具体错误
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create admin user: %v", err))
-	}
-
-	// 如果请求中包含角色ID，则为新创建的管理员分配角色。
-	if len(req.RoleIds) > 0 {
-		for _, roleID := range req.RoleIds {
-			if err := s.app.AssignRoleToAdmin(ctx, uint64(admin.ID), roleID); err != nil {
-				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign role to admin: %v", err))
-			}
-		}
-		// 刷新数据
-		if a, fetchErr := s.app.GetAdminProfile(ctx, uint64(admin.ID)); fetchErr == nil {
-			admin = a
-		}
 	}
 
 	return &pb.CreateAdminUserResponse{
@@ -62,10 +65,13 @@ func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserReq
 // req: 包含管理员用户ID的请求体。
 // 返回管理员用户响应和可能发生的gRPC错误。
 func (s *Server) GetAdminUser(ctx context.Context, req *pb.GetAdminUserRequest) (*pb.GetAdminUserResponse, error) {
-	admin, err := s.app.GetAdminProfile(ctx, req.Id)
+	admin, err := s.app.Query.GetAdminProfile(ctx, uint(req.Id))
 	if err != nil {
 		// 如果管理员未找到，返回NotFound状态码。
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("admin user not found: %v", err))
+	}
+	if admin == nil {
+		return nil, status.Error(codes.NotFound, "admin user not found")
 	}
 	return &pb.GetAdminUserResponse{
 		AdminUser: s.adminToProto(admin),
@@ -73,10 +79,17 @@ func (s *Server) GetAdminUser(ctx context.Context, req *pb.GetAdminUserRequest) 
 }
 
 // UpdateAdminUser 处理更新管理员用户信息的gRPC请求。
-// 此方法尚未实现。
-// UpdateAdminUser 处理更新管理员用户信息的gRPC请求。
 func (s *Server) UpdateAdminUser(ctx context.Context, req *pb.UpdateAdminUserRequest) (*pb.UpdateAdminUserResponse, error) {
-	admin, err := s.app.UpdateAdmin(ctx, req.Id, req.Email, req.Nickname, "", req.RoleIds)
+	// 转换 RoleIds
+	var rIDs []uint
+	if req.RoleIds != nil {
+		rIDs = make([]uint, len(req.RoleIds))
+		for i, v := range req.RoleIds {
+			rIDs[i] = uint(v)
+		}
+	}
+
+	admin, err := s.app.Manager.UpdateAdmin(ctx, uint(req.Id), req.Email, req.Nickname, rIDs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update admin user: %v", err))
 	}
@@ -87,7 +100,7 @@ func (s *Server) UpdateAdminUser(ctx context.Context, req *pb.UpdateAdminUserReq
 
 // DeleteAdminUser 处理删除管理员用户的gRPC请求。
 func (s *Server) DeleteAdminUser(ctx context.Context, req *pb.DeleteAdminUserRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeleteAdmin(ctx, req.Id); err != nil {
+	if err := s.app.Manager.DeleteAdmin(ctx, uint(req.Id)); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete admin user: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -105,7 +118,7 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 	}
 
 	// 调用应用服务层获取管理员列表。
-	admins, total, err := s.app.ListAdmins(ctx, page, pageSize)
+	admins, total, err := s.app.Query.ListAdmins(ctx, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list admin users: %v", err))
 	}
@@ -130,7 +143,7 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.CreateRoleResponse, error) {
 	// 调用应用服务层创建角色。
 	// 注意：Proto中没有Code字段，这里暂时使用Name作为Code。
-	role, err := s.app.CreateRole(ctx, req.Name, req.Name, req.Description)
+	role, err := s.app.Manager.CreateRole(ctx, req.Name, req.Name, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create role: %v", err))
 	}
@@ -138,7 +151,7 @@ func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb
 	// 如果请求中包含权限ID，则为新创建的角色分配权限。
 	if len(req.PermissionIds) > 0 {
 		for _, permID := range req.PermissionIds {
-			if err := s.app.AssignPermissionToRole(ctx, uint64(role.ID), permID); err != nil {
+			if err := s.app.Manager.AssignPermissionToRole(ctx, uint(role.ID), uint(permID)); err != nil {
 				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign permission to role: %v", err))
 			}
 		}
@@ -151,7 +164,7 @@ func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb
 
 // GetRole 处理获取单个角色信息的gRPC请求。
 func (s *Server) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.GetRoleResponse, error) {
-	role, err := s.app.GetRole(ctx, req.Id)
+	role, err := s.app.Query.GetRole(ctx, uint(req.Id))
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get role: %v", err))
 	}
@@ -165,7 +178,16 @@ func (s *Server) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.GetRo
 
 // UpdateRole 处理更新角色信息的gRPC请求。
 func (s *Server) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb.UpdateRoleResponse, error) {
-	role, err := s.app.UpdateRole(ctx, req.Id, req.Name, req.Description, req.PermissionIds)
+	// 转换 PermissionIds
+	var permIDs []uint
+	if req.PermissionIds != nil {
+		permIDs = make([]uint, len(req.PermissionIds))
+		for i, v := range req.PermissionIds {
+			permIDs[i] = uint(v)
+		}
+	}
+
+	role, err := s.app.Manager.UpdateRole(ctx, uint(req.Id), req.Name, req.Description, permIDs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update role: %v", err))
 	}
@@ -176,7 +198,7 @@ func (s *Server) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb
 
 // DeleteRole 处理删除角色的gRPC请求。
 func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeleteRole(ctx, req.Id); err != nil {
+	if err := s.app.Manager.DeleteRole(ctx, uint(req.Id)); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete role: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -186,15 +208,8 @@ func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*em
 // req: 包含分页参数的请求体。
 // 返回角色列表响应和可能发生的gRPC错误。
 func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
-	// 将protobuf的分页Token转换为应用服务层的页码。
-	page := max(int(req.PageToken), 1)
-	pageSize := int(req.PageSize)
-	if pageSize < 1 {
-		pageSize = 10
-	}
-
 	// 调用应用服务层获取角色列表。
-	roles, total, err := s.app.ListRoles(ctx, page, pageSize)
+	roles, total, err := s.app.Query.ListRoles(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list roles: %v", err))
 	}
@@ -218,8 +233,7 @@ func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.L
 // 返回创建成功的权限响应和可能发生的gRPC错误。
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.CreatePermissionResponse, error) {
 	// 调用应用服务层创建权限。
-	// 注意：Proto定义与实体定义之间存在字段缺失，这里使用占位符或默认值填充。
-	perm, err := s.app.CreatePermission(ctx, req.Name, req.Name, "api", "", "", 0)
+	perm, err := s.app.Manager.CreatePermission(ctx, req.Name, req.Name, "api", "", "", 0)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create permission: %v", err))
 	}
@@ -230,7 +244,7 @@ func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionR
 
 // GetPermission 处理获取单个权限信息的gRPC请求。
 func (s *Server) GetPermission(ctx context.Context, req *pb.GetPermissionRequest) (*pb.GetPermissionResponse, error) {
-	perm, err := s.app.GetPermission(ctx, req.Id)
+	perm, err := s.app.Query.GetPermission(ctx, uint(req.Id))
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get permission: %v", err))
 	}
@@ -246,7 +260,7 @@ func (s *Server) GetPermission(ctx context.Context, req *pb.GetPermissionRequest
 // req: 空的请求体。
 // 返回权限列表响应和可能发生的gRPC错误。
 func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
-	perms, err := s.app.ListPermissions(ctx)
+	perms, err := s.app.Query.ListPermissions(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list permissions: %v", err))
 	}
@@ -273,7 +287,7 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest
 		pageSize = 10
 	}
 
-	logs, total, err := s.app.ListAuditLogs(ctx, req.AdminUserId, page, pageSize)
+	logs, total, err := s.app.Query.ListAuditLogs(ctx, uint(req.AdminUserId), page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list audit logs: %v", err))
 	}
@@ -301,7 +315,7 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *pb.ListAuditLogsRequest
 
 // GetSystemSetting 处理获取系统设置的gRPC请求。
 func (s *Server) GetSystemSetting(ctx context.Context, req *pb.GetSystemSettingRequest) (*pb.GetSystemSettingResponse, error) {
-	setting, err := s.app.GetSystemSetting(ctx, req.Key)
+	setting, err := s.app.Query.GetSystemSetting(ctx, req.Key)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get system setting: %v", err))
 	}
@@ -320,7 +334,7 @@ func (s *Server) GetSystemSetting(ctx context.Context, req *pb.GetSystemSettingR
 
 // UpdateSystemSetting 处理更新系统设置的gRPC请求。
 func (s *Server) UpdateSystemSetting(ctx context.Context, req *pb.UpdateSystemSettingRequest) (*pb.UpdateSystemSettingResponse, error) {
-	setting, err := s.app.UpdateSystemSetting(ctx, req.Key, req.Value, req.Description)
+	setting, err := s.app.Manager.UpdateSystemSetting(ctx, req.Key, req.Value, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update system setting: %v", err))
 	}

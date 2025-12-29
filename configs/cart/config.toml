@@ -88,3 +88,12 @@ read_timeout = "0.2s"
 write_timeout = "0.2s"
 
 [services]
+[services.inventory]
+grpc_addr = "127.0.0.1:9018"
+http_addr = "127.0.0.1:8018"
+[services.product]
+grpc_addr = "127.0.0.1:9033"
+http_addr = "127.0.0.1:8033"
+[services.user]
+grpc_addr = "127.0.0.1:9041"
+http_addr = "127.0.0.1:8041"

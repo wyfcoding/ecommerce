@@ -9,7 +9,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/admin/v1"
 	"github.com/wyfcoding/ecommerce/internal/admin/application"
-	"github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence/mysql"
 	admingrpc "github.com/wyfcoding/ecommerce/internal/admin/interfaces/grpc"
 	adminhttp "github.com/wyfcoding/ecommerce/internal/admin/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -36,17 +36,9 @@ type AppContext struct {
 
 // ServiceClients 包含所有下游服务的 gRPC 客户端连接。
 type ServiceClients struct {
-	User         *grpc.ClientConn
-	Product      *grpc.ClientConn
-	Order        *grpc.ClientConn
-	Cart         *grpc.ClientConn
-	Payment      *grpc.ClientConn
-	Inventory    *grpc.ClientConn
-	Notification *grpc.ClientConn
-	Logistics    *grpc.ClientConn
-	Coupon       *grpc.ClientConn
-	Review       *grpc.ClientConn
-	Wishlist     *grpc.ClientConn
+	User    *grpc.ClientConn
+	Order   *grpc.ClientConn
+	Payment *grpc.ClientConn
 }
 
 func main() {
@@ -96,7 +88,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	// 2. Redis 缓存
-	// redisCache, err := cache.NewRedisCache(c.Data.Redis) // 暂未使用，但保留备用
 	// 暂时禁用，除非需要避免未使用变量错误
 	_, err = cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
@@ -114,26 +105,20 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("failed to init clients: %w", err)
 	}
 
-	// 4. Repositories
-	adminRepo := persistence.NewAdminRepository(db)
-	roleRepo := persistence.NewRoleRepository(db)
-	auditRepo := persistence.NewAuditRepository(db)
-	approvalRepo := persistence.NewApprovalRepository(db)
-	settingRepo := persistence.NewSettingRepository(db)
+	// 4. Repositories (from mysql package)
+	adminRepo := mysql.NewAdminRepository(db)
+	roleRepo := mysql.NewRoleRepository(db)
+	auditRepo := mysql.NewAuditRepository(db)
+	approvalRepo := mysql.NewApprovalRepository(db)
+	settingRepo := mysql.NewSettingRepository(db)
 
-	// 5. Domain Services
+	// 5. Dependencies
 	logger := slog.Default()
-	authService := application.NewAdminAuth(adminRepo, roleRepo, logger)
-	auditService := application.NewAudit(auditRepo, logger)
-
 	opsDeps := application.SystemOpsDependencies{
 		OrderClient:   clients.Order,
 		UserClient:    clients.User,
 		PaymentClient: clients.Payment,
 	}
-	opsService := application.NewSystemOpsService(opsDeps, logger)
-
-	workflowService := application.NewWorkflowService(approvalRepo, opsService, auditService, logger)
 
 	// 6. Application Facade
 	adminService := application.NewAdminService(
@@ -141,15 +126,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		roleRepo,
 		auditRepo,
 		settingRepo,
-		authService,
-		auditService,
-		workflowService,
+		approvalRepo,
+		opsDeps,
 		logger,
 	)
 
 	// 7. Handlers
-	authHandler := adminhttp.NewAuthHandler(authService, logger)
-	workflowHandler := adminhttp.NewWorkflowHandler(workflowService, logger)
+	authHandler := adminhttp.NewAuthHandler(adminService, logger)
+	workflowHandler := adminhttp.NewWorkflowHandler(adminService, logger)
 
 	cleanup := func() {
 		slog.Info("cleaning up resources...")

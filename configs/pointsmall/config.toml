@@ -79,3 +79,6 @@ conn_max_lifetime = "1h"
 slow_threshold = "200ms"
 
 [services]
+[services.user]
+grpc_addr = "127.0.0.1:9041"
+http_addr = "127.0.0.1:8041"

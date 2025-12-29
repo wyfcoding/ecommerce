@@ -96,7 +96,18 @@ read_timeout = "10s"
 write_timeout = "10s"
 
 [services]
-
-[services.warehouse]
-grpc_addr = "localhost:9043"
-http_addr = "localhost:8043"
+[services.coupon]
+grpc_addr = "127.0.0.1:9008"
+http_addr = "127.0.0.1:8008"
+[services.inventory]
+grpc_addr = "127.0.0.1:9018"
+http_addr = "127.0.0.1:8018"
+[services.payment]
+grpc_addr = "127.0.0.1:9029"
+http_addr = "127.0.0.1:8029"
+[services.product]
+grpc_addr = "127.0.0.1:9033"
+http_addr = "127.0.0.1:8033"
+[services.user]
+grpc_addr = "127.0.0.1:9041"
+http_addr = "127.0.0.1:8041"
