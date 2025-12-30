@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
+
+	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -12,13 +13,14 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/persistence"
-	grpcServer "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"
-	httpServer "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/http"
+	aftersalesgrpc "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"
+	aftersaleshttp "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
@@ -26,35 +28,45 @@ import (
 	"github.com/wyfcoding/pkg/middleware"
 )
 
-// BootstrapName 服务标识。
+// BootstrapName 服务唯一标识
 const BootstrapName = "aftersales"
 
-// Config 扩展配置结构。
+// IdempotencyPrefix 幂等性 Redis 键前缀
+const IdempotencyPrefix = "aftersales:idem"
+
+// Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-// AppContext 应用资源上下文。
+// AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
-	Config     *Config
-	AppService *application.AfterSalesService
-	Clients    *ServiceClients
-	Metrics    *metrics.Metrics
-	Limiter    limiter.Limiter
+	Config      *Config
+	AfterSales  *application.AfterSalesService
+	Clients     *ServiceClients
+	Handler     *aftersaleshttp.Handler
+	Metrics     *metrics.Metrics
+	Limiter     limiter.Limiter
+	Idempotency idempotency.Manager
 }
 
-// ServiceClients 下游微服务。
-type ServiceClients struct{}
+// ServiceClients 下游微服务客户端集合
+type ServiceClients struct {
+	Order   *grpc.ClientConn `service:"order"`
+	Payment *grpc.ClientConn `service:"payment"`
+}
 
 func main() {
+	// 构建并运行服务
 	if err := app.NewBuilder(BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.MetricsMiddleware(),
-			middleware.CORS(),
+			middleware.MetricsMiddleware(),               // 指标采集
+			middleware.CORS(),                            // 跨域处理
+			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
 		).
 		Build().
 		Run(); err != nil {
@@ -62,71 +74,81 @@ func main() {
 	}
 }
 
+// registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterAftersalesServiceServer(s, grpcServer.NewServer(ctx.AppService))
+	pb.RegisterAftersalesServiceServer(s, aftersalesgrpc.NewServer(ctx.AfterSales))
 }
 
-func registerGin(e *gin.Engine, srv any) {
-	ctx := srv.(*AppContext)
+// registerGin 注册 HTTP 路由
+func registerGin(e *gin.Engine, svc any) {
+	ctx := svc.(*AppContext)
 
+	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 1. 系统路由组 (不限流)
+	// 系统检查接口
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
+			response.SuccessWithRawData(c, gin.H{
 				"status":    "UP",
 				"service":   BootstrapName,
 				"timestamp": time.Now().Unix(),
 			})
 		})
 		sys.GET("/ready", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "READY"})
+			response.SuccessWithRawData(c, gin.H{"status": "READY"})
 		})
 	}
 
+	// 指标暴露
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 2. 治理：限流保护
+	// 全局限流中间件
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 3. 业务路由
-	handler := httpServer.NewHandler(ctx.AppService, slog.Default())
+	// 业务 API 路由 v1
 	api := e.Group("/api/v1")
-	handler.RegisterRoutes(api)
-
-	slog.Info("HTTP service configured successfully", "service", BootstrapName)
+	{
+		ctx.Handler.RegisterRoutes(api)
+	}
 }
 
+// initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default()
+	logger := logging.Default() // 获取全局 Logger
 
-	// 1. 基础设施
+	// 打印脱敏配置
+	configpkg.PrintWithMask(c)
+
+	// 1. 初始化数据库 (MySQL)
 	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("database init failed: %w", err)
+		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
 
+	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("redis init failed: %w", err)
+		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 2. 治理：分布式限流器
+	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
+	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+	idGenerator, _ := idgen.NewGenerator(c.Snowflake)
 
-	// 3. 下游微服务拨号
+	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
@@ -134,40 +156,45 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
-	}
-
-	// 4. ID 生成器 (AfterSales 特有)
-	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
-	if err != nil {
-		clientCleanup()
-		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
-			sqlDB.Close()
-		}
-		return nil, nil, fmt.Errorf("idgen init failed: %w", err)
+		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
 	// 5. DDD 分层装配
-	bootLog.Info("assembling aftersales domain services...")
-	repo := persistence.NewAfterSalesRepository(db)
-	service := application.NewAfterSalesService(repo, idGen, logger.Logger)
+	bootLog.Info("assembling services with full dependency injection...")
 
-	// 6. 资源回收
+	// 5.1 Infrastructure (Persistence)
+	aftersalesRepo := persistence.NewAfterSalesRepository(db)
+
+	// 5.2 Application (Service)
+	aftersalesService := application.NewAfterSalesService(aftersalesRepo, idGenerator, logger.Logger)
+
+	// 5.3 Interface (HTTP Handlers)
+	handler := aftersaleshttp.NewHandler(aftersalesService, logger.Logger)
+
+	// 定义资源清理函数
 	cleanup := func() {
-		bootLog.Info("performing graceful shutdown...")
+		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()
-		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
-			sqlDB.Close()
+		if redisCache != nil {
+			if err := redisCache.Close(); err != nil {
+				bootLog.Error("failed to close redis cache", "error", err)
+			}
+		}
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+			if err := sqlDB.Close(); err != nil {
+				bootLog.Error("failed to close sql database", "error", err)
+			}
 		}
 	}
 
+	// 返回应用上下文与清理函数
 	return &AppContext{
-		Config:     c,
-		AppService: service,
-		Clients:    clients,
-		Metrics:    m,
-		Limiter:    rateLimiter,
+		Config:      c,
+		AfterSales:  aftersalesService,
+		Clients:     clients,
+		Handler:     handler,
+		Metrics:     m,
+		Limiter:     rateLimiter,
+		Idempotency: idempotency.Manager(idemManager),
 	}, cleanup, nil
 }

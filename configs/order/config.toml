@@ -6,7 +6,7 @@ environment = "dev"
 
 [server.http]
 addr = "0.0.0.0"
-port = 8027
+port = 8002
 timeout = "3s"
 read_timeout = "3s"
 write_timeout = "3s"
@@ -14,19 +14,21 @@ idle_timeout = "60s"
 
 [server.grpc]
 addr = "0.0.0.0"
-port = 9027
+port = 9002
 timeout = "3s"
-max_recv_msg_size = 10485760 # 10MB
-max_send_msg_size = 10485760 # 10MB
+max_recv_msg_size = 10485760
+max_send_msg_size = 10485760
+max_concurrent_streams = 100
 
 [log]
 level = "info"
 format = "json"
 output = "stdout"
-# file = "logs/order.log"
+file = "logs/order.log"
 max_size = 100
 max_backups = 3
 max_age = 28
+compress = true
 
 [tracing]
 enabled = true
@@ -35,7 +37,7 @@ otlp_endpoint = "localhost:4317"
 
 [metrics]
 enabled = true
-port = "18027"
+port = "18002"
 path = "/metrics"
 
 [jwt]
@@ -46,7 +48,7 @@ expire_duration = "24h"
 [snowflake]
 type = "snowflake"
 start_time = "2024-01-01"
-machine_id = 1
+machine_id = 3
 
 [ratelimit]
 enabled = true
@@ -77,6 +79,7 @@ max_idle_conns = 10
 max_open_conns = 100
 conn_max_lifetime = "1h"
 slow_threshold = "200ms"
+log_level = 4
 
 [data.redis]
 addr = "127.0.0.1:6379"
@@ -94,20 +97,24 @@ group_id = "order-group"
 dial_timeout = "10s"
 read_timeout = "10s"
 write_timeout = "10s"
+min_bytes = 1024
+max_bytes = 10485760
+async = true
+
+[minio]
+endpoint = "127.0.0.1:9000"
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
+use_ssl = false
+bucket_name = "ecommerce-assets"
 
 [services]
-[services.coupon]
-grpc_addr = "127.0.0.1:9008"
-http_addr = "127.0.0.1:8008"
-[services.inventory]
-grpc_addr = "127.0.0.1:9018"
-http_addr = "127.0.0.1:8018"
+[services.warehouse]
+grpc_addr = "127.0.0.1:9007"
+http_addr = "127.0.0.1:8007"
 [services.payment]
-grpc_addr = "127.0.0.1:9029"
-http_addr = "127.0.0.1:8029"
+grpc_addr = "127.0.0.1:9004"
+http_addr = "127.0.0.1:8004"
 [services.product]
-grpc_addr = "127.0.0.1:9033"
-http_addr = "127.0.0.1:8033"
-[services.user]
-grpc_addr = "127.0.0.1:9041"
-http_addr = "127.0.0.1:8041"
+grpc_addr = "127.0.0.1:9003"
+http_addr = "127.0.0.1:8003"

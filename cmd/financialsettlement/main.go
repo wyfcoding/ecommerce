@@ -75,7 +75,7 @@ func main() {
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterSettlementServiceServer(s, settlementgrpc.NewServer(ctx.Settlement))
+	pb.RegisterFinancialSettlementServiceServer(s, settlementgrpc.NewServer(ctx.Settlement))
 }
 
 // registerGin 注册 HTTP 路由
@@ -122,9 +122,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default() // 获取全局 Logger
-
-	// 打印脱敏配置
-	configpkg.PrintWithMask(c)
 
 	// 1. 初始化数据库 (MySQL)
 	db, err := databases.NewDB(c.Data.Database, logger)
@@ -194,6 +191,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Handler:     handler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
-		Idempotency:     idemManager,
+		Idempotency: idempotency.Manager(idemManager),
 	}, cleanup, nil
 }

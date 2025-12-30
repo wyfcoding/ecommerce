@@ -162,10 +162,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.1 Infrastructure (Persistence & Domain Services)
 	settlementRepo := persistence.NewSettlementRepository(db)
-	ledgerService := domain.NewLedgerService(settlementRepo)
+	ledgerRepo := persistence.NewLedgerRepository(db)
+	ledgerService := domain.NewLedgerService(ledgerRepo)
 
 	// 5.2 Application (Service)
-	// NewSettlementService 内部会调用 NewSettlementManager 和 NewSettlementQuery
 	settlementService := application.NewSettlementService(settlementRepo, ledgerService, logger.Logger)
 
 	// 5.3 Interface (HTTP Handlers)
@@ -195,6 +195,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Handler:     handler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
-		Idempotency:     idemManager,
+		Idempotency: idempotency.Manager(idemManager),
 	}, cleanup, nil
 }

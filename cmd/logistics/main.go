@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
+
+	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -19,42 +20,51 @@ import (
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
 
-// BootstrapName 服务标识。
+// BootstrapName 服务唯一标识
 const BootstrapName = "logistics"
 
-// Config 扩展配置结构。
+// IdempotencyPrefix 幂等性 Redis 键前缀
+const IdempotencyPrefix = "logistics:idem"
+
+// Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-// AppContext 应用资源上下文。
+// AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
-	Config     *Config
-	AppService *application.Logistics
-	Clients    *ServiceClients
-	Handler    *logisticshttp.Handler
-	Metrics    *metrics.Metrics
-	Limiter    limiter.Limiter
+	Config      *Config
+	Logistics   *application.Logistics
+	Clients     *ServiceClients
+	Handler     *logisticshttp.Handler
+	Metrics     *metrics.Metrics
+	Limiter     limiter.Limiter
+	Idempotency idempotency.Manager
 }
 
-// ServiceClients 下游微服务。
-type ServiceClients struct{}
+// ServiceClients 下游微服务客户端集合
+type ServiceClients struct {
+	// 目前 Logistics 服务无下游强依赖
+}
 
 func main() {
+	// 构建并运行服务
 	if err := app.NewBuilder(BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.MetricsMiddleware(),
-			middleware.CORS(),
+			middleware.MetricsMiddleware(),               // 指标采集
+			middleware.CORS(),                            // 跨域处理
+			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
 		).
 		Build().
 		Run(); err != nil {
@@ -62,69 +72,80 @@ func main() {
 	}
 }
 
+// registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterLogisticsServiceServer(s, logisticsgrpc.NewServer(ctx.AppService))
+	pb.RegisterLogisticsServiceServer(s, logisticsgrpc.NewServer(ctx.Logistics))
 }
 
+// registerGin 注册 HTTP 路由
 func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
 
+	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 1. 系统路由组 (不限流)
+	// 系统检查接口
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
+			response.SuccessWithRawData(c, gin.H{
 				"status":    "UP",
 				"service":   BootstrapName,
 				"timestamp": time.Now().Unix(),
 			})
 		})
 		sys.GET("/ready", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "READY"})
+			response.SuccessWithRawData(c, gin.H{"status": "READY"})
 		})
 	}
 
+	// 指标暴露
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 2. 治理：限流保护
+	// 全局限流中间件
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 3. 业务路由
-	ctx.Handler.RegisterRoutes(e.Group("/api/v1"))
-
-	slog.Info("HTTP service configured successfully", "service", BootstrapName)
+	// 业务 API 路由 v1
+	api := e.Group("/api/v1")
+	{
+		ctx.Handler.RegisterRoutes(api)
+	}
 }
 
+// initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default()
+	logger := logging.Default() // 获取全局 Logger
 
-	// 1. 基础设施
+	// 打印脱敏配置
+	configpkg.PrintWithMask(c)
+
+	// 1. 初始化数据库 (MySQL)
 	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("database init failed: %w", err)
+		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
 
+	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("redis init failed: %w", err)
+		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 2. 治理：分布式限流器
+	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
+	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
-	// 3. 下游微服务拨号
+	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
@@ -132,34 +153,47 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
+		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 4. DDD 分层装配
-	bootLog.Info("assembling logistics domain services...")
-	repo := persistence.NewLogisticsRepository(db)
-	logisticsQuery := application.NewLogisticsQuery(repo, logger.Logger)
-	logisticsManager := application.NewLogisticsManager(repo, logger.Logger)
-	service := application.NewLogistics(logisticsManager, logisticsQuery)
+	// 5. DDD 分层装配
+	bootLog.Info("assembling services with full dependency injection...")
 
-	handler := logisticshttp.NewHandler(service, logger.Logger)
+	// 5.1 Infrastructure (Persistence)
+	logisticsRepo := persistence.NewLogisticsRepository(db)
 
-	// 5. 资源回收
+	// 5.2 Application (Service)
+	query := application.NewLogisticsQuery(logisticsRepo, logger.Logger)
+	manager := application.NewLogisticsManager(logisticsRepo, logger.Logger)
+	logisticsService := application.NewLogistics(manager, query)
+
+	// 5.3 Interface (HTTP Handlers)
+	handler := logisticshttp.NewHandler(logisticsService, logger.Logger)
+
+	// 定义资源清理函数
 	cleanup := func() {
-		bootLog.Info("performing graceful shutdown...")
+		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()
-		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
-			sqlDB.Close()
+		if redisCache != nil {
+			if err := redisCache.Close(); err != nil {
+				bootLog.Error("failed to close redis cache", "error", err)
+			}
+		}
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+			if err := sqlDB.Close(); err != nil {
+				bootLog.Error("failed to close sql database", "error", err)
+			}
 		}
 	}
 
+	// 返回应用上下文与清理函数
 	return &AppContext{
-		Config:     c,
-		AppService: service,
-		Clients:    clients,
-		Handler:    handler,
-		Metrics:    m,
-		Limiter:    rateLimiter,
+		Config:      c,
+		Logistics:   logisticsService,
+		Clients:     clients,
+		Handler:     handler,
+		Metrics:     m,
+		Limiter:     rateLimiter,
+		Idempotency: idempotency.Manager(idemManager),
 	}, cleanup, nil
 }
