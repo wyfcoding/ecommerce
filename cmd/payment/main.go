@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
+
+	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	v1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	settlementv1 "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
@@ -23,6 +24,7 @@ import (
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
@@ -30,37 +32,48 @@ import (
 	"github.com/wyfcoding/pkg/middleware"
 )
 
-// BootstrapName 服务标识。
+// BootstrapName 服务唯一标识
 const BootstrapName = "payment"
 
-// Config 扩展配置。
+// IdempotencyPrefix 幂等性 Redis 键前缀
+const IdempotencyPrefix = "payment:idem"
+
+// Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-// AppContext 应用上下文。
+// AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
-	Config     *Config
-	AppService *application.PaymentService
-	Clients    *ServiceClients
-	Metrics    *metrics.Metrics
-	Limiter    limiter.Limiter
+	Config      *Config
+	Payment     *application.PaymentService
+	Clients     *ServiceClients
+	Handler     *paymenthttp.Handler
+	Metrics     *metrics.Metrics
+	Limiter     limiter.Limiter
+	Idempotency idempotency.Manager
 }
 
-// ServiceClients 下游微服务。
+// ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	Settlement *grpc.ClientConn `service:"settlement"`
+	SettlementConn *grpc.ClientConn `service:"settlement"`
+	OrderConn      *grpc.ClientConn `service:"order"`
+	
+	// 具体的客户端接口 (由 Conn 转化)
+	Settlement settlementv1.SettlementServiceClient
 }
 
 func main() {
+	// 构建并运行服务
 	if err := app.NewBuilder(BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.MetricsMiddleware(),
-			middleware.CORS(),
+			middleware.MetricsMiddleware(),               // 指标采集
+			middleware.CORS(),                            // 跨域处理
+			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
 		).
 		Build().
 		Run(); err != nil {
@@ -68,129 +81,166 @@ func main() {
 	}
 }
 
+// registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	v1.RegisterPaymentServiceServer(s, grpcServer.NewServer(ctx.AppService))
+	pb.RegisterPaymentServiceServer(s, grpcServer.NewServer(ctx.Payment))
 }
 
+// registerGin 注册 HTTP 路由
 func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
 
+	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 1. 系统路由 (不限流)
+	// 系统检查接口
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
+			response.SuccessWithRawData(c, gin.H{
 				"status":    "UP",
 				"service":   BootstrapName,
 				"timestamp": time.Now().Unix(),
 			})
 		})
 		sys.GET("/ready", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "READY"})
+			response.SuccessWithRawData(c, gin.H{"status": "READY"})
 		})
 	}
 
+	// 指标暴露
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 2. 支付链路保护：限流
+	// 全局限流中间件
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 3. 业务路由
-	handler := paymenthttp.NewHandler(ctx.AppService, slog.Default())
+	// 业务 API 路由 v1
 	api := e.Group("/api/v1")
-	handler.RegisterRoutes(api)
+	{
+		// 支付接口通常需要严格鉴权
+		api.Use(middleware.JWTAuth(ctx.Config.JWT.Secret))
+		// 支付核心接口必须保证幂等
+		api.Use(middleware.IdempotencyMiddleware(ctx.Idempotency, 24*time.Hour))
 
-	slog.Info("HTTP service configured", "service", BootstrapName)
+		ctx.Handler.RegisterRoutes(api)
+	}
 }
 
+// initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default()
+	logger := logging.Default() // 获取全局 Logger
 
-	// 1. 基础设施：分片数据库
-	shardingManager, err := sharding.NewManager(c.Data.Shards, logger)
+	// 打印脱敏配置
+	configpkg.PrintWithMask(c)
+
+	// 1. 初始化分片数据库 (MySQL Sharding)
+	bootLog.Info("initializing sharding database manager...")
+	var (
+		shardingManager *sharding.Manager
+		err             error
+	)
+	if len(c.Data.Shards) > 0 {
+		shardingManager, err = sharding.NewManager(c.Data.Shards, logger)
+	} else {
+		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
+	}
 	if err != nil {
-		if len(c.Data.Shards) == 0 {
-			shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
-			if err != nil {
-				return nil, nil, fmt.Errorf("sharding manager init error: %w", err)
-			}
-		} else {
-			return nil, nil, fmt.Errorf("sharding manager init error: %w", err)
-		}
+		return nil, nil, fmt.Errorf("sharding database init error: %w", err)
 	}
 
-	// 2. Redis & 限流器
+	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
+
+	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
+	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+	idGenerator, _ := idgen.NewGenerator(c.Snowflake)
 
-	// 3. ID 生成器
-	idGenerator, err := idgen.NewSnowflakeGenerator(c.Snowflake)
-	if err != nil {
-		redisCache.Close()
-		shardingManager.Close()
-		return nil, nil, fmt.Errorf("idgen init error: %w", err)
-	}
-
-	// 4. 下游客户端
+	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
 		redisCache.Close()
 		shardingManager.Close()
-		return nil, nil, fmt.Errorf("clients init error: %w", err)
+		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
+	}
+	// 显式转换 gRPC 客户端
+	if clients.SettlementConn != nil {
+		clients.Settlement = settlementv1.NewSettlementServiceClient(clients.SettlementConn)
 	}
 
-	// 5. 业务装配
-	bootLog.Info("assembling payment application service...")
-	paymentRepo := persistence.NewPaymentRepository(shardingManager)
-	refundRepo := persistence.NewRefundRepository(shardingManager)
-	channelRepo := persistence.NewChannelRepository(shardingManager)
-	riskService := risk.NewRiskService()
+	// 5. DDD 分层装配
+	bootLog.Info("assembling services with full dependency injection...")
 
+	// 5.1 Infrastructure (Persistence, Gateways, Risk)
+	paymentRepo := persistence.NewPaymentRepository(shardingManager)
+	channelRepo := persistence.NewChannelRepository(shardingManager)
+	refundRepo := persistence.NewRefundRepository(shardingManager)
+	
+	riskSvc := risk.NewRiskService()
+	
 	gateways := map[domain.GatewayType]domain.PaymentGateway{
 		domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),
-		domain.GatewayTypeWechat: gateway.NewWechatGateway(),
 		domain.GatewayTypeStripe: gateway.NewStripeGateway(),
-		domain.GatewayTypeMock:   gateway.NewAlipayGateway(),
+		domain.GatewayTypeWechat: gateway.NewWechatGateway(),
 	}
 
-	var settlementCli settlementv1.SettlementServiceClient
-	if clients.Settlement != nil {
-		settlementCli = settlementv1.NewSettlementServiceClient(clients.Settlement)
-	}
-
-	processor := application.NewPaymentProcessor(paymentRepo, channelRepo, riskService, idGenerator, gateways, logger.Logger)
+	// 5.2 Application (Components)
+	processor := application.NewPaymentProcessor(
+		paymentRepo,
+		channelRepo,
+		riskSvc,
+		idGenerator,
+		gateways,
+		logger.Logger,
+	)
 	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, logger.Logger)
 	refundService := application.NewRefundService(paymentRepo, refundRepo, idGenerator, gateways, logger.Logger)
 	paymentQuery := application.NewPaymentQuery(paymentRepo)
 
-	appService := application.NewPaymentService(processor, callbackHandler, refundService, paymentQuery, settlementCli, logger.Logger)
+	paymentService := application.NewPaymentService(
+		processor,
+		callbackHandler,
+		refundService,
+		paymentQuery,
+		clients.Settlement,
+		logger.Logger,
+	)
 
+	// 5.3 Interface (HTTP Handlers)
+	handler := paymenthttp.NewHandler(paymentService, logger.Logger)
+
+	// 定义资源清理函数
 	cleanup := func() {
-		bootLog.Info("performing graceful shutdown...")
+		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()
-		redisCache.Close()
-		shardingManager.Close()
+		if redisCache != nil {
+			redisCache.Close()
+		}
+		if shardingManager != nil {
+			shardingManager.Close()
+		}
 	}
 
+	// 返回应用上下文与清理函数
 	return &AppContext{
-		Config:     c,
-		AppService: appService,
-		Clients:    clients,
-		Metrics:    m,
-		Limiter:    rateLimiter,
+		Config:      c,
+		Payment:     paymentService,
+		Clients:     clients,
+		Handler:     handler,
+		Metrics:     m,
+		Limiter:     rateLimiter,
+		Idempotency: idemManager,
 	}, cleanup, nil
 }
