@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"time"
 
@@ -37,7 +38,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req application.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// 适配原始 response 包：使用 BadRequest
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
 		return
 	}
 
@@ -52,7 +53,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	)
 	if err != nil {
 		// 适配原始 response 包：使用 Unauthorized
-		response.Unauthorized(c, "login failed: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusUnauthorized, "login failed: "+err.Error(), "")
 		return
 	}
 
@@ -70,14 +71,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req application.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid input: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input: "+err.Error(), "")
 		return
 	}
 
 	_, err := h.svc.Manager.RegisterAdmin(c.Request.Context(), &req)
 	if err != nil {
 		// 适配原始 response 包：使用 InternalError
-		response.InternalError(c, "failed to create admin: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create admin: "+err.Error(), "")
 		return
 	}
 

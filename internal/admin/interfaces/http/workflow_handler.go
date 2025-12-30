@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"strconv"
 
@@ -40,7 +41,7 @@ func (h *WorkflowHandler) RegisterRoutes(r *gin.RouterGroup) {
 func (h *WorkflowHandler) Apply(c *gin.Context) {
 	var req application.ApprovalCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -65,13 +66,13 @@ func (h *WorkflowHandler) Action(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		response.BadRequest(c, "invalid workflow ID format")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid workflow ID format", "")
 		return
 	}
 
 	var req application.ApprovalActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
