@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"strconv"
 	"time"
@@ -35,14 +36,14 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request: "+err.Error(), "")
 		return
 	}
 
 	coupon, err := h.service.CreateCoupon(c.Request.Context(), req.Code, domain.CouponType(req.Type), req.DiscountValue, req.ValidFrom, req.ValidUntil, req.TotalQuantity)
 	if err != nil {
 		h.logger.Error("Failed to create coupon", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -53,19 +54,19 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 	status := c.Query("status")
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page parameter")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page parameter", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size parameter")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size parameter", "")
 		return
 	}
 
 	list, total, err := h.service.ListCoupons(c.Request.Context(), domain.CouponStatus(status), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list coupons", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -85,13 +86,13 @@ func (h *Handler) UseCoupon(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request: "+err.Error(), "")
 		return
 	}
 
 	if err := h.service.UseCoupon(c.Request.Context(), req.UserID, req.Code, req.OrderID); err != nil {
 		h.logger.Error("Failed to use coupon", "user_id", req.UserID, "code", req.Code, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

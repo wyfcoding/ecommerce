@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"strconv"
 
@@ -26,14 +27,14 @@ func (h *Handler) GetCart(c *gin.Context) {
 	userIDStr := c.Query("user_id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil || userID == 0 {
-		response.BadRequest(c, "valid user_id is required")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "valid user_id is required", "")
 		return
 	}
 
 	cart, err := h.app.GetCart(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.Error("Failed to get cart", "user_id", userID, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -53,14 +54,14 @@ func (h *Handler) AddItem(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid input: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input: "+err.Error(), "")
 		return
 	}
 
 	err := h.app.AddItem(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.Quantity, req.ProductImageURL)
 	if err != nil {
 		h.logger.Error("Failed to add item to cart", "user_id", req.UserID, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -75,14 +76,14 @@ func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	err := h.app.UpdateItemQuantity(c.Request.Context(), req.UserID, req.SkuID, req.Quantity)
 	if err != nil {
 		h.logger.Error("Failed to update quantity", "user_id", req.UserID, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -96,14 +97,14 @@ func (h *Handler) RemoveItem(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	err := h.app.RemoveItem(c.Request.Context(), req.UserID, req.SkuID)
 	if err != nil {
 		h.logger.Error("Failed to remove item", "user_id", req.UserID, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -116,14 +117,14 @@ func (h *Handler) ClearCart(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	err := h.app.ClearCart(c.Request.Context(), req.UserID)
 	if err != nil {
 		h.logger.Error("Failed to clear cart", "user_id", req.UserID, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

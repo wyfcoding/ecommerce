@@ -37,14 +37,14 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data: "+err.Error(), "")
 		return
 	}
 
 	afterSales, err := h.service.CreateAfterSales(c.Request.Context(), req.OrderID, req.OrderNo, req.UserID, req.Type, req.Reason, req.Description, req.Images, req.Items)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create after-sales", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) Approve(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid aftersales ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid aftersales ID", "")
 		return
 	}
 
@@ -64,13 +64,13 @@ func (h *Handler) Approve(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid input")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input", "")
 		return
 	}
 
 	if err := h.service.Approve(c.Request.Context(), id, req.Operator, req.Amount); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to approve after-sales", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *Handler) Approve(c *gin.Context) {
 func (h *Handler) Reject(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid aftersales ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid aftersales ID", "")
 		return
 	}
 
@@ -90,13 +90,13 @@ func (h *Handler) Reject(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid input")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input", "")
 		return
 	}
 
 	if err := h.service.Reject(c.Request.Context(), id, req.Operator, req.Reason); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to reject after-sales", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -106,12 +106,12 @@ func (h *Handler) Reject(c *gin.Context) {
 func (h *Handler) List(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 	userID, _ := strconv.ParseUint(c.DefaultQuery("user_id", "0"), 10, 64)
@@ -125,7 +125,7 @@ func (h *Handler) List(c *gin.Context) {
 	list, total, err := h.service.List(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list after-sales", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -140,14 +140,14 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) GetDetails(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
 	details, err := h.service.GetDetails(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get after-sales details", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

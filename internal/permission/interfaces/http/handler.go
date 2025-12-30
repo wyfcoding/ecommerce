@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"strconv"
 
@@ -56,14 +57,14 @@ type createRoleRequest struct {
 func (h *Handler) CreateRole(c *gin.Context) {
 	var req createRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
 		return
 	}
 
 	role, err := h.app.CreateRole(c.Request.Context(), req.Name, req.Description, req.PermissionIDs)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create role", "error", err)
-		response.InternalError(c, "failed to create role: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create role: "+err.Error(), "")
 		return
 	}
 
@@ -74,18 +75,18 @@ func (h *Handler) GetRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid role id: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid role id: "+err.Error(), "")
 		return
 	}
 
 	role, err := h.app.GetRole(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get role", "id", id, "error", err)
-		response.InternalError(c, "failed to get role: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to get role: "+err.Error(), "")
 		return
 	}
 	if role == nil {
-		response.NotFound(c, "role not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "role not found", "")
 		return
 	}
 
@@ -99,7 +100,7 @@ func (h *Handler) ListRoles(c *gin.Context) {
 	roles, total, err := h.app.ListRoles(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list roles", "error", err)
-		response.InternalError(c, "failed to list roles: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to list roles: "+err.Error(), "")
 		return
 	}
 
@@ -110,13 +111,13 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid role id: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid role id: "+err.Error(), "")
 		return
 	}
 
 	if err := h.app.DeleteRole(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to delete role", "id", id, "error", err)
-		response.InternalError(c, "failed to delete role: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to delete role: "+err.Error(), "")
 		return
 	}
 
@@ -131,14 +132,14 @@ type createPermissionRequest struct {
 func (h *Handler) CreatePermission(c *gin.Context) {
 	var req createPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
 		return
 	}
 
 	permission, err := h.app.CreatePermission(c.Request.Context(), req.Code, req.Description)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create permission", "error", err)
-		response.InternalError(c, "failed to create permission: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create permission: "+err.Error(), "")
 		return
 	}
 
@@ -152,7 +153,7 @@ func (h *Handler) ListPermissions(c *gin.Context) {
 	permissions, total, err := h.app.ListPermissions(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list permissions", "error", err)
-		response.InternalError(c, "failed to list permissions: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to list permissions: "+err.Error(), "")
 		return
 	}
 
@@ -167,19 +168,19 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user id: "+err.Error(), "")
 		return
 	}
 
 	var req assignRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
 		return
 	}
 
 	if err := h.app.AssignRole(c.Request.Context(), userID, req.RoleID); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to assign role", "user_id", userID, "role_id", req.RoleID, "error", err)
-		response.InternalError(c, "failed to assign role: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to assign role: "+err.Error(), "")
 		return
 	}
 
@@ -190,19 +191,19 @@ func (h *Handler) RevokeRole(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user id: "+err.Error(), "")
 		return
 	}
 
 	var req assignRoleRequest // Reuse struct as it has RoleID
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
 		return
 	}
 
 	if err := h.app.RevokeRole(c.Request.Context(), userID, req.RoleID); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to revoke role", "user_id", userID, "role_id", req.RoleID, "error", err)
-		response.InternalError(c, "failed to revoke role: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to revoke role: "+err.Error(), "")
 		return
 	}
 
@@ -213,14 +214,14 @@ func (h *Handler) GetUserRoles(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user id: "+err.Error(), "")
 		return
 	}
 
 	roles, err := h.app.GetUserRoles(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get user roles", "user_id", userID, "error", err)
-		response.InternalError(c, "failed to get user roles: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to get user roles: "+err.Error(), "")
 		return
 	}
 
@@ -231,20 +232,20 @@ func (h *Handler) CheckPermission(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user id: "+err.Error(), "")
 		return
 	}
 
 	permissionCode := c.Query("code")
 	if permissionCode == "" {
-		response.BadRequest(c, "permission code required")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "permission code required", "")
 		return
 	}
 
 	allowed, err := h.app.CheckPermission(c.Request.Context(), userID, permissionCode)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to check permission", "user_id", userID, "code", permissionCode, "error", err)
-		response.InternalError(c, "failed to check permission: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to check permission: "+err.Error(), "")
 		return
 	}
 

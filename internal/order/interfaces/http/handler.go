@@ -51,7 +51,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request: "+err.Error(), "")
 		return
 	}
 
@@ -81,7 +81,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	order, err := h.service.CreateOrder(c.Request.Context(), req.UserID, items, shippingAddr)
 	if err != nil {
 		h.logger.Error("Failed to create order", "error", err)
-		response.InternalError(c, "failed to create order: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create order: "+err.Error(), "")
 		return
 	}
 
@@ -92,18 +92,18 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 func (h *Handler) GetOrder(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid order ID format")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid order ID format", "")
 		return
 	}
 
 	order, err := h.service.GetOrder(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get order", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 	if order == nil {
-		response.NotFound(c, "order not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "order not found", "")
 		return
 	}
 
@@ -114,7 +114,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid order ID format")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid order ID format", "")
 		return
 	}
 
@@ -125,7 +125,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid input: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input: "+err.Error(), "")
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 	if opErr != nil {
 		h.logger.Error("Failed to update order status", "id", id, "action", req.Action, "error", opErr)
-		response.InternalError(c, opErr.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, opErr.Error(), "")
 		return
 	}
 
@@ -172,7 +172,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	if userIDStr != "" {
 		uid, err := strconv.ParseUint(userIDStr, 10, 64)
 		if err != nil {
-			response.BadRequest(c, "invalid user_id format")
+			response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user_id format", "")
 			return
 		}
 		userID = uid
@@ -188,7 +188,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	if statusStr := c.Query("status"); statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
 		if err != nil {
-			response.BadRequest(c, "invalid status format")
+			response.ErrorWithStatus(c, http.StatusBadRequest, "invalid status format", "")
 			return
 		}
 		status = &s
@@ -198,7 +198,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	list, total, err := h.service.ListOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
 	if err != nil {
 		h.logger.Error("Failed to list orders", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

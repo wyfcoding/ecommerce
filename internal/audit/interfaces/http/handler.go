@@ -28,12 +28,12 @@ func NewHandler(app *application.Audit, logger *slog.Logger) *Handler {
 func (h *Handler) QueryLogs(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 	userID, _ := strconv.ParseUint(c.DefaultQuery("user_id", "0"), 10, 64)
@@ -65,7 +65,7 @@ func (h *Handler) QueryLogs(c *gin.Context) {
 	list, total, err := h.app.QueryLogs(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to query audit logs", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -84,14 +84,14 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	policy, err := h.app.CreatePolicy(c.Request.Context(), req.Name, req.Description)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create audit policy", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -101,19 +101,19 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 func (h *Handler) ListPolicies(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 
 	list, total, err := h.app.ListPolicies(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list audit policies", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 func (h *Handler) UpdatePolicy(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
@@ -138,13 +138,13 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 		Enabled    bool     `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
 		return
 	}
 
 	if err := h.app.UpdatePolicy(c.Request.Context(), id, req.EventTypes, req.Modules, req.Enabled); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to update audit policy", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"github.com/wyfcoding/pkg/response"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -55,18 +56,18 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 		Features    []string `json:"features"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	plan, err := h.app.CreatePlan(c.Request.Context(), req.Name, req.Description, req.Price, req.Duration, req.Features)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create plan", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
-	c.JSON(http.StatusOK, plan)
+	response.Success(c, plan)
 }
 
 // ListPlans 处理获取订阅计划列表的HTTP请求。
@@ -74,11 +75,11 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	plans, err := h.app.ListPlans(c.Request.Context())
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list plans", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
-	c.JSON(http.StatusOK, plans)
+	response.Success(c, plans)
 }
 
 // Subscribe 处理用户订阅的HTTP请求。
@@ -88,59 +89,59 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		PlanID uint64 `json:"plan_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	sub, err := h.app.Subscribe(c.Request.Context(), req.UserID, req.PlanID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to subscribe", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
-	c.JSON(http.StatusOK, sub)
+	response.Success(c, sub)
 }
 
 // Cancel 处理取消订阅的HTTP请求。
 func (h *Handler) Cancel(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
 	if err := h.app.Cancel(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to cancel subscription", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "canceled"})
+	response.Success(c, gin.H{"status": "canceled"})
 }
 
 // Renew 处理续订的HTTP请求。
 func (h *Handler) Renew(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
 	if err := h.app.Renew(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to renew subscription", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "renewed"})
+	response.Success(c, gin.H{"status": "renewed"})
 }
 
 // ListSubscriptions 处理获取用户订阅列表的HTTP请求。
 func (h *Handler) ListSubscriptions(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user_id", "")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -149,7 +150,7 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 	subs, total, err := h.app.ListSubscriptions(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list subscriptions", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -163,29 +164,29 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 func (h *Handler) GetPlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
 	plan, err := h.app.GetPlan(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get plan", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 	if plan == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "plan not found"})
+		response.ErrorWithStatus(c, http.StatusNotFound, "plan not found", "")
 		return
 	}
 
-	c.JSON(http.StatusOK, plan)
+	response.Success(c, plan)
 }
 
 // UpdatePlan 处理更新订阅计划的请求。
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
@@ -198,38 +199,38 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 		Enabled     *bool    `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	plan, err := h.app.UpdatePlan(c.Request.Context(), id, req.Name, req.Description, req.Price, req.Duration, req.Features, req.Enabled)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to update plan", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
-	c.JSON(http.StatusOK, plan)
+	response.Success(c, plan)
 }
 
 // GetSubscription 处理通过 ID 获取订阅信息的请求。
 func (h *Handler) GetSubscription(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
 	sub, err := h.app.GetSubscription(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get subscription", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 	if sub == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "subscription not found"})
+		response.ErrorWithStatus(c, http.StatusNotFound, "subscription not found", "")
 		return
 	}
 
-	c.JSON(http.StatusOK, sub)
+	response.Success(c, sub)
 }

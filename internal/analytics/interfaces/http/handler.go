@@ -36,14 +36,14 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
 		return
 	}
 
 	err := h.app.RecordMetric(c.Request.Context(), domain.MetricType(req.MetricType), req.Name, req.Value, domain.TimeGranularity(req.Granularity), req.Dimension, req.DimensionVal)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to record metric", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -53,12 +53,12 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 func (h *Handler) QueryMetrics(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 	metricType := c.DefaultQuery("metric_type", "")
@@ -86,7 +86,7 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 	list, total, err := h.app.QueryMetrics(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to query metrics", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -106,14 +106,14 @@ func (h *Handler) CreateDashboard(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
 		return
 	}
 
 	dashboard, err := h.app.CreateDashboard(c.Request.Context(), req.Name, req.Description, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create dashboard", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -123,14 +123,14 @@ func (h *Handler) CreateDashboard(c *gin.Context) {
 func (h *Handler) GetDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
 	dashboard, err := h.app.GetDashboard(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get dashboard", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
@@ -151,14 +151,14 @@ func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
 		return
 	}
 
 	err = h.app.AddMetricToDashboard(c.Request.Context(), id, domain.MetricType(req.MetricType), req.Title, req.ChartType)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to add metric to dashboard", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -168,7 +168,7 @@ func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 func (h *Handler) UpdateDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
@@ -177,13 +177,13 @@ func (h *Handler) UpdateDashboard(c *gin.Context) {
 		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
 		return
 	}
 
 	dashboard, err := h.app.UpdateDashboard(c.Request.Context(), id, req.Name, req.Description)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -193,12 +193,12 @@ func (h *Handler) UpdateDashboard(c *gin.Context) {
 func (h *Handler) DeleteDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
 	if err := h.app.DeleteDashboard(c.Request.Context(), id); err != nil {
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -208,23 +208,23 @@ func (h *Handler) DeleteDashboard(c *gin.Context) {
 func (h *Handler) ListDashboards(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user_id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user_id", "")
 		return
 	}
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 
 	dashboards, total, err := h.app.ListDashboards(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -239,12 +239,12 @@ func (h *Handler) ListDashboards(c *gin.Context) {
 func (h *Handler) PublishDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
 	if err := h.app.PublishDashboard(c.Request.Context(), id); err != nil {
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -260,14 +260,14 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
 		return
 	}
 
 	report, err := h.app.CreateReport(c.Request.Context(), req.Title, req.Description, req.UserID, req.ReportType)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create report", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -277,17 +277,17 @@ func (h *Handler) CreateReport(c *gin.Context) {
 func (h *Handler) GetReport(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
 	report, err := h.app.GetReport(c.Request.Context(), id)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 	if report == nil {
-		response.NotFound(c, "report not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "report not found", "")
 		return
 	}
 
@@ -297,23 +297,23 @@ func (h *Handler) GetReport(c *gin.Context) {
 func (h *Handler) ListReports(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user_id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user_id", "")
 		return
 	}
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 
 	reports, total, err := h.app.ListReports(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

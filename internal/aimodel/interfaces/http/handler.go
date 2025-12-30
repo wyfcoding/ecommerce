@@ -34,14 +34,14 @@ func (h *Handler) CreateModel(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	model, err := h.app.CreateModel(c.Request.Context(), req.Name, req.Description, req.Type, req.Algorithm, req.CreatorID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create model", "name", req.Name, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -51,12 +51,12 @@ func (h *Handler) CreateModel(c *gin.Context) {
 func (h *Handler) ListModels(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
-		response.BadRequest(c, "invalid page")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page", "")
 		return
 	}
 	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if err != nil {
-		response.BadRequest(c, "invalid page_size")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
 	status := c.DefaultQuery("status", "")
@@ -76,7 +76,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 	list, total, err := h.app.ListModels(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list models", "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -91,14 +91,14 @@ func (h *Handler) ListModels(c *gin.Context) {
 func (h *Handler) GetModelDetails(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid model ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid model ID", "")
 		return
 	}
 
 	model, err := h.app.GetModelDetails(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get model details", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -108,13 +108,13 @@ func (h *Handler) GetModelDetails(c *gin.Context) {
 func (h *Handler) StartTraining(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid model ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid model ID", "")
 		return
 	}
 
 	if err := h.app.StartTraining(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to start training", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *Handler) StartTraining(c *gin.Context) {
 func (h *Handler) Predict(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid model ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid model ID", "")
 		return
 	}
 
@@ -134,14 +134,14 @@ func (h *Handler) Predict(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	output, confidence, err := h.app.Predict(c.Request.Context(), id, req.Input, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to predict", "id", id, "error", err)
-		response.InternalError(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
 

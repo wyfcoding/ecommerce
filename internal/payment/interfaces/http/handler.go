@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"strconv"
 
@@ -45,14 +46,14 @@ type initiatePaymentRequest struct {
 func (h *Handler) InitiatePayment(c *gin.Context) {
 	var req initiatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
 		return
 	}
 
 	payment, gatewayResp, err := h.app.InitiatePayment(c.Request.Context(), req.OrderID, req.UserID, req.Amount, req.PaymentMethod)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "initiate payment failed", "order_id", req.OrderID, "user_id", req.UserID, "error", err)
-		response.InternalError(c, "initiate payment failed: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "initiate payment failed: "+err.Error(), "")
 		return
 	}
 
@@ -73,7 +74,7 @@ type paymentCallbackRequest struct {
 func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 	var req paymentCallbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid callback payload")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid callback payload", "")
 		return
 	}
 
@@ -86,7 +87,7 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 
 	if err := h.app.HandlePaymentCallback(c.Request.Context(), req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "payment callback processing failed", "payment_no", req.PaymentNo, "error", err)
-		response.InternalError(c, "callback processing error")
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "callback processing error", "")
 		return
 	}
 
@@ -97,18 +98,18 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid payment ID format")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid payment ID format", "")
 		return
 	}
 
 	payment, err := h.app.GetPaymentStatus(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to query payment status", "id", id, "error", err)
-		response.InternalError(c, "failed to get status")
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to get status", "")
 		return
 	}
 	if payment == nil {
-		response.NotFound(c, "payment record not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "payment record not found", "")
 		return
 	}
 
@@ -124,20 +125,20 @@ type requestRefundRequest struct {
 func (h *Handler) RequestRefund(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid ID")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid ID", "")
 		return
 	}
 
 	var req requestRefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid refund request data")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid refund request data", "")
 		return
 	}
 
 	refund, err := h.app.RequestRefund(c.Request.Context(), id, req.Amount, req.Reason)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "refund initiation failed", "id", id, "error", err)
-		response.InternalError(c, "refund failed: "+err.Error())
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "refund failed: "+err.Error(), "")
 		return
 	}
 

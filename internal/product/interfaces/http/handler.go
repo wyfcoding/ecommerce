@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"log/slog"
 	"strconv"
 
@@ -63,7 +64,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var req application.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -79,7 +80,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 func (h *Handler) GetProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
@@ -89,7 +90,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 	if product == nil {
-		response.NotFound(c, "product not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "product not found", "")
 		return
 	}
 	response.Success(c, product)
@@ -98,13 +99,13 @@ func (h *Handler) GetProduct(c *gin.Context) {
 func (h *Handler) UpdateProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
 	var req application.UpdateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -119,7 +120,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 func (h *Handler) DeleteProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 
@@ -149,13 +150,13 @@ func (h *Handler) ListProducts(c *gin.Context) {
 func (h *Handler) AddSKU(c *gin.Context) {
 	productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid product id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid product id", "")
 		return
 	}
 
 	var req application.AddSKURequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -170,13 +171,13 @@ func (h *Handler) AddSKU(c *gin.Context) {
 func (h *Handler) UpdateSKU(c *gin.Context) {
 	skuID, err := strconv.ParseUint(c.Param("skuId"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid sku id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid sku id", "")
 		return
 	}
 
 	var req application.UpdateSKURequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -191,7 +192,7 @@ func (h *Handler) UpdateSKU(c *gin.Context) {
 func (h *Handler) DeleteSKU(c *gin.Context) {
 	skuID, err := strconv.ParseUint(c.Param("skuId"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid sku id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid sku id", "")
 		return
 	}
 
@@ -207,7 +208,7 @@ func (h *Handler) DeleteSKU(c *gin.Context) {
 func (h *Handler) CreateCategory(c *gin.Context) {
 	var req application.CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -232,7 +233,7 @@ func (h *Handler) ListCategories(c *gin.Context) {
 func (h *Handler) GetCategory(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 	category, err := h.app.Query.GetCategoryByID(c.Request.Context(), id)
@@ -241,7 +242,7 @@ func (h *Handler) GetCategory(c *gin.Context) {
 		return
 	}
 	if category == nil {
-		response.NotFound(c, "category not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "category not found", "")
 		return
 	}
 	response.Success(c, category)
@@ -250,12 +251,12 @@ func (h *Handler) GetCategory(c *gin.Context) {
 func (h *Handler) UpdateCategory(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 	var req application.UpdateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 	category, err := h.app.Manager.UpdateCategory(c.Request.Context(), id, &req)
@@ -269,7 +270,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 func (h *Handler) DeleteCategory(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 	if err := h.app.Manager.DeleteCategory(c.Request.Context(), id); err != nil {
@@ -284,7 +285,7 @@ func (h *Handler) DeleteCategory(c *gin.Context) {
 func (h *Handler) CreateBrand(c *gin.Context) {
 	var req application.CreateBrandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
@@ -308,7 +309,7 @@ func (h *Handler) ListBrands(c *gin.Context) {
 func (h *Handler) GetBrand(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 	brand, err := h.app.Query.GetBrandByID(c.Request.Context(), id)
@@ -317,7 +318,7 @@ func (h *Handler) GetBrand(c *gin.Context) {
 		return
 	}
 	if brand == nil {
-		response.NotFound(c, "brand not found")
+		response.ErrorWithStatus(c, http.StatusNotFound, "brand not found", "")
 		return
 	}
 	response.Success(c, brand)
@@ -326,12 +327,12 @@ func (h *Handler) GetBrand(c *gin.Context) {
 func (h *Handler) UpdateBrand(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 	var req application.UpdateBrandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 	brand, err := h.app.Manager.UpdateBrand(c.Request.Context(), id, &req)
@@ -345,7 +346,7 @@ func (h *Handler) UpdateBrand(c *gin.Context) {
 func (h *Handler) DeleteBrand(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid id")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id", "")
 		return
 	}
 	if err := h.app.Manager.DeleteBrand(c.Request.Context(), id); err != nil {
