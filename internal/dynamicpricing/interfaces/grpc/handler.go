@@ -16,7 +16,7 @@ import (
 
 // Server 结构体实现了 DynamicPricingService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedDynamicPricingServer
+	pb.UnimplementedDynamicPricingServiceServer
 	app *application.DynamicPricingService
 }
 

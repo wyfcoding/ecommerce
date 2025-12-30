@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package api.inventory_forecast.v1;
+package api.inventoryforecast.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/inventory_forecast/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/inventoryforecast/v1;inventoryforecastv1";
 
 // 库存预测服务，提供销量预测、库存预警及智能补货建议。
-service InventoryForecast {
+service InventoryForecastService {
   // 针对指定 SKU 生成未来一段时间的销售预测。
   rpc GenerateForecast(GenerateForecastRequest) returns (GenerateForecastResponse);
 

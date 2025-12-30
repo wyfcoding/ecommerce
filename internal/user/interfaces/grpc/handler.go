@@ -16,7 +16,7 @@ import (
 
 // Server 结构体实现了 User gRPC 服务。
 type Server struct {
-	pb.UnimplementedUserServer
+	pb.UnimplementedUserServiceServer
 	app *application.UserService
 }
 

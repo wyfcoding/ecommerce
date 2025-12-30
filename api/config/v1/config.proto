@@ -5,10 +5,10 @@ package api.config.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/config/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/config/v1;configv1";
 
 // 动态配置服务，支持分布式系统配置的下发、修改及实时监听。
-service Config {
+service ConfigService {
   // 根据 Key 获取特定配置项。
   rpc GetConfig(GetConfigRequest) returns (ConfigResponse);
 

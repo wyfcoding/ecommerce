@@ -21,9 +21,9 @@ import (
 // Server 结构体实现了 Search 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedSearchServer                     // 嵌入生成的UnimplementedSearchServer，确保前向兼容性。
-	app                          *application.Search // 依赖Search应用服务，处理核心业务逻辑。
-	logger                       *slog.Logger        // 日志记录器。
+	pb.UnimplementedSearchServiceServer                     // 嵌入生成的UnimplementedSearchServiceServer，确保前向兼容性。
+	app                                 *application.Search // 依赖Search应用服务，处理核心业务逻辑。
+	logger                              *slog.Logger        // 日志记录器。
 }
 
 // NewServer 创建并返回一个新的 Search gRPC 服务端实例。

@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-package api.logistics_routing.v1;
+package api.logisticsrouting.v1;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/logistics_routing/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/logisticsrouting/v1;logisticsroutingv1";
 
 // 物流路由服务，负责配送商管理及多订单智能分拨优化。
-service LogisticsRouting {
+service LogisticsRoutingService {
   // 录入合作的配送商/承运商信息。
   rpc RegisterCarrier(RegisterCarrierRequest) returns (google.protobuf.Empty);
 

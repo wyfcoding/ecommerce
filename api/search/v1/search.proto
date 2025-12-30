@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package search.v1;
+package api.search.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/search/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/search/v1;searchv1";
 
 // 搜索中心服务，基于索引库提供商品及其属性的全文检索功能。
-service Search {
+service SearchService {
   // 核心查询接口：根据关键词搜索商品列表。
   rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
 }

@@ -6,7 +6,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/payment/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/payment/v1;paymentv1";
 
 // 支付流水状态。
 enum PaymentStatus {
@@ -29,7 +29,7 @@ enum RefundStatus {
 }
 
 // 支付服务，处理收银台调起、第三方支付回调、退款申请及支付对账。
-service Payment {
+service PaymentService {
   // 创建支付单，获取支付链接或二维码参数。
   rpc InitiatePayment(InitiatePaymentRequest) returns (PaymentResponse);
 

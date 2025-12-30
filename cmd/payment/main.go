@@ -70,7 +70,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	v1.RegisterPaymentServer(s, grpcServer.NewServer(ctx.AppService))
+	v1.RegisterPaymentServiceServer(s, grpcServer.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, svc any) {
@@ -167,9 +167,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		domain.GatewayTypeMock:   gateway.NewAlipayGateway(),
 	}
 
-	var settlementCli settlementv1.SettlementClient
+	var settlementCli settlementv1.SettlementServiceClient
 	if clients.Settlement != nil {
-		settlementCli = settlementv1.NewSettlementClient(clients.Settlement)
+		settlementCli = settlementv1.NewSettlementServiceClient(clients.Settlement)
 	}
 
 	processor := application.NewPaymentProcessor(paymentRepo, channelRepo, riskService, idGenerator, gateways, logger.Logger)

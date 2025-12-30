@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package api.ai_model.v1;
+package api.aimodel.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/ai_model/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/aimodel/v1;aimodelv1";
 
 // AI 智能模型服务，提供个性化推荐、图像分析、NLP 情感识别及风控评分等机器学习能力。
-service AIModel {
+service AIModelService {
   // --- 智能推荐 ---
 
   // 获取千人千面的个性化商品推荐清单。

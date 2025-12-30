@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package api.smart_product_selection.v1;
+package api.smartproductselection.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/smart_product_selection/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/smartproductselection/v1;smartproductselectionv1";
 
 // 智能选品服务，利用大数据分析辅助商家进行商品铺货建议及选品决策。
-service SmartProductSelection {
+service SmartProductSelectionService {
   // 获取基于大数据分析的智能选品建议列表。
   rpc GetSmartProductRecommendations(GetSmartProductRecommendationsRequest) returns (GetSmartProductRecommendationsResponse);
 }

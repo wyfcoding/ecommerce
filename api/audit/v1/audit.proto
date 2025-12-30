@@ -5,10 +5,10 @@ package api.audit.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/audit/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/audit/v1;auditv1";
 
 // 审计服务，负责记录关键操作日志、管理审计策略及生成合规报告。
-service Audit {
+service AuditService {
   // 记录单条审计事件。
   rpc LogEvent(LogEventRequest) returns (google.protobuf.Empty);
 

@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package api.auth.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/auth/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/auth/v1;authv1";
 
 // 统一认证与授权服务，负责用户身份校验、令牌分发及有效期管理。
-service Auth {
+service AuthService {
   // 验证用户账密凭据，成功后颁发 JWT 访问令牌。
   rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
 

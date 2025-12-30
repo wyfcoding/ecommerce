@@ -63,7 +63,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
-	pb.RegisterSearchServer(s, searchgrpc.NewServer(ctx.AppService, slog.Default()))
+	pb.RegisterSearchServiceServer(s, searchgrpc.NewServer(ctx.AppService, slog.Default()))
 }
 
 func registerGin(e *gin.Engine, srv any) {

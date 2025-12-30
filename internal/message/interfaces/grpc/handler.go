@@ -15,7 +15,7 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedMessageServer
+	pb.UnimplementedMessageServiceServer
 	app *application.Message
 }
 

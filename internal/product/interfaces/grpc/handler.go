@@ -15,7 +15,7 @@ import (
 )
 
 type Server struct {
-	pb.UnimplementedProductServer
+	pb.UnimplementedProductServiceServer
 	app *application.ProductService
 }
 

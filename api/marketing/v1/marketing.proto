@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/goapi/marketing/v1;marketingv1";
 
 // 营销服务，负责管理营销活动策划、多端横幅广告及活动参与统计。
-service Marketing {
+service MarketingService {
   // 创建并录入新的营销策划方案。
   rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
 

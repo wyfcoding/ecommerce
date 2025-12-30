@@ -5,7 +5,7 @@ package api.order.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/order/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/order/v1;orderv1";
 
 // 订单主流程状态。
 enum OrderStatus {
@@ -44,7 +44,7 @@ enum ShippingStatus {
 }
 
 // 订单管理服务，负责订单生命周期、支付及退款流程协调。
-service Order {
+service OrderService {
   // 创建新订单。
   rpc CreateOrder(CreateOrderRequest) returns (OrderInfo);
 

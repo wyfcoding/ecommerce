@@ -63,7 +63,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterLogisticsRoutingServer(s, routinggrpc.NewServer(ctx.AppService))
+	pb.RegisterLogisticsRoutingServiceServer(s, routinggrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {

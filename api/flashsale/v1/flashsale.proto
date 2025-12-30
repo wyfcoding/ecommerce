@@ -4,10 +4,10 @@ package api.flashsale.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/flashsale/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/flashsale/v1;flashsalev1";
 
 // 秒杀服务，处理高并发下的限时抢购活动、库存扣减及资格校验。
-service FlashSale {
+service FlashSaleService {
   // 录入新的秒杀活动场次。
   rpc CreateFlashSaleEvent(CreateFlashSaleEventRequest) returns (CreateFlashSaleEventResponse);
 

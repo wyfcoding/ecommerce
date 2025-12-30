@@ -4,10 +4,10 @@ package api.groupbuy.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/groupbuy/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/groupbuy/v1;groupbuyv1";
 
 // 拼团服务，提供团购活动管理、用户开团/参团及成团状态自动更新。
-service Groupbuy {
+service GroupbuyService {
   // 发布并管理拼团营销活动场次。
   rpc CreateGroupbuy(CreateGroupbuyRequest) returns (CreateGroupbuyResponse);
 

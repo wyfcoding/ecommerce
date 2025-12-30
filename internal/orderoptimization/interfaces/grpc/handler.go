@@ -15,7 +15,7 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedOrderOptimizationServer
+	pb.UnimplementedOrderOptimizationServiceServer
 	app *application.OrderOptimizationService
 }
 

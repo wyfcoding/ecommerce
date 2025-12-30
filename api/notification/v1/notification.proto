@@ -4,10 +4,10 @@ package api.notification.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/notification/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/notification/v1;notificationv1";
 
 // 通知服务，处理系统向用户推送的各类即时通知及状态管理。
-service Notification {
+service NotificationService {
   // 发送单条系统通知。
   rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
 

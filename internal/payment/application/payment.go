@@ -14,7 +14,7 @@ type PaymentService struct {
 	CallbackHandler *CallbackHandler
 	RefundService   *RefundService
 	Query           *PaymentQuery
-	settlementCli   settlementv1.SettlementClient
+	settlementCli   settlementv1.SettlementServiceClient
 	logger          *slog.Logger
 }
 
@@ -24,7 +24,7 @@ func NewPaymentService(
 	callbackHandler *CallbackHandler,
 	refundService *RefundService,
 	query *PaymentQuery,
-	settlementCli settlementv1.SettlementClient,
+	settlementCli settlementv1.SettlementServiceClient,
 	logger *slog.Logger,
 ) *PaymentService {
 	return &PaymentService{

@@ -13,7 +13,7 @@ import (
 
 // Server gRPC 服务实现。
 type Server struct {
-	pb.UnimplementedPaymentServer
+	pb.UnimplementedPaymentServiceServer
 	App *application.PaymentService
 }
 

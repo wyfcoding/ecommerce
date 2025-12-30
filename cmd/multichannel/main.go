@@ -63,7 +63,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterMultiChannelServer(s, channelgrpc.NewServer(ctx.AppService))
+	pb.RegisterMultiChannelServiceServer(s, channelgrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {

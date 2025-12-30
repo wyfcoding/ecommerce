@@ -5,10 +5,10 @@ package api.inventory.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/inventory/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/inventory/v1;inventoryv1";
 
 // 库存中心服务，负责全渠道库存的实时增减、锁定及日志追踪。
-service Inventory {
+service InventoryService {
   // 初始化商品库存记录。
   rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
 

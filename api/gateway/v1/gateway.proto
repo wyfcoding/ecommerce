@@ -4,10 +4,10 @@ package api.gateway.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/gateway/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/gateway/v1;gatewayv1";
 
 // API 网关服务，作为流量入口负责请求分发、安全校验及后端服务发现。
-service Gateway {
+service GatewayService {
   // 后端服务可用性心跳检查。
   rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
 }

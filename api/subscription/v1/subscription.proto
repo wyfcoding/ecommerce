@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/goapi/subscription/v1;subscriptionv1";
 
 // 订阅会员服务，管理各类增值服务的收费计划、用户契约及有效期自动续费。
-service Subscription {
+service SubscriptionService {
   // 定义并发布一套新的付费权益套餐。
   rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
 

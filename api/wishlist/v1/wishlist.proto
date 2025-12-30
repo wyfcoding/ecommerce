@@ -4,10 +4,10 @@ package api.wishlist.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/wishlist/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/wishlist/v1;wishlistv1";
 
 // 收藏夹与心愿单服务。
-service Wishlist {
+service WishlistService {
   // 加入收藏。
   rpc AddItemToWishlist(AddItemToWishlistRequest) returns (AddItemToWishlistResponse);
 

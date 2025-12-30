@@ -5,10 +5,10 @@ package api.logistics.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/logistics/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/logistics/v1;logisticsv1";
 
 // 物流服务，负责运单管理、轨迹追踪及配送路线优化。
-service Logistics {
+service LogisticsService {
   // 创建新物流单。
   rpc CreateLogistics(CreateLogisticsRequest) returns (CreateLogisticsResponse);
 

@@ -5,10 +5,10 @@ package api.cms.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/cms/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/cms/v1;cmsv1";
 
 // 内容管理服务，负责页面、文章及商品描述等静态内容的增删改查。
-service CMS {
+service CMSService {
   // 创建新的内容条目。
   rpc CreateContent(CreateContentRequest) returns (ContentResponse);
 

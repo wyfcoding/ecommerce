@@ -64,7 +64,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterCartServer(s, cartgrpc.NewServer(ctx.AppService))
+	pb.RegisterCartServiceServer(s, cartgrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, svc any) {

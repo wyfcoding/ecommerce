@@ -1,8 +1,8 @@
 package http
 
 import (
-	"net/http"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"

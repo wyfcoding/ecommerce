@@ -16,8 +16,8 @@ import (
 
 // Server 结构体实现了 Analytics 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedAnalyticsServer                        // 嵌入生成的UnimplementedAnalyticsServer。
-	app                             *application.Analytics // 依赖Analytics应用服务 facade。
+	pb.UnimplementedAnalyticsServiceServer                        // 嵌入生成的UnimplementedAnalyticsServiceServer。
+	app                                    *application.Analytics // 依赖Analytics应用服务 facade。
 }
 
 // NewServer 创建并返回一个新的 Analytics gRPC 服务端实例。

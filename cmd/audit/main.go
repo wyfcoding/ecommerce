@@ -65,7 +65,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterAuditServer(s, grpcServer.NewServer(ctx.AppService))
+	pb.RegisterAuditServiceServer(s, grpcServer.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {

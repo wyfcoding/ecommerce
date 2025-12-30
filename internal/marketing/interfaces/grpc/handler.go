@@ -17,7 +17,7 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedMarketingServer
+	pb.UnimplementedMarketingServiceServer
 	app *application.Marketing
 }
 

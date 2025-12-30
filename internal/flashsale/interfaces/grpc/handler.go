@@ -17,7 +17,7 @@ import (
 
 // Server 结构体实现了 FlashSaleService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedFlashSaleServer
+	pb.UnimplementedFlashSaleServiceServer
 	app *application.FlashsaleService
 }
 

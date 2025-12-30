@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-package api.financial_settlement.v1;
+package api.financialsettlement.v1;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/financial_settlement/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/financialsettlement/v1;financialsettlementv1";
 
 // 财务结算与打款服务。
-service FinancialSettlement {
+service FinancialSettlementService {
   // 建立结算。
   rpc CreateSettlement(CreateSettlementRequest) returns (CreateSettlementResponse);
 

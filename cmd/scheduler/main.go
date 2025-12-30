@@ -63,7 +63,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, srv any) {
 	ctx := srv.(*AppContext)
-	pb.RegisterSchedulerServer(s, schedulergrpc.NewServer(ctx.AppService))
+	pb.RegisterSchedulerServiceServer(s, schedulergrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, srv any) {

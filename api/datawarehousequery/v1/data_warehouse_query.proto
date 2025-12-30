@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package api.data_warehouse_query.v1;
+package api.datawarehousequery.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/data_warehouse_query/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/datawarehousequery/v1;datawarehousequeryv1";
 
 // 数据仓库查询服务，负责执行 OLAP 复杂查询并获取大规模分析结果。
-service DataWarehouseQuery {
+service DataWarehouseQueryService {
   // 提交一个 SQL 或特定引擎的查询任务。
   rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
 

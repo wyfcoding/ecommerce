@@ -4,10 +4,10 @@ package api.customer.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/customer/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/customer/v1;customerv1";
 
 // 客户服务系统，负责在线咨询工单的生命周期管理及座席交互。
-service Customer {
+service CustomerService {
   // 创建一个反馈或求助工单。
   rpc CreateTicket(CreateTicketRequest) returns (TicketResponse);
 

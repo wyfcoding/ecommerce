@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/wyfcoding/ecommerce/goapi/permission/v1;permissionv1";
 
 // 权限管理服务，负责角色定义、权限项管理及用户权限校验。
-service Permission {
+service PermissionService {
   // 创建新角色。
   rpc CreateRole(CreateRoleRequest) returns (Role);
 

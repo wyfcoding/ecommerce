@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-package admin.v1;
+package api.admin.v1;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/admin/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/admin/v1;adminv1";
 
 // 后台管理员账号服务，处理管理端权限、系统配置及操作审计。
-service Admin {
+service AdminService {
   // --- 管理员账号管理 ---
   // 录入新的管理员。
   rpc CreateAdminUser(CreateAdminUserRequest) returns (CreateAdminUserResponse);

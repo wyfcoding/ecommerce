@@ -17,7 +17,7 @@ import (
 
 // Server 结构体实现了 Loyalty 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedLoyaltyServer
+	pb.UnimplementedLoyaltyServiceServer
 	app *application.Loyalty
 }
 

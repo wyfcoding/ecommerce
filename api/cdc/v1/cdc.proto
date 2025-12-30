@@ -5,10 +5,10 @@ package api.cdc.v1;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/cdc/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/cdc/v1;cdcv1";
 
 // 变更数据捕获服务，负责监控数据库变更事件并分发给下游系统。
-service CDC {
+service CDCService {
   // 记录一次数据库的增删改变更。
   rpc CaptureChange(CaptureChangeRequest) returns (google.protobuf.Empty);
 

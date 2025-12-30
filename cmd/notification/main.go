@@ -63,7 +63,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterNotificationServer(s, notifgrpc.NewServer(ctx.AppService))
+	pb.RegisterNotificationServiceServer(s, notifgrpc.NewServer(ctx.AppService))
 }
 
 func registerGin(e *gin.Engine, svc any) {

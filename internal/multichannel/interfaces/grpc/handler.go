@@ -16,7 +16,7 @@ import (
 
 // Server 结构体定义。
 type Server struct {
-	pb.UnimplementedMultiChannelServer
+	pb.UnimplementedMultiChannelServiceServer
 	app *application.MultiChannelService
 }
 

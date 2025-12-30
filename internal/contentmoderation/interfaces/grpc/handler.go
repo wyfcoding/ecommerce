@@ -14,7 +14,7 @@ import (
 
 // Server 结构体实现了 ContentModerationService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedContentModerationServer
+	pb.UnimplementedContentModerationServiceServer
 	app *application.ModerationService
 }
 

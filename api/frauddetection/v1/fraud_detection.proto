@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package api.fraud_detection.v1;
+package api.frauddetection.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/fraud_detection/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/frauddetection/v1;frauddetectionv1";
 
 // 欺诈检测服务，负责核心交易流程的实时风险评分、异步评估及手动黑名单标记。
-service FraudDetection {
+service FraudDetectionService {
   // 实时同步接口：对当前交易进行多维度合规性及欺诈风险判定。
   rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse);
 

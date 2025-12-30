@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-package api.multi_channel.v1;
+package api.multichannel.v1;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/multi_channel/v1;multichannelv1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/multichannel/v1;multichannelv1";
 
 // 多渠道集成服务，负责与其他电商平台（如 Amazon, Shopify）进行对接。
-service MultiChannel {
+service MultiChannelService {
   // 注册一个新的销售渠道配置。
   rpc RegisterChannel(RegisterChannelRequest) returns (RegisterChannelResponse);
 

@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package api.content_moderation.v1;
+package api.contentmoderation.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/content_moderation/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1;contentmoderationv1";
 
 // 内容安全审核服务，负责对用户提交的文本及图片进行合规性检测（如色情、暴恐、广告检测）。
-service ContentModeration {
+service ContentModerationService {
   // 对纯文本或富文本进行安全扫描。
   rpc ModerateText(ModerateTextRequest) returns (ModerateTextResponse);
 

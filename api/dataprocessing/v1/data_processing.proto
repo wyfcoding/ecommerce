@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package api.data_processing.v1;
+package api.dataprocessing.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/data_processing/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/dataprocessing/v1;dataprocessingv1";
 
 // 数据处理服务，负责对摄取的原始数据进行清洗、转换及聚合。
-service DataProcessing {
+service DataProcessingService {
   // 提交一个异步数据处理任务。
   rpc ProcessData(ProcessDataRequest) returns (ProcessDataResponse);
 

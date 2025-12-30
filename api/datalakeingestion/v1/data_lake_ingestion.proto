@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package api.data_lake_ingestion.v1;
+package api.datalakeingestion.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/data_lake_ingestion/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/goapi/datalakeingestion/v1;datalakeingestionv1";
 
 // 数据湖摄取服务，负责将各类异构数据源的原始数据流式或批量导入数据湖。
-service DataLakeIngestion {
+service DataLakeIngestionService {
   // 执行数据摄取操作。
   rpc IngestToDataLake(IngestToDataLakeRequest) returns (google.protobuf.Empty);
 }
