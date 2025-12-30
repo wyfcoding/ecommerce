@@ -59,14 +59,37 @@ func (h *Handler) SubmitTask(c *gin.Context) {
 }
 
 // ListTasks 处理获取数据处理任务列表的HTTP请求。
-// HTTP 方法: GET
-// 请求路径: /processing/tasks
 func (h *Handler) ListTasks(c *gin.Context) {
 	// 从查询参数中获取工作流ID、任务状态、页码和每页大小，并设置默认值。
-	workflowID, _ := strconv.ParseUint(c.Query("workflow_id"), 10, 64)
-	status, _ := strconv.Atoi(c.Query("status"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		workflowID uint64
+		err        error
+	)
+	if val := c.Query("workflow_id"); val != "" {
+		workflowID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid workflow_id", err.Error())
+			return
+		}
+	}
+
+	var status int
+	if val := c.Query("status"); val != "" {
+		status, err = strconv.Atoi(val)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
+		}
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	// 调用应用服务层获取任务列表。
 	list, total, err := h.service.ListTasks(c.Request.Context(), workflowID, domain.TaskStatus(status), page, pageSize)
@@ -119,8 +142,14 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 // 请求路径: /processing/workflows
 func (h *Handler) ListWorkflows(c *gin.Context) {
 	// 从查询参数中获取页码和每页大小，并设置默认值。
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	// 调用应用服务层获取工作流列表。
 	list, total, err := h.service.ListWorkflows(c.Request.Context(), page, pageSize)

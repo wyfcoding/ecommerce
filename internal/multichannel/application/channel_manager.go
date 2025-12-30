@@ -80,7 +80,9 @@ func (m *ChannelManager) SyncOrders(ctx context.Context, channelID uint64) error
 		StartTime:    startTime,
 		EndTime:      time.Now(),
 	}
-	_ = m.repo.SaveSyncLog(ctx, log)
+	if err := m.repo.SaveSyncLog(ctx, log); err != nil {
+		m.logger.ErrorContext(ctx, "failed to save channel sync log", "channel_id", channel.ID, "error", err)
+	}
 
 	return nil
 }

@@ -92,11 +92,20 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 		"price":        flashsale.FlashPrice,
 		"created_at":   order.CreatedAt,
 	}
-	payload, _ := json.Marshal(event)
+	payload, err := json.Marshal(event)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to marshal order event", "order_id", orderID, "error", err)
+		if revertErr := m.cache.RevertStock(ctx, flashsaleID, userID, quantity); revertErr != nil {
+			m.logger.ErrorContext(ctx, "failed to revert stock after marshal failure", "flashsale_id", flashsaleID, "user_id", userID, "error", revertErr)
+		}
+		return nil, fmt.Errorf("failed to marshal order: %w", err)
+	}
 
 	if err := m.producer.Publish(ctx, fmt.Appendf(nil, "%d", orderID), payload); err != nil {
 		m.logger.ErrorContext(ctx, "failed to publish order event", "order_id", orderID, "error", err)
-		_ = m.cache.RevertStock(ctx, flashsaleID, userID, quantity)
+		if revertErr := m.cache.RevertStock(ctx, flashsaleID, userID, quantity); revertErr != nil {
+			m.logger.ErrorContext(ctx, "failed to revert stock after publish failure", "flashsale_id", flashsaleID, "user_id", userID, "error", revertErr)
+		}
 		return nil, fmt.Errorf("failed to publish order: %w", err)
 	}
 

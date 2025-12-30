@@ -125,17 +125,36 @@ func (h *Handler) Complete(c *gin.Context) {
 
 // List 处理获取结算单列表的HTTP请求。
 func (h *Handler) List(c *gin.Context) {
-	merchantID, _ := strconv.ParseUint(c.Query("merchant_id"), 10, 64)
+	var (
+		merchantID uint64
+		err        error
+	)
+	if val := c.Query("merchant_id"); val != "" {
+		merchantID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid merchant_id", err.Error())
+			return
+		}
+	}
+
 	statusStr := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	var status *int
 	if statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
-		if err == nil {
-			status = &s
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
 		}
+		status = &s
 	}
 
 	list, total, err := h.service.ListSettlements(c.Request.Context(), merchantID, status, page, pageSize)

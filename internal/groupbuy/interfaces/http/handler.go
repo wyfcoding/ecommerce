@@ -59,8 +59,14 @@ func (h *Handler) CreateGroupbuy(c *gin.Context) {
 
 // ListGroupbuys 处理获取拼团活动列表的HTTP请求。
 func (h *Handler) ListGroupbuys(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListGroupbuys(c.Request.Context(), page, pageSize)
 	if err != nil {

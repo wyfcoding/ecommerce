@@ -71,7 +71,11 @@ func (m *DataIngestionManager) processJob(job *domain.IngestionJob) {
 	}
 	m.logger.InfoContext(ctx, "ingestion job completed", "job_id", job.ID, "rows_processed", 100)
 
-	source, _ := m.repo.GetSource(ctx, job.SourceID)
+	source, err := m.repo.GetSource(ctx, job.SourceID)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get source after job completion", "source_id", job.SourceID, "error", err)
+		return
+	}
 	if source != nil {
 		now := time.Now()
 		source.LastRunAt = &now

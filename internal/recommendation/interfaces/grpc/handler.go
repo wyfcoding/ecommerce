@@ -3,6 +3,7 @@ package grpc
 import (
 	"context" // 导入上下文。
 	"fmt"     // 导入格式化库。
+	"log/slog"
 	"strconv" // 导入字符串转换工具。
 
 	pb "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"          // 导入推荐模块的protobuf定义。
@@ -17,11 +18,15 @@ import (
 type Server struct {
 	pb.UnimplementedRecommendationServiceServer                                    // 嵌入生成的UnimplementedRecommendationServiceServer，确保前向兼容性。
 	app                                         *application.RecommendationService // 依赖Recommendation应用服务，处理核心业务逻辑。
+	logger                                      *slog.Logger
 }
 
 // NewServer 创建并返回一个新的 Recommendation gRPC 服务端实例。
-func NewServer(app *application.RecommendationService) *Server {
-	return &Server{app: app}
+func NewServer(app *application.RecommendationService, logger *slog.Logger) *Server {
+	return &Server{
+		app:    app,
+		logger: logger,
+	}
 }
 
 // GetRecommendedProducts 处理获取推荐商品列表的gRPC请求。
@@ -36,7 +41,9 @@ func (s *Server) GetRecommendedProducts(ctx context.Context, req *pb.GetRecommen
 		limit = 10
 	}
 
-	_ = s.app.GenerateRecommendations(ctx, userID)
+	if err := s.app.GenerateRecommendations(ctx, userID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate recommendations", "user_id", userID, "error", err)
+	}
 
 	recs, err := s.app.GetRecommendations(ctx, userID, "", limit)
 	if err != nil {

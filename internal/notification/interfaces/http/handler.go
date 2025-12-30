@@ -103,15 +103,23 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 
 	// 从查询参数中获取状态字符串，并尝试转换为 int 类型.
 	statusStr := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	var status *int
 	if statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
-		if err == nil { // 只有当状态字符串能成功转换为int时才设置过滤状态.
-			status = &s
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
 		}
+		status = &s
 	}
 
 	// 调用应用服务层获取通知列表.

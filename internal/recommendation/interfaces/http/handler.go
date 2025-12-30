@@ -36,7 +36,10 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 	}
 
 	recType := c.Query("type")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
 
 	recs, err := h.app.GetRecommendations(c.Request.Context(), userID, recType, limit)
 	if err != nil {
@@ -95,7 +98,10 @@ func (h *Handler) GetSimilarProducts(c *gin.Context) {
 		return
 	}
 
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
 
 	sims, err := h.app.GetSimilarProducts(c.Request.Context(), productID, limit)
 	if err != nil {

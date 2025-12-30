@@ -76,7 +76,9 @@ func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amo
 	if gwResp.Status == "FAILED" {
 		success = false
 	}
-	_ = payment.ProcessRefund(refund.RefundNo, success, gwResp.RefundID)
+	if err := payment.ProcessRefund(refund.RefundNo, success, gwResp.RefundID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to process refund in payment aggregate", "refund_no", refund.RefundNo, "error", err)
+	}
 
 	// 事务性保存：同时更新 Payment 和保存 Refund (在 Repository 实现中应由事务保证)
 	if err := s.paymentRepo.Update(ctx, payment); err != nil {

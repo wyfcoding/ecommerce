@@ -100,11 +100,15 @@ func (m *SettlementManager) ProcessPayment(ctx context.Context, settlementID uin
 	payment.Status = domain.PaymentStatusCompleted
 	now := time.Now()
 	payment.CompletedAt = &now
-	_ = m.repo.SaveSettlementPayment(ctx, payment)
+	if err := m.repo.SaveSettlementPayment(ctx, payment); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update settlement payment status", "payment_id", payment.ID, "error", err)
+	}
 
 	// 更新结算单状态
 	settlement.Status = domain.SettlementStatusCompleted
-	_ = m.repo.SaveSettlement(ctx, settlement)
+	if err := m.repo.SaveSettlement(ctx, settlement); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update settlement status", "settlement_id", settlement.ID, "error", err)
+	}
 
 	return payment, nil
 }

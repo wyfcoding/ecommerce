@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/dtm-labs/logger"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
@@ -63,7 +64,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterRecommendationServiceServer(s, recommgrpc.NewServer(ctx.AppService))
+	pb.RegisterRecommendationServiceServer(s, recommgrpc.NewServer(ctx.AppService, logger.Logger()))
 }
 
 func registerGin(e *gin.Engine, srv any) {
@@ -141,7 +142,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewRecommendationRepository(db)
 	query := application.NewRecommendationQuery(repo)
 	manager := application.NewRecommendationManager(repo, logger.Logger)
-	service := application.NewRecommendationService(manager, query)
+	service := application.NewRecommendationService(manager, query, logger.Logger)
 
 	// 5. 资源回收
 	cleanup := func() {

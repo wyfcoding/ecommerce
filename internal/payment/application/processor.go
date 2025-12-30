@@ -100,7 +100,9 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 	}
 
 	// 7. 记录交易数据供风控后续分析（异步或同步）
-	_ = s.riskService.RecordTransaction(ctx, &domain.RiskContext{UserID: userID, Amount: amount})
+	if err := s.riskService.RecordTransaction(ctx, &domain.RiskContext{UserID: userID, Amount: amount}); err != nil {
+		s.logger.ErrorContext(ctx, "failed to record transaction for risk analysis", "user_id", userID, "amount", amount, "error", err)
+	}
 
 	s.logger.InfoContext(ctx, "payment initiated", "payment_id", payment.ID, "gateway", gatewayType)
 	return payment, gatewayResp, nil

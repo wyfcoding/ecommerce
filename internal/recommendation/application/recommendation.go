@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/recommendation/domain"
@@ -13,13 +14,15 @@ import (
 type RecommendationService struct {
 	manager *RecommendationManager
 	query   *RecommendationQuery
+	logger  *slog.Logger
 }
 
 // NewRecommendationService 创建并返回一个新的 RecommendationService 实例。
-func NewRecommendationService(manager *RecommendationManager, query *RecommendationQuery) *RecommendationService {
+func NewRecommendationService(manager *RecommendationManager, query *RecommendationQuery, logger *slog.Logger) *RecommendationService {
 	return &RecommendationService{
 		manager: manager,
 		query:   query,
+		logger:  logger,
 	}
 }
 

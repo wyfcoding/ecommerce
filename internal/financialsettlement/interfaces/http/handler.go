@@ -120,9 +120,26 @@ func (h *Handler) GetSettlement(c *gin.Context) {
 
 // ListSettlements 处理获取结算单列表的HTTP请求。
 func (h *Handler) ListSettlements(c *gin.Context) {
-	sellerID, _ := strconv.ParseUint(c.Query("seller_id"), 10, 64)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		sellerID uint64
+		err      error
+	)
+	if val := c.Query("seller_id"); val != "" {
+		sellerID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid seller_id", err.Error())
+			return
+		}
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListSettlements(c.Request.Context(), sellerID, page, pageSize)
 	if err != nil {
