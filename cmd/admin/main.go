@@ -24,17 +24,18 @@ import (
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/storage"
 )
 
-// BootstrapName 服务标识。
+// BootstrapName 服务标识
 const BootstrapName = "admin"
 
-// Config 扩展配置结构。
+// Config 扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-// AppContext 应用资源上下文。
+// AppContext 应用资源上下文 (仅包含对外提供服务的实例)
 type AppContext struct {
 	Config          *Config
 	Admin           *application.AdminService
@@ -46,7 +47,7 @@ type AppContext struct {
 	Idempotency     idempotency.Manager
 }
 
-// ServiceClients 外部 gRPC 服务客户端连接池。
+// ServiceClients 下游微服务
 type ServiceClients struct {
 	User    *grpc.ClientConn `service:"user"`
 	Order   *grpc.ClientConn `service:"order"`
@@ -60,8 +61,9 @@ func main() {
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.MetricsMiddleware(), // Prometheus 指标收集中间件
-			middleware.CORS(),              // 跨域支持
+			middleware.MetricsMiddleware(),
+			middleware.CORS(),
+			middleware.TimeoutMiddleware(30*time.Second),
 		).
 		Build().
 		Run(); err != nil {
@@ -69,22 +71,18 @@ func main() {
 	}
 }
 
-// registerGRPC 注册 gRPC 服务。
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
 	pb.RegisterAdminServer(s, admingrpc.NewServer(ctx.Admin))
 }
 
-// registerGin 注册 HTTP 路由。
 func registerGin(e *gin.Engine, svc any) {
 	ctx := svc.(*AppContext)
 
-	// 1. 运行模式预设 (必须在所有路由注册前)
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 2. 基础路由层：不应用限流和幂等
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
@@ -99,25 +97,23 @@ func registerGin(e *gin.Engine, svc any) {
 		})
 	}
 
-	// 监控指标端点
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 3. 业务保护层：限流
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 4. 业务逻辑路由组：加入幂等保护
 	api := e.Group("/api/v1")
 	{
-		// 仅针对写操作接口开启幂等保护
-		api.Use(middleware.IdempotencyMiddleware(ctx.Idempotency, 24*time.Hour))
-		
-		ctx.AuthHandler.RegisterRoutes(api)
-		ctx.WorkflowHandler.RegisterRoutes(api)
-	}
+		ctx.AuthHandler.RegisterRoutes(api, ctx.Config.JWT.Secret)
 
-	slog.Info("HTTP service configured successfully", "service", BootstrapName)
+		protected := api.Group("/")
+		protected.Use(middleware.JWTAuth(ctx.Config.JWT.Secret))
+		protected.Use(middleware.IdempotencyMiddleware(ctx.Idempotency, 24*time.Hour))
+		{
+			ctx.WorkflowHandler.RegisterRoutes(protected)
+		}
+	}
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
@@ -125,31 +121,40 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default()
 
-	// 1. 基础设施初始化
+	configpkg.PrintWithMask(c)
+
+	// 1. 数据库
 	db, err := databases.NewDB(c.Data.Database, logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to init database: %w", err)
+		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
 
+	// 2. Redis
 	redisCache, err := cache.NewRedisCache(c.Data.Redis)
 	if err != nil {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("failed to init redis: %w", err)
+		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 2. 治理：分布式限流器 (基于 Redis)
-	rateLimiter := limiter.NewRedisLimiter(
-		redisCache.GetClient(),
-		c.RateLimit.Rate,
-		time.Second,
-	)
-
-	// 3. 治理：分布式幂等管理器 (基于 Redis)
+	// 3. 治理组件
+	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), "admin:idem")
 
-	// 4. 外部服务连接 (自动发现)
+	// 4. 存储基础设施 (不再放入 AppContext，而是准备注入 Service)
+	store, err := storage.NewMinIOClient(
+		c.Minio.Endpoint,
+		c.Minio.AccessKeyID,
+		c.Minio.SecretAccessKey,
+		c.Minio.BucketName,
+		c.Minio.UseSSL,
+	)
+	if err != nil {
+		bootLog.Warn("storage init failed, continuing without storage", "error", err)
+	}
+
+	// 5. 下游微服务
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
@@ -157,12 +162,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
-		return nil, nil, fmt.Errorf("failed to init grpc clients: %w", err)
+		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 4. 业务分层装配 (DDD 结构)
-	bootLog.Info("assembling domain services...")
-
+	// 6. DDD 分层装配
+	bootLog.Info("assembling services with full dependency injection...")
 	adminRepo := mysql.NewAdminRepository(db)
 	roleRepo := mysql.NewRoleRepository(db)
 	auditRepo := mysql.NewAuditRepository(db)
@@ -173,6 +177,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		OrderClient:   clients.Order,
 		UserClient:    clients.User,
 		PaymentClient: clients.Payment,
+		Storage:       store, // 【对齐】：Storage 像 DB/Redis 一样被注入
 	}
 
 	adminService := application.NewAdminService(
@@ -188,7 +193,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	authHandler := adminhttp.NewAuthHandler(adminService, logger.Logger)
 	workflowHandler := adminhttp.NewWorkflowHandler(adminService, logger.Logger)
 
-	// 5. 资源回收逻辑
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()

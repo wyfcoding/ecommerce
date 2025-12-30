@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
+	"github.com/wyfcoding/pkg/storage"
 	"google.golang.org/grpc"
 )
 
@@ -29,11 +30,12 @@ func NewAdminService(
 	}
 }
 
-// SystemOpsDependencies 系统操作依赖的其他服务客户端
+// SystemOpsDependencies 系统操作依赖的其他服务客户端与基础设施
 type SystemOpsDependencies struct {
 	OrderClient   *grpc.ClientConn
 	PaymentClient *grpc.ClientConn
 	UserClient    *grpc.ClientConn
+	Storage       storage.Storage // 【优化】：纳入统一依赖管理
 }
 
 // --- DTO Definitions ---
