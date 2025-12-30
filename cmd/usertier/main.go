@@ -192,6 +192,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Handler:     handler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
-		Idempotency:     idemManager,
+		Idempotency: idemManager,
 	}, cleanup, nil
 }

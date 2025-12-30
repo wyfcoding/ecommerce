@@ -164,7 +164,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	
+
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
 		return nil, nil, fmt.Errorf("idgen init error: %w", err)
@@ -192,7 +192,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if w, ok := c.Services["warehouse"]; ok {
 		warehouseAddr = w.GRPCAddr
 	}
-	
+
 	orderManager := application.NewOrderManager(
 		orderRepo,
 		idGenerator,
@@ -203,7 +203,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		m,
 	)
 	orderQuery := application.NewOrderQuery(orderRepo)
-	
+
 	orderService := application.NewOrderService(
 		orderManager,
 		orderQuery,

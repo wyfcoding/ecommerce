@@ -58,7 +58,7 @@ type AppContext struct {
 type ServiceClients struct {
 	SettlementConn *grpc.ClientConn `service:"settlement"`
 	OrderConn      *grpc.ClientConn `service:"order"`
-	
+
 	// 具体的客户端接口 (由 Conn 转化)
 	Settlement settlementv1.SettlementServiceClient
 }
@@ -187,9 +187,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	paymentRepo := persistence.NewPaymentRepository(shardingManager)
 	channelRepo := persistence.NewChannelRepository(shardingManager)
 	refundRepo := persistence.NewRefundRepository(shardingManager)
-	
+
 	riskSvc := risk.NewRiskService()
-	
+
 	gateways := map[domain.GatewayType]domain.PaymentGateway{
 		domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),
 		domain.GatewayTypeStripe: gateway.NewStripeGateway(),

@@ -115,7 +115,7 @@ func registerGin(e *gin.Engine, svc any) {
 	{
 		// 购物车通常需要鉴权
 		api.Use(middleware.JWTAuth(ctx.Config.JWT.Secret))
-		
+
 		ctx.Handler.RegisterRoutes(api)
 	}
 }

@@ -17,8 +17,8 @@ import (
 	flashsalegrpc "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/grpc"
 	flashsalehttp "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
-	configpkg "github.com/wyfcoding/pkg/config"
 	cachepkg "github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
@@ -54,8 +54,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	Order    *grpc.ClientConn `service:"order"`
-	Product  *grpc.ClientConn `service:"product"`
+	Order     *grpc.ClientConn `service:"order"`
+	Product   *grpc.ClientConn `service:"product"`
 	Inventory *grpc.ClientConn `service:"inventory"`
 }
 
