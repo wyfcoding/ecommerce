@@ -45,8 +45,7 @@ type AppContext struct {
 }
 
 // ServiceClients 下游微服务。
-type ServiceClients struct {
-}
+type ServiceClients struct{}
 
 func main() {
 	if err := app.NewBuilder(BootstrapName).

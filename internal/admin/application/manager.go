@@ -104,17 +104,15 @@ func (m *AdminManager) Login(ctx context.Context, username, password string, sec
 		roles = append(roles, r.Code)
 	}
 
-	// 【闭环】：调用增强版 Token 生成函数，保留 Roles 优化
-	token, err := jwt.GenerateTokenWithRoles(
+	// 【闭环】：调用统一的 Token 生成函数
+	token, err := jwt.GenerateToken(
 		uint64(user.ID),
 		user.Username,
 		roles,
 		secret,
 		issuer,
 		expiry,
-		nil,
 	)
-
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate token: %w", err)
 	}
@@ -122,7 +120,9 @@ func (m *AdminManager) Login(ctx context.Context, username, password string, sec
 	go func() {
 		now := time.Now()
 		user.LastLoginAt = &now
-		_ = m.userRepo.Update(context.Background(), user)
+		if err := m.userRepo.Update(context.Background(), user); err != nil {
+			m.logger.Warn("failed to update last login time", "user_id", user.ID, "error", err)
+		}
 	}()
 
 	return token, user, nil

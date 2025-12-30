@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/admin/application"
 	"github.com/wyfcoding/pkg/response"
-	"github.com/wyfcoding/pkg/xerrors"
 )
 
 // AuthHandler 处理登录与注册。
@@ -37,12 +36,12 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup, secret string) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req application.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, xerrors.InvalidArg("invalid request body").WithDetail(err.Error()))
+		// 适配原始 response 包：使用 BadRequest
+		response.BadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
-	// 调用 Manager 层：现在 Manager 负责身份校验、角色提取和 Token 签发
-	// 默认配置在此传入，生产环境建议从 Handler 的 Config 字段读取
+	// 调用 Manager 层
 	token, user, err := h.svc.Manager.Login(
 		c.Request.Context(),
 		req.Username,
@@ -51,9 +50,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"ecommerce",
 		24*time.Hour,
 	)
-
 	if err != nil {
-		response.Error(c, xerrors.Unauthenticated("login failed").WithDetail(err.Error()))
+		// 适配原始 response 包：使用 Unauthorized
+		response.Unauthorized(c, "login failed: "+err.Error())
 		return
 	}
 
@@ -71,13 +70,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req application.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, xerrors.InvalidArg("invalid input").WithDetail(err.Error()))
+		response.BadRequest(c, "invalid input: "+err.Error())
 		return
 	}
 
 	_, err := h.svc.Manager.RegisterAdmin(c.Request.Context(), &req)
 	if err != nil {
-		response.Error(c, xerrors.Internal("failed to create admin", err))
+		// 适配原始 response 包：使用 InternalError
+		response.InternalError(c, "failed to create admin: "+err.Error())
 		return
 	}
 

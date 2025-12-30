@@ -1,26 +1,23 @@
 package http
 
 import (
-	"net/http" // 导入HTTP状态码。
-	"strconv"  // 导入字符串和数字转换工具。
-	"time"     // 导入时间包，用于时间解析。
+	"log/slog"
+	"net/http"
+	"strconv"
+	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/analytics/application" // 导入分析模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/analytics/domain"      // 导入分析模块的领域层。
-	"github.com/wyfcoding/pkg/response"                             // 导入统一的响应处理工具。
+	"github.com/wyfcoding/ecommerce/internal/analytics/application"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
+	"github.com/wyfcoding/pkg/response"
 
-	"log/slog" // 导入结构化日志库。
-
-	"github.com/gin-gonic/gin" // 导入Gin Web框架。
+	"github.com/gin-gonic/gin"
 )
 
-// Handler 结构体定义了Analytics模块的HTTP处理层。
 type Handler struct {
-	app    *application.Analytics // 依赖Analytics应用服务 facade。
-	logger *slog.Logger           // 日志记录器。
+	app    *application.Analytics
+	logger *slog.Logger
 }
 
-// NewHandler 创建并返回一个新的 Analytics HTTP Handler 实例。
 func NewHandler(app *application.Analytics, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
@@ -28,7 +25,6 @@ func NewHandler(app *application.Analytics, logger *slog.Logger) *Handler {
 	}
 }
 
-// RecordMetric 处理记录指标的HTTP请求。
 func (h *Handler) RecordMetric(c *gin.Context) {
 	var req struct {
 		MetricType   string  `json:"metric_type" binding:"required"`
@@ -40,24 +36,31 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.BadRequest(c, "invalid data")
 		return
 	}
 
 	err := h.app.RecordMetric(c.Request.Context(), domain.MetricType(req.MetricType), req.Name, req.Value, domain.TimeGranularity(req.Granularity), req.Dimension, req.DimensionVal)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to record metric", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to record metric", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Metric recorded successfully", nil)
+	response.SuccessWithStatus(c, http.StatusCreated, "Created", nil)
 }
 
-// QueryMetrics 处理查询指标的HTTP请求。
 func (h *Handler) QueryMetrics(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		response.BadRequest(c, "invalid page")
+		return
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil {
+		response.BadRequest(c, "invalid page_size")
+		return
+	}
 	metricType := c.DefaultQuery("metric_type", "")
 	granularity := c.DefaultQuery("granularity", "")
 	startTimeStr := c.DefaultQuery("start_time", "")
@@ -83,19 +86,18 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 	list, total, err := h.app.QueryMetrics(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to query metrics", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to query metrics", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Metrics queried successfully", gin.H{
-		"data":      list,
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
+	response.Success(c, gin.H{
+		"list":  list,
+		"total": total,
+		"page":  page,
+		"size":  pageSize,
 	})
 }
 
-// CreateDashboard 处理创建仪表板的HTTP请求。
 func (h *Handler) CreateDashboard(c *gin.Context) {
 	var req struct {
 		Name        string `json:"name" binding:"required"`
@@ -104,43 +106,41 @@ func (h *Handler) CreateDashboard(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.BadRequest(c, "invalid data")
 		return
 	}
 
 	dashboard, err := h.app.CreateDashboard(c.Request.Context(), req.Name, req.Description, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create dashboard", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create dashboard", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Dashboard created successfully", dashboard)
+	response.SuccessWithStatus(c, http.StatusCreated, "Created", dashboard)
 }
 
-// GetDashboard 处理获取仪表板详情的HTTP请求。
 func (h *Handler) GetDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.BadRequest(c, "invalid ID")
 		return
 	}
 
 	dashboard, err := h.app.GetDashboard(c.Request.Context(), id)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to get dashboard", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get dashboard", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get dashboard", "id", id, "error", err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Dashboard details retrieved successfully", dashboard)
+	response.Success(c, dashboard)
 }
 
-// AddMetricToDashboard 处理添加指标到仪表板的HTTP请求。
 func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.BadRequest(c, "invalid ID")
 		return
 	}
 
@@ -151,25 +151,24 @@ func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.BadRequest(c, "invalid data")
 		return
 	}
 
 	err = h.app.AddMetricToDashboard(c.Request.Context(), id, domain.MetricType(req.MetricType), req.Title, req.ChartType)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to add metric to dashboard", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add metric to dashboard", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "Failed to add metric to dashboard", "id", id, "error", err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Metric added to dashboard successfully", nil)
+	response.Success(c, nil)
 }
 
-// UpdateDashboard 处理更新仪表板的HTTP请求。
 func (h *Handler) UpdateDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.BadRequest(c, "invalid ID")
 		return
 	}
 
@@ -178,76 +177,80 @@ func (h *Handler) UpdateDashboard(c *gin.Context) {
 		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.BadRequest(c, "invalid data")
 		return
 	}
 
 	dashboard, err := h.app.UpdateDashboard(c.Request.Context(), id, req.Name, req.Description)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update dashboard", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Dashboard updated successfully", dashboard)
+	response.Success(c, dashboard)
 }
 
-// DeleteDashboard 处理删除仪表板的HTTP请求。
 func (h *Handler) DeleteDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.BadRequest(c, "invalid ID")
 		return
 	}
 
 	if err := h.app.DeleteDashboard(c.Request.Context(), id); err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete dashboard", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Dashboard deleted successfully", nil)
+	response.Success(c, nil)
 }
 
-// ListDashboards 处理列出仪表板的HTTP请求。
 func (h *Handler) ListDashboards(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
+		response.BadRequest(c, "invalid user_id")
 		return
 	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		response.BadRequest(c, "invalid page")
+		return
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil {
+		response.BadRequest(c, "invalid page_size")
+		return
+	}
 
 	dashboards, total, err := h.app.ListDashboards(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list dashboards", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Dashboards listed successfully", gin.H{
-		"data":      dashboards,
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
+	response.Success(c, gin.H{
+		"list":  dashboards,
+		"total": total,
+		"page":  page,
+		"size":  pageSize,
 	})
 }
 
-// PublishDashboard 处理发布仪表板的HTTP请求。
 func (h *Handler) PublishDashboard(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.BadRequest(c, "invalid ID")
 		return
 	}
 
 	if err := h.app.PublishDashboard(c.Request.Context(), id); err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to publish dashboard", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Dashboard published successfully", nil)
+	response.Success(c, nil)
 }
 
-// CreateReport 处理创建报告的HTTP请求。
 func (h *Handler) CreateReport(c *gin.Context) {
 	var req struct {
 		Title       string `json:"title" binding:"required"`
@@ -257,130 +260,76 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.BadRequest(c, "invalid data")
 		return
 	}
 
 	report, err := h.app.CreateReport(c.Request.Context(), req.Title, req.Description, req.UserID, req.ReportType)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create report", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create report", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Report created successfully", report)
+	response.SuccessWithStatus(c, http.StatusCreated, "Created", report)
 }
 
-// GetReport 处理获取报告详情的HTTP请求。
 func (h *Handler) GetReport(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.BadRequest(c, "invalid ID")
 		return
 	}
 
 	report, err := h.app.GetReport(c.Request.Context(), id)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get report", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 	if report == nil {
-		response.ErrorWithStatus(c, http.StatusNotFound, "Report not found", "report not found")
+		response.NotFound(c, "report not found")
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Report retrieved successfully", report)
+	response.Success(c, report)
 }
 
-// UpdateReport 处理更新报告的HTTP请求。
-func (h *Handler) UpdateReport(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
-		return
-	}
-
-	var req struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
-		return
-	}
-
-	report, err := h.app.UpdateReport(c.Request.Context(), id, req.Title, req.Description)
-	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update report", err.Error())
-		return
-	}
-
-	response.SuccessWithStatus(c, http.StatusOK, "Report updated successfully", report)
-}
-
-// DeleteReport 处理删除报告的HTTP请求。
-func (h *Handler) DeleteReport(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
-		return
-	}
-
-	if err := h.app.DeleteReport(c.Request.Context(), id); err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete report", err.Error())
-		return
-	}
-
-	response.SuccessWithStatus(c, http.StatusOK, "Report deleted successfully", nil)
-}
-
-// ListReports 处理列出报告的HTTP请求。
 func (h *Handler) ListReports(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
+		response.BadRequest(c, "invalid user_id")
 		return
 	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		response.BadRequest(c, "invalid page")
+		return
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil {
+		response.BadRequest(c, "invalid page_size")
+		return
+	}
 
 	reports, total, err := h.app.ListReports(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list reports", err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Reports listed successfully", gin.H{
-		"data":      reports,
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
+	response.Success(c, gin.H{
+		"list":  reports,
+		"total": total,
+		"page":  page,
+		"size":  pageSize,
 	})
 }
 
-// PublishReport 处理发布报告的HTTP请求。
-func (h *Handler) PublishReport(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
-		return
-	}
-
-	if err := h.app.PublishReport(c.Request.Context(), id); err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to publish report", err.Error())
-		return
-	}
-
-	response.SuccessWithStatus(c, http.StatusOK, "Report published successfully", nil)
-}
-
-// RegisterRoutes 注册Analytics模块的HTTP路由。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	group := r.Group("/analytics")
 	{
 		group.POST("/metrics", h.RecordMetric)
 		group.GET("/metrics", h.QueryMetrics)
-
 		group.POST("/dashboards", h.CreateDashboard)
 		group.GET("/dashboards", h.ListDashboards)
 		group.GET("/dashboards/:id", h.GetDashboard)
@@ -388,12 +337,8 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		group.DELETE("/dashboards/:id", h.DeleteDashboard)
 		group.POST("/dashboards/:id/metrics", h.AddMetricToDashboard)
 		group.POST("/dashboards/:id/publish", h.PublishDashboard)
-
 		group.POST("/reports", h.CreateReport)
 		group.GET("/reports", h.ListReports)
 		group.GET("/reports/:id", h.GetReport)
-		group.PUT("/reports/:id", h.UpdateReport)
-		group.DELETE("/reports/:id", h.DeleteReport)
-		group.POST("/reports/:id/publish", h.PublishReport)
 	}
 }

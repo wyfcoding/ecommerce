@@ -197,10 +197,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()
 		if redisCache != nil {
-			redisCache.Close()
+			_ = redisCache.Close()
 		}
-		if sqlDB, err := db.DB(); err == nil {
-			sqlDB.Close()
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+			_ = sqlDB.Close()
 		}
 	}
 

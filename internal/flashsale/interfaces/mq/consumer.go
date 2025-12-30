@@ -48,7 +48,7 @@ func (c *OrderConsumer) handleMessage(ctx context.Context, msg kafkago.Message) 
 		return nil
 	}
 	orderID := uint64(val.(float64))
-	
+
 	flashsaleID := uint64(event["flashsale_id"].(float64))
 	userID := uint64(event["user_id"].(float64))
 	productID := uint64(event["product_id"].(float64))

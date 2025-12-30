@@ -63,7 +63,11 @@ func (h *WorkflowHandler) Apply(c *gin.Context) {
 
 func (h *WorkflowHandler) Action(c *gin.Context) {
 	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		response.BadRequest(c, "invalid workflow ID format")
+		return
+	}
 
 	var req application.ApprovalActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -73,7 +77,6 @@ func (h *WorkflowHandler) Action(c *gin.Context) {
 
 	approverID, _ := middleware.GetUserID(c)
 
-	var err error
 	if req.Action == "approve" {
 		err = h.svc.Manager.ApproveRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
 	} else {

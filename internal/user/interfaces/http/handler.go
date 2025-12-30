@@ -25,15 +25,12 @@ func NewHandler(app *application.UserService, logger *slog.Logger) *Handler {
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	v1 := r.Group("/user")
 	{
-		// Auth
 		v1.POST("/register", h.Register)
 		v1.POST("/login", h.Login)
 
-		// Profile (Need Auth Middleware in real world, but keeping simple for structure now)
 		v1.GET("/:id", h.GetUser)
 		v1.PUT("/:id", h.UpdateProfile)
 
-		// Address
 		addressGroup := v1.Group("/:id/addresses")
 		{
 			addressGroup.POST("", h.AddAddress)
@@ -45,35 +42,34 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	}
 }
 
-// Register 注册
 func (h *Handler) Register(c *gin.Context) {
 	var req application.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
 	user, err := h.app.Manager.Register(c.Request.Context(), &req)
 	if err != nil {
-		slog.ErrorContext(c, "register failed", "err", err)
-		response.Error(c, err)
+		h.logger.ErrorContext(c.Request.Context(), "user registration failed", "username", req.Username, "error", err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
 	response.Success(c, gin.H{"user_id": user.ID})
 }
 
-// Login 登录
 func (h *Handler) Login(c *gin.Context) {
 	var req application.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid credentials format")
 		return
 	}
 
 	token, expiresAt, err := h.app.Manager.Login(c.Request.Context(), req.Username, req.Password, c.ClientIP())
 	if err != nil {
-		response.Unauthorized(c, err.Error())
+		h.logger.WarnContext(c.Request.Context(), "login attempt failed", "username", req.Username, "ip", c.ClientIP(), "error", err)
+		response.Unauthorized(c, "invalid username or password")
 		return
 	}
 
@@ -83,18 +79,17 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
-// GetUser 获取用户
 func (h *Handler) GetUser(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID format")
 		return
 	}
 
 	user, err := h.app.Query.GetUser(c.Request.Context(), uint(id))
 	if err != nil {
-		response.Error(c, err)
+		h.logger.ErrorContext(c.Request.Context(), "failed to get user info", "id", id, "error", err)
+		response.InternalError(c, err.Error())
 		return
 	}
 	if user == nil {
@@ -105,91 +100,83 @@ func (h *Handler) GetUser(c *gin.Context) {
 	response.Success(c, user)
 }
 
-// UpdateProfile 更新资料
 func (h *Handler) UpdateProfile(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID format")
 		return
 	}
 
 	var req application.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid update data: "+err.Error())
 		return
 	}
 
 	user, err := h.app.Manager.UpdateProfile(c.Request.Context(), uint(id), &req)
 	if err != nil {
-		response.Error(c, err)
+		h.logger.ErrorContext(c.Request.Context(), "failed to update user profile", "id", id, "error", err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
 	response.Success(c, user)
 }
 
-// AddAddress 添加地址
 func (h *Handler) AddAddress(c *gin.Context) {
-	idStr := c.Param("id")
-	userID, err := strconv.ParseUint(idStr, 10, 64)
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID")
 		return
 	}
 
 	var req application.AddressDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid address data")
 		return
 	}
 
 	addr, err := h.app.Manager.AddAddress(c.Request.Context(), uint(userID), &req)
 	if err != nil {
-		response.Error(c, err)
+		response.InternalError(c, "failed to add address: "+err.Error())
 		return
 	}
 
 	response.Success(c, addr)
 }
 
-// ListAddresses 地址列表
 func (h *Handler) ListAddresses(c *gin.Context) {
-	idStr := c.Param("id")
-	userID, err := strconv.ParseUint(idStr, 10, 64)
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID")
 		return
 	}
 
 	list, err := h.app.Query.ListAddresses(c.Request.Context(), uint(userID))
 	if err != nil {
-		response.Error(c, err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
 	response.Success(c, list)
 }
 
-// GetAddress 获取地址
 func (h *Handler) GetAddress(c *gin.Context) {
-	idStr := c.Param("id")
-	userID, err := strconv.ParseUint(idStr, 10, 64)
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID")
 		return
 	}
 
-	addrIDStr := c.Param("addressId")
-	addrID, err := strconv.ParseUint(addrIDStr, 10, 64)
+	addrID, err := strconv.ParseUint(c.Param("addressId"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid address id")
+		response.BadRequest(c, "invalid address ID")
 		return
 	}
 
 	addr, err := h.app.Query.GetAddress(c.Request.Context(), uint(userID), uint(addrID))
 	if err != nil {
-		response.Error(c, err)
+		response.InternalError(c, err.Error())
 		return
 	}
 	if addr == nil {
@@ -200,57 +187,51 @@ func (h *Handler) GetAddress(c *gin.Context) {
 	response.Success(c, addr)
 }
 
-// UpdateAddress 更新地址
 func (h *Handler) UpdateAddress(c *gin.Context) {
-	idStr := c.Param("id")
-	userID, err := strconv.ParseUint(idStr, 10, 64)
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID")
 		return
 	}
 
-	addrIDStr := c.Param("addressId")
-	addrID, err := strconv.ParseUint(addrIDStr, 10, 64)
+	addrID, err := strconv.ParseUint(c.Param("addressId"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid address id")
+		response.BadRequest(c, "invalid address ID")
 		return
 	}
 
 	var req application.AddressDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "invalid data")
 		return
 	}
 
 	addr, err := h.app.Manager.UpdateAddress(c.Request.Context(), uint(userID), uint(addrID), &req)
 	if err != nil {
-		response.Error(c, err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
 	response.Success(c, addr)
 }
 
-// DeleteAddress 删除地址
 func (h *Handler) DeleteAddress(c *gin.Context) {
-	idStr := c.Param("id")
-	userID, err := strconv.ParseUint(idStr, 10, 64)
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid user id")
+		response.BadRequest(c, "invalid user ID")
 		return
 	}
 
-	addrIDStr := c.Param("addressId")
-	addrID, err := strconv.ParseUint(addrIDStr, 10, 64)
+	addrID, err := strconv.ParseUint(c.Param("addressId"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "invalid address id")
+		response.BadRequest(c, "invalid address ID")
 		return
 	}
 
 	if err := h.app.Manager.DeleteAddress(c.Request.Context(), uint(userID), uint(addrID)); err != nil {
-		response.Error(c, err)
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	response.Success(c, gin.H{"status": "ok"})
+	response.Success(c, gin.H{"status": "deleted"})
 }

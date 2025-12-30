@@ -102,7 +102,8 @@ func (m *UserManager) Login(ctx context.Context, username, password, ip string) 
 	}
 
 	// 4. Generate Token
-	token, err := jwt.GenerateToken(uint64(user.ID), user.Username, m.jwtSecret, m.jwtIssuer, m.jwtExpiry, nil)
+	// 【修正】：适配统一的 6 参数签名
+	token, err := jwt.GenerateToken(uint64(user.ID), user.Username, nil, m.jwtSecret, m.jwtIssuer, m.jwtExpiry)
 	if err != nil {
 		return "", 0, err
 	}
