@@ -62,7 +62,14 @@ func (h *Handler) ListModels(c *gin.Context) {
 	status := c.DefaultQuery("status", "")
 	modelType := c.DefaultQuery("type", "")
 	algorithm := c.DefaultQuery("algorithm", "")
-	creatorID, _ := strconv.ParseUint(c.DefaultQuery("creator_id", "0"), 10, 64)
+	var creatorID uint64
+	if val := c.Query("creator_id"); val != "" {
+		creatorID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid creator_id", err.Error())
+			return
+		}
+	}
 
 	query := &domain.ModelQuery{
 		Status:    domain.ModelStatus(status),

@@ -103,10 +103,14 @@ func (m *CouponManager) UseCoupon(ctx context.Context, userCouponID uint64, user
 	}
 
 	// 更新模板的使用统计。
-	coupon, _ := m.repo.GetCoupon(ctx, userCoupon.CouponID)
-	if coupon != nil {
+	coupon, err := m.repo.GetCoupon(ctx, userCoupon.CouponID)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get coupon for stats update", "coupon_id", userCoupon.CouponID, "error", err)
+	} else if coupon != nil {
 		coupon.Use()
-		_ = m.repo.UpdateCoupon(ctx, coupon)
+		if err := m.repo.UpdateCoupon(ctx, coupon); err != nil {
+			m.logger.ErrorContext(ctx, "failed to update coupon stats", "coupon_id", coupon.ID, "error", err)
+		}
 	}
 
 	return nil

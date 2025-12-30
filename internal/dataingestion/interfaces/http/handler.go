@@ -52,8 +52,14 @@ func (h *Handler) RegisterSource(c *gin.Context) {
 
 // ListSources 处理获取数据源列表的HTTP请求。
 func (h *Handler) ListSources(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListSources(c.Request.Context(), page, pageSize)
 	if err != nil {
@@ -90,9 +96,26 @@ func (h *Handler) TriggerIngestion(c *gin.Context) {
 
 // ListJobs 处理获取数据摄取任务列表的HTTP请求。
 func (h *Handler) ListJobs(c *gin.Context) {
-	sourceID, _ := strconv.ParseUint(c.Query("source_id"), 10, 64)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		sourceID uint64
+		err      error
+	)
+	if val := c.Query("source_id"); val != "" {
+		sourceID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid source_id", err.Error())
+			return
+		}
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListJobs(c.Request.Context(), sourceID, page, pageSize)
 	if err != nil {

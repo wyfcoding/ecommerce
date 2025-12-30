@@ -2,18 +2,20 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 )
 
 // ReviewQuery 处理评论模块的查询操作。
 type ReviewQuery struct {
-	repo domain.ReviewRepository
+	repo   domain.ReviewRepository
+	logger *slog.Logger
 }
 
 // NewReviewQuery 创建并返回一个新的 ReviewQuery 实例。
-func NewReviewQuery(repo domain.ReviewRepository) *ReviewQuery {
-	return &ReviewQuery{repo: repo}
+func NewReviewQuery(repo domain.ReviewRepository, logger *slog.Logger) *ReviewQuery {
+	return &ReviewQuery{repo: repo, logger: logger}
 }
 
 // GetReview 根据ID获取评论详情。

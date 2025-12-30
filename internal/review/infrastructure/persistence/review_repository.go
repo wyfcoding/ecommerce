@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors" // 导入标准错误处理库。
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain" // 导入评论领域的领域定义。
 
@@ -10,12 +11,16 @@ import (
 )
 
 type reviewRepository struct {
-	db *gorm.DB // GORM数据库连接实例。
+	db     *gorm.DB     // GORM数据库连接实例。
+	logger *slog.Logger // 日志记录器。
 }
 
 // NewReviewRepository 创建并返回一个新的 reviewRepository 实例。
-func NewReviewRepository(db *gorm.DB) domain.ReviewRepository {
-	return &reviewRepository{db: db}
+func NewReviewRepository(db *gorm.DB, logger *slog.Logger) domain.ReviewRepository {
+	return &reviewRepository{
+		db:     db,
+		logger: logger,
+	}
 }
 
 // Save 将评论实体保存到数据库。
@@ -103,7 +108,11 @@ func (r *reviewRepository) GetProductStats(ctx context.Context, productID uint64
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			r.logger.Error("failed to close rows", "error", closeErr)
+		}
+	}()
 
 	var totalRating int64 // 用于计算总评分。
 	for rows.Next() {

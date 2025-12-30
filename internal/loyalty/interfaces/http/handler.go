@@ -91,8 +91,14 @@ func (h *Handler) GetTransactions(c *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.GetPointsTransactions(c.Request.Context(), userID, page, pageSize)
 	if err != nil {

@@ -68,10 +68,18 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 
 	var startTime, endTime time.Time
 	if startTimeStr != "" {
-		startTime, _ = time.Parse(time.RFC3339, startTimeStr)
+		startTime, err = time.Parse(time.RFC3339, startTimeStr)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid start_time format", err.Error())
+			return
+		}
 	}
 	if endTimeStr != "" {
-		endTime, _ = time.Parse(time.RFC3339, endTimeStr)
+		endTime, err = time.Parse(time.RFC3339, endTimeStr)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid end_time format", err.Error())
+			return
+		}
 	}
 
 	query := &domain.MetricQuery{

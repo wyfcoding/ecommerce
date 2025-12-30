@@ -17,7 +17,6 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/databases/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idgen"
@@ -119,26 +118,29 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	logger := logging.Default()
 
 	// 1. 基础设施：分片数据库管理器
-	bootLog.Info("initializing sharding database manager...")
-	shardingManager, err := sharding.NewManager(c.Data.Shards, logger)
+	bootLog.Info("initializing database manager...")
+	var (
+		shardingManager *sharding.Manager
+		err             error
+	)
+
+	if len(c.Data.Shards) > 0 {
+		shardingManager, err = sharding.NewManager(c.Data.Shards, logger)
+	} else {
+		// 容错：如果未配置分片，使用单库配置构造 Manager
+		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
+	}
+
 	if err != nil {
-		// 容错：如果未配置分片，使用单库
-		if len(c.Data.Shards) == 0 {
-			db, err := databases.NewDB(c.Data.Database, logger)
-			if err != nil {
-				return nil, nil, fmt.Errorf("single db init failed: %w", err)
-			}
-			shardingManager, _ = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
-			_ = db // shardingManager 会接管连接
-		} else {
-			return nil, nil, fmt.Errorf("sharding manager init failed: %w", err)
-		}
+		return nil, nil, fmt.Errorf("database manager init failed: %w", err)
 	}
 
 	// 2. Redis
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
-		shardingManager.Close()
+		if closeErr := shardingManager.Close(); closeErr != nil {
+			bootLog.Error("failed to close sharding manager during error recovery", "error", closeErr)
+		}
 		return nil, nil, fmt.Errorf("redis connection failed: %w", err)
 	}
 
@@ -148,8 +150,12 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 4. ID 生成器 & 消息队列
 	idGen, err := idgen.NewSnowflakeGenerator(c.Snowflake)
 	if err != nil {
-		redisCache.Close()
-		shardingManager.Close()
+		if closeErr := redisCache.Close(); closeErr != nil {
+			bootLog.Error("failed to close redis cache during error recovery", "error", closeErr)
+		}
+		if closeErr := shardingManager.Close(); closeErr != nil {
+			bootLog.Error("failed to close sharding manager during error recovery", "error", closeErr)
+		}
 		return nil, nil, fmt.Errorf("idgen init failed: %w", err)
 	}
 	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logger)
@@ -158,9 +164,15 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
 	if err != nil {
-		kafkaProducer.Close()
-		redisCache.Close()
-		shardingManager.Close()
+		if closeErr := kafkaProducer.Close(); closeErr != nil {
+			bootLog.Error("failed to close kafka producer during error recovery", "error", closeErr)
+		}
+		if closeErr := redisCache.Close(); closeErr != nil {
+			bootLog.Error("failed to close redis cache during error recovery", "error", closeErr)
+		}
+		if closeErr := shardingManager.Close(); closeErr != nil {
+			bootLog.Error("failed to close sharding manager during error recovery", "error", closeErr)
+		}
 		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
 	}
 
@@ -176,9 +188,15 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	cleanup := func() {
 		bootLog.Info("performing graceful shutdown...")
 		clientCleanup()
-		kafkaProducer.Close()
-		redisCache.Close()
-		shardingManager.Close()
+		if err := kafkaProducer.Close(); err != nil {
+			bootLog.Error("failed to close kafka producer", "error", err)
+		}
+		if err := redisCache.Close(); err != nil {
+			bootLog.Error("failed to close redis cache", "error", err)
+		}
+		if err := shardingManager.Close(); err != nil {
+			bootLog.Error("failed to close sharding manager", "error", err)
+		}
 	}
 
 	return &AppContext{

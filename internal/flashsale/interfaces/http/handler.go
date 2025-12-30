@@ -76,12 +76,22 @@ func (h *Handler) GetFlashsale(c *gin.Context) {
 
 // ListFlashsales 处理获取秒杀活动列表的HTTP请求。
 func (h *Handler) ListFlashsales(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	var status *domain.FlashsaleStatus
 	if s := c.Query("status"); s != "" {
-		val, _ := strconv.Atoi(s)
+		val, err := strconv.Atoi(s)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
+		}
 		st := domain.FlashsaleStatus(val)
 		status = &st
 	}

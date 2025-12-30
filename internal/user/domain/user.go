@@ -101,12 +101,20 @@ func (u *User) AddAddress(address *Address) error {
 		address.UserID = u.ID
 	}
 
+	u.Addresses = append(u.Addresses, address) // 先添加到列表中
+
 	// 如果新地址设置为默认，则调用私有方法处理默认地址逻辑。
 	if address.IsDefault {
-		_ = u.setDefaultAddress(address.ID) // 忽略错误，因为地址可能在列表中不存在，将在后面添加。
+		if err := u.setDefaultAddress(address.ID); err != nil {
+			// 如果是新创建的地址且ID还未分配（ID为0），setDefaultAddress 可能会因为找不到ID而报错。
+			// 此时我们直接遍历列表，通过对象指针匹配来设置默认状态。
+			for _, addr := range u.Addresses {
+				// 取消其他所有地址的默认状态
+				addr.IsDefault = (addr == address)
+			}
+		}
 	}
 
-	u.Addresses = append(u.Addresses, address) // 将新地址添加到用户地址列表中。
 	return nil
 }
 
@@ -127,7 +135,9 @@ func (u *User) UpdateAddress(addressID uint, address *Address) error {
 
 			// 处理默认地址逻辑。
 			if address.IsDefault {
-				_ = u.setDefaultAddress(addressID)
+				if err := u.setDefaultAddress(addressID); err != nil {
+					return err
+				}
 				u.Addresses[i].IsDefault = true
 			} else {
 				u.Addresses[i].IsDefault = false

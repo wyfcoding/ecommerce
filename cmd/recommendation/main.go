@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dtm-labs/logger"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
@@ -64,7 +63,7 @@ func main() {
 
 func registerGRPC(s *grpc.Server, svc any) {
 	ctx := svc.(*AppContext)
-	pb.RegisterRecommendationServiceServer(s, recommgrpc.NewServer(ctx.AppService, logger.Logger()))
+	pb.RegisterRecommendationServiceServer(s, recommgrpc.NewServer(ctx.AppService, slog.Default()))
 }
 
 func registerGin(e *gin.Engine, srv any) {

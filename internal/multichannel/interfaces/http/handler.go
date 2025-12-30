@@ -73,10 +73,27 @@ func (h *Handler) ListChannels(c *gin.Context) {
 }
 
 func (h *Handler) ListOrders(c *gin.Context) {
-	channelID, _ := strconv.ParseUint(c.Query("channel_id"), 10, 64)
+	var (
+		channelID uint64
+		err       error
+	)
+	if val := c.Query("channel_id"); val != "" {
+		channelID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid channel_id", err.Error())
+			return
+		}
+	}
+
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.service.ListOrders(c.Request.Context(), channelID, status, page, pageSize)
 	if err != nil {

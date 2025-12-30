@@ -50,17 +50,22 @@ func (s *LedgerService) PostEntry(ctx context.Context, entry *JournalEntry) erro
 // CreateAccount 开户
 func (s *LedgerService) CreateAccount(ctx context.Context, subjectCode, entityID string) (*Account, error) {
 	// check existing
-	if acc, _ := s.repo.GetAccount(subjectCode, entityID); acc != nil {
+	var err error
+	acc, err := s.repo.GetAccount(subjectCode, entityID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing account: %w", err)
+	}
+	if acc != nil {
 		return acc, nil
 	}
 
-	acc := &Account{
+	acc = &Account{
 		SubjectCode: subjectCode,
 		EntityID:    entityID,
 		Balance:     0,
 		Currency:    "CNY",
 	}
-	if err := s.repo.SaveAccount(acc); err != nil {
+	if err = s.repo.SaveAccount(acc); err != nil {
 		return nil, err
 	}
 	return acc, nil

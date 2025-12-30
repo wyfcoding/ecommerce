@@ -45,7 +45,11 @@ func (h *WorkflowHandler) Apply(c *gin.Context) {
 		return
 	}
 
-	requesterID, _ := middleware.GetUserID(c)
+	requesterID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.ErrorWithStatus(c, http.StatusUnauthorized, "unauthorized: failed to get user ID", "")
+		return
+	}
 
 	domainReq := &domain.ApprovalRequest{
 		RequesterID: uint(requesterID),
@@ -76,7 +80,11 @@ func (h *WorkflowHandler) Action(c *gin.Context) {
 		return
 	}
 
-	approverID, _ := middleware.GetUserID(c)
+	approverID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.ErrorWithStatus(c, http.StatusUnauthorized, "unauthorized: failed to get user ID", "")
+		return
+	}
 
 	if req.Action == "approve" {
 		err = h.svc.Manager.ApproveRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)

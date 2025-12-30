@@ -114,7 +114,14 @@ func (h *Handler) List(c *gin.Context) {
 		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
-	userID, _ := strconv.ParseUint(c.DefaultQuery("user_id", "0"), 10, 64)
+	var userID uint64
+	if val := c.DefaultQuery("user_id", "0"); val != "0" {
+		userID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+			return
+		}
+	}
 
 	query := &domain.AfterSalesQuery{
 		Page:     page,

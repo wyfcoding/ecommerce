@@ -71,9 +71,19 @@ func (h *Handler) GetCampaign(c *gin.Context) {
 }
 
 func (h *Handler) ListCampaigns(c *gin.Context) {
-	status, _ := strconv.Atoi(c.DefaultQuery("status", "0"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	status, err := strconv.Atoi(c.DefaultQuery("status", "0"))
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+		return
+	}
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListCampaigns(c.Request.Context(), domain.CampaignStatus(status), page, pageSize)
 	if err != nil {

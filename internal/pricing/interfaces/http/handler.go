@@ -66,9 +66,26 @@ func (h *Handler) CalculatePrice(c *gin.Context) {
 }
 
 func (h *Handler) ListRules(c *gin.Context) {
-	productID, _ := strconv.ParseUint(c.Query("product_id"), 10, 64)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		productID uint64
+		err       error
+	)
+	if val := c.Query("product_id"); val != "" {
+		productID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid product_id", err.Error())
+			return
+		}
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.service.ListRules(c.Request.Context(), productID, page, pageSize)
 	if err != nil {
@@ -86,10 +103,34 @@ func (h *Handler) ListRules(c *gin.Context) {
 }
 
 func (h *Handler) ListHistory(c *gin.Context) {
-	productID, _ := strconv.ParseUint(c.Query("product_id"), 10, 64)
-	skuID, _ := strconv.ParseUint(c.Query("sku_id"), 10, 64)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		productID uint64
+		skuID     uint64
+		err       error
+	)
+	if val := c.Query("product_id"); val != "" {
+		productID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid product_id", err.Error())
+			return
+		}
+	}
+	if val := c.Query("sku_id"); val != "" {
+		skuID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid sku_id", err.Error())
+			return
+		}
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.service.ListHistory(c.Request.Context(), productID, skuID, page, pageSize)
 	if err != nil {

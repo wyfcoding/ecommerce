@@ -84,7 +84,9 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 
 		// 3. 写回缓存 (异步)
 		go func() {
-			_ = q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute)
+			if err := q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute); err != nil {
+				q.logger.ErrorContext(context.Background(), "failed to backfill product cache in background", "product_id", id, "error", err)
+			}
 		}()
 
 		return p, nil

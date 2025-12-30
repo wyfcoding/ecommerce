@@ -44,8 +44,16 @@ func (h *Handler) Search(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		req.Keyword = c.Query("keyword")
 		req.Sort = c.Query("sort")
-		req.Page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
-		req.PageSize, _ = strconv.Atoi(c.DefaultQuery("page_size", "10"))
+		page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+		if err != nil || page <= 0 {
+			page = 1
+		}
+		req.Page = page
+		pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+		if err != nil || pageSize <= 0 {
+			pageSize = 10
+		}
+		req.PageSize = pageSize
 	}
 
 	filter := &domain.SearchFilter{
@@ -72,7 +80,10 @@ func (h *Handler) Search(c *gin.Context) {
 
 // GetHotKeywords 处理获取热搜词列表的HTTP请求。
 func (h *Handler) GetHotKeywords(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
 
 	keywords, err := h.app.GetHotKeywords(c.Request.Context(), limit)
 	if err != nil {
@@ -91,7 +102,10 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid User ID", err.Error())
 		return
 	}
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
 
 	history, err := h.app.GetSearchHistory(c.Request.Context(), userID, limit)
 	if err != nil {

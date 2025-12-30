@@ -49,8 +49,14 @@ func (h *Handler) CreateWarehouse(c *gin.Context) {
 
 // ListWarehouses 处理获取仓库列表的HTTP请求。
 func (h *Handler) ListWarehouses(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListWarehouses(c.Request.Context(), page, pageSize)
 	if err != nil {
@@ -204,16 +210,34 @@ func (h *Handler) GetTransfer(c *gin.Context) {
 
 // ListTransfers 处理获取调拨单列表的HTTP请求。
 func (h *Handler) ListTransfers(c *gin.Context) {
-	var fromID, toID uint64
+	var (
+		fromID uint64
+		toID   uint64
+		err    error
+	)
 	if fromStr := c.Query("from_warehouse_id"); fromStr != "" {
-		fromID, _ = strconv.ParseUint(fromStr, 10, 64)
+		fromID, err = strconv.ParseUint(fromStr, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid from_warehouse_id", err.Error())
+			return
+		}
 	}
 	if toStr := c.Query("to_warehouse_id"); toStr != "" {
-		toID, _ = strconv.ParseUint(toStr, 10, 64)
+		toID, err = strconv.ParseUint(toStr, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid to_warehouse_id", err.Error())
+			return
+		}
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListTransfers(c.Request.Context(), fromID, toID, nil, page, pageSize)
 	if err != nil {

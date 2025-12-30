@@ -81,8 +81,14 @@ func (h *Handler) SaveStrategy(c *gin.Context) {
 
 // ListStrategies 处理获取定价策略列表的HTTP请求。
 func (h *Handler) ListStrategies(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListStrategies(c.Request.Context(), page, pageSize)
 	if err != nil {

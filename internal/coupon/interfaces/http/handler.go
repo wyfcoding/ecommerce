@@ -77,9 +77,19 @@ func (h *Handler) IssueCoupon(c *gin.Context) {
 
 // ListCoupons 处理获取优惠券列表的HTTP请求。
 func (h *Handler) ListCoupons(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-	status, _ := strconv.Atoi(c.DefaultQuery("status", "0"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
+	status, err := strconv.Atoi(c.DefaultQuery("status", "0"))
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+		return
+	}
 
 	list, total, err := h.app.ListCoupons(c.Request.Context(), status, page, pageSize)
 	if err != nil {
@@ -98,14 +108,30 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 
 // ListUserCoupons 处理获取用户优惠券列表的HTTP请求。
 func (h *Handler) ListUserCoupons(c *gin.Context) {
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	var (
+		userID uint64
+		err    error
+	)
+	if val := c.Query("user_id"); val != "" {
+		userID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+			return
+		}
+	}
 	if userID == 0 {
 		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user ID", "user_id is required")
 		return
 	}
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListUserCoupons(c.Request.Context(), userID, status, page, pageSize)
 	if err != nil {
@@ -150,7 +176,11 @@ func (h *Handler) CreateActivity(c *gin.Context) {
 
 // UseCoupon 使用优惠券.
 func (h *Handler) UseCoupon(c *gin.Context) {
-	userCouponID, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	userCouponID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user coupon ID", err.Error())
+		return
+	}
 	var req struct {
 		UserID  uint64 `json:"user_id" binding:"required"`
 		OrderID string `json:"order_id" binding:"required"`
@@ -160,7 +190,7 @@ func (h *Handler) UseCoupon(c *gin.Context) {
 		return
 	}
 
-	err := h.app.UseCoupon(c.Request.Context(), userCouponID, req.UserID, req.OrderID)
+	err = h.app.UseCoupon(c.Request.Context(), userCouponID, req.UserID, req.OrderID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to use coupon", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to use coupon", err.Error())

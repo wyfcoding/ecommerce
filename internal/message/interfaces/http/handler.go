@@ -61,15 +61,23 @@ func (h *Handler) ListMessages(c *gin.Context) {
 	}
 
 	statusStr := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	var status *int
 	if statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
-		if err == nil {
-			status = &s
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
 		}
+		status = &s
 	}
 
 	list, total, err := h.service.ListMessages(c.Request.Context(), userID, status, page, pageSize)

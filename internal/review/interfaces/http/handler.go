@@ -55,7 +55,11 @@ func (h *Handler) CreateReview(c *gin.Context) {
 
 // AuditReview 处理审核评论的HTTP请求.
 func (h *Handler) AuditReview(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
 	var req struct {
 		Approved bool `json:"approved"`
 	}
@@ -76,17 +80,36 @@ func (h *Handler) AuditReview(c *gin.Context) {
 
 // ListReviews 获取评论列表.
 func (h *Handler) ListReviews(c *gin.Context) {
-	productID, _ := strconv.ParseUint(c.Query("product_id"), 10, 64)
+	var (
+		productID uint64
+		err       error
+	)
+	if val := c.Query("product_id"); val != "" {
+		productID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid product_id", err.Error())
+			return
+		}
+	}
+
 	statusStr := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	var status *int
 	if statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
-		if err == nil {
-			status = &s
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
 		}
+		status = &s
 	}
 
 	list, total, err := h.app.ListReviews(c.Request.Context(), productID, status, page, pageSize)
@@ -106,7 +129,11 @@ func (h *Handler) ListReviews(c *gin.Context) {
 
 // GetProductStats 获取商品评分统计.
 func (h *Handler) GetProductStats(c *gin.Context) {
-	productID, _ := strconv.ParseUint(c.Param("product_id"), 10, 64)
+	productID, err := strconv.ParseUint(c.Param("product_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid Product ID", err.Error())
+		return
+	}
 	stats, err := h.app.GetProductStats(c.Request.Context(), productID)
 	if err != nil {
 		h.logger.Error("Failed to get product stats", "error", err)

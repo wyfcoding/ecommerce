@@ -132,10 +132,33 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 }
 
 func (h *Handler) ListProducts(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-	categoryID, _ := strconv.ParseUint(c.DefaultQuery("category_id", "0"), 10, 64)
-	brandID, _ := strconv.ParseUint(c.DefaultQuery("brand_id", "0"), 10, 64)
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
+
+	var (
+		categoryID uint64
+		brandID    uint64
+	)
+	if val := c.Query("category_id"); val != "" {
+		categoryID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid category_id", err.Error())
+			return
+		}
+	}
+	if val := c.Query("brand_id"); val != "" {
+		brandID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid brand_id", err.Error())
+			return
+		}
+	}
 
 	products, total, err := h.app.Query.ListProducts(c.Request.Context(), page, pageSize, categoryID, brandID)
 	if err != nil {
@@ -221,7 +244,17 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 }
 
 func (h *Handler) ListCategories(c *gin.Context) {
-	parentID, _ := strconv.ParseUint(c.DefaultQuery("parent_id", "0"), 10, 64)
+	var (
+		parentID uint64
+		err      error
+	)
+	if val := c.Query("parent_id"); val != "" {
+		parentID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid parent_id", err.Error())
+			return
+		}
+	}
 	categories, err := h.app.Query.ListCategories(c.Request.Context(), parentID)
 	if err != nil {
 		response.Error(c, err)

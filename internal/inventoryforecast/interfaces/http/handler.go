@@ -67,8 +67,14 @@ func (h *Handler) GetForecast(c *gin.Context) {
 
 // ListWarnings 处理获取库存预警列表的HTTP请求。
 func (h *Handler) ListWarnings(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListWarnings(c.Request.Context(), page, pageSize)
 	if err != nil {
@@ -87,8 +93,14 @@ func (h *Handler) ListWarnings(c *gin.Context) {
 
 // ListSlowMovingItems 处理获取滞销品列表的HTTP请求。
 func (h *Handler) ListSlowMovingItems(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListSlowMovingItems(c.Request.Context(), page, pageSize)
 	if err != nil {
@@ -108,8 +120,14 @@ func (h *Handler) ListSlowMovingItems(c *gin.Context) {
 // ListReplenishmentSuggestions 处理获取补货建议列表的HTTP请求。
 func (h *Handler) ListReplenishmentSuggestions(c *gin.Context) {
 	priority := c.Query("priority")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListReplenishmentSuggestions(c.Request.Context(), priority, page, pageSize)
 	if err != nil {
@@ -129,8 +147,14 @@ func (h *Handler) ListReplenishmentSuggestions(c *gin.Context) {
 // ListStockoutRisks 处理获取缺货风险列表的HTTP请求。
 func (h *Handler) ListStockoutRisks(c *gin.Context) {
 	level := c.Query("level")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListStockoutRisks(c.Request.Context(), domain.StockoutRiskLevel(level), page, pageSize)
 	if err != nil {

@@ -143,11 +143,15 @@ func (m *SchedulerManager) RunJob(ctx context.Context, id uint64) error {
 		log.Status = "SUCCESS"
 		log.Result = "Executed successfully"
 
-		_ = m.repo.SaveJobLog(context.Background(), log)
+		if err := m.repo.SaveJobLog(context.Background(), log); err != nil {
+			m.logger.Error("failed to save job log after execution", "job_id", id, "error", err)
+		}
 		m.logger.Info("job execution completed (simulated)", "job_id", id, "status", log.Status)
 
 		job.Status = domain.JobStatusEnabled
-		_ = m.repo.SaveJob(context.Background(), job)
+		if err := m.repo.SaveJob(context.Background(), job); err != nil {
+			m.logger.Error("failed to reset job status after execution", "job_id", id, "error", err)
+		}
 		m.logger.Info("job status reset to enabled (simulated)", "job_id", id)
 	}()
 

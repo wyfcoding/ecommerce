@@ -55,8 +55,16 @@ func (h *Handler) Add(c *gin.Context) {
 
 // Remove 处理从收藏夹移除商品的HTTP请求。
 func (h *Handler) Remove(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+		return
+	}
 
 	if err := h.app.Remove(c.Request.Context(), userID, id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to remove from wishlist", "error", err)
@@ -69,9 +77,19 @@ func (h *Handler) Remove(c *gin.Context) {
 
 // List 处理获取用户收藏夹列表的HTTP请求。
 func (h *Handler) List(c *gin.Context) {
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+		return
+	}
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.List(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
@@ -90,8 +108,16 @@ func (h *Handler) List(c *gin.Context) {
 
 // CheckStatus 处理检查商品是否在用户收藏夹中的HTTP请求。
 func (h *Handler) CheckStatus(c *gin.Context) {
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
-	skuID, _ := strconv.ParseUint(c.Query("sku_id"), 10, 64)
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+		return
+	}
+	skuID, err := strconv.ParseUint(c.Query("sku_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid sku_id", err.Error())
+		return
+	}
 
 	exists, err := h.app.CheckStatus(c.Request.Context(), userID, skuID)
 	if err != nil {
@@ -105,7 +131,11 @@ func (h *Handler) CheckStatus(c *gin.Context) {
 
 // Clear 处理清空收藏夹的HTTP请求。
 func (h *Handler) Clear(c *gin.Context) {
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+		return
+	}
 
 	if err := h.app.Clear(c.Request.Context(), userID); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to clear wishlist", "error", err)
@@ -118,8 +148,16 @@ func (h *Handler) Clear(c *gin.Context) {
 
 // RemoveByProduct 处理按商品移除收藏夹条目的HTTP请求。
 func (h *Handler) RemoveByProduct(c *gin.Context) {
-	skuID, _ := strconv.ParseUint(c.Param("sku_id"), 10, 64)
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	skuID, err := strconv.ParseUint(c.Param("sku_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid sku_id", err.Error())
+		return
+	}
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+		return
+	}
 
 	if err := h.app.RemoveByProduct(c.Request.Context(), userID, skuID); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to remove from wishlist by product", "error", err)

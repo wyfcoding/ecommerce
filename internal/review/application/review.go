@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 )
@@ -11,13 +12,15 @@ import (
 type Review struct {
 	manager *ReviewManager
 	query   *ReviewQuery
+	logger  *slog.Logger
 }
 
 // NewReview 创建并返回一个新的 Review 实例。
-func NewReview(manager *ReviewManager, query *ReviewQuery) *Review {
+func NewReview(manager *ReviewManager, query *ReviewQuery, logger *slog.Logger) *Review {
 	return &Review{
 		manager: manager,
 		query:   query,
+		logger:  logger,
 	}
 }
 

@@ -36,7 +36,14 @@ func (h *Handler) QueryLogs(c *gin.Context) {
 		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid page_size", "")
 		return
 	}
-	userID, _ := strconv.ParseUint(c.DefaultQuery("user_id", "0"), 10, 64)
+	var userID uint64
+	if val := c.DefaultQuery("user_id", "0"); val != "0" {
+		userID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+			return
+		}
+	}
 	eventType := c.DefaultQuery("event_type", "")
 	module := c.DefaultQuery("module", "")
 	resourceType := c.DefaultQuery("resource_type", "")
@@ -45,10 +52,18 @@ func (h *Handler) QueryLogs(c *gin.Context) {
 
 	var startTime, endTime time.Time
 	if startTimeStr != "" {
-		startTime, _ = time.Parse(time.RFC3339, startTimeStr)
+		startTime, err = time.Parse(time.RFC3339, startTimeStr)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid start_time format", err.Error())
+			return
+		}
 	}
 	if endTimeStr != "" {
-		endTime, _ = time.Parse(time.RFC3339, endTimeStr)
+		endTime, err = time.Parse(time.RFC3339, endTimeStr)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid end_time format", err.Error())
+			return
+		}
 	}
 
 	query := &domain.AuditLogQuery{

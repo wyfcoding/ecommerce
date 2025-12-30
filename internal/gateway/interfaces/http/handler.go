@@ -54,8 +54,14 @@ func (h *Handler) RegisterRoute(c *gin.Context) {
 
 // ListRoutes 处理获取路由列表的HTTP请求。
 func (h *Handler) ListRoutes(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.service.ListRoutes(c.Request.Context(), page, pageSize)
 	if err != nil {
@@ -117,8 +123,14 @@ func (h *Handler) AddRateLimitRule(c *gin.Context) {
 
 // ListRateLimitRules 处理获取限流规则列表的HTTP请求。
 func (h *Handler) ListRateLimitRules(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.service.ListRateLimitRules(c.Request.Context(), page, pageSize)
 	if err != nil {

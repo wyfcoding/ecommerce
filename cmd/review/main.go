@@ -139,10 +139,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 4. DDD 分层装配
 	bootLog.Info("assembling review domain services...")
-	repo := persistence.NewReviewRepository(db)
-	reviewQuery := application.NewReviewQuery(repo)
+	repo := persistence.NewReviewRepository(db, logger.Logger)
+	reviewQuery := application.NewReviewQuery(repo, logger.Logger)
 	reviewManager := application.NewReviewManager(repo, logger.Logger)
-	service := application.NewReview(reviewManager, reviewQuery)
+	service := application.NewReview(reviewManager, reviewQuery, logger.Logger)
 
 	handler := reviewhttp.NewHandler(service, logger.Logger)
 

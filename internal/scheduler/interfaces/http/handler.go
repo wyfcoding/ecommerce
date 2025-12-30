@@ -117,15 +117,23 @@ func (h *Handler) RunJob(c *gin.Context) {
 
 func (h *Handler) ListJobs(c *gin.Context) {
 	statusStr := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	var status *int
 	if statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
-		if err == nil {
-			status = &s
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
 		}
+		status = &s
 	}
 
 	list, total, err := h.service.ListJobs(c.Request.Context(), status, page, pageSize)
@@ -144,9 +152,26 @@ func (h *Handler) ListJobs(c *gin.Context) {
 }
 
 func (h *Handler) ListJobLogs(c *gin.Context) {
-	jobID, _ := strconv.ParseUint(c.Query("job_id"), 10, 64)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		jobID uint64
+		err   error
+	)
+	if val := c.Query("job_id"); val != "" {
+		jobID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid job_id", err.Error())
+			return
+		}
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.service.ListJobLogs(c.Request.Context(), jobID, page, pageSize)
 	if err != nil {

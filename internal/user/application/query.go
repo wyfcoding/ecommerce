@@ -44,7 +44,10 @@ func (q *UserQuery) CheckBot(ctx context.Context, userID uint64, ip string) bool
 		Timestamp: time.Now(),
 		Action:    "check",
 	}
-	isBot, _ := q.antiBot.IsBot(behavior)
+	isBot, reason := q.antiBot.IsBot(behavior)
+	if isBot {
+		q.logger.WarnContext(ctx, "bot detected", "user_id", userID, "ip", ip, "reason", reason)
+	}
 	return isBot
 }
 
