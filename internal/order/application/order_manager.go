@@ -93,8 +93,12 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	if err := saga.Submit(); err != nil {
 		s.logger.ErrorContext(ctx, "failed to submit saga", "error", err)
 		// 如果 Saga 提交失败，本地订单需要标记为取消。
-		_ = order.Cancel("System", "Saga Submit Failed")
-		_ = s.repo.Save(ctx, order)
+		if cancelErr := order.Cancel("System", "Saga Submit Failed"); cancelErr != nil {
+			s.logger.ErrorContext(ctx, "failed to cancel order after saga submit failure", "error", cancelErr)
+		}
+		if saveErr := s.repo.Save(ctx, order); saveErr != nil {
+			s.logger.ErrorContext(ctx, "failed to save cancelled order", "error", saveErr)
+		}
 		return nil, fmt.Errorf("failed to submit distributed transaction: %w", err)
 	}
 

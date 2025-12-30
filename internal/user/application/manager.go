@@ -47,7 +47,12 @@ func NewUserManager(
 // Register 注册用户
 func (m *UserManager) Register(ctx context.Context, req *RegisterRequest) (*domain.User, error) {
 	// 1. Check existing
-	if u, _ := m.userRepo.FindByUsername(ctx, req.Username); u != nil {
+	u, err := m.userRepo.FindByUsername(ctx, req.Username)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to check existing user", "username", req.Username, "error", err)
+		return nil, err
+	}
+	if u != nil {
 		return nil, errors.New("username already exists")
 	}
 
@@ -83,7 +88,8 @@ func (m *UserManager) Login(ctx context.Context, username, password, ip string) 
 		Timestamp: time.Now(),
 		Action:    "login",
 	}
-	if isBot, _ := m.antiBot.IsBot(behavior); isBot {
+	if isBot, reason := m.antiBot.IsBot(behavior); isBot {
+		m.logger.WarnContext(ctx, "bot detected during login", "ip", ip, "username", username, "reason", reason)
 		return "", 0, errors.New("bot detected")
 	}
 
@@ -145,7 +151,9 @@ func (m *UserManager) AddAddress(ctx context.Context, userID uint, req *AddressD
 	}
 
 	if req.IsDefault {
-		_ = m.addressRepo.SetDefault(ctx, userID, addr.ID)
+		if err := m.addressRepo.SetDefault(ctx, userID, addr.ID); err != nil {
+			m.logger.ErrorContext(ctx, "failed to set default address", "user_id", userID, "address_id", addr.ID, "error", err)
+		}
 	}
 
 	return addr, nil
@@ -174,7 +182,9 @@ func (m *UserManager) UpdateAddress(ctx context.Context, userID, addressID uint,
 	}
 
 	if req.IsDefault {
-		_ = m.addressRepo.SetDefault(ctx, userID, addr.ID)
+		if err := m.addressRepo.SetDefault(ctx, userID, addr.ID); err != nil {
+			m.logger.ErrorContext(ctx, "failed to set default address", "user_id", userID, "address_id", addr.ID, "error", err)
+		}
 		addr.IsDefault = true
 	}
 

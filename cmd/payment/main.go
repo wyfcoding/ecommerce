@@ -129,7 +129,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	// 2. Redis & 限流器
-	redisCache, err := cache.NewRedisCache(c.Data.Redis)
+	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("redis init error: %w", err)

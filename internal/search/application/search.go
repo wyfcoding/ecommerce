@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/search/domain"
@@ -12,13 +13,15 @@ import (
 type Search struct {
 	manager *SearchManager
 	query   *SearchQuery
+	logger  *slog.Logger
 }
 
 // NewSearch 创建并返回一个新的 Search 实例。
-func NewSearch(manager *SearchManager, query *SearchQuery) *Search {
+func NewSearch(manager *SearchManager, query *SearchQuery, logger *slog.Logger) *Search {
 	return &Search{
 		manager: manager,
 		query:   query,
+		logger:  logger,
 	}
 }
 
@@ -35,20 +38,24 @@ func (s *Search) Search(ctx context.Context, userID uint64, filter *domain.Searc
 	// 2. 异步记录搜索日志和搜索历史 (Manager)。
 	if filter.Keyword != "" {
 		// 保存搜索日志。
-		_ = s.manager.SaveLog(ctx, &domain.SearchLog{
+		if err := s.manager.SaveLog(ctx, &domain.SearchLog{
 			UserID:      userID,
 			Keyword:     filter.Keyword,
 			ResultCount: int(result.Total),
 			Duration:    time.Since(start).Milliseconds(),
-		})
+		}); err != nil {
+			s.logger.ErrorContext(ctx, "failed to save search log in Search", "error", err)
+		}
 
 		if userID > 0 {
 			// 保存搜索历史。
-			_ = s.manager.SaveHistory(ctx, &domain.SearchHistory{
+			if err := s.manager.SaveHistory(ctx, &domain.SearchHistory{
 				UserID:    userID,
 				Keyword:   filter.Keyword,
 				Timestamp: time.Now(),
-			})
+			}); err != nil {
+				s.logger.ErrorContext(ctx, "failed to save search history in Search", "error", err)
+			}
 		}
 	}
 

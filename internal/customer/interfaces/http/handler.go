@@ -83,10 +83,39 @@ func (h *Handler) ReplyTicket(c *gin.Context) {
 
 // ListTickets 处理列出工单的HTTP请求。
 func (h *Handler) ListTickets(c *gin.Context) {
-	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
-	status, _ := strconv.Atoi(c.Query("status"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	var (
+		userID   uint64
+		status   int
+		page     int
+		pageSize int
+		err      error
+	)
+
+	if val := c.Query("user_id"); val != "" {
+		userID, err = strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+			return
+		}
+	}
+
+	if val := c.Query("status"); val != "" {
+		status, err = strconv.Atoi(val)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
+			return
+		}
+	}
+
+	page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page <= 0 {
+		page = 1
+	}
+
+	pageSize, _ = strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if pageSize <= 0 {
+		pageSize = 10
+	}
 
 	list, total, err := h.app.ListTickets(c.Request.Context(), userID, domain.TicketStatus(status), page, pageSize)
 	if err != nil {
@@ -112,7 +141,13 @@ func (h *Handler) ListMessages(c *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page <= 0 {
+		page = 1
+	}
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if pageSize <= 0 {
+		pageSize = 20
+	}
 
 	list, total, err := h.app.ListMessages(c.Request.Context(), ticketID, page, pageSize)
 	if err != nil {

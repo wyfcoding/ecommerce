@@ -119,14 +119,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	// Redis & MultiLevel Cache (Product 服务特有)
-	redisCache, err := cache.NewRedisCache(c.Data.Redis)
+	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
-	bigCache, err := cache.NewBigCache(c.Data.BigCache.LifeWindow, c.Data.BigCache.HardMaxCacheSize)
+	bigCache, err := cache.NewBigCache(c.Data.BigCache.LifeWindow, c.Data.BigCache.HardMaxCacheSize, logger)
 	if err != nil {
 		redisCache.Close()
 		if sqlDB, err := db.DB(); err == nil {
@@ -134,7 +134,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		}
 		return nil, nil, fmt.Errorf("bigcache init error: %w", err)
 	}
-	multiLevelCache := cache.NewMultiLevelCache(bigCache, redisCache)
+	multiLevelCache := cache.NewMultiLevelCache(bigCache, redisCache, logger)
 
 	// 2. 限流器
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)

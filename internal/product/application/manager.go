@@ -86,7 +86,9 @@ func (m *ProductManager) UpdateProduct(ctx context.Context, id uint64, req *Upda
 	}
 	m.logger.InfoContext(ctx, "product updated successfully", "product_id", id)
 
-	_ = m.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
+	if err := m.cache.Delete(ctx, fmt.Sprintf("product:%d", id)); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete product cache", "product_id", id, "error", err)
+	}
 
 	return product, nil
 }
@@ -122,7 +124,9 @@ func (m *ProductManager) AddSKU(ctx context.Context, productID uint64, req *AddS
 	}
 	m.logger.InfoContext(ctx, "SKU added successfully", "sku_id", sku.ID, "product_id", productID)
 
-	_ = m.cache.Delete(ctx, fmt.Sprintf("product:%d", productID))
+	if err := m.cache.Delete(ctx, fmt.Sprintf("product:%d", productID)); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete product cache after adding SKU", "product_id", productID, "error", err)
+	}
 
 	return sku, nil
 }
@@ -151,7 +155,9 @@ func (m *ProductManager) UpdateSKU(ctx context.Context, id uint64, req *UpdateSK
 		return nil, err
 	}
 
-	_ = m.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
+	if err := m.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID)); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete product cache after updating SKU", "sku_id", id, "product_id", sku.ProductID, "error", err)
+	}
 
 	return sku, nil
 }
@@ -165,7 +171,9 @@ func (m *ProductManager) DeleteSKU(ctx context.Context, id uint64) error {
 		if err := m.skuRepo.Delete(ctx, uint(id)); err != nil {
 			return err
 		}
-		_ = m.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
+		if err := m.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID)); err != nil {
+			m.logger.ErrorContext(ctx, "failed to delete product cache after deleting SKU", "sku_id", id, "product_id", sku.ProductID, "error", err)
+		}
 	}
 	return nil
 }

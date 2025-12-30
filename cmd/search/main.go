@@ -114,7 +114,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}
 
-	redisCache, err := cache.NewRedisCache(c.Data.Redis)
+	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()
@@ -141,7 +141,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	repo := persistence.NewSearchRepository(db)
 	searchQuery := application.NewSearchQuery(repo)
 	searchManager := application.NewSearchManager(repo, logger.Logger)
-	service := application.NewSearch(searchManager, searchQuery)
+	service := application.NewSearch(searchManager, searchQuery, logger.Logger)
 
 	// 5. 资源回收
 	cleanup := func() {

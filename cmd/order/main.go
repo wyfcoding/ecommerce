@@ -136,7 +136,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	// 2. Redis
-	redisCache, err := cache.NewRedisCache(c.Data.Redis)
+	redisCache, err := cache.NewRedisCache(c.Data.Redis, logger)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("redis connection failed: %w", err)
