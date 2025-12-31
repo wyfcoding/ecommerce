@@ -13,6 +13,8 @@ type OrderRepository interface {
 	// ctx: 上下文。
 	// order: 待保存的订单实体。
 	Save(ctx context.Context, order *Order) error
+	WithTx(tx any) OrderRepository
+	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	FindByID(ctx context.Context, id uint) (*Order, error)
 	FindByOrderNo(ctx context.Context, orderNo string) (*Order, error)
 	Update(ctx context.Context, order *Order) error

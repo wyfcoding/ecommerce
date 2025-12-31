@@ -12,6 +12,7 @@ import (
 
 type orderRepository struct {
 	sharding *sharding.Manager
+	tx       *gorm.DB // 增加事务支持
 }
 
 // NewOrderRepository 定义了数据持久层接口。
@@ -19,11 +20,31 @@ func NewOrderRepository(sharding *sharding.Manager) domain.OrderRepository {
 	return &orderRepository{sharding: sharding}
 }
 
+// WithTx 实现了 domain.OrderRepository 接口，支持事务嵌套。
+func (r *orderRepository) WithTx(tx any) domain.OrderRepository {
+	if gormTx, ok := tx.(*gorm.DB); ok {
+		return &orderRepository{
+			sharding: r.sharding,
+			tx:       gormTx,
+		}
+	}
+	return r
+}
+
+// getDB 内部辅助方法，自动切换事务与普通连接
+func (r *orderRepository) getDB(userID uint64) *gorm.DB {
+	if r.tx != nil {
+		return r.tx
+	}
+	return r.sharding.GetDB(userID)
+}
+
 // Save 将订单聚合根保存到对应的分库中。
-// 包含订单主表、商品项以及操作日志的原子性保存。
 func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
-	db := r.sharding.GetDB(order.UserID)
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	db := r.getDB(order.UserID)
+	
+	// 如果已经在事务中（r.tx != nil），则直接执行，不再开启新事务
+	execute := func(tx *gorm.DB) error {
 		if err := tx.Save(order).Error; err != nil {
 			return err
 		}
@@ -44,6 +65,20 @@ func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 			}
 		}
 		return nil
+	}
+
+	if r.tx != nil {
+		return execute(r.tx.WithContext(ctx))
+	}
+
+	return db.WithContext(ctx).Transaction(execute)
+}
+
+// Transaction 实现了事务包装逻辑
+func (r *orderRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {
+	db := r.sharding.GetDB(userID)
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(tx)
 	})
 }
 

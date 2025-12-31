@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -66,7 +68,7 @@ func main() {
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.CORS(),                            // 跨域处理
+			middleware.CORS(), // 跨域处理
 			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
 		).
 		Build().
@@ -150,6 +152,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	// 2. 初始化缓存 (Redis)
+	bootLog.Info("initializing redis cache...")
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		shardingManager.Close()
@@ -159,6 +162,20 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 3. 初始化消息队列 (Kafka Producer)
 	bootLog.Info("initializing kafka producer...")
 	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
+
+	// --- 3.1 初始化 Outbox (顶级架构增强：确保 DB 事务与消息发送一致性) ---
+	// 在分片环境下，通常每个分片都有自己的 outbox 表。为了简单起见，我们先使用分片 0。
+	masterDB := shardingManager.GetDB(0)
+	if err := masterDB.AutoMigrate(&outbox.OutboxMessage{}); err != nil {
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+
+	outboxMgr := outbox.NewManager(masterDB, logger.Logger)
+	outboxProc := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		// 使用已初始化的 producer 发送，避免重复创建资源
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProc.Start()
 
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
@@ -173,11 +190,13 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProc.Stop()
 		producer.Close()
 		redisCache.Close()
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
+
 
 	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -196,6 +215,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		orderRepo,
 		idGenerator,
 		producer,
+		outboxMgr, // 注入 Outbox Manager
 		logger.Logger,
 		"localhost:36789", // dtm server address
 		warehouseAddr,
@@ -215,6 +235,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProc.Stop() // 停止 Outbox 处理器
 		clientCleanup()
 		if producer != nil {
 			producer.Close()

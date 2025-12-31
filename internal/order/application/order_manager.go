@@ -14,7 +14,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
+	"gorm.io/gorm"
 )
 
 // OrderManager 负责处理 Order 相关的写操作和业务逻辑。
@@ -22,6 +24,7 @@ type OrderManager struct {
 	repo              domain.OrderRepository
 	idGen             idgen.Generator
 	producer          *kafka.Producer
+	outboxMgr         *outbox.Manager
 	logger            *slog.Logger
 	dtmServer         string
 	warehouseGrpcAddr string
@@ -35,6 +38,7 @@ func NewOrderManager(
 	repo domain.OrderRepository,
 	idGen idgen.Generator,
 	producer *kafka.Producer,
+	outboxMgr *outbox.Manager,
 	logger *slog.Logger,
 	dtmServer, warehouseGrpcAddr string,
 	m *metrics.Metrics,
@@ -48,6 +52,7 @@ func NewOrderManager(
 		repo:                repo,
 		idGen:               idGen,
 		producer:            producer,
+		outboxMgr:           outboxMgr,
 		logger:              logger,
 		dtmServer:           dtmServer,
 		warehouseGrpcAddr:   warehouseGrpcAddr,
@@ -63,8 +68,34 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	order := domain.NewOrder(orderNo, userID, items, shippingAddr)
 	order.Status = domain.PendingPayment
 
-	if err := s.repo.Save(ctx, order); err != nil {
-		s.logger.ErrorContext(ctx, "failed to create order", "error", err)
+	// 顶级架构实践：利用本地事务确保业务数据与 Outbox 消息的强一致性
+	err := s.repo.Transaction(ctx, userID, func(tx any) error {
+		// 1. 使用事务中的仓储
+		txRepo := s.repo.WithTx(tx)
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 2. 在同一事务中写入 Outbox 消息
+		event := map[string]any{
+			"order_id": order.ID,
+			"order_no": order.OrderNo,
+			"user_id":  order.UserID,
+			"amount":   order.TotalAmount,
+			"status":   order.Status.String(),
+		}
+
+		gormTx := tx.(*gorm.DB)
+		if err := s.outboxMgr.PublishInTx(gormTx, "order.created", orderNo, event); err != nil {
+			s.logger.ErrorContext(ctx, "failed to publish order created event to outbox", "error", err)
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to create order in transaction", "error", err)
 		return nil, err
 	}
 
