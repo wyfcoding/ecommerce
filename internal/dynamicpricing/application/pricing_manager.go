@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // DynamicPricingManager 处理动态定价的写操作。
@@ -33,60 +34,82 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 		}
 	}
 
-	inventoryFactor := 1.0
-	if req.TotalStock > 0 {
-		ratio := float64(req.CurrentStock) / float64(req.TotalStock)
-		if ratio < 0.2 {
-			inventoryFactor = 1.1
-		} else if ratio > 0.8 {
-			inventoryFactor = 0.9
-		}
-	}
-
-	demandFactor := 1.0
+	// 1. 准备定价因素
+	now := time.Now()
+	demandLevel := 0.5
 	if req.AverageDailyDemand > 0 {
-		ratio := float64(req.DailyDemand) / float64(req.AverageDailyDemand)
-		if ratio > 1.5 {
-			demandFactor = 1.1
-		} else if ratio < 0.5 {
-			demandFactor = 0.9
-		}
+		demandLevel = 0.5 * float64(req.DailyDemand) / float64(req.AverageDailyDemand)
 	}
 
-	competitorFactor := 1.0
-	if req.CompetitorPrice > 0 {
-		if req.CompetitorPrice < req.BasePrice {
-			competitorFactor = 0.95
-		}
+	userLevel := 1
+	switch req.UserLevel {
+	case "VIP":
+		userLevel = 9
+	case "Diamond":
+		userLevel = 10
+	case "Gold":
+		userLevel = 7
+	case "Silver":
+		userLevel = 5
+	default:
+		userLevel = 1
 	}
 
-	adjustment := inventoryFactor * demandFactor * competitorFactor
-	finalPrice := int64(float64(req.BasePrice) * adjustment)
-
-	if strategy.MinPrice > 0 && finalPrice < strategy.MinPrice {
-		finalPrice = strategy.MinPrice
+	factors := algorithm.PricingFactors{
+		Stock:           req.CurrentStock,
+		TotalStock:      req.TotalStock,
+		DemandLevel:     demandLevel,
+		CompetitorPrice: req.CompetitorPrice,
+		TimeOfDay:       now.Hour(),
+		DayOfWeek:       int(now.Weekday()),
+		IsHoliday:       false, // TODO: 对接日历服务
+		UserLevel:       userLevel,
+		SeasonFactor:    0.5, // 默认平均季节因素
 	}
-	if strategy.MaxPrice > 0 && finalPrice > strategy.MaxPrice {
-		finalPrice = strategy.MaxPrice
+
+	// 2. 初始化定价引擎
+	// 默认弹性系数 1.0，如果有历史数据可以计算更准确的值
+	elasticity := 1.0
+	minPrice := strategy.MinPrice
+	if minPrice == 0 {
+		minPrice = int64(float64(req.BasePrice) * 0.5) // 默认最低半价
+	}
+	maxPrice := strategy.MaxPrice
+	if maxPrice == 0 {
+		maxPrice = int64(float64(req.BasePrice) * 2.0) // 默认最高双倍
+	}
+
+	engine := algorithm.NewPricingEngine(req.BasePrice, minPrice, maxPrice, elasticity)
+
+	// 3. 计算价格
+	result := engine.CalculatePrice(factors)
+
+	// 4. 构建结果
+	// Calculate adjustment ratio
+	adjustment := 1.0
+	if req.BasePrice > 0 {
+		adjustment = float64(result.FinalPrice) / float64(req.BasePrice)
 	}
 
 	price := &domain.DynamicPrice{
 		SKUID:            req.SKUID,
 		BasePrice:        req.BasePrice,
-		FinalPrice:       finalPrice,
+		FinalPrice:       result.FinalPrice,
 		PriceAdjustment:  adjustment,
-		InventoryFactor:  inventoryFactor,
-		DemandFactor:     demandFactor,
-		CompetitorFactor: competitorFactor,
-		EffectiveTime:    time.Now(),
-		ExpiryTime:       time.Now().Add(24 * time.Hour),
+		InventoryFactor:  result.InventoryFactor,
+		DemandFactor:     result.DemandFactor,
+		CompetitorFactor: result.CompetitorFactor,
+		TimeFactor:       result.TimeFactor,
+		UserFactor:       result.UserFactor,
+		EffectiveTime:    now,
+		ExpiryTime:       now.Add(24 * time.Hour),
 	}
 
 	if err := m.repo.SaveDynamicPrice(ctx, price); err != nil {
 		m.logger.ErrorContext(ctx, "failed to save dynamic price", "sku_id", req.SKUID, "error", err)
 		return nil, err
 	}
-	m.logger.InfoContext(ctx, "dynamic price calculated successfully", "sku_id", req.SKUID, "final_price", finalPrice)
+	m.logger.InfoContext(ctx, "dynamic price calculated successfully", "sku_id", req.SKUID, "final_price", result.FinalPrice)
 
 	return price, nil
 }

@@ -151,7 +151,8 @@ func (q *ProductQuery) CalculateProductPrice(ctx context.Context, productID uint
 
 	factors.DemandLevel += (rand.Float64() - 0.5) * 0.2
 
-	return pe.CalculatePrice(factors), nil
+	result := pe.CalculatePrice(factors)
+	return result.FinalPrice, nil
 }
 
 // GetSKUByID 获取SKU
