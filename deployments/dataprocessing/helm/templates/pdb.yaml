@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "dataprocessing.fullname" . }
+  name: {{ include "dataprocessing.fullname" . }}
   labels:
-    {- include "dataprocessing.labels" . | nindent 4 }
+    {{- include "dataprocessing.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "dataprocessing.selectorLabels" . | nindent 6 }
+      {{- include "dataprocessing.selectorLabels" . | nindent 6 }}

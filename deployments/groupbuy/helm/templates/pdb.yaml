@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "groupbuy.fullname" . }
+  name: {{ include "groupbuy.fullname" . }}
   labels:
-    {- include "groupbuy.labels" . | nindent 4 }
+    {{- include "groupbuy.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "groupbuy.selectorLabels" . | nindent 6 }
+      {{- include "groupbuy.selectorLabels" . | nindent 6 }}

@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "scheduler.fullname" . }
+  name: {{ include "scheduler.fullname" . }}
   labels:
-    {- include "scheduler.labels" . | nindent 4 }
+    {{- include "scheduler.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "scheduler.selectorLabels" . | nindent 6 }
+      {{- include "scheduler.selectorLabels" . | nindent 6 }}

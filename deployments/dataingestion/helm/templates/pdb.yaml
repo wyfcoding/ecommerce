@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "dataingestion.fullname" . }
+  name: {{ include "dataingestion.fullname" . }}
   labels:
-    {- include "dataingestion.labels" . | nindent 4 }
+    {{- include "dataingestion.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "dataingestion.selectorLabels" . | nindent 6 }
+      {{- include "dataingestion.selectorLabels" . | nindent 6 }}

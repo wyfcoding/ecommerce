@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: { include "inventoryforecast.fullname" . }
+  name: {{ include "inventoryforecast.fullname" . }}
   labels:
-    {- include "inventoryforecast.labels" . | nindent 4 }
+    {{- include "inventoryforecast.labels" . | nindent 4 }}
 spec:
-  type: { .Values.service.type }
+  type: {{ .Values.service.type }}
   ports:
-    - port: { .Values.service.httpPort }
+    - port: {{ .Values.service.httpPort }}
       targetPort: http
       protocol: TCP
       name: http
-    - port: { .Values.service.grpcPort }
+    - port: {{ .Values.service.grpcPort }}
       targetPort: grpc
       protocol: TCP
       name: grpc
   selector:
-    {- include "inventoryforecast.selectorLabels" . | nindent 4 }
+    {{- include "inventoryforecast.selectorLabels" . | nindent 4 }}

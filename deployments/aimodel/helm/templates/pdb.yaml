@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "aimodel.fullname" . }
+  name: {{ include "aimodel.fullname" . }}
   labels:
-    {- include "aimodel.labels" . | nindent 4 }
+    {{- include "aimodel.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "aimodel.selectorLabels" . | nindent 6 }
+      {{- include "aimodel.selectorLabels" . | nindent 6 }}

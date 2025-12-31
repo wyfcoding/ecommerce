@@ -32,6 +32,15 @@ service:
   httpPort: 8080
   grpcPort: 9090
 
+canary:
+  enabled: false
+  version: v2
+  replicaCount: 1
+  trafficWeight: 10 # 灰度版本初始流量百分比
+  headerMatch:
+    key: "x-canary"
+    value: "true"
+
 ingress:
   enabled: false
   className: ""

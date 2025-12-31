@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "loyalty.fullname" . }
+  name: {{ include "loyalty.fullname" . }}
   labels:
-    {- include "loyalty.labels" . | nindent 4 }
+    {{- include "loyalty.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "loyalty.selectorLabels" . | nindent 6 }
+      {{- include "loyalty.selectorLabels" . | nindent 6 }}

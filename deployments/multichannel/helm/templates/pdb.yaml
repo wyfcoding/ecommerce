@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "multichannel.fullname" . }
+  name: {{ include "multichannel.fullname" . }}
   labels:
-    {- include "multichannel.labels" . | nindent 4 }
+    {{- include "multichannel.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "multichannel.selectorLabels" . | nindent 6 }
+      {{- include "multichannel.selectorLabels" . | nindent 6 }}

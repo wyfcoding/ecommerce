@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "wishlist.fullname" . }
+  name: {{ include "wishlist.fullname" . }}
   labels:
-    {- include "wishlist.labels" . | nindent 4 }
+    {{- include "wishlist.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "wishlist.selectorLabels" . | nindent 6 }
+      {{- include "wishlist.selectorLabels" . | nindent 6 }}

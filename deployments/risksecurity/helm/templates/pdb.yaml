@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "risksecurity.fullname" . }
+  name: {{ include "risksecurity.fullname" . }}
   labels:
-    {- include "risksecurity.labels" . | nindent 4 }
+    {{- include "risksecurity.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "risksecurity.selectorLabels" . | nindent 6 }
+      {{- include "risksecurity.selectorLabels" . | nindent 6 }}

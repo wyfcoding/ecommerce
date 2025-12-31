@@ -1,11 +1,11 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: { include "inventoryforecast.fullname" . }
+  name: {{ include "inventoryforecast.fullname" . }}
   labels:
-    {- include "inventoryforecast.labels" . | nindent 4 }
+    {{- include "inventoryforecast.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      {- include "inventoryforecast.selectorLabels" . | nindent 6 }
+      {{- include "inventoryforecast.selectorLabels" . | nindent 6 }}
