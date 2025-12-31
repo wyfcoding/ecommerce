@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"github.com/wyfcoding/pkg/algorithm"
@@ -15,6 +17,8 @@ type InventoryManager struct {
 	warehouseRepo domain.WarehouseRepository
 	allocator     *algorithm.WarehouseAllocator
 	logger        *slog.Logger
+	soldOutFilter *algorithm.CuckooFilter
+	filterMu      sync.RWMutex
 }
 
 // NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
@@ -24,7 +28,15 @@ func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.W
 		warehouseRepo: warehouseRepo,
 		allocator:     algorithm.NewWarehouseAllocator(),
 		logger:        logger,
+		soldOutFilter: algorithm.NewCuckooFilter(100000),
 	}
+}
+
+// IsSoldOutQuickCheck 本地快速检查是否售罄
+func (m *InventoryManager) IsSoldOutQuickCheck(skuID uint64) bool {
+	m.filterMu.RLock()
+	defer m.filterMu.RUnlock()
+	return m.soldOutFilter.Contains([]byte(fmt.Sprintf("%d", skuID)))
 }
 
 // CreateInventory 创建一个新的库存记录。
@@ -64,6 +76,14 @@ func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity 
 		m.logger.ErrorContext(ctx, "failed to add stock", "sku_id", skuID, "error", err)
 		return err
 	}
+
+	// 如果库存不再为0，从售罄过滤器中移除
+	if inventory.AvailableStock > 0 {
+		m.filterMu.Lock()
+		m.soldOutFilter.Delete([]byte(fmt.Sprintf("%d", skuID)))
+		m.filterMu.Unlock()
+	}
+
 	return nil
 }
 
@@ -85,6 +105,14 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 		m.logger.ErrorContext(ctx, "failed to deduct stock", "sku_id", skuID, "error", err)
 		return err
 	}
+
+	// 如果库存归零，加入售罄过滤器
+	if inventory.AvailableStock <= 0 {
+		m.filterMu.Lock()
+		m.soldOutFilter.Add([]byte(fmt.Sprintf("%d", skuID)))
+		m.filterMu.Unlock()
+	}
+
 	return nil
 }
 

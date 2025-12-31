@@ -27,6 +27,38 @@ func NewRiskManager(repo domain.RiskRepository, logger *slog.Logger) *RiskManage
 	}
 }
 
+// UserRelation 用户关联关系
+type UserRelation struct {
+	FromUserID int
+	ToUserID   int
+}
+
+// DetectFraudGroups 检测欺诈团伙
+func (m *RiskManager) DetectFraudGroups(ctx context.Context, numUsers int, relations []UserRelation) [][]int {
+	m.logger.InfoContext(ctx, "starting fraud group detection", "nodes", numUsers, "relations", len(relations))
+	
+	// 1. 构建图
+	g := algorithm.NewGraph(numUsers)
+	for _, rel := range relations {
+		g.AddEdge(rel.FromUserID, rel.ToUserID)
+	}
+
+	// 2. 运行 Tarjan 算法
+	scc := algorithm.NewTarjanSCC(g)
+	groups := scc.Run()
+
+	// 3. 过滤出规模大于 1 的团伙
+	fraudGroups := make([][]int, 0)
+	for _, group := range groups {
+		if len(group) > 1 {
+			fraudGroups = append(fraudGroups, group)
+		}
+	}
+
+	m.logger.InfoContext(ctx, "fraud group detection completed", "detected_groups", len(fraudGroups))
+	return fraudGroups
+}
+
 // EvaluateRisk 评估指定用户操作的风险。
 func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, deviceID string, amount int64) (*domain.RiskAnalysisResult, error) {
 	// 1. 检查黑名单

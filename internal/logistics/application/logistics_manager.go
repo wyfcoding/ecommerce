@@ -12,18 +12,25 @@ import (
 
 // LogisticsManager 处理物流的写操作（创建、状态更新、轨迹追踪、路线优化）。
 type LogisticsManager struct {
-	repo      domain.LogisticsRepository
-	optimizer *algorithm.RouteOptimizer
-	logger    *slog.Logger
+	repo               domain.LogisticsRepository
+	optimizer          *algorithm.RouteOptimizer
+	packingOptimizer   *algorithm.BinPackingOptimizer
+	logger             *slog.Logger
 }
 
 // NewLogisticsManager 负责处理 NewLogistics 相关的写操作和业务逻辑。
 func NewLogisticsManager(repo domain.LogisticsRepository, logger *slog.Logger) *LogisticsManager {
 	return &LogisticsManager{
-		repo:      repo,
-		optimizer: algorithm.NewRouteOptimizer(),
-		logger:    logger,
+		repo:               repo,
+		optimizer:          algorithm.NewRouteOptimizer(),
+		packingOptimizer:   algorithm.NewBinPackingOptimizer(1000.0), // 假设标准箱体积为 1000
+		logger:             logger,
 	}
+}
+
+// CalculatePackaging 计算订单的打包方案
+func (m *LogisticsManager) CalculatePackaging(items []algorithm.Item) []*algorithm.Bin {
+	return m.packingOptimizer.FFD(items)
 }
 
 // CreateLogistics 创建一个新的物流单。
