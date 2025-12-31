@@ -3,8 +3,8 @@ package matcher
 import (
 	"sync"
 
-	"github.com/fynnwu/all/pkg/algorithm"
-	"github.com/fynnwu/all/ecommerce/internal/contentmoderation/domain/service"
+	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain/service"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // ACMatcher 基于 Aho-Corasick 自动机的敏感词匹配器

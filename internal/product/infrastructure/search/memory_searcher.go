@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fynnwu/all/pkg/algorithm"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // ProductSearchEntry 商品搜索条目
@@ -15,11 +15,11 @@ type ProductSearchEntry struct {
 
 // MemorySearcher 基于后缀数组的内存高性能子串搜索器
 type MemorySearcher struct {
-	sa       *algorithm.SuffixArray
-	entries  []ProductSearchEntry
-	rawText  string
-	offsets  []int // 记录每个 Entry 在 rawText 中的起始位置
-	mu       sync.RWMutex
+	sa      *algorithm.SuffixArray
+	entries []ProductSearchEntry
+	rawText string
+	offsets []int // 记录每个 Entry 在 rawText 中的起始位置
+	mu      sync.RWMutex
 }
 
 // Build 构建搜索索引
@@ -29,9 +29,9 @@ func (s *MemorySearcher) Build(entries []ProductSearchEntry) {
 
 	var sb strings.Builder
 	offsets := make([]int, len(entries))
-	
+
 	// 使用特殊字符分隔，避免跨商品匹配
-	separator := "\x01" 
+	separator := "\x01"
 
 	for i, e := range entries {
 		offsets[i] = sb.Len()

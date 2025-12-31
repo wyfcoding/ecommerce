@@ -3,15 +3,15 @@ package loadbalancer
 import (
 	"sync"
 
-	"github.com/fynnwu/all/pkg/algorithm"
-	"github.com/fynnwu/all/ecommerce/internal/gateway/domain/service"
+	"github.com/wyfcoding/ecommerce/internal/gateway/domain/service"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // EWMABalancer 基于 EWMA 的响应耗时敏感负载均衡器
 type EWMABalancer struct {
-	nodes    []*nodeWrapper
-	alpha    float64
-	mu       sync.RWMutex
+	nodes []*nodeWrapper
+	alpha float64
+	mu    sync.RWMutex
 }
 
 type nodeWrapper struct {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fynnwu/all/pkg/algorithm"
-	"github.com/fynnwu/all/ecommerce/internal/order/domain/service"
+	"github.com/wyfcoding/ecommerce/internal/order/domain/service"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // WheelScheduler 基于时间轮的超时调度器
@@ -22,8 +22,8 @@ func NewWheelScheduler(tick time.Duration, buckets int) (*WheelScheduler, error)
 		return nil, err
 	}
 	return &WheelScheduler{
-		wheel: tw,
-	},
+			wheel: tw,
+		},
 		nil
 }
 

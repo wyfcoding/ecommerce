@@ -2,11 +2,10 @@ package counter
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"github.com/fynnwu/all/pkg/algorithm"
-	"github.com/fynnwu/all/ecommerce/internal/risksecurity/domain/repository"
+	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain/repository"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // SketchCounter 基于 Count-Min Sketch 的频率统计实现

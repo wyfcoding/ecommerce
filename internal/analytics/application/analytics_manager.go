@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 	pkgredis "github.com/wyfcoding/pkg/redis"
-	"github.com/redis/go-redis/v9"
 )
 
 // AnalyticsManager 处理分析模块的写操作和业务逻辑。
@@ -17,27 +17,44 @@ import (
 type AnalyticsManager struct {
 	repo        domain.AnalyticsRepository
 	logger      *slog.Logger
-	redisClient *redis.Client
-	gmvStats    *algorithm.FenwickTree // 用于统计 24 小时内每一分钟的 GMV
-	orderStats  *algorithm.FenwickTree // 用于统计 24 小时内每一分钟的订单数
+	redisClient *pkgredis.Client
+	gmvStats    *algorithm.FenwickTree              // 用于统计 24 小时内每一分钟的 GMV
+	orderStats  *algorithm.FenwickTree              // 用于统计 24 小时内每一分钟的订单数
+	sampler     *algorithm.ReservoirSampler[string] // 用于对原始事件流进行抽样
+	samplerMu   sync.Mutex
 }
 
 // NewAnalyticsManager 创建并返回一个新的 AnalyticsManager 实例。
-func NewAnalyticsManager(repo domain.AnalyticsRepository, redisClient *redis.Client, logger *slog.Logger) *AnalyticsManager {
+func NewAnalyticsManager(repo domain.AnalyticsRepository, redisClient *pkgredis.Client, logger *slog.Logger) *AnalyticsManager {
 	return &AnalyticsManager{
 		repo:        repo,
 		logger:      logger,
 		redisClient: redisClient,
 		gmvStats:    algorithm.NewFenwickTree(1440), // 一天 1440 分钟
 		orderStats:  algorithm.NewFenwickTree(1440),
+		sampler:     algorithm.NewReservoirSampler[string](1000), // 采样 1000 条
 	}
+}
+
+// LogAndSampleEvent 记录事件并进行抽样
+func (m *AnalyticsManager) LogAndSampleEvent(event string) {
+	m.samplerMu.Lock()
+	defer m.samplerMu.Unlock()
+	m.sampler.Observe(event)
+}
+
+// GetEventSamples 获取当前的事件样本
+func (m *AnalyticsManager) GetEventSamples() []string {
+	m.samplerMu.Lock()
+	defer m.samplerMu.Unlock()
+	return m.sampler.GetSamples()
 }
 
 // TrackUserVisit 追踪用户访问 (统计 DAU)
 func (m *AnalyticsManager) TrackUserVisit(ctx context.Context, userID uint64) {
 	today := time.Now().Format("2006-01-02")
 	key := fmt.Sprintf("analytics:uv:%s", today)
-	
+
 	// 使用封装的 PFAdd 统计基数
 	if err := pkgredis.PFAdd(ctx, m.redisClient, key, userID); err != nil {
 		m.logger.ErrorContext(ctx, "failed to track user visit", "user_id", userID, "error", err)
@@ -48,7 +65,7 @@ func (m *AnalyticsManager) TrackUserVisit(ctx context.Context, userID uint64) {
 func (m *AnalyticsManager) GetDailyUV(ctx context.Context) (int64, error) {
 	today := time.Now().Format("2006-01-02")
 	key := fmt.Sprintf("analytics:uv:%s", today)
-	
+
 	return pkgredis.PFCount(ctx, m.redisClient, key)
 }
 

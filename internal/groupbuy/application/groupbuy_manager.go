@@ -153,3 +153,16 @@ func (m *GroupbuyManager) AutoJoinTeam(ctx context.Context, groupbuyID, userID u
 	// 5. 加入团队
 	return m.JoinTeam(ctx, teamNo, userID)
 }
+
+// OptimizeTeamAssignments 优化团员与团长的匹配方案 (基于 Gale-Shapley 算法)
+func (m *GroupbuyManager) OptimizeTeamAssignments(ctx context.Context, members, leaders []algorithm.Participant) map[int]int {
+	if len(members) == 0 || len(leaders) == 0 {
+		return nil
+	}
+
+	sm := algorithm.NewStableMarriage(members, leaders)
+	assignments := sm.Match()
+
+	m.logger.InfoContext(ctx, "optimized team assignments completed", "assignments_count", len(assignments))
+	return assignments
+}
