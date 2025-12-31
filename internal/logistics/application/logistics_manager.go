@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
@@ -12,19 +13,78 @@ import (
 
 // LogisticsManager 处理物流的写操作（创建、状态更新、轨迹追踪、路线优化）。
 type LogisticsManager struct {
-	repo               domain.LogisticsRepository
-	optimizer          *algorithm.RouteOptimizer
-	packingOptimizer   *algorithm.BinPackingOptimizer
-	logger             *slog.Logger
+	repo             domain.LogisticsRepository
+	optimizer        *algorithm.RouteOptimizer
+	packingOptimizer *algorithm.BinPackingOptimizer
+	logger           *slog.Logger
+}
+
+// RiderInfo 骑手信息
+type RiderInfo struct {
+	ID  string
+	Lat float64
+	Lon float64
+}
+
+// OrderInfo 订单配送信息
+type OrderInfo struct {
+	ID  string
+	Lat float64
+	Lon float64
+}
+
+// AssignRidersToOrders 将骑手分配给订单 (最小总距离指派)
+func (m *LogisticsManager) AssignRidersToOrders(riders []RiderInfo, orders []OrderInfo) map[string]string {
+	if len(riders) == 0 || len(orders) == 0 {
+		return nil
+	}
+
+	nx := len(riders)
+	ny := len(orders)
+	// KM 算法通常要求左右节点数量相等。这里我们取最大值构建方阵。
+	size := nx
+	if ny > size {
+		size = ny
+	}
+
+	bg := algorithm.NewWeightedBipartiteGraph(size, size)
+
+	// 计算距离矩阵
+	for i, rider := range riders {
+		for j, order := range orders {
+			dist := m.calculateDistance(rider.Lat, rider.Lon, order.Lat, order.Lon)
+			// KM 求最大权匹配。为了求最小距离，我们传入负距离。
+			bg.SetWeight(i, j, -dist)
+		}
+	}
+
+	bg.Solve()
+	match := bg.GetMatch()
+
+	result := make(map[string]string)
+	for rIdx, oIdx := range match {
+		if rIdx < len(riders) && oIdx < len(orders) {
+			result[riders[rIdx].ID] = orders[oIdx].ID
+		}
+	}
+
+	return result
+}
+
+// calculateDistance 计算两点间的欧几里得距离 (简化版)
+func (m *LogisticsManager) calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	dx := lat1 - lat2
+	dy := lon1 - lon2
+	return math.Sqrt(dx*dx + dy*dy)
 }
 
 // NewLogisticsManager 负责处理 NewLogistics 相关的写操作和业务逻辑。
 func NewLogisticsManager(repo domain.LogisticsRepository, logger *slog.Logger) *LogisticsManager {
 	return &LogisticsManager{
-		repo:               repo,
-		optimizer:          algorithm.NewRouteOptimizer(),
-		packingOptimizer:   algorithm.NewBinPackingOptimizer(1000.0), // 假设标准箱体积为 1000
-		logger:             logger,
+		repo:             repo,
+		optimizer:        algorithm.NewRouteOptimizer(),
+		packingOptimizer: algorithm.NewBinPackingOptimizer(1000.0), // 假设标准箱体积为 1000
+		logger:           logger,
 	}
 }
 
