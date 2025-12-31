@@ -181,7 +181,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器、风控引擎)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	riskEvaluator := risk.NewSimpleRuleEngine(logger.Logger)
+	riskEvaluator := risk.NewDynamicRiskEngine(logger.Logger)
 
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
