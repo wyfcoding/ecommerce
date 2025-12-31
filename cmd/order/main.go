@@ -141,9 +141,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		err             error
 	)
 	if len(c.Data.Shards) > 0 {
-		shardingManager, err = sharding.NewManager(c.Data.Shards, logger)
+		shardingManager, err = sharding.NewManager(c.Data.Shards, c.CircuitBreaker, logger, m)
 	} else {
-		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
+		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, c.CircuitBreaker, logger, m)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("sharding database init error: %w", err)
@@ -158,7 +158,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 初始化消息队列 (Kafka Producer)
 	bootLog.Info("initializing kafka producer...")
-	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger)
+	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)

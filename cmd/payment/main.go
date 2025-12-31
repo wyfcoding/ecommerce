@@ -146,9 +146,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		err             error
 	)
 	if len(c.Data.Shards) > 0 {
-		shardingManager, err = sharding.NewManager(c.Data.Shards, logger)
+		shardingManager, err = sharding.NewManager(c.Data.Shards, c.CircuitBreaker, logger, m)
 	} else {
-		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, logger)
+		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, c.CircuitBreaker, logger, m)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("sharding database init error: %w", err)

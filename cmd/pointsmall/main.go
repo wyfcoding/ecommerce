@@ -124,7 +124,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	logger := logging.Default() // 获取全局 Logger
 
 	// 1. 初始化数据库 (MySQL)
-	db, err := databases.NewDB(c.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
@@ -132,7 +132,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
@@ -148,7 +148,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
 		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
@@ -158,7 +158,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	pointsmallRepo := persistence.NewPointsRepository(db)
+	pointsmallRepo := persistence.NewPointsRepository(db.RawDB())
 
 	// 5.2 Application (Service)
 	query := application.NewPointsQuery(pointsmallRepo)
@@ -177,7 +177,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 				bootLog.Error("failed to close redis cache", "error", err)
 			}
 		}
-		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
 			if err := sqlDB.Close(); err != nil {
 				bootLog.Error("failed to close sql database", "error", err)
 			}

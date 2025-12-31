@@ -105,14 +105,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	logger := logging.Default()
 
 	// 1. 基础设施
-	db, err := databases.NewDB(c.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}
 
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("redis init failed: %w", err)
@@ -126,7 +126,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
 		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
@@ -134,7 +134,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 4. 装配
 	bootLog.Info("assembling gateway application service...")
-	repo := persistence.NewGatewayRepository(db)
+	repo := persistence.NewGatewayRepository(db.RawDB())
 	service := application.NewGatewayService(repo, logger.Logger)
 
 	// 5. 资源回收
@@ -142,7 +142,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		bootLog.Info("performing graceful shutdown...")
 		clientCleanup()
 		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 	}

@@ -131,7 +131,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	configpkg.PrintWithMask(c)
 
 	// 1. 初始化数据库 (MySQL)
-	db, err := databases.NewDB(c.Data.Database, logger)
+	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
@@ -139,7 +139,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 2. 初始化缓存 (Redis)
 	redisCache, err := cachepkg.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
@@ -147,7 +147,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 初始化消息队列 (Kafka Producer)
 	bootLog.Info("initializing kafka producer...")
-	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger)
+	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
@@ -160,7 +160,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if err != nil {
 		producer.Close()
 		redisCache.Close()
-		if sqlDB, err := db.DB(); err == nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
@@ -170,7 +170,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 6.1 Infrastructure (Persistence & Cache)
-	flashsaleRepo := persistence.NewFlashSaleRepository(db)
+	flashsaleRepo := persistence.NewFlashSaleRepository(db.RawDB())
 	flashsaleCache := cache.NewRedisFlashSaleCache(redisCache.GetClient())
 
 	// 6.2 Application (Service)
@@ -191,7 +191,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if redisCache != nil {
 			redisCache.Close()
 		}
-		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
 			if err := sqlDB.Close(); err != nil {
 				bootLog.Error("failed to close sql database", "error", err)
 			}
