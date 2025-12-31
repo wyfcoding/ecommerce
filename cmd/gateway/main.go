@@ -50,7 +50,6 @@ func main() {
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.MetricsMiddleware(),
 			middleware.CORS(),
 		).
 		Build().
@@ -124,7 +123,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 下游微服务拨号
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
 		redisCache.Close()
 		if sqlDB, err := db.DB(); err == nil {

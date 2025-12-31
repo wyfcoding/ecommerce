@@ -67,7 +67,6 @@ func main() {
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.MetricsMiddleware(),               // 指标采集
 			middleware.CORS(),                            // 跨域处理
 			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
 		).
@@ -157,7 +156,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5. 初始化下游微服务客户端
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitClients(c.Services, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
 		producer.Close()
 		redisCache.Close()

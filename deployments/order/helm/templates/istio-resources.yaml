@@ -1,0 +1,132 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ include "order.fullname" . }}-gateway
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    istio: ingressgateway # 使用默认的 istio ingress gateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.ecommerce.com"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: TERMINATE
+      credentialName: ecommerce-credential # 证书 Secret 名
+    hosts:
+    - "api.ecommerce.com"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "order.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  hosts:
+  - api.ecommerce.com
+  - {{ include "order.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  gateways:
+  - {{ include "order.fullname" . }}-gateway
+  - mesh # 内部网格流量也生效
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1/orders
+    route:
+    - destination:
+        host: {{ include "order.fullname" . }}
+        subset: v1
+        port:
+          number: {{ .Values.service.httpPort }}
+      weight: 100 # 此处可配置权重用于金丝雀发布
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: "gateway-error,connect-failure,refused-stream"
+    timeout: 10s
+    corsPolicy:
+      allowOrigins:
+      - exact: "https://ecommerce.com"
+      allowMethods:
+      - POST
+      - GET
+      - OPTIONS
+      - PUT
+      - DELETE
+      allowHeaders:
+      - authorization
+      - content-type
+      maxAge: "24h"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "order.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: {{ include "order.fullname" . }}
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    tls:
+      mode: ISTIO_MUTUAL # 开启 mTLS
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30ms
+      http:
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 10
+    outlierDetection: # 离群检测（实现熔断的关键）
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: {{ include "order.fullname" . }}-sidecar
+  namespace: {{ .Release.Namespace }}
+spec:
+  workloadSelector:
+    labels:
+      app.kubernetes.io/name: {{ include "order.name" . }}
+  egress:
+  - hosts:
+    - "istio-system/*" # 允许访问控制面
+    - "./*"         # 允许访问当前 namespace 的服务
+    - "default/payment.default.svc.cluster.local" # 显式允许访问支付服务
+    - "default/inventory.default.svc.cluster.local" # 显式允许访问库存服务
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "order.fullname" . }}-auth
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "order.name" . }}
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/{{ .Release.Namespace }}/sa/{{ include "order.serviceAccountName" . }}"]
+    - source:
+        namespaces: ["istio-system"] # 允许网关流量
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health", "/metrics"] # 允许公开访问监控路径
