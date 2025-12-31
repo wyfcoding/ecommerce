@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/customer/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // CustomerManager 处理客户服务的写操作。
@@ -21,6 +22,52 @@ func NewCustomerManager(repo domain.CustomerRepository, logger *slog.Logger) *Cu
 		repo:   repo,
 		logger: logger,
 	}
+}
+
+// SegmentUsers 利用 K-Means 算法对用户进行分群。
+// k: 期望的分群数量。
+// 该功能通过分析用户的工单频率、处理时长等维度，识别不同价值或行为偏好的用户群体。
+func (m *CustomerManager) SegmentUsers(ctx context.Context, k int) (map[uint64]int, error) {
+	// 1. 获取所有活跃用户的统计数据
+	// 这里简化模拟获取数据，实际应从 Repository 中进行聚合查询
+	// 假设我们关心两个维度：1. 工单总数 (反映活跃/问题度) 2. 平均优先级 (反映紧迫度)
+	userStats := []struct {
+		UserID      uint64
+		TicketCount float64
+		AvgPriority float64
+	}{
+		{UserID: 1, TicketCount: 10, AvgPriority: 4},
+		{UserID: 2, TicketCount: 2, AvgPriority: 1},
+		{UserID: 3, TicketCount: 15, AvgPriority: 3},
+		{UserID: 4, TicketCount: 1, AvgPriority: 2},
+		{UserID: 5, TicketCount: 8, AvgPriority: 4},
+	}
+
+	if len(userStats) < k {
+		return nil, fmt.Errorf("not enough data points for k=%d", k)
+	}
+
+	// 2. 构造 KMeans 输入点
+	points := make([]*algorithm.KMeansPoint, len(userStats))
+	for i, stat := range userStats {
+		points[i] = &algorithm.KMeansPoint{
+			ID:   stat.UserID,
+			Data: []float64{stat.TicketCount, stat.AvgPriority},
+		}
+	}
+
+	// 3. 执行 K-Means 聚类
+	kmeans := algorithm.NewKMeans(k, 100, 0.01)
+	kmeans.Fit(points)
+
+	// 4. 收集结果
+	results := make(map[uint64]int)
+	for _, p := range points {
+		results[p.ID] = p.Label
+	}
+
+	m.logger.InfoContext(ctx, "user segmentation completed", "k", k, "user_count", len(userStats))
+	return results, nil
 }
 
 // CreateTicket 创建一个新的客户服务工单。

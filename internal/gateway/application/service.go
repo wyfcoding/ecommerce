@@ -2,22 +2,29 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // GatewayService 结构体定义了API网关相关的应用服务。
+// 引入一致性哈希，用于在分布式场景下实现稳定的请求分发（会话粘滞）。
 type GatewayService struct {
-	repo   domain.GatewayRepository
-	logger *slog.Logger
+	repo     domain.GatewayRepository
+	logger   *slog.Logger
+	hashRing *algorithm.ConsistentHash
 }
 
 // NewGatewayService 创建并返回一个新的 GatewayService 实例。
 func NewGatewayService(repo domain.GatewayRepository, logger *slog.Logger) *GatewayService {
 	return &GatewayService{
-		repo:   repo,
-		logger: logger,
+		repo:     repo,
+		logger:   logger,
+		hashRing: algorithm.NewConsistentHash(100, nil), // 100个虚拟节点以平衡分布
 	}
 }
 
@@ -28,7 +35,35 @@ func (s *GatewayService) RegisterRoute(ctx context.Context, path, method, servic
 		s.logger.Error("failed to save route", "error", err)
 		return nil, err
 	}
+
+	// 动态维护哈希环：当有新的后端节点（Backend）注册时，加入环中
+	// 实际场景中，后端地址可能是以逗号分隔的多个实例地址
+	backends := strings.Split(backend, ",")
+	for _, b := range backends {
+		if b != "" {
+			s.hashRing.Add(b)
+		}
+	}
+
 	return route, nil
+}
+
+// DispatchByUserID 根据用户ID使用一致性哈希分发请求。
+// 这保证了同一个用户的请求始终落到同一个后端节点，有利于本地缓存利用和WebSocket连接管理。
+func (s *GatewayService) DispatchByUserID(ctx context.Context, userID uint64, path string) (string, error) {
+	// 获取路由信息
+	// 简化版：这里假设可以通过路径找到对应的服务节点列表
+	// 实际开发中，这里应查询注册中心或本地缓存的后端实例列表
+	key := strconv.FormatUint(userID, 10)
+	node := s.hashRing.Get(key)
+
+	if node == "" {
+		s.logger.Warn("no backend node available in hash ring", "user_id", userID, "path", path)
+		return "", fmt.Errorf("no available backend nodes")
+	}
+
+	s.logger.Debug("request dispatched via consistent hash", "user_id", userID, "node", node)
+	return node, nil
 }
 
 // GetRoute 获取指定ID的路由规则。

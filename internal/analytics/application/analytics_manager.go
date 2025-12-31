@@ -3,22 +3,57 @@ package application
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // AnalyticsManager 处理分析模块的写操作和业务逻辑。
+// 引入树状数组（FenwickTree）用于实时、高频的订单金额和数量统计。
 type AnalyticsManager struct {
-	repo   domain.AnalyticsRepository
-	logger *slog.Logger
+	repo       domain.AnalyticsRepository
+	logger     *slog.Logger
+	gmvStats   *algorithm.FenwickTree // 用于统计 24 小时内每一分钟的 GMV
+	orderStats *algorithm.FenwickTree // 用于统计 24 小时内每一分钟的订单数
 }
 
 // NewAnalyticsManager 创建并返回一个新的 AnalyticsManager 实例。
 func NewAnalyticsManager(repo domain.AnalyticsRepository, logger *slog.Logger) *AnalyticsManager {
 	return &AnalyticsManager{
-		repo:   repo,
-		logger: logger,
+		repo:       repo,
+		logger:     logger,
+		gmvStats:   algorithm.NewFenwickTree(1440), // 一天 1440 分钟
+		orderStats: algorithm.NewFenwickTree(1440),
 	}
+}
+
+// TrackRealtimeOrder 实时追踪订单数据。
+// 利用树状数组的 O(log N) 更新特性，支持极高并发的实时统计。
+func (m *AnalyticsManager) TrackRealtimeOrder(ctx context.Context, amount int64, timestamp time.Time) {
+	// 计算当前时间在一天中的分钟偏移量 (0-1439)
+	minute := timestamp.Hour()*60 + timestamp.Minute()
+
+	m.gmvStats.Update(minute, amount)
+	m.orderStats.Update(minute, 1)
+
+	m.logger.DebugContext(ctx, "realtime order tracked", "minute", minute, "amount", amount)
+}
+
+// GetHourlyStats 获取指定小时的聚合统计数据。
+// 利用树状数组的区间查询 O(log N) 特性，快速获取结果。
+func (m *AnalyticsManager) GetHourlyStats(ctx context.Context, hour int) (int64, int64) {
+	if hour < 0 || hour > 23 {
+		return 0, 0
+	}
+
+	startMin := hour * 60
+	endMin := startMin + 59
+
+	totalGMV := m.gmvStats.RangeQuery(startMin, endMin)
+	totalOrders := m.orderStats.RangeQuery(startMin, endMin)
+
+	return totalGMV, totalOrders
 }
 
 // LogMetric 记录一个指标。

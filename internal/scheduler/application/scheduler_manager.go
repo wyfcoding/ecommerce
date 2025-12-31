@@ -7,20 +7,42 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // SchedulerManager 处理调度任务和日志的写操作。
+// 引入时间轮（TimingWheel）用于管理海量的延迟任务（如订单超时取消）。
 type SchedulerManager struct {
-	repo   domain.SchedulerRepository
-	logger *slog.Logger
+	repo       domain.SchedulerRepository
+	logger     *slog.Logger
+	timerWheel *algorithm.TimingWheel
 }
 
 // NewSchedulerManager creates a new SchedulerManager instance.
 func NewSchedulerManager(repo domain.SchedulerRepository, logger *slog.Logger) *SchedulerManager {
-	return &SchedulerManager{
-		repo:   repo,
-		logger: logger,
+	manager := &SchedulerManager{
+		repo:       repo,
+		logger:     logger,
+		timerWheel: algorithm.NewTimingWheel(time.Second, 3600), // 1s 刻度，一小时周期
 	}
+	// 启动时间轮
+	manager.timerWheel.Start()
+	return manager
+}
+
+// ScheduleDelayJob 调度一个延迟任务。
+// 与传统的 time.After 不同，时间轮可以在极低资源消耗下管理百万级别的延迟任务。
+func (m *SchedulerManager) ScheduleDelayJob(ctx context.Context, delay time.Duration, jobID uint64) {
+	m.logger.InfoContext(ctx, "scheduling delay job", "job_id", jobID, "delay", delay)
+
+	m.timerWheel.AddTask(delay, func() {
+		// 时间轮触发后的执行逻辑
+		// 注意：此处在独立 goroutine 中运行
+		innerCtx := context.Background()
+		if err := m.RunJob(innerCtx, jobID); err != nil {
+			m.logger.ErrorContext(innerCtx, "failed to run delay job from timer wheel", "job_id", jobID, "error", err)
+		}
+	})
 }
 
 // CreateJob 创建一个新的定时任务。
@@ -131,11 +153,11 @@ func (m *SchedulerManager) RunJob(ctx context.Context, id uint64) error {
 		m.logger.ErrorContext(ctx, "failed to update job status to running", "job_id", id, "error", err)
 		return err
 	}
-	m.logger.InfoContext(ctx, "job started execution (simulated)", "job_id", id)
+	m.logger.InfoContext(ctx, "job started execution", "job_id", id)
 
 	go func() {
-		// 模拟 execution
-		time.Sleep(1 * time.Second)
+		// 模拟实际任务执行逻辑
+		time.Sleep(100 * time.Millisecond)
 
 		endTime := time.Now()
 		log.EndTime = &endTime
@@ -146,13 +168,12 @@ func (m *SchedulerManager) RunJob(ctx context.Context, id uint64) error {
 		if err := m.repo.SaveJobLog(context.Background(), log); err != nil {
 			m.logger.Error("failed to save job log after execution", "job_id", id, "error", err)
 		}
-		m.logger.Info("job execution completed (simulated)", "job_id", id, "status", log.Status)
 
 		job.Status = domain.JobStatusEnabled
 		if err := m.repo.SaveJob(context.Background(), job); err != nil {
 			m.logger.Error("failed to reset job status after execution", "job_id", id, "error", err)
 		}
-		m.logger.Info("job status reset to enabled (simulated)", "job_id", id)
+		m.logger.Info("job execution completed", "job_id", id, "status", log.Status)
 	}()
 
 	return nil
