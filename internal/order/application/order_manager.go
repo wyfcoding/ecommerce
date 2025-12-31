@@ -16,6 +16,7 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/security/risk"
 	"gorm.io/gorm"
 )
 
@@ -28,6 +29,7 @@ type OrderManager struct {
 	logger            *slog.Logger
 	dtmServer         string
 	warehouseGrpcAddr string
+	riskEvaluator     risk.Evaluator
 
 	// 指标统计
 	orderCreatedCounter *prometheus.CounterVec
@@ -42,6 +44,7 @@ func NewOrderManager(
 	logger *slog.Logger,
 	dtmServer, warehouseGrpcAddr string,
 	m *metrics.Metrics,
+	riskEvaluator risk.Evaluator,
 ) *OrderManager {
 	orderCreatedCounter := m.NewCounterVec(prometheus.CounterOpts{
 		Name: "order_created_total",
@@ -56,12 +59,45 @@ func NewOrderManager(
 		logger:              logger,
 		dtmServer:           dtmServer,
 		warehouseGrpcAddr:   warehouseGrpcAddr,
+		riskEvaluator:       riskEvaluator,
 		orderCreatedCounter: orderCreatedCounter,
 	}
 }
 
 // CreateOrder 创建订单。
 func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*domain.OrderItem, shippingAddr *domain.ShippingAddress) (*domain.Order, error) {
+	// --- 架构增强：内联风控拦截 (Inline Risk Control) ---
+	var totalAmount int64
+	for _, it := range items {
+		totalAmount += it.Price * int64(it.Quantity)
+	}
+
+	riskAssessment, err := s.riskEvaluator.Assess(ctx, "order.create", map[string]any{
+		"user_id":      userID,
+		"amount":       totalAmount,
+		"item_count":   len(items),
+		"client_ip":    ctx.Value("client_ip"),
+		"device_id":    ctx.Value("device_id"),
+		"is_real_name": true, // 假设从 Context 或 Auth 获取
+	})
+
+	if err != nil {
+		// Fail-Open 策略：风控引擎故障时默认放行，保证业务连续性
+		s.logger.ErrorContext(ctx, "risk assessment failed, fail-open applied", "error", err)
+	} else {
+		switch riskAssessment.Level {
+		case risk.Reject:
+			s.logger.WarnContext(ctx, "order rejected by risk control",
+				"user_id", userID, "code", riskAssessment.Code, "reason", riskAssessment.Reason)
+			return nil, fmt.Errorf("transaction security risk: %s", riskAssessment.Reason)
+		case risk.Review:
+			s.logger.InfoContext(ctx, "order needs risk review",
+				"user_id", userID, "code", riskAssessment.Code)
+			// 此处可以抛出特定错误让前端触发 MFA (多因素认证)
+		}
+	}
+	// --- 内联风控结束 ---
+
 	orderID := s.idGen.Generate()
 	orderNo := fmt.Sprintf("%s%d", time.Now().Format("20060102"), orderID)
 
@@ -69,7 +105,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	order.Status = domain.PendingPayment
 
 	// 顶级架构实践：利用本地事务确保业务数据与 Outbox 消息的强一致性
-	err := s.repo.Transaction(ctx, userID, func(tx any) error {
+	err = s.repo.Transaction(ctx, userID, func(tx any) error {
 		// 1. 使用事务中的仓储
 		txRepo := s.repo.WithTx(tx)
 		if err := txRepo.Save(ctx, order); err != nil {
