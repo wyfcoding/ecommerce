@@ -166,7 +166,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewAnalyticsQuery(analyticsRepo)
-	manager := application.NewAnalyticsManager(analyticsRepo, logger.Logger)
+	manager := application.NewAnalyticsManager(analyticsRepo, redisCache.GetClient(), logger.Logger)
 	analyticsService := application.NewAnalytics(manager, query, idGenerator)
 
 	// 5.3 Interface (HTTP Handlers)

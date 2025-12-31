@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/audit/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 	"github.com/wyfcoding/pkg/idgen"
 )
 
@@ -24,6 +25,36 @@ func NewAuditManager(repo domain.AuditRepository, idGenerator idgen.Generator, l
 		idGenerator: idGenerator,
 		logger:      logger,
 	}
+}
+
+// SealLogs 为最近的日志生成“数字封条”（Merkle Root）
+func (m *AuditManager) SealLogs(ctx context.Context, limit int) (string, error) {
+	// 1. 获取最近的日志
+	query := &domain.AuditLogQuery{
+		Page:     1,
+		PageSize: limit,
+	}
+	logs, _, err := m.repo.ListLogs(ctx, query)
+	if err != nil {
+		return "", err
+	}
+	if len(logs) == 0 {
+		return "", nil
+	}
+
+	// 2. 提取数据用于构建 Merkle Tree
+	data := make([][]byte, len(logs))
+	for i, l := range logs {
+		// 将关键字段拼接作为节点数据
+		data[i] = []byte(fmt.Sprintf("%s|%d|%s|%s", l.AuditNo, l.UserID, l.Action, l.CreatedAt.Format(time.RFC3339)))
+	}
+
+	// 3. 构建 Merkle Tree 并获取根哈希
+	tree := algorithm.NewMerkleTree(data)
+	rootHash := tree.RootHashHex()
+
+	m.logger.InfoContext(ctx, "audit logs sealed with merkle root", "count", len(logs), "root_hash", rootHash)
+	return rootHash, nil
 }
 
 // LogEvent 记录一个审计事件。
