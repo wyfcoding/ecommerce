@@ -6,19 +6,22 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // ReviewManager 处理评论模块的写操作和核心业务流程。
 type ReviewManager struct {
-	repo   domain.ReviewRepository
-	logger *slog.Logger
+	repo    domain.ReviewRepository
+	logger  *slog.Logger
+	simHash *algorithm.SimHash
 }
 
 // NewReviewManager 创建并返回一个新的 ReviewManager 实例。
 func NewReviewManager(repo domain.ReviewRepository, logger *slog.Logger) *ReviewManager {
 	return &ReviewManager{
-		repo:   repo,
-		logger: logger,
+		repo:    repo,
+		logger:  logger,
+		simHash: algorithm.NewSimHash(),
 	}
 }
 
@@ -29,6 +32,28 @@ func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, ord
 		return nil, fmt.Errorf("rating must be between 1 and 5")
 	}
 
+	// --- 查重逻辑集成 ---
+	// 获取该商品最近的几条评论进行相似度对比
+	recentReviews, _, _ := m.repo.List(ctx, productID, nil, 0, 20) 
+	newHash := m.simHash.Calculate(content)
+
+	isSpam := false
+	for _, r := range recentReviews {
+		existingHash := m.simHash.Calculate(r.Content)
+		// 海明距离 <= 3 通常认为高度相似
+		if m.simHash.HammingDistance(newHash, existingHash) <= 3 {
+			isSpam = true
+			break
+		}
+	}
+
+	status := domain.ReviewStatusPending
+	if isSpam {
+		m.logger.WarnContext(ctx, "suspected spam review detected", "user_id", userID, "product_id", productID)
+		// 策略：如果是垃圾内容，可以设为拒绝，或者进入人工审核队列
+		status = domain.ReviewStatusRejected
+	}
+
 	review := &domain.Review{
 		UserID:    userID,
 		ProductID: productID,
@@ -37,7 +62,7 @@ func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, ord
 		Rating:    rating,
 		Content:   content,
 		Images:    domain.StringArray(images),
-		Status:    domain.ReviewStatusPending, // 初始状态为待审核。
+		Status:    status,
 	}
 
 	if err := m.repo.Save(ctx, review); err != nil {

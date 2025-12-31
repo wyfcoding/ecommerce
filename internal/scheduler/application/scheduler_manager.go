@@ -20,10 +20,17 @@ type SchedulerManager struct {
 
 // NewSchedulerManager creates a new SchedulerManager instance.
 func NewSchedulerManager(repo domain.SchedulerRepository, logger *slog.Logger) *SchedulerManager {
+	tw, err := algorithm.NewTimingWheel(time.Second, 3600)
+	if err != nil {
+		// 初始化失败属于严重配置错误
+		logger.Error("failed to create timing wheel", "error", err)
+		return nil
+	}
+
 	manager := &SchedulerManager{
 		repo:       repo,
 		logger:     logger,
-		timerWheel: algorithm.NewTimingWheel(time.Second, 3600), // 1s 刻度，一小时周期
+		timerWheel: tw, // 1s 刻度，一小时周期
 	}
 	// 启动时间轮
 	manager.timerWheel.Start()
