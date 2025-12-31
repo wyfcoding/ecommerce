@@ -5,8 +5,8 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
+	"github.com/wyfcoding/pkg/redis"
 )
 
 // deductStockScript 嵌入了用于原子性扣减库存的Lua脚本。
