@@ -8,19 +8,22 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // RiskManager 处理风控安全的写操作。
 type RiskManager struct {
-	repo   domain.RiskRepository
-	logger *slog.Logger
+	repo     domain.RiskRepository
+	logger   *slog.Logger
+	detector *algorithm.AntiBotDetector
 }
 
 // NewRiskManager creates a new RiskManager instance.
 func NewRiskManager(repo domain.RiskRepository, logger *slog.Logger) *RiskManager {
 	return &RiskManager{
-		repo:   repo,
-		logger: logger,
+		repo:     repo,
+		logger:   logger,
+		detector: algorithm.NewAntiBotDetector(),
 	}
 }
 
@@ -43,22 +46,44 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 		return m.createResult(ctx, userID, domain.RiskLevelCritical, 100, "User ID found in blacklist")
 	}
 
-	// 2. 评估风险规则
+	// 2. 评估风险规则 (基础规则)
 	score := int32(0)
 	if amount > 1000000 {
 		score += 20
 	}
 
-	// 3. 评估用户行为
-	behavior, err := m.repo.GetUserBehavior(ctx, userID)
+	// 3. 评估用户行为 (历史行为)
+	behaviorData, err := m.repo.GetUserBehavior(ctx, userID)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to get user behavior", "user_id", userID, "error", err)
 	}
-	if behavior != nil && behavior.LastLoginIP != "" && behavior.LastLoginIP != ip {
+	if behaviorData != nil && behaviorData.LastLoginIP != "" && behaviorData.LastLoginIP != ip {
 		score += 30
 	}
 
-	// 4. 根据风险分数确定风险等级
+	// 4. 实时反爬虫/机器人检测 (算法模型)
+	currentBehavior := algorithm.UserBehavior{
+		UserID:    userID,
+		IP:        ip,
+		UserAgent: "Unknown", // TODO: 应该从Context或上层传入UserAgent
+		Timestamp: time.Now(),
+		Action:    "transaction",
+	}
+
+	isBot, reason := m.detector.IsBot(currentBehavior)
+	botScore := m.detector.GetRiskScore(currentBehavior)
+
+	// 融合算法评分
+	if isBot {
+		score += 50
+		m.logger.WarnContext(ctx, "bot activity detected", "user_id", userID, "reason", reason)
+	}
+	score += int32(botScore)
+
+	// 5. 根据风险分数确定风险等级
+	if score > 100 {
+		score = 100
+	}
 	level := domain.RiskLevelLow
 	if score > 80 {
 		level = domain.RiskLevelCritical
@@ -68,7 +93,7 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 		level = domain.RiskLevelMedium
 	}
 
-	return m.createResult(ctx, userID, level, score, "Risk evaluation completed")
+	return m.createResult(ctx, userID, level, score, fmt.Sprintf("Risk evaluation completed. Bot check: %v (%s)", isBot, reason))
 }
 
 // createResult 是一个辅助函数，用于创建并保存 RiskAnalysisResult 实体。

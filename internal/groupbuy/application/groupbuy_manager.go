@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 	"github.com/wyfcoding/pkg/idgen"
 )
 
@@ -15,6 +16,7 @@ type GroupbuyManager struct {
 	repo        domain.GroupbuyRepository
 	idGenerator idgen.Generator
 	logger      *slog.Logger
+	matcher     *algorithm.GroupBuyMatcher
 }
 
 // NewGroupbuyManager 负责处理 NewGroupbuy 相关的写操作和业务逻辑。
@@ -23,6 +25,7 @@ func NewGroupbuyManager(repo domain.GroupbuyRepository, idGenerator idgen.Genera
 		repo:        repo,
 		idGenerator: idGenerator,
 		logger:      logger,
+		matcher:     algorithm.NewGroupBuyMatcher(),
 	}
 }
 
@@ -99,4 +102,54 @@ func (m *GroupbuyManager) JoinTeam(ctx context.Context, teamNo string, userID ui
 	m.logger.InfoContext(ctx, "joined groupbuy team successfully", "team_no", teamNo, "user_id", userID)
 
 	return order, nil
+}
+
+// AutoJoinTeam 自动匹配并加入一个最合适的拼团团队。
+func (m *GroupbuyManager) AutoJoinTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyOrder, error) {
+	// 1. 获取活跃的团队列表 (获取前100个作为候选)
+	teams, _, err := m.repo.ListTeamsByGroupbuyID(ctx, groupbuyID, 1, 100)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 转换为算法需要的格式
+	candidates := make([]algorithm.GroupBuyGroup, 0, len(teams))
+	for _, t := range teams {
+		if t.CanJoin() {
+			candidates = append(candidates, algorithm.GroupBuyGroup{
+				ID:            uint64(t.ID),
+				ActivityID:    t.GroupbuyID,
+				LeaderID:      t.LeaderID,
+				RequiredCount: int(t.MaxPeople),
+				CurrentCount:  int(t.CurrentPeople),
+				CreatedAt:     t.CreatedAt,
+				ExpireAt:      t.ExpireAt,
+				Region:        "default", // 暂无地域信息
+				Lat:           0,
+				Lon:           0,
+			})
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no available teams to join")
+	}
+
+	// 3. 使用算法找到最佳团队 (优先即将成团)
+	bestGroup := m.matcher.FindBestGroup(groupbuyID, 0, 0, "default", candidates, algorithm.MatchStrategyAlmostFull)
+	if bestGroup == nil {
+		return nil, fmt.Errorf("no suitable team found")
+	}
+
+	// 4. 找到对应的 teamNo
+	var teamNo string
+	for _, t := range teams {
+		if uint64(t.ID) == bestGroup.ID {
+			teamNo = t.TeamNo
+			break
+		}
+	}
+
+	// 5. 加入团队
+	return m.JoinTeam(ctx, teamNo, userID)
 }
