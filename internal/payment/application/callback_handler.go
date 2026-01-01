@@ -32,8 +32,8 @@ func NewCallbackHandler(
 }
 
 // HandlePaymentCallback 这里通常用于非 Pre-auth 的直接支付流，或者异步通知
-func (s *CallbackHandler) HandlePaymentCallback(ctx context.Context, paymentNo string, success bool, transactionID, thirdPartyNo string, callbackData map[string]string) error {
-	s.logger.InfoContext(ctx, "handling payment callback", "payment_no", paymentNo, "success", success)
+func (s *CallbackHandler) HandlePaymentCallback(ctx context.Context, userID uint64, paymentNo string, success bool, transactionID, thirdPartyNo string, callbackData map[string]string) error {
+	s.logger.InfoContext(ctx, "handling payment callback", "payment_no", paymentNo, "user_id", userID, "success", success)
 
 	lockKey := fmt.Sprintf("lock:payment:callback:%s", paymentNo)
 	token, err := s.lockSvc.Lock(ctx, lockKey, 10*time.Second)
@@ -46,7 +46,7 @@ func (s *CallbackHandler) HandlePaymentCallback(ctx context.Context, paymentNo s
 		}
 	}()
 
-	payment, err := s.paymentRepo.FindByPaymentNo(ctx, paymentNo)
+	payment, err := s.paymentRepo.FindByPaymentNo(ctx, userID, paymentNo)
 	if err != nil || payment == nil {
 		return fmt.Errorf("payment not found")
 	}

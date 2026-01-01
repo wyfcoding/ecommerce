@@ -87,7 +87,8 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 		"third_party_no": req.ThirdPartyNo,
 	}
 
-	if err := h.app.HandlePaymentCallback(c.Request.Context(), req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
+	// TODO: Third-party callbacks often lack userID. Need global lookup or sharding key in payment_no.
+	if err := h.app.HandlePaymentCallback(c.Request.Context(), 0, req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "payment callback processing failed", "payment_no", req.PaymentNo, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "callback processing error", "")
 		return
@@ -104,9 +105,12 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 		return
 	}
 
-	payment, err := h.app.GetPaymentStatus(c.Request.Context(), id)
+	// 尝试从 query 获取 user_id 用于分片定位
+	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
+
+	payment, err := h.app.GetPaymentStatus(c.Request.Context(), userID, id)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to query payment status", "id", id, "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "failed to query payment status", "id", id, "user_id", userID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to get status", "")
 		return
 	}
@@ -119,6 +123,7 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 }
 
 type requestRefundRequest struct {
+	UserID uint64 `json:"user_id" binding:"required"`
 	Amount int64  `json:"amount" binding:"required,gt=0"`
 	Reason string `json:"reason" binding:"required"`
 }
@@ -137,9 +142,9 @@ func (h *Handler) RequestRefund(c *gin.Context) {
 		return
 	}
 
-	refund, err := h.app.RequestRefund(c.Request.Context(), id, req.Amount, req.Reason)
+	refund, err := h.app.RequestRefund(c.Request.Context(), req.UserID, id, req.Amount, req.Reason)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "refund initiation failed", "id", id, "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "refund initiation failed", "id", id, "user_id", req.UserID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "refund failed: "+err.Error(), "")
 		return
 	}

@@ -18,7 +18,7 @@ func NewPaymentQuery(paymentRepo domain.PaymentRepository) *PaymentQuery {
 	}
 }
 
-// GetPaymentStatus 获取支付详情
-func (s *PaymentQuery) GetPaymentStatus(ctx context.Context, id uint64) (*domain.Payment, error) {
-	return s.paymentRepo.FindByID(ctx, id)
+// GetPaymentStatus 获取支付状态
+func (q *PaymentQuery) GetPaymentStatus(ctx context.Context, userID, id uint64) (*domain.Payment, error) {
+	return q.paymentRepo.FindByID(ctx, userID, id)
 }

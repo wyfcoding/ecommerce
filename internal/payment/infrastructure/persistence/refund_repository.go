@@ -24,13 +24,13 @@ func (r *refundRepository) Save(ctx context.Context, refund *domain.Refund) erro
 	if r.tx != nil {
 		db = r.tx
 	} else {
-		db = r.sharding.GetDB(0)
+		db = r.sharding.GetDB(uint64(refund.UserID))
 	}
 	return db.WithContext(ctx).Create(refund).Error
 }
 
-func (r *refundRepository) FindByID(ctx context.Context, id uint64) (*domain.Refund, error) {
-	db := r.sharding.GetDB(0)
+func (r *refundRepository) FindByID(ctx context.Context, userID uint64, id uint64) (*domain.Refund, error) {
+	db := r.sharding.GetDB(userID)
 	var refund domain.Refund
 	if err := db.WithContext(ctx).First(&refund, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -41,12 +41,12 @@ func (r *refundRepository) FindByID(ctx context.Context, id uint64) (*domain.Ref
 	return &refund, nil
 }
 
-func (r *refundRepository) FindByRefundNo(ctx context.Context, refundNo string) (*domain.Refund, error) {
+func (r *refundRepository) FindByRefundNo(ctx context.Context, userID uint64, refundNo string) (*domain.Refund, error) {
 	var db *gorm.DB
 	if r.tx != nil {
 		db = r.tx
 	} else {
-		db = r.sharding.GetDB(0)
+		db = r.sharding.GetDB(userID)
 	}
 	var refund domain.Refund
 	if err := db.WithContext(ctx).Where("refund_no = ?", refundNo).First(&refund).Error; err != nil {
@@ -59,22 +59,27 @@ func (r *refundRepository) FindByRefundNo(ctx context.Context, refundNo string) 
 }
 
 func (r *refundRepository) Update(ctx context.Context, refund *domain.Refund) error {
-	db := r.sharding.GetDB(0)
-	return db.WithContext(ctx).Save(refund).Error
-}
-
-func (r *refundRepository) Delete(ctx context.Context, id uint64) error {
 	var db *gorm.DB
 	if r.tx != nil {
 		db = r.tx
 	} else {
-		db = r.sharding.GetDB(0)
+		db = r.sharding.GetDB(uint64(refund.UserID))
+	}
+	return db.WithContext(ctx).Save(refund).Error
+}
+
+func (r *refundRepository) Delete(ctx context.Context, userID uint64, id uint64) error {
+	var db *gorm.DB
+	if r.tx != nil {
+		db = r.tx
+	} else {
+		db = r.sharding.GetDB(userID)
 	}
 	return db.WithContext(ctx).Delete(&domain.Refund{}, id).Error
 }
 
-func (r *refundRepository) Transaction(ctx context.Context, fn func(tx any) error) error {
-	db := r.sharding.GetDB(0)
+func (r *refundRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {
+	db := r.sharding.GetDB(userID)
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(tx)
 	})

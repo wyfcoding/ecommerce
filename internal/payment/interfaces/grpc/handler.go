@@ -54,7 +54,8 @@ func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusR
 	start := time.Now()
 	slog.Debug("gRPC GetPaymentStatus received", "payment_transaction_id", req.PaymentTransactionId)
 
-	payment, err := s.App.GetPaymentStatus(ctx, req.PaymentTransactionId)
+	// TODO: GetPaymentStatusRequest should include user_id for sharded lookup
+	payment, err := s.App.GetPaymentStatus(ctx, 0, req.PaymentTransactionId)
 	if err != nil {
 		slog.Error("gRPC GetPaymentStatus failed", "id", req.PaymentTransactionId, "error", err, "duration", time.Since(start))
 		return nil, err
@@ -67,15 +68,15 @@ func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusR
 // RequestRefund
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.RefundTransaction, error) {
 	start := time.Now()
-	slog.Info("gRPC RequestRefund received", "payment_id", req.PaymentTransactionId, "amount", req.RefundAmount)
+	slog.Info("gRPC RequestRefund received", "payment_id", req.PaymentTransactionId, "user_id", req.UserId, "amount", req.RefundAmount)
 
-	refund, err := s.App.RequestRefund(ctx, req.PaymentTransactionId, req.RefundAmount, req.Reason)
+	refund, err := s.App.RequestRefund(ctx, req.UserId, req.PaymentTransactionId, req.RefundAmount, req.Reason)
 	if err != nil {
-		slog.Error("gRPC RequestRefund failed", "id", req.PaymentTransactionId, "error", err, "duration", time.Since(start))
+		slog.Error("gRPC RequestRefund failed", "id", req.PaymentTransactionId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, err
 	}
 
-	slog.Info("gRPC RequestRefund successful", "refund_id", refund.ID, "duration", time.Since(start))
+	slog.Info("gRPC RequestRefund successful", "refund_id", refund.ID, "user_id", req.UserId, "duration", time.Since(start))
 	return convertRefundToProto(refund), nil
 }
 

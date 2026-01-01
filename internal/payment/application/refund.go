@@ -34,8 +34,8 @@ func NewRefundService(
 	}
 }
 
-func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amount int64, reason string) (*domain.Refund, error) {
-	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
+func (s *RefundService) RequestRefund(ctx context.Context, userID, paymentID uint64, amount int64, reason string) (*domain.Refund, error) {
+	payment, err := s.paymentRepo.FindByID(ctx, userID, paymentID)
 	if err != nil || payment == nil {
 		return nil, fmt.Errorf("payment not found")
 	}
@@ -52,12 +52,12 @@ func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amo
 
 	var refund *domain.Refund
 	// 2. 事务处理
-	err = s.paymentRepo.Transaction(ctx, func(tx any) error {
+	err = s.paymentRepo.Transaction(ctx, userID, func(tx any) error {
 		txPaymentRepo := s.paymentRepo.WithTx(tx)
 		txRefundRepo := s.refundRepo.WithTx(tx)
 
 		// 重新加载支付单状态
-		p, err := txPaymentRepo.FindByID(ctx, paymentID)
+		p, err := txPaymentRepo.FindByID(ctx, userID, paymentID)
 		if err != nil {
 			return err
 		}

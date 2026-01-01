@@ -35,19 +35,8 @@ func (r *paymentRepository) Save(ctx context.Context, entity *domain.Payment) er
 }
 
 // FindByID 根据ID从数据库获取支付记录。
-// 注意：由于是分库分表设计，通过支付ID直接查询可能需要遍历所有分库，效率较低。
-// 更优化的方案是：
-// 1. 在支付ID中嵌入分片信息（如Snowflake ID）。
-// 2. 要求调用方提供 userID 或 orderID 等分片键。
-// 3. 维护一个ID到分库的映射表。
-// 当前实现为了兼容接口，暂时默认从第一个分库（shard 0）查询。这在实际生产环境中是不可接受的。
-func (r *paymentRepository) FindByID(ctx context.Context, id uint64) (*domain.Payment, error) {
-	var db *gorm.DB
-	if r.tx != nil {
-		db = r.tx
-	} else {
-		db = r.sharding.GetDB(0) // 临时使用 shard 0。
-	}
+func (r *paymentRepository) FindByID(ctx context.Context, userID uint64, id uint64) (*domain.Payment, error) {
+	db := r.getDB(userID)
 	var entity domain.Payment
 	if err := db.WithContext(ctx).First(&entity, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -58,35 +47,29 @@ func (r *paymentRepository) FindByID(ctx context.Context, id uint64) (*domain.Pa
 	return &entity, nil
 }
 
-// Update 更新支付实体。
-// 此方法根据 UserID 决定更新哪个分库。
-func (r *paymentRepository) Update(ctx context.Context, entity *domain.Payment) error {
-	var db *gorm.DB
+// getDB 内部辅助方法，自动切换事务与普通连接
+func (r *paymentRepository) getDB(userID uint64) *gorm.DB {
 	if r.tx != nil {
-		db = r.tx
-	} else {
-		db = r.sharding.GetDB(uint64(entity.UserID))
+		return r.tx
 	}
+	return r.sharding.GetDB(userID)
+}
+
+// Update 更新支付实体。
+func (r *paymentRepository) Update(ctx context.Context, entity *domain.Payment) error {
+	db := r.getDB(uint64(entity.UserID))
 	return db.WithContext(ctx).Save(entity).Error
 }
 
 // Delete 根据ID从数据库删除支付记录。
-// 存在与FindByID相同的分库问题。
-func (r *paymentRepository) Delete(ctx context.Context, id uint64) error {
-	// TODO: 优化此方法以支持分库删除。目前的实现是硬编码从 shard 0 删除，这在实际生产环境中可能导致数据找不到或删除错误。
-	db := r.sharding.GetDB(0) // 临时使用 shard 0。
+func (r *paymentRepository) Delete(ctx context.Context, userID uint64, id uint64) error {
+	db := r.getDB(userID)
 	return db.WithContext(ctx).Delete(&domain.Payment{}, id).Error
 }
 
 // FindByPaymentNo 根据支付单号从数据库获取支付记录。
-// 存在与FindByID相同的分库问题。
-func (r *paymentRepository) FindByPaymentNo(ctx context.Context, paymentNo string) (*domain.Payment, error) {
-	var db *gorm.DB
-	if r.tx != nil {
-		db = r.tx
-	} else {
-		db = r.sharding.GetDB(0) // 临时使用 shard 0。
-	}
+func (r *paymentRepository) FindByPaymentNo(ctx context.Context, userID uint64, paymentNo string) (*domain.Payment, error) {
+	db := r.getDB(userID)
 	var entity domain.Payment
 	if err := db.WithContext(ctx).Where("payment_no = ?", paymentNo).First(&entity).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -98,14 +81,8 @@ func (r *paymentRepository) FindByPaymentNo(ctx context.Context, paymentNo strin
 }
 
 // FindByOrderID 根据订单ID从数据库获取支付记录。
-// 存在与FindByID相同的分库问题。
-func (r *paymentRepository) FindByOrderID(ctx context.Context, orderID uint64) (*domain.Payment, error) {
-	var db *gorm.DB
-	if r.tx != nil {
-		db = r.tx
-	} else {
-		db = r.sharding.GetDB(0) // 临时使用 shard 0。
-	}
+func (r *paymentRepository) FindByOrderID(ctx context.Context, userID uint64, orderID uint64) (*domain.Payment, error) {
+	db := r.getDB(userID)
 	var entity domain.Payment
 	if err := db.WithContext(ctx).Where("order_id = ?", orderID).First(&entity).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -166,10 +143,8 @@ func (r *paymentRepository) FindLogsByPaymentID(ctx context.Context, paymentID u
 	return logs, nil
 }
 
-func (r *paymentRepository) Transaction(ctx context.Context, fn func(tx any) error) error {
-	// 简单起见，这里假设事务在 shard 0 上执行（或由分片管理器支持跨库事务）。
-	// 在分库分表环境下，事务通常需要由应用层决定分片键。
-	db := r.sharding.GetDB(0)
+func (r *paymentRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {
+	db := r.sharding.GetDB(userID)
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(tx)
 	})

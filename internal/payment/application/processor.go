@@ -71,7 +71,7 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 	}
 
 	// 3. 创建或获取支付单
-	payment, err := s.paymentRepo.FindByOrderID(ctx, orderID)
+	payment, err := s.paymentRepo.FindByOrderID(ctx, userID, orderID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -116,10 +116,10 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 }
 
 // CapturePayment 捕获支付（确认支付）
-func (s *PaymentProcessor) CapturePayment(ctx context.Context, paymentNo string, amount int64) error {
-	return s.paymentRepo.Transaction(ctx, func(tx any) error {
+func (s *PaymentProcessor) CapturePayment(ctx context.Context, userID uint64, paymentNo string, amount int64) error {
+	return s.paymentRepo.Transaction(ctx, userID, func(tx any) error {
 		txRepo := s.paymentRepo.WithTx(tx)
-		payment, err := txRepo.FindByPaymentNo(ctx, paymentNo)
+		payment, err := txRepo.FindByPaymentNo(ctx, userID, paymentNo)
 		if err != nil || payment == nil {
 			return fmt.Errorf("payment not found")
 		}

@@ -229,20 +229,20 @@ type PaymentGateway interface {
 // --- Repositories ---
 
 type PaymentRepository interface {
-	FindByID(ctx context.Context, id uint64) (*Payment, error)
-	FindByPaymentNo(ctx context.Context, paymentNo string) (*Payment, error)
-	FindByOrderID(ctx context.Context, orderID uint64) (*Payment, error)
+	FindByID(ctx context.Context, userID uint64, id uint64) (*Payment, error)
+	FindByPaymentNo(ctx context.Context, userID uint64, paymentNo string) (*Payment, error)
+	FindByOrderID(ctx context.Context, userID uint64, orderID uint64) (*Payment, error)
 	Save(ctx context.Context, payment *Payment) error
 	Update(ctx context.Context, payment *Payment) error
-	Transaction(ctx context.Context, fn func(tx any) error) error
+	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	WithTx(tx any) PaymentRepository
 }
 
 type RefundRepository interface {
-	FindByID(ctx context.Context, id uint64) (*Refund, error)
-	FindByRefundNo(ctx context.Context, refundNo string) (*Refund, error)
+	FindByID(ctx context.Context, userID uint64, id uint64) (*Refund, error)
+	FindByRefundNo(ctx context.Context, userID uint64, refundNo string) (*Refund, error)
 	Save(ctx context.Context, refund *Refund) error
-	Transaction(ctx context.Context, fn func(tx any) error) error
+	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	WithTx(tx any) RefundRepository
 }
 
