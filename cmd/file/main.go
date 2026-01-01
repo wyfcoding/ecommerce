@@ -25,6 +25,7 @@ import (
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/storage"
 )
 
 // BootstrapName 服务唯一标识
@@ -158,12 +159,22 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence)
+	// 5.1 Infrastructure (Persistence & Storage)
 	fileRepo := persistence.NewFileRepository(db.RawDB())
+	minioSvc, err := storage.NewMinIOClient(
+		c.Minio.Endpoint,
+		c.Minio.AccessKeyID,
+		c.Minio.SecretAccessKey,
+		c.Minio.BucketName,
+		c.Minio.UseSSL,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("minio init error: %w", err)
+	}
 
 	// 5.2 Application (Service)
 	query := application.NewFileQuery(fileRepo)
-	manager := application.NewFileManager(fileRepo, logger.Logger)
+	manager := application.NewFileManager(fileRepo, minioSvc, logger.Logger)
 	fileService := application.NewFileService(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)
