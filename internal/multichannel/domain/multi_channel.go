@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -123,4 +124,10 @@ type ChannelSyncLog struct {
 	FailureCount int32     `gorm:"default:0;comment:失败数" json:"failure_count"`
 	StartTime    time.Time `gorm:"comment:开始时间" json:"start_time"`
 	EndTime      time.Time `gorm:"comment:结束时间" json:"end_time"`
+}
+
+// ChannelAdapter 外部渠道适配器接口
+type ChannelAdapter interface {
+	// FetchOrders 拉取指定时间范围内的订单数据
+	FetchOrders(ctx context.Context, channel *Channel, startTime, endTime time.Time) ([]*LocalOrder, error)
 }

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,16 +11,23 @@ import (
 
 // ChannelManager 处理渠道的写操作。
 type ChannelManager struct {
-	repo   domain.MultiChannelRepository
-	logger *slog.Logger
+	repo     domain.MultiChannelRepository
+	logger   *slog.Logger
+	adapters map[string]domain.ChannelAdapter
 }
 
 // NewChannelManager creates a new ChannelManager instance.
 func NewChannelManager(repo domain.MultiChannelRepository, logger *slog.Logger) *ChannelManager {
 	return &ChannelManager{
-		repo:   repo,
-		logger: logger,
+		repo:     repo,
+		logger:   logger,
+		adapters: make(map[string]domain.ChannelAdapter),
 	}
+}
+
+// RegisterAdapter 注册渠道适配器
+func (m *ChannelManager) RegisterAdapter(channelType string, adapter domain.ChannelAdapter) {
+	m.adapters[channelType] = adapter
 }
 
 // RegisterChannel 注册一个新的销售渠道。
@@ -37,49 +45,65 @@ func (m *ChannelManager) SyncOrders(ctx context.Context, channelID uint64) error
 	if err != nil {
 		return err
 	}
-	if channel == nil {
+	if channel == nil || !channel.IsEnabled {
 		return nil
 	}
 
-	startTime := time.Now()
-
-	// 模拟1 new order
-	mockOrder := &domain.LocalOrder{
-		ChannelID:      uint64(channel.ID),
-		ChannelName:    channel.Name,
-		ChannelOrderID: "MOCK-" + time.Now().Format("20060102150405"),
-		Items: []*domain.OrderItem{
-			{ProductID: 1, ProductName: "Mock Product", Quantity: 1, Price: 1000, SKU: "MOCK-SKU"},
-		},
-		TotalAmount: 1000,
-		BuyerInfo: domain.BuyerInfo{
-			Name: "Mock Buyer",
-		},
-		Status: "pending",
+	adapter, ok := m.adapters[channel.Type]
+	if !ok {
+		return fmt.Errorf("no adapter found for channel type: %s", channel.Type)
 	}
 
-	exists, err := m.repo.GetOrderByChannelID(ctx, uint64(channel.ID), mockOrder.ChannelOrderID)
+	startTime := time.Now().Add(-24 * time.Hour) // 默认同步过去 24 小时
+	endTime := time.Now()
+	syncStartTime := time.Now()
+
+	// 1. 调用真实适配器拉取数据
+	externalOrders, err := adapter.FetchOrders(ctx, channel, startTime, endTime)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to fetch external orders", "channel", channel.Name, "error", err)
 		return err
 	}
 
-	successCount := 0
-	if exists == nil {
-		if err := m.repo.SaveOrder(ctx, mockOrder); err == nil {
-			successCount = 1
+	var (
+		successCount int32
+		failureCount int32
+	)
+
+	// 2. 遍历并入库
+	for _, order := range externalOrders {
+		exists, err := m.repo.GetOrderByChannelID(ctx, uint64(channel.ID), order.ChannelOrderID)
+		if err != nil {
+			failureCount++
+			continue
+		}
+
+		if exists == nil {
+			if err := m.repo.SaveOrder(ctx, order); err != nil {
+				m.logger.ErrorContext(ctx, "failed to save synced order", "channel_order_id", order.ChannelOrderID, "error", err)
+				failureCount++
+			} else {
+				successCount++
+			}
 		}
 	}
 
+	// 3. 记录同步日志
 	log := &domain.ChannelSyncLog{
 		ChannelID:    uint64(channel.ID),
 		ChannelName:  channel.Name,
 		Type:         "order",
 		Status:       "success",
-		ItemsCount:   1,
-		SuccessCount: int32(successCount),
-		StartTime:    startTime,
+		ItemsCount:   int32(len(externalOrders)),
+		SuccessCount: successCount,
+		FailureCount: failureCount,
+		StartTime:    syncStartTime,
 		EndTime:      time.Now(),
 	}
+	if failureCount > 0 && successCount == 0 {
+		log.Status = "failed"
+	}
+
 	if err := m.repo.SaveSyncLog(ctx, log); err != nil {
 		m.logger.ErrorContext(ctx, "failed to save channel sync log", "channel_id", channel.ID, "error", err)
 	}
