@@ -1,52 +1,62 @@
+// Package counter 提供了基于概率数据结构的频率统计实现。
 package counter
 
 import (
-	"context"
-	"sync"
+	"log/slog"
+	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain/repository"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
-// SketchCounter 基于 Count-Min Sketch 的频率统计实现
-// 适用于高并发、内存敏感的场景
-type SketchCounter struct {
-	sketch *algorithm.CountMinSketch
-	mu     sync.Mutex
+// TrafficMonitor 流量监控器
+type TrafficMonitor struct {
+	cms    *algorithm.CountMinSketch
+	logger *slog.Logger
+	limit  uint64 // 判定为攻击的频率阈值
 }
 
-// NewSketchCounter 创建一个新的 SketchCounter
-// epsilon: 误差率 (如 0.01)
-// delta: 失败概率 (如 0.01)
-func NewSketchCounter(epsilon, delta float64) (*SketchCounter, error) {
-	cms, err := algorithm.NewCountMinSketch(epsilon, delta)
-	if err != nil {
-		return nil, err
+// NewTrafficMonitor 创建流量监控器
+func NewTrafficMonitor(threshold uint64, logger *slog.Logger) *TrafficMonitor {
+	// epsilon=0.001, delta=0.01 (高精度，低内存占用)
+	cms, _ := algorithm.NewCountMinSketch(0.001, 0.01)
+	
+	m := &TrafficMonitor{
+		cms:    cms,
+		logger: logger,
+		limit:  threshold,
 	}
-	return &SketchCounter{
-		sketch: cms,
-	}, nil
+
+	// 启动后台衰减协程：实现类似滑动窗口的效果
+	go m.startDecayLoop()
+
+	return m
 }
 
-// Add 实现 FrequencyRepository 接口
-func (s *SketchCounter) Add(ctx context.Context, key string, delta uint64) error {
-	// 注意：CountMinSketch 本身加了锁，或者是纯内存操作，这里直接调用即可。
-	// 如果需要持久化或分布式同步，这里需要额外的逻辑。
-	s.sketch.AddString(key, delta)
-	return nil
+func (m *TrafficMonitor) startDecayLoop() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		m.logger.Debug("performing CMS decay to slide frequency window")
+		m.cms.Decay()
+	}
 }
 
-// Estimate 实现 FrequencyRepository 接口
-func (s *SketchCounter) Estimate(ctx context.Context, key string) (uint64, error) {
-	count := s.sketch.EstimateString(key)
-	return count, nil
+// RecordAndCheck 记录访问并检查是否触发风险
+func (m *TrafficMonitor) RecordAndCheck(key string) bool {
+	m.cms.Add([]byte(key), 1)
+	count := m.cms.Estimate([]byte(key))
+
+	if count > m.limit {
+		m.logger.Warn("risk detected: frequency limit exceeded", 
+			"key", key, 
+			"estimated_count", count, 
+			"threshold", m.limit)
+		return true // 触发风险
+	}
+	return false // 安全
 }
 
-// Reset 重置
-func (s *SketchCounter) Reset(ctx context.Context) error {
-	s.sketch.Reset()
-	return nil
+// GetEstimation 获取当前的频率估算值
+func (m *TrafficMonitor) GetEstimation(key string) uint64 {
+	return m.cms.Estimate([]byte(key))
 }
-
-// Ensure implementation
-var _ repository.FrequencyRepository = (*SketchCounter)(nil)

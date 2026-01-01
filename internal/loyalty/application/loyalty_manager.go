@@ -12,7 +12,7 @@ import (
 type LoyaltyManager struct {
 	repo     domain.LoyaltyRepository
 	logger   *slog.Logger
-	rankList *algorithm.SkipList // 内存积分排行榜
+	rankList *algorithm.SkipList[int64, uint64] // 内存积分排行榜 (Points -> UserID)
 }
 
 // NewLoyaltyManager 创建并返回一个新的 LoyaltyManager 实例。
@@ -20,7 +20,7 @@ func NewLoyaltyManager(repo domain.LoyaltyRepository, logger *slog.Logger) *Loya
 	return &LoyaltyManager{
 		repo:     repo,
 		logger:   logger,
-		rankList: algorithm.NewSkipList(),
+		rankList: algorithm.NewSkipList[int64, uint64](),
 	}
 }
 
@@ -35,7 +35,7 @@ func (m *LoyaltyManager) GetTopUsers(limit int) []uint64 {
 		if !ok {
 			break
 		}
-		results = append(results, val.(uint64))
+		results = append(results, val) // 泛型直接返回 uint64，无需类型断言
 	}
 
 	if len(results) > limit {
@@ -67,8 +67,8 @@ func (m *LoyaltyManager) AddPoints(ctx context.Context, userID uint64, points in
 		return err
 	}
 
-	// 同步更新跳表排行榜
-	m.rankList.Insert(float64(account.AvailablePoints), userID)
+	// 同步更新跳表排行榜：泛型支持直接传入 int64
+	m.rankList.Insert(account.AvailablePoints, userID)
 
 	tx := domain.NewPointsTransaction(userID, transactionType, points, account.AvailablePoints, orderID, description, nil)
 	return m.repo.SavePointsTransaction(ctx, tx)
@@ -93,8 +93,8 @@ func (m *LoyaltyManager) DeductPoints(ctx context.Context, userID uint64, points
 	}
 
 	// 同步更新跳表排行榜：先删旧值，再插新值
-	m.rankList.Delete(float64(oldPoints))
-	m.rankList.Insert(float64(account.AvailablePoints), userID)
+	m.rankList.Delete(oldPoints)
+	m.rankList.Insert(account.AvailablePoints, userID)
 
 	tx := domain.NewPointsTransaction(userID, transactionType, -points, account.AvailablePoints, orderID, description, nil)
 	return m.repo.SavePointsTransaction(ctx, tx)
