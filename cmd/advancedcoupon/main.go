@@ -41,7 +41,7 @@ type Config struct {
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config         *Config
-	AdvancedCoupon *application.AdvancedCoupon
+	AdvancedCoupon *application.AdvancedCouponService
 	Clients        *ServiceClients
 	Handler        *couponhttp.Handler
 	Metrics        *metrics.Metrics
@@ -162,7 +162,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	advancedCouponRepo := persistence.NewAdvancedCouponRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	advancedCouponService := application.NewAdvancedCoupon(advancedCouponRepo, logger.Logger)
+	advancedCouponService := application.NewAdvancedCouponService(advancedCouponRepo, logger.Logger)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := couponhttp.NewHandler(advancedCouponService, logger.Logger)

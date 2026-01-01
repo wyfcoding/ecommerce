@@ -14,11 +14,11 @@ import (
 )
 
 type Handler struct {
-	service *application.AdvancedCoupon
+	service *application.AdvancedCouponService
 	logger  *slog.Logger
 }
 
-func NewHandler(service *application.AdvancedCoupon, logger *slog.Logger) *Handler {
+func NewHandler(service *application.AdvancedCouponService, logger *slog.Logger) *Handler {
 	return &Handler{
 		service: service,
 		logger:  logger,

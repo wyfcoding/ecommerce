@@ -15,12 +15,12 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedAdvancedCouponServiceServer
-	app *application.AdvancedCoupon
+	service *application.AdvancedCouponService
 }
 
 // NewServer 函数。
-func NewServer(app *application.AdvancedCoupon) *Server {
-	return &Server{app: app}
+func NewServer(service *application.AdvancedCouponService) *Server {
+	return &Server{service: service}
 }
 
 func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) (*pb.CreateCouponResponse, error) {
@@ -28,7 +28,7 @@ func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) 
 	validFrom := req.ValidFrom.AsTime()
 	validUntil := req.ValidUntil.AsTime()
 
-	coupon, err := s.app.CreateCoupon(ctx, req.Code, cType, req.DiscountValue, validFrom, validUntil, req.TotalQuantity)
+	coupon, err := s.service.CreateCoupon(ctx, req.Code, cType, req.DiscountValue, validFrom, validUntil, req.TotalQuantity)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -39,7 +39,7 @@ func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) 
 }
 
 func (s *Server) GetCoupon(ctx context.Context, req *pb.GetCouponRequest) (*pb.GetCouponResponse, error) {
-	coupon, err := s.app.GetCoupon(ctx, req.Id)
+	coupon, err := s.service.GetCoupon(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -56,7 +56,7 @@ func (s *Server) ListCoupons(ctx context.Context, req *pb.ListCouponsRequest) (*
 		pageSize = 10
 	}
 
-	coupons, total, err := s.app.ListCoupons(ctx, statusVal, page, pageSize)
+	coupons, total, err := s.service.ListCoupons(ctx, statusVal, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -73,14 +73,14 @@ func (s *Server) ListCoupons(ctx context.Context, req *pb.ListCouponsRequest) (*
 }
 
 func (s *Server) UseCoupon(ctx context.Context, req *pb.UseCouponRequest) (*pb.UseCouponResponse, error) {
-	if err := s.app.UseCoupon(ctx, req.UserId, req.Code, req.OrderId); err != nil {
+	if err := s.service.UseCoupon(ctx, req.UserId, req.Code, req.OrderId); err != nil {
 		return &pb.UseCouponResponse{Success: false}, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.UseCouponResponse{Success: true}, nil
 }
 
 func (s *Server) CalculateBestDiscount(ctx context.Context, req *pb.CalculateBestDiscountRequest) (*pb.CalculateBestDiscountResponse, error) {
-	bestIds, finalPrice, discount, err := s.app.CalculateBestDiscount(ctx, req.OrderAmount, req.CouponIds)
+	bestIds, finalPrice, discount, err := s.service.CalculateBestDiscount(ctx, req.OrderAmount, req.CouponIds)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

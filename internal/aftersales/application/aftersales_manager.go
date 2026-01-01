@@ -6,23 +6,35 @@ import (
 	"log/slog"
 	"time"
 
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain"
 	"github.com/wyfcoding/pkg/idgen"
 )
 
 // AfterSalesManager 处理所有售后相关的写入操作（Commands）。
 type AfterSalesManager struct {
-	repo        domain.AfterSalesRepository
-	idGenerator idgen.Generator
-	logger      *slog.Logger
+	repo          domain.AfterSalesRepository
+	idGenerator   idgen.Generator
+	logger        *slog.Logger
+	orderClient   orderv1.OrderServiceClient
+	paymentClient paymentv1.PaymentServiceClient
 }
 
 // NewAfterSalesManager 构造函数。
-func NewAfterSalesManager(repo domain.AfterSalesRepository, idGenerator idgen.Generator, logger *slog.Logger) *AfterSalesManager {
+func NewAfterSalesManager(
+	repo domain.AfterSalesRepository,
+	idGenerator idgen.Generator,
+	logger *slog.Logger,
+	orderClient orderv1.OrderServiceClient,
+	paymentClient paymentv1.PaymentServiceClient,
+) *AfterSalesManager {
 	return &AfterSalesManager{
-		repo:        repo,
-		idGenerator: idGenerator,
-		logger:      logger,
+		repo:          repo,
+		idGenerator:   idGenerator,
+		logger:        logger,
+		orderClient:   orderClient,
+		paymentClient: paymentClient,
 	}
 }
 
