@@ -19,6 +19,8 @@ type LogisticsManager struct {
 	logger           *slog.Logger
 }
 
+const DefaultVehicleCapacity = 500.0 // 默认车辆载重限制
+
 // RiderInfo 骑手信息
 type RiderInfo struct {
 	ID  string
@@ -224,9 +226,17 @@ func (m *LogisticsManager) OptimizeDeliveryRoute(ctx context.Context, logisticsI
 	}
 
 	start := algorithm.Location{
-		ID:  0,
-		Lat: logistics.SenderLat,
-		Lon: logistics.SenderLon,
+		ID:     0,
+		Lat:    logistics.SenderLat,
+		Lon:    logistics.SenderLon,
+		Demand: 0,
+	}
+
+	// 为目的地设置默认需求量 (实际应从订单重量/体积计算)
+	for i := range destinations {
+		if destinations[i].Demand == 0 {
+			destinations[i].Demand = 10.0
+		}
 	}
 
 	route := m.optimizer.OptimizeRoute(start, destinations)
