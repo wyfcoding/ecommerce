@@ -16,6 +16,7 @@ import (
 	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
 	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/order/interfaces/event"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -242,12 +243,26 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		logger.Logger,
 	)
 
+	// --- 6.3 Event Handlers (Kafka Consumer) ---
+	bootLog.Info("initializing kafka consumer for flashsale events...")
+	flashsaleHandler := event.NewFlashsaleHandler(orderManager, logger.Logger)
+
+	flashsaleConsumerCfg := c.MessageQueue.Kafka
+	flashsaleConsumerCfg.Topic = "flashsale.order"
+	flashsaleConsumerCfg.GroupID = BootstrapName + "-flashsale-group"
+
+	flashsaleConsumer := kafka.NewConsumer(flashsaleConsumerCfg, logger, m)
+	flashsaleConsumer.Start(context.Background(), 5, flashsaleHandler.HandleFlashsaleOrder)
+
 	// 6.3 Interface (HTTP Handlers)
 	handler := orderhttp.NewHandler(orderService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		if flashsaleConsumer != nil {
+			flashsaleConsumer.Close()
+		}
 		outboxProc.Stop() // 停止 Outbox 处理器
 		clientCleanup()
 		if producer != nil {

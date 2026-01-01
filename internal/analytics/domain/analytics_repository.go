@@ -52,11 +52,12 @@ type AnalyticsRepository interface {
 // MetricQuery 结构体定义了查询指标的条件。
 // 它用于在仓储层进行数据过滤和分页。
 type MetricQuery struct {
-	MetricType  MetricType      // 根据指标类型过滤。
-	Granularity TimeGranularity // 根据时间粒度过滤。
-	Dimension   string          // 根据维度过滤。
-	StartTime   time.Time       // 查询的起始时间。
-	EndTime     time.Time       // 查询的结束时间。
-	Page        int             // 页码，用于分页。
-	PageSize    int             // 每页数量，用于分页。
+	MetricType   MetricType      // 根据指标类型过滤。
+	Granularity  TimeGranularity // 根据时间粒度过滤。
+	Dimension    string          // 根据维度过滤。
+	DimensionVal string          // 根据维度值过滤。
+	StartTime    time.Time       // 查询的起始时间。
+	EndTime      time.Time       // 查询的结束时间。
+	Page         int             // 页码，用于分页。
+	PageSize     int             // 每页数量，用于分页。
 }

@@ -171,6 +171,20 @@ func (s *Server) GetRealtimeVisitors(ctx context.Context, req *emptypb.Empty) (*
 	}, nil
 }
 
+// GetUnifiedWealthDashboard 获取统一财富看板。
+func (s *Server) GetUnifiedWealthDashboard(ctx context.Context, req *pb.GetUnifiedWealthDashboardRequest) (*pb.UnifiedWealthDashboardResponse, error) {
+	if req.UserId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	resp, err := s.app.GetUnifiedWealthDashboard(ctx, req.UserId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get wealth dashboard: %v", err))
+	}
+
+	return resp, nil
+}
+
 // --- 仪表盘与报表管理（Proto 中未实现）---
 
 /*

@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"errors"
+	"math"
 
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
 )
@@ -49,4 +51,49 @@ func (q *WarehouseQuery) GetTransferByID(ctx context.Context, id uint64) (*domai
 // ListTransfers 列出调拨单。
 func (q *WarehouseQuery) ListTransfers(ctx context.Context, fromWH, toWH uint64, status *domain.StockTransferStatus, offset, limit int) ([]*domain.StockTransfer, int64, error) {
 	return q.repo.ListTransfers(ctx, fromWH, toWH, status, offset, limit)
+}
+
+// GetOptimalWarehouse 根据地理优先级寻找到最优的仓库。
+func (q *WarehouseQuery) GetOptimalWarehouse(ctx context.Context, skuID uint64, qty int32, lat, lon float64) (*domain.Warehouse, float64, int32, error) {
+	warehouses, stocks, err := q.repo.ListWarehousesWithStock(ctx, skuID, qty)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	if len(warehouses) == 0 {
+		return nil, 0, 0, errors.New("no warehouse available with sufficient stock")
+	}
+
+	var bestWH *domain.Warehouse
+	var minDistance = -1.0
+	var bestStock int32
+
+	for i, wh := range warehouses {
+		dist := calculateDistance(lat, lon, wh.Latitude, wh.Longitude)
+		// 结合距离和优先级（权重）进行选择，此处简化为仅限距离
+		if minDistance < 0 || dist < minDistance {
+			minDistance = dist
+			bestWH = wh
+			bestStock = stocks[i]
+		}
+	}
+
+	return bestWH, minDistance, bestStock, nil
+}
+
+// calculateDistance 使用 Haversine 公式计算两点间的距离（单位：公里）。
+func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const R = 6371.0 // 地球半径，单位公里
+	rad := math.Pi / 180.0
+	dLat := (lat2 - lat1) * rad
+	dLon := (lon2 - lon1) * rad
+	phi1 := lat1 * rad
+	phi2 := lat2 * rad
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(phi1)*math.Cos(phi2)*
+			math.Sin(dLon/2)*math.Sin(dLon/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return R * c
 }

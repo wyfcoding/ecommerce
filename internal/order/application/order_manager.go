@@ -358,3 +358,35 @@ func (s *OrderManager) HandlePaymentFailed(ctx context.Context, orderID uint64, 
 	s.logger.InfoContext(ctx, "should publish ReleaseInventory event", "order_id", orderID, "reason", reason)
 	return nil
 }
+
+// HandleFlashsaleOrder 处理秒杀订单落库。
+func (s *OrderManager) HandleFlashsaleOrder(ctx context.Context, orderID, userID, productID, skuID uint64, quantity int32, price int64) error {
+	s.logger.InfoContext(ctx, "handling flashsale order persistence", "order_id", orderID, "user_id", userID)
+
+	orderNo := fmt.Sprintf("FS%d", orderID)
+	items := []*domain.OrderItem{
+		{
+			SkuID:       skuID,
+			ProductID:   productID,
+			Quantity:    quantity,
+			Price:       price,
+			ProductName: "Flashsale Product", // 占位符，由后续详情补全或从缓存获取
+			SkuName:     "Flashsale SKU",
+		},
+	}
+
+	// 秒杀订单无需再校验库存或风控（Flashsale 服务已完成）
+	// 直接创建并设置为待支付状态
+	order := domain.NewOrder(orderNo, userID, items, nil)
+	order.ID = uint(orderID)
+	order.Status = domain.PendingPayment
+	order.AddLog("System", "Flashsale Order Created", "", domain.PendingPayment.String(), "Asynchronous creation from flashsale event")
+
+	if err := s.repo.Save(ctx, order); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save flashsale order", "order_id", orderID, "error", err)
+		return err
+	}
+
+	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
+	return nil
+}

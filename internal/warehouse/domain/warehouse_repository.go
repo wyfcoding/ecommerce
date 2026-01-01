@@ -21,6 +21,8 @@ type WarehouseRepository interface {
 	GetWarehouseByCode(ctx context.Context, code string) (*Warehouse, error)
 	// ListWarehouses 列出所有仓库实体，支持通过状态过滤和分页。
 	ListWarehouses(ctx context.Context, status *WarehouseStatus, offset, limit int) ([]*Warehouse, int64, error)
+	// ListWarehousesWithStock 获取拥有指定 SKU 且可用库存足够的仓库及其库存量。
+	ListWarehousesWithStock(ctx context.Context, skuID uint64, minQty int32) ([]*Warehouse, []int32, error)
 
 	// --- 库存管理 (WarehouseStock methods) ---
 

@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"time"
 
+	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
+	positionv1 "github.com/wyfcoding/financialtrading/goapi/position/v1"
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -52,7 +54,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 Analytics 服务无下游强依赖
+	AccountConn  *grpc.ClientConn `service:"account"`
+	PositionConn *grpc.ClientConn `service:"position"`
 }
 
 func main() {
@@ -174,6 +177,13 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewAnalyticsQuery(analyticsRepo)
+	// 显式转换并注入 Cross-Project 客户端
+	if clients.AccountConn != nil && clients.PositionConn != nil {
+		query.SetFinancialClients(
+			accountv1.NewAccountServiceClient(clients.AccountConn),
+			positionv1.NewPositionServiceClient(clients.PositionConn),
+		)
+	}
 	manager := application.NewAnalyticsManager(analyticsRepo, redisCache.GetClient(), logger.Logger)
 	analyticsService := application.NewAnalytics(manager, query, idGenerator)
 

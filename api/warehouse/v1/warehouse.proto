@@ -32,6 +32,9 @@ service WarehouseService {
 
   // 订单取消或超时时回滚库存。
   rpc RevertStock(RevertStockRequest) returns (google.protobuf.Empty);
+
+  // 根据目的地地理坐标和商品需求寻找最优发货仓。
+  rpc GetOptimalWarehouse(GetOptimalWarehouseRequest) returns (GetOptimalWarehouseResponse);
 }
 
 // 仓库详情实体。
@@ -236,4 +239,19 @@ message RevertStockRequest {
   int32 quantity = 3;
   // 指定仓库（可选）。
   uint64 warehouse_id = 4;
+}
+
+// 最优仓库选择请求。
+message GetOptimalWarehouseRequest {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+  double latitude = 3;
+  double longitude = 4;
+}
+
+// 最优仓库选择响应。
+message GetOptimalWarehouseResponse {
+  Warehouse warehouse = 1;
+  double distance_km = 2;
+  int32 available_stock = 3;
 }

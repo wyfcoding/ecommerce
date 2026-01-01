@@ -163,6 +163,25 @@ func (s *Server) RevertStock(ctx context.Context, req *pb.RevertStockRequest) (*
 	return &emptypb.Empty{}, nil
 }
 
+// GetOptimalWarehouse 处理寻找最优仓库的 gRPC 请求。
+func (s *Server) GetOptimalWarehouse(ctx context.Context, req *pb.GetOptimalWarehouseRequest) (*pb.GetOptimalWarehouseResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC GetOptimalWarehouse received", "sku_id", req.SkuId, "quantity", req.Quantity, "lat", req.Latitude, "lon", req.Longitude)
+
+	warehouse, dist, stock, err := s.app.GetOptimalWarehouse(ctx, req.SkuId, req.Quantity, req.Latitude, req.Longitude)
+	if err != nil {
+		slog.Error("gRPC GetOptimalWarehouse failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.FailedPrecondition, fmt.Sprintf("failed to find optimal warehouse: %v", err))
+	}
+
+	slog.Info("gRPC GetOptimalWarehouse successful", "warehouse_id", warehouse.ID, "distance", dist, "duration", time.Since(start))
+	return &pb.GetOptimalWarehouseResponse{
+		Warehouse:      convertWarehouseToProto(warehouse),
+		DistanceKm:     dist,
+		AvailableStock: stock,
+	}, nil
+}
+
 // convertWarehouseToProto 是一个辅助函数，将领域层的 Warehouse 实体转换为 protobuf 的 Warehouse 消息。
 func convertWarehouseToProto(w *domain.Warehouse) *pb.Warehouse {
 	if w == nil {

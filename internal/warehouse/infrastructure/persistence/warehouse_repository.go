@@ -141,3 +141,32 @@ func (r *warehouseRepository) ListTransfers(ctx context.Context, fromWarehouseID
 
 	return list, total, nil
 }
+
+func (r *warehouseRepository) ListWarehousesWithStock(ctx context.Context, skuID uint64, minQty int32) ([]*domain.Warehouse, []int32, error) {
+	var results []struct {
+		domain.Warehouse
+		AvailableStock int32
+	}
+
+	// 使用直接 Table("warehouses") 以便进行 Joins。
+	err := r.db.WithContext(ctx).Table("warehouses").
+		Select("warehouses.*, (warehouse_stocks.stock - warehouse_stocks.locked_stock) as available_stock").
+		Joins("JOIN warehouse_stocks ON warehouse_stocks.warehouse_id = warehouses.id").
+		Where("warehouse_stocks.sku_id = ? AND (warehouse_stocks.stock - warehouse_stocks.locked_stock) >= ?", skuID, minQty).
+		Where("warehouses.status = ? AND warehouses.deleted_at IS NULL", domain.WarehouseStatusActive).
+		Find(&results).Error
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	warehouses := make([]*domain.Warehouse, len(results))
+	stocks := make([]int32, len(results))
+	for i, res := range results {
+		w := res.Warehouse
+		warehouses[i] = &w
+		stocks[i] = res.AvailableStock
+	}
+
+	return warehouses, stocks, nil
+}

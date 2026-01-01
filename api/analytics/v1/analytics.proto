@@ -46,6 +46,9 @@ service AnalyticsService {
 
   // 查询当前全站在线的实时访客总数。
   rpc GetRealtimeVisitors(google.protobuf.Empty) returns (RealtimeVisitorsResponse);
+
+  // 获取统一财富看板，整合零售支出与交易头寸/盈亏。
+  rpc GetUnifiedWealthDashboard(GetUnifiedWealthDashboardRequest) returns (UnifiedWealthDashboardResponse);
 }
 
 // 事件分类枚举。
@@ -339,4 +342,26 @@ message RealtimeVisitorsResponse {
   uint64 visitor_count = 1;
   // 正在活跃的 URL 列表。
   repeated string active_pages = 2;
+}
+
+// 统一财富看板请求。
+message GetUnifiedWealthDashboardRequest {
+  uint64 user_id = 1;
+}
+
+// 统一财富看板响应。
+message UnifiedWealthDashboardResponse {
+  uint64 user_id = 1;
+  double total_equity = 2; // 总资产 (零售余额 + 交易资产)
+  double total_retail_spending = 3; // 零售总支出
+  double total_trading_pnl = 4; // 交易总盈亏
+  double cash_balance = 5; // 账户现金余额 (来自 Account 服务)
+  repeated AssetDistribution asset_distribution = 6; // 资产分布
+}
+
+// 资产分布项。
+message AssetDistribution {
+  string asset_type = 1; // "RETAIL_CREDIT", "TRADING_CASH", "STOCK_VALUATION"等
+  double amount = 2;
+  double percentage = 3;
 }

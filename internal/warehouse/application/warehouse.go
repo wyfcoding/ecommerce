@@ -207,3 +207,8 @@ func (s *WarehouseService) RevertStock(ctx context.Context, warehouseID, skuID u
 	stock.Stock += quantity
 	return s.manager.AdjustStock(ctx, stock)
 }
+
+// GetOptimalWarehouse 返回地理位置最优（距离最近）且库存充足的发货仓库。
+func (s *WarehouseService) GetOptimalWarehouse(ctx context.Context, skuID uint64, qty int32, lat, lon float64) (*domain.Warehouse, float64, int32, error) {
+	return s.query.GetOptimalWarehouse(ctx, skuID, qty, lat, lon)
+}

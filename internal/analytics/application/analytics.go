@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	analyticsv1 "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
 	"github.com/wyfcoding/pkg/idgen"
 )
@@ -209,7 +210,7 @@ func (s *Analytics) GetProductPerformanceReport(ctx context.Context, startTime, 
 		StartTime:  startTime,
 		EndTime:    endTime,
 	}
-	
+
 	metrics, _, err := s.query.SearchMetrics(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search sales metrics: %w", err)
@@ -276,7 +277,7 @@ func (s *Analytics) GetConversionFunnelReport(ctx context.Context, startTime, en
 		}
 		// 如果是 Add to Cart，我们可能查询特定的 Dimension "action" = "add_to_cart"
 		// 简化起见，直接查询 MetricType
-		
+
 		metrics, _, err := s.query.SearchMetrics(ctx, query)
 		if err != nil {
 			return nil, fmt.Errorf("failed to search metrics for step %s: %w", step.Name, err)
@@ -297,8 +298,8 @@ func (s *Analytics) GetConversionFunnelReport(ctx context.Context, startTime, en
 		}
 
 		funnelData = append(funnelData, map[string]any{
-			"step":           step.Name,
-			"count":          count,
+			"step":            step.Name,
+			"count":           count,
 			"conversion_rate": fmt.Sprintf("%.2f%%", rate),
 		})
 		prevCount = count
@@ -320,4 +321,9 @@ func (s *Analytics) GetUserBehaviorPath(ctx context.Context, userID uint64, star
 // GetUserSegments 获取用户细分群体分析数据。
 func (s *Analytics) GetUserSegments(ctx context.Context) (map[string]any, error) {
 	return map[string]any{"segments": []string{}}, nil
+}
+
+// GetUnifiedWealthDashboard 获取统一财富看板数据。
+func (s *Analytics) GetUnifiedWealthDashboard(ctx context.Context, userID uint64) (*analyticsv1.UnifiedWealthDashboardResponse, error) {
+	return s.query.GetUnifiedWealthDashboard(ctx, userID)
 }
