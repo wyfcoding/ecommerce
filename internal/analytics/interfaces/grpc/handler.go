@@ -164,10 +164,14 @@ func (s *Server) GetUserSegments(ctx context.Context, req *pb.GetUserSegmentsReq
 
 // GetRealtimeVisitors 获取实时访客数据。
 func (s *Server) GetRealtimeVisitors(ctx context.Context, req *emptypb.Empty) (*pb.RealtimeVisitorsResponse, error) {
-	// 这是一个模拟实现，实际应从实时数据源获取访客计数和活跃页面。
+	count, pages, err := s.app.GetRealtimeVisitors(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get realtime visitors: %v", err))
+	}
+
 	return &pb.RealtimeVisitorsResponse{
-		VisitorCount: 0,
-		ActivePages:  []string{},
+		VisitorCount: uint64(count),
+		ActivePages:  pages,
 	}, nil
 }
 

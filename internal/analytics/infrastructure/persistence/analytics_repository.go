@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain" // 导入分析模块的领域定义。
 
@@ -169,4 +170,19 @@ func (r *analyticsRepository) UpdateReport(ctx context.Context, report *domain.R
 // DeleteReport 根据ID从数据库删除报告记录。
 func (r *analyticsRepository) DeleteReport(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Select("Metrics").Delete(&domain.Report{}, id).Error
+}
+
+// GetActivePages 从指标数据中聚合最近活跃的页面名称。
+func (r *analyticsRepository) GetActivePages(ctx context.Context, limit int) ([]string, error) {
+	var pages []string
+	// 聚合最近 24 小时的事件
+	err := r.db.WithContext(ctx).Model(&domain.Metric{}).
+		Select("name").
+		Where("metric_type = ? AND timestamp >= ?", domain.MetricType("event"), time.Now().Add(-24*time.Hour)).
+		Group("name").
+		Order("COUNT(*) DESC").
+		Limit(limit).
+		Pluck("name", &pages).Error
+
+	return pages, err
 }

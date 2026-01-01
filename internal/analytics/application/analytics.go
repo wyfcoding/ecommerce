@@ -327,3 +327,8 @@ func (s *Analytics) GetUserSegments(ctx context.Context) (map[string]any, error)
 func (s *Analytics) GetUnifiedWealthDashboard(ctx context.Context, userID uint64) (*analyticsv1.UnifiedWealthDashboardResponse, error) {
 	return s.query.GetUnifiedWealthDashboard(ctx, userID)
 }
+
+// GetRealtimeVisitors 获取实时访客数据。
+func (s *Analytics) GetRealtimeVisitors(ctx context.Context) (int64, []string, error) {
+	return s.query.GetRealtimeVisitors(ctx)
+}

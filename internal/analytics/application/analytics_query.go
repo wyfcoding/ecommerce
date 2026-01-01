@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
 	analyticsv1 "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
@@ -14,13 +16,43 @@ import (
 // AnalyticsQuery 处理分析模块的查询操作。
 type AnalyticsQuery struct {
 	repo        domain.AnalyticsRepository
+	redis       *redis.Client
 	accountCli  accountv1.AccountServiceClient
 	positionCli positionv1.PositionServiceClient
 }
 
 // NewAnalyticsQuery 创建并返回一个新的 AnalyticsQuery 实例。
-func NewAnalyticsQuery(repo domain.AnalyticsRepository) *AnalyticsQuery {
-	return &AnalyticsQuery{repo: repo}
+func NewAnalyticsQuery(repo domain.AnalyticsRepository, redis *redis.Client) *AnalyticsQuery {
+	return &AnalyticsQuery{
+		repo:  repo,
+		redis: redis,
+	}
+}
+
+// GetRealtimeVisitors 获取实时访客数据（基于 Redis HyperLogLog 并集统计）。
+func (q *AnalyticsQuery) GetRealtimeVisitors(ctx context.Context) (int64, []string, error) {
+	// 完整版实现：统计过去 5 分钟的去重活跃用户 (UV)
+	now := time.Now()
+	keys := make([]string, 0, 5)
+	for i := 0; i < 5; i++ {
+		// 生成每一分钟的 Key: analytics:uv:YYYYMMDDHHMM
+		t := now.Add(-time.Duration(i) * time.Minute)
+		keys = append(keys, fmt.Sprintf("analytics:uv:%s", t.Format("200601021504")))
+	}
+
+	// 利用 Redis PFCount 的多 Key 并集功能，自动完成去重计数
+	count, err := q.redis.PFCount(ctx, keys...).Result()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// 获取热门页面（从 DB 聚合最近的 Event 指标）
+	pages, err := q.repo.GetActivePages(ctx, 10)
+	if err != nil {
+		return count, nil, nil
+	}
+
+	return count, pages, nil
 }
 
 func (q *AnalyticsQuery) SetFinancialClients(accCli accountv1.AccountServiceClient, posCli positionv1.PositionServiceClient) {

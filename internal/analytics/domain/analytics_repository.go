@@ -47,6 +47,9 @@ type AnalyticsRepository interface {
 	UpdateReport(ctx context.Context, report *Report) error
 	// DeleteReport 根据ID删除报告实体。
 	DeleteReport(ctx context.Context, id uint64) error
+
+	// GetActivePages 获取最近活跃页面。
+	GetActivePages(ctx context.Context, limit int) ([]string, error)
 }
 
 // MetricQuery 结构体定义了查询指标的条件。

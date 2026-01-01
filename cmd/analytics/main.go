@@ -176,7 +176,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	analyticsRepo := persistence.NewAnalyticsRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	query := application.NewAnalyticsQuery(analyticsRepo)
+	query := application.NewAnalyticsQuery(analyticsRepo, redisCache.GetClient())
 	// 显式转换并注入 Cross-Project 客户端
 	if clients.AccountConn != nil && clients.PositionConn != nil {
 		query.SetFinancialClients(
