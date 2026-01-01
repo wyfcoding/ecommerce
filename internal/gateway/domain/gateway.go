@@ -21,26 +21,20 @@ const (
 )
 
 // Route 实体代表一个API网关的路由规则。
-// 它定义了请求如何从网关转发到后端服务。
 type Route struct {
-	gorm.Model              // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	Path        string      `gorm:"type:varchar(255);not null;uniqueIndex;comment:路径" json:"path"` // 匹配的请求路径，唯一索引，不允许为空。
-	Method      string      `gorm:"type:varchar(16);not null;comment:方法" json:"method"`            // 匹配的HTTP方法，例如“GET”，“POST”。
-	Service     string      `gorm:"type:varchar(64);not null;comment:服务名" json:"service"`          // 目标后端服务名称。
-	Backend     string      `gorm:"type:varchar(255);not null;comment:后端地址" json:"backend"`        // 目标后端服务的具体地址。
-	Timeout     int32       `gorm:"default:5000;comment:超时时间(ms)" json:"timeout"`                  // 请求转发到后端服务的超时时间（毫秒）。
-	Retries     int32       `gorm:"default:3;comment:重试次数" json:"retries"`                         // 请求转发失败后的重试次数。
-	Status      RouteStatus `gorm:"default:1;comment:状态" json:"status"`                            // 路由状态，默认为启用。
-	Description string      `gorm:"type:text;comment:描述" json:"description"`                       // 路由规则的描述。
+	gorm.Model              // 嵌入gorm.Model
+	ExternalID  string      `gorm:"type:varchar(128);index;comment:外部唯一标识" json:"external_id"` // 增加此字段用于 K8s UID
+	Path        string      `gorm:"type:varchar(255);not null;uniqueIndex;comment:路径" json:"path"`
+	Method      string      `gorm:"type:varchar(16);not null;comment:方法" json:"method"`
+	Service     string      `gorm:"type:varchar(64);not null;comment:服务名" json:"service"`
+	Backend     string      `gorm:"type:varchar(255);not null;comment:后端地址" json:"backend"`
+	Timeout     int32       `gorm:"default:5000;comment:超时时间(ms)" json:"timeout"`
+	Retries     int32       `gorm:"default:3;comment:重试次数" json:"retries"`
+	Status      RouteStatus `gorm:"default:1;comment:状态" json:"status"`
+	Description string      `gorm:"type:text;comment:描述" json:"description"`
 }
 
 // NewRoute 创建并返回一个新的 Route 实体实例。
-// path: 路径。
-// method: HTTP方法。
-// service: 服务名。
-// backend: 后端地址。
-// timeout, retries: 超时和重试次数。
-// description: 描述。
 func NewRoute(path, method, service, backend string, timeout, retries int32, description string) *Route {
 	return &Route{
 		Path:        path,
@@ -49,7 +43,7 @@ func NewRoute(path, method, service, backend string, timeout, retries int32, des
 		Backend:     backend,
 		Timeout:     timeout,
 		Retries:     retries,
-		Status:      RouteStatusEnabled, // 默认状态为启用。
+		Status:      RouteStatusEnabled,
 		Description: description,
 	}
 }

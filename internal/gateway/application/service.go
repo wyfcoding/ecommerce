@@ -12,11 +12,20 @@ import (
 )
 
 // GatewayService 结构体定义了API网关相关的应用服务。
-// 引入一致性哈希，用于在分布式场景下实现稳定的请求分发（会话粘滞）。
 type GatewayService struct {
 	repo     domain.GatewayRepository
 	logger   *slog.Logger
 	hashRing *algorithm.ConsistentHash
+}
+
+// SyncRouteRequest 声明式同步请求
+type SyncRouteRequest struct {
+	ExternalID string // 外部唯一标识 (如 K8s UID)
+	Name       string
+	Path       string
+	Method     string
+	Backend    string
+	Source     string // 配置来源: K8S_CRD, API, ETCD
 }
 
 // NewGatewayService 创建并返回一个新的 GatewayService 实例。
@@ -24,11 +33,11 @@ func NewGatewayService(repo domain.GatewayRepository, logger *slog.Logger) *Gate
 	return &GatewayService{
 		repo:     repo,
 		logger:   logger,
-		hashRing: algorithm.NewConsistentHash(100, nil), // 100个虚拟节点以平衡分布
+		hashRing: algorithm.NewConsistentHash(100, nil),
 	}
 }
 
-// RegisterRoute 注册一个新的API路由规则。
+// RegisterRoute 注册一个新的API路由规则 (兼容 API 模式)。
 func (s *GatewayService) RegisterRoute(ctx context.Context, path, method, service, backend string, timeout, retries int32, description string) (*domain.Route, error) {
 	route := domain.NewRoute(path, method, service, backend, timeout, retries, description)
 	if err := s.repo.SaveRoute(ctx, route); err != nil {
@@ -36,24 +45,60 @@ func (s *GatewayService) RegisterRoute(ctx context.Context, path, method, servic
 		return nil, err
 	}
 
-	// 动态维护哈希环：当有新的后端节点（Backend）注册时，加入环中
-	// 实际场景中，后端地址可能是以逗号分隔的多个实例地址
+	s.updateHashRing(backend)
+	return route, nil
+}
+
+// SyncRoute 声明式同步：实现“最终状态对齐” (适配 K8s CRD 模式)
+func (s *GatewayService) SyncRoute(ctx context.Context, req SyncRouteRequest) (*domain.Route, error) {
+	existing, err := s.repo.GetRouteByExternalID(ctx, req.ExternalID)
+	if err != nil {
+		return nil, err
+	}
+
+	var route *domain.Route
+	if existing != nil {
+		existing.Path = req.Path
+		existing.Method = req.Method
+		existing.Backend = req.Backend
+		existing.Description = fmt.Sprintf("Synced from %s: %s", req.Source, req.Name)
+		route = existing
+	} else {
+		route = domain.NewRoute(req.Path, req.Method, "gateway", req.Backend, 30, 3, req.Name)
+		route.ExternalID = req.ExternalID
+	}
+
+	if err := s.repo.SaveRoute(ctx, route); err != nil {
+		return nil, err
+	}
+
+	s.updateHashRing(req.Backend)
+	return route, nil
+}
+
+// DeleteRouteByExternalID 根据外部 ID 删除路由
+func (s *GatewayService) DeleteRouteByExternalID(ctx context.Context, externalID string) error {
+	route, err := s.repo.GetRouteByExternalID(ctx, externalID)
+	if err != nil {
+		return err
+	}
+	if route != nil {
+		return s.repo.DeleteRoute(ctx, uint64(route.ID))
+	}
+	return nil
+}
+
+func (s *GatewayService) updateHashRing(backend string) {
 	backends := strings.Split(backend, ",")
 	for _, b := range backends {
 		if b != "" {
 			s.hashRing.Add(b)
 		}
 	}
-
-	return route, nil
 }
 
 // DispatchByUserID 根据用户ID使用一致性哈希分发请求。
-// 这保证了同一个用户的请求始终落到同一个后端节点，有利于本地缓存利用和WebSocket连接管理。
 func (s *GatewayService) DispatchByUserID(ctx context.Context, userID uint64, path string) (string, error) {
-	// 获取路由信息
-	// 简化版：这里假设可以通过路径找到对应的服务节点列表
-	// 实际开发中，这里应查询注册中心或本地缓存的后端实例列表
 	key := strconv.FormatUint(userID, 10)
 	node := s.hashRing.Get(key)
 

@@ -55,6 +55,18 @@ func (r *gatewayRepository) DeleteRoute(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&domain.Route{}, id).Error
 }
 
+func (r *gatewayRepository) GetRouteByExternalID(ctx context.Context, externalID string) (*domain.Route, error) {
+	var route domain.Route
+	err := r.db.WithContext(ctx).Where("external_id = ?", externalID).First(&route).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &route, nil
+}
+
 // --- RateLimitRule methods ---
 
 func (r *gatewayRepository) SaveRateLimitRule(ctx context.Context, rule *domain.RateLimitRule) error {

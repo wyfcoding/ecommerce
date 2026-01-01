@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
 	"github.com/wyfcoding/ecommerce/internal/gateway/application"
+	"github.com/wyfcoding/ecommerce/internal/gateway/infrastructure/k8s"
 	"github.com/wyfcoding/ecommerce/internal/gateway/infrastructure/persistence"
 	gatewayhttp "github.com/wyfcoding/ecommerce/internal/gateway/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -21,6 +24,10 @@ import (
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // BootstrapName 服务标识。
@@ -69,7 +76,7 @@ func registerGin(e *gin.Engine, srv any) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 1. 系统路由组 (不限流)
+	// 1. 系统路由组
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
@@ -79,72 +86,61 @@ func registerGin(e *gin.Engine, srv any) {
 				"timestamp": time.Now().Unix(),
 			})
 		})
-		sys.GET("/ready", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "READY"})
-		})
 	}
 
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 2. 业务限流保护
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
 	// 3. 业务路由注册
 	handler := gatewayhttp.NewHandler(ctx.AppService, slog.Default())
 	api := e.Group("/api/v1")
 	handler.RegisterRoutes(api)
-
-	slog.Info("HTTP service configured successfully", "service", BootstrapName)
 }
 
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
-	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default()
 
-	// 1. 基础设施
 	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}
-
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
 		return nil, nil, fmt.Errorf("redis init failed: %w", err)
 	}
 
-	// 2. 治理：分布式限流器
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
-
-	// 3. 下游微服务拨号
 	clients := &ServiceClients{}
-	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
-	if err != nil {
-		redisCache.Close()
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
-		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
+	clientCleanup, _ := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
+
+	// K8s 控制器
+	var k8sConfig *rest.Config
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig != "" {
+		k8sConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	} else {
+		k8sConfig, err = rest.InClusterConfig()
 	}
 
-	// 4. 装配
-	bootLog.Info("assembling gateway application service...")
+	ctx, cancel := context.WithCancel(context.Background())
 	repo := persistence.NewGatewayRepository(db.RawDB())
 	service := application.NewGatewayService(repo, logger.Logger)
 
-	// 5. 资源回收
+	if err == nil {
+		dynamicClient, _ := dynamic.NewForConfig(k8sConfig)
+		// 修正 logger 传递：logger.Logger 是 *slog.Logger
+		controller := k8s.NewRouteController(dynamicClient, service, logger.Logger)
+		go controller.Start(ctx)
+	}
+
 	cleanup := func() {
-		bootLog.Info("performing graceful shutdown...")
+		cancel()
 		clientCleanup()
 		redisCache.Close()
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
 	}
 
 	return &AppContext{

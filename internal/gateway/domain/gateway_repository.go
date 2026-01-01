@@ -23,6 +23,8 @@ type GatewayRepository interface {
 	ListRoutes(ctx context.Context, offset, limit int) ([]*Route, int64, error)
 	// DeleteRoute 根据ID删除路由实体。
 	DeleteRoute(ctx context.Context, id uint64) error
+	// GetRouteByExternalID 根据外部 ID 获取路由实体。
+	GetRouteByExternalID(ctx context.Context, externalID string) (*Route, error)
 
 	// --- 限流规则管理 (RateLimitRule methods) ---
 
