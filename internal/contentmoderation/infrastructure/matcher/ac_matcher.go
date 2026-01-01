@@ -3,7 +3,7 @@ package matcher
 import (
 	"sync"
 
-	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain/service"
+	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
@@ -40,4 +40,4 @@ func (am *ACMatcher) Reload(keywords []string) error {
 	return nil
 }
 
-var _ service.SensitiveMatcher = (*ACMatcher)(nil)
+var _ domain.SensitiveMatcher = (*ACMatcher)(nil)
