@@ -1,4 +1,4 @@
-package category
+package mysql
 
 import (
 	"github.com/wyfcoding/pkg/algorithm"

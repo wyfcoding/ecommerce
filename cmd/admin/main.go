@@ -41,14 +41,13 @@ type Config struct {
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
-	Config          *Config
-	Admin           *application.AdminService
-	Clients         *ServiceClients
-	AuthHandler     *adminhttp.AuthHandler
-	WorkflowHandler *adminhttp.WorkflowHandler
-	Metrics         *metrics.Metrics
-	Limiter         limiter.Limiter
-	Idempotency     idempotency.Manager
+	Config      *Config
+	Admin       *application.AdminService
+	Clients     *ServiceClients
+	Handler     *adminhttp.AdminHandler
+	Metrics     *metrics.Metrics
+	Limiter     limiter.Limiter
+	Idempotency idempotency.Manager
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -116,16 +115,8 @@ func registerGin(e *gin.Engine, svc any) {
 	// 业务 API 路由 v1
 	api := e.Group("/api/v1")
 	{
-		// 公开接口 (如登录)
-		ctx.AuthHandler.RegisterRoutes(api, ctx.Config.JWT.Secret)
-
-		// 鉴权接口
-		protected := api.Group("/")
-		protected.Use(middleware.JWTAuth(ctx.Config.JWT.Secret))
-		protected.Use(middleware.IdempotencyMiddleware(ctx.Idempotency, 24*time.Hour))
-		{
-			ctx.WorkflowHandler.RegisterRoutes(protected)
-		}
+		// 公开与鉴权接口统一由 Handler 注册
+		ctx.Handler.RegisterRoutes(api, ctx.Config.JWT.Secret)
 	}
 }
 
@@ -211,8 +202,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	)
 
 	// 6.3 Interface (HTTP Handlers)
-	authHandler := adminhttp.NewAuthHandler(adminService, logger.Logger)
-	workflowHandler := adminhttp.NewWorkflowHandler(adminService, logger.Logger)
+	handler := adminhttp.NewAdminHandler(adminService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
@@ -232,13 +222,12 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 返回应用上下文与清理函数
 	return &AppContext{
-		Config:          c,
-		Admin:           adminService,
-		Clients:         clients,
-		AuthHandler:     authHandler,
-		WorkflowHandler: workflowHandler,
-		Metrics:         m,
-		Limiter:         rateLimiter,
-		Idempotency:     idemManager,
+		Config:      c,
+		Admin:       adminService,
+		Clients:     clients,
+		Handler:     handler,
+		Metrics:     m,
+		Limiter:     rateLimiter,
+		Idempotency: idemManager,
 	}, cleanup, nil
 }

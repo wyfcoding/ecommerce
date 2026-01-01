@@ -7,38 +7,32 @@ import (
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
-// ProductSearchEntry 商品搜索条目
+// --- Memory Searcher (Substring) ---
+
 type ProductSearchEntry struct {
 	ID   uint64
 	Name string
 }
 
-// MemorySearcher 基于后缀数组的内存高性能子串搜索器
 type MemorySearcher struct {
 	sa      *algorithm.SuffixArray
 	entries []ProductSearchEntry
 	rawText string
-	offsets []int // 记录每个 Entry 在 rawText 中的起始位置
+	offsets []int
 	mu      sync.RWMutex
 }
 
-// Build 构建搜索索引
 func (s *MemorySearcher) Build(entries []ProductSearchEntry) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	var sb strings.Builder
 	offsets := make([]int, len(entries))
-
-	// 使用特殊字符分隔，避免跨商品匹配
 	separator := "\x01"
-
 	for i, e := range entries {
 		offsets[i] = sb.Len()
 		sb.WriteString(e.Name)
 		sb.WriteString(separator)
 	}
-
 	rawText := sb.String()
 	s.rawText = rawText
 	s.offsets = offsets
@@ -46,24 +40,18 @@ func (s *MemorySearcher) Build(entries []ProductSearchEntry) {
 	s.sa = algorithm.NewSuffixArray(rawText)
 }
 
-// Search 子串查找
 func (s *MemorySearcher) Search(query string, limit int) []ProductSearchEntry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
 	if s.sa == nil {
 		return nil
 	}
-
 	positions := s.sa.Search(query)
 	if len(positions) == 0 {
 		return nil
 	}
-
-	// 将查找到的起始位置映射回商品对象
 	resultSet := make(map[uint64]ProductSearchEntry)
 	for _, pos := range positions {
-		// 二分查找 pos 属于哪个 Entry
 		idx := s.findEntryIndex(pos)
 		if idx != -1 {
 			e := s.entries[idx]
@@ -73,7 +61,6 @@ func (s *MemorySearcher) Search(query string, limit int) []ProductSearchEntry {
 			break
 		}
 	}
-
 	results := make([]ProductSearchEntry, 0, len(resultSet))
 	for _, v := range resultSet {
 		results = append(results, v)
@@ -82,7 +69,6 @@ func (s *MemorySearcher) Search(query string, limit int) []ProductSearchEntry {
 }
 
 func (s *MemorySearcher) findEntryIndex(pos int) int {
-	// 在 offsets 中寻找最后一个 <= pos 的位置
 	l, r := 0, len(s.offsets)-1
 	ans := -1
 	for l <= r {
@@ -95,4 +81,31 @@ func (s *MemorySearcher) findEntryIndex(pos int) int {
 		}
 	}
 	return ans
+}
+
+// --- Vector Searcher (Similarity) ---
+
+type ProductVector struct {
+	ID        uint64
+	Embedding []float64
+}
+
+type VectorSearcher struct {
+	tree *algorithm.KDTree
+}
+
+func (s *VectorSearcher) Build(products []ProductVector) {
+	points := make([]algorithm.KDPoint, len(products))
+	for i, p := range products {
+		points[i] = algorithm.KDPoint{ID: p.ID, Vector: p.Embedding}
+	}
+	s.tree = algorithm.NewKDTree(points)
+}
+
+func (s *VectorSearcher) FindMostSimilar(embedding []float64) (uint64, float64) {
+	if s.tree == nil {
+		return 0, 0
+	}
+	point, dist := s.tree.Nearest(embedding)
+	return point.ID, dist
 }

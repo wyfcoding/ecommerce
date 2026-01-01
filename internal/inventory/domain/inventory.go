@@ -105,7 +105,7 @@ func (inv *Inventory) Deduct(quantity int32, reason string) (*InventoryLog, erro
 	inv.TotalStock -= quantity
 
 	inv.updateStatus() // 更新库存状态。
-	
+
 	return inv.createLog("Deduct", -quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
 }
 
@@ -138,7 +138,7 @@ func (inv *Inventory) Lock(quantity int32, reason string) (*InventoryLog, error)
 	inv.LockedStock += quantity
 
 	inv.updateStatus() // 更新库存状态。
-	
+
 	return inv.createLog("Lock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
 }
 
@@ -171,7 +171,7 @@ func (inv *Inventory) Unlock(quantity int32, reason string) (*InventoryLog, erro
 	inv.LockedStock -= quantity
 
 	inv.updateStatus() // 更新库存状态。
-	
+
 	return inv.createLog("Unlock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
 }
 
@@ -203,7 +203,7 @@ func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) (*Inventor
 	inv.TotalStock -= quantity
 
 	inv.updateStatus() // 更新库存状态。
-	
+
 	return inv.createLog("ConfirmDeduction", -quantity, inv.AvailableStock, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
 }
 
@@ -230,7 +230,7 @@ func (inv *Inventory) Add(quantity int32, reason string) (*InventoryLog, error) 
 	inv.TotalStock += quantity
 
 	inv.updateStatus() // 更新库存状态。
-	
+
 	return inv.createLog("Add", quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
 }
 
@@ -256,5 +256,27 @@ func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, new
 		OldLocked:      oldLocked,
 		NewLocked:      newLocked,
 		Reason:         reason,
+	}
+}
+
+// --- Warehouse Aggregates ---
+
+// Warehouse 实体代表一个仓库。
+type Warehouse struct {
+	gorm.Model
+	Name     string  `gorm:"type:varchar(255);not null;comment:仓库名称" json:"name"`
+	Lat      float64 `gorm:"type:decimal(10,6);not null;comment:纬度" json:"lat"`
+	Lon      float64 `gorm:"type:decimal(10,6);not null;comment:经度" json:"lon"`
+	Priority int     `gorm:"not null;default:0;comment:优先级" json:"priority"`
+	ShipCost int64   `gorm:"not null;default:0;comment:基础配送成本(分)" json:"ship_cost"`
+}
+
+func NewWarehouse(name string, lat, lon float64, priority int, shipCost int64) *Warehouse {
+	return &Warehouse{
+		Name:     name,
+		Lat:      lat,
+		Lon:      lon,
+		Priority: priority,
+		ShipCost: shipCost,
 	}
 }
