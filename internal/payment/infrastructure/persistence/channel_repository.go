@@ -11,6 +11,7 @@ import (
 // ChannelRepositoryImpl 渠道配置仓储实现
 type ChannelRepositoryImpl struct {
 	sharding *sharding.Manager
+	tx       *gorm.DB
 }
 
 // NewChannelRepository 构造函数
@@ -19,6 +20,9 @@ func NewChannelRepository(sharding *sharding.Manager) domain.ChannelRepository {
 }
 
 func (r *ChannelRepositoryImpl) getDB(_ context.Context) *gorm.DB {
+	if r.tx != nil {
+		return r.tx
+	}
 	// 假设渠道配置存储在全局库或第一个分片
 	return r.sharding.GetDB(0)
 }
@@ -71,4 +75,18 @@ func (r *ChannelRepositoryImpl) mockChannel(code string) *domain.ChannelConfig {
 	}
 
 	return cfg
+}
+
+func (r *ChannelRepositoryImpl) Transaction(ctx context.Context, fn func(tx any) error) error {
+	db := r.sharding.GetDB(0)
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(tx)
+	})
+}
+
+func (r *ChannelRepositoryImpl) WithTx(tx any) domain.ChannelRepository {
+	return &ChannelRepositoryImpl{
+		sharding: r.sharding,
+		tx:       tx.(*gorm.DB),
+	}
 }

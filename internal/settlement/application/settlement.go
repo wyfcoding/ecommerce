@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
+	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
 )
 
 // SettlementService 结算门面服务，整合 Manager 和 Query。
@@ -24,6 +25,10 @@ func NewSettlementService(
 		manager: NewSettlementManager(repo, ledgerService, logger),
 		query:   NewSettlementQuery(repo),
 	}
+}
+
+func (s *SettlementService) SetRemoteAccountClient(cli accountv1.AccountServiceClient) {
+	s.manager.SetRemoteAccountClient(cli)
 }
 
 // --- Manager (Writes) ---

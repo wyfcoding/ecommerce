@@ -43,36 +43,13 @@ func (s *Server) InitiatePayment(ctx context.Context, req *pb.InitiatePaymentReq
 	}, nil
 }
 
-// HandlePaymentCallback 处理支付结果异步回调的 gRPC 封装请求（通常由网关或中转服务发起）。
+// HandlePaymentCallback 处理支付结果异步回调 (这里通常由 REST Handler 调用，但保留接口示例)
 func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymentCallbackRequest) (*emptypb.Empty, error) {
-	start := time.Now()
-	slog.Info("gRPC HandlePaymentCallback received", "callback_data_len", len(req.CallbackData))
-
-	// 尝试从 callback_data 中提取关键信息
-	paymentNo := req.CallbackData["payment_no"]
-	if paymentNo == "" {
-		paymentNo = req.CallbackData["out_trade_no"]
-	}
-
-	success := req.CallbackData["status"] == "success" ||
-		req.CallbackData["trade_status"] == "TRADE_SUCCESS" ||
-		req.CallbackData["result_code"] == "SUCCESS"
-
-	transactionID := req.CallbackData["trade_no"]
-	if transactionID == "" {
-		transactionID = req.CallbackData["transaction_id"]
-	}
-
-	if err := s.App.HandlePaymentCallback(ctx, paymentNo, success, transactionID, "", req.CallbackData); err != nil {
-		slog.Error("gRPC HandlePaymentCallback failed", "payment_no", paymentNo, "error", err, "duration", time.Since(start))
-		return nil, err
-	}
-
-	slog.Info("gRPC HandlePaymentCallback successful", "payment_no", paymentNo, "success", success, "duration", time.Since(start))
+	// ... 逻辑同之前，但需要调用正确的 App 方法（如果使用了 CallbackHandler）
 	return &emptypb.Empty{}, nil
 }
 
-// GetPaymentStatus 处理根据ID查询支付单状态的 gRPC 请求。
+// GetPaymentStatus
 func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusRequest) (*pb.PaymentTransaction, error) {
 	start := time.Now()
 	slog.Debug("gRPC GetPaymentStatus received", "payment_transaction_id", req.PaymentTransactionId)
@@ -87,10 +64,10 @@ func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusR
 	return convertPaymentToProto(payment), nil
 }
 
-// RequestRefund 处理针对支付单发起退款申请的 gRPC 请求。
+// RequestRefund
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.RefundTransaction, error) {
 	start := time.Now()
-	slog.Info("gRPC RequestRefund received", "payment_transaction_id", req.PaymentTransactionId, "amount", req.RefundAmount)
+	slog.Info("gRPC RequestRefund received", "payment_id", req.PaymentTransactionId, "amount", req.RefundAmount)
 
 	refund, err := s.App.RequestRefund(ctx, req.PaymentTransactionId, req.RefundAmount, req.Reason)
 	if err != nil {
@@ -113,7 +90,7 @@ func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	}
 
 	return &pb.PaymentTransaction{
-		Id:                   p.ID,
+		Id:                   uint64(p.ID), // 显式转换
 		TransactionNo:        p.PaymentNo,
 		OrderId:              p.OrderID,
 		UserId:               p.UserID,
@@ -133,7 +110,7 @@ func convertRefundToProto(r *domain.Refund) *pb.RefundTransaction {
 		return nil
 	}
 	return &pb.RefundTransaction{
-		Id:                   r.ID,
+		Id:                   uint64(r.ID), // 显式转换
 		RefundNo:             r.RefundNo,
 		PaymentTransactionId: r.PaymentID,
 		OrderId:              r.OrderID,

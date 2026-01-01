@@ -2,53 +2,31 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 
-// AlipayGateway 支付宝网关模拟实现
 type AlipayGateway struct{}
 
-// NewAlipayGateway 函数。
-func NewAlipayGateway() *AlipayGateway {
-	return &AlipayGateway{}
-}
+func NewAlipayGateway() *AlipayGateway { return &AlipayGateway{} }
 
-func (g *AlipayGateway) Pay(ctx context.Context, req *domain.PaymentGatewayRequest) (*domain.PaymentGatewayResponse, error) {
-	// 模拟支付宝支付流程
-	// 实际场景下会生成一个 form 表单或获取 SDK 参数
+func (g *AlipayGateway) PreAuth(ctx context.Context, req *domain.PaymentGatewayRequest) (*domain.PaymentGatewayResponse, error) {
 	return &domain.PaymentGatewayResponse{
-		TransactionID: "", // 支付宝通常是回调时才给交易号，这里模拟为空
-		PaymentURL:    "https://mock.alipay.com/gateway.do?params=...",
-		RawResponse:   `{"code":"10000", "msg":"Success"}`,
+		TransactionID: "ALI_AUTH_" + req.OrderID,
+		PaymentURL:    "https://mock.alipay.com/auth",
 	}, nil
 }
 
-func (g *AlipayGateway) Query(ctx context.Context, transactionID string) (*domain.PaymentGatewayResponse, error) {
+func (g *AlipayGateway) Capture(ctx context.Context, transactionID string, amount int64) (*domain.PaymentGatewayResponse, error) {
 	return &domain.PaymentGatewayResponse{
 		TransactionID: transactionID,
-		RawResponse:   `{"status":"TRADE_SUCCESS"}`,
 	}, nil
 }
 
-func (g *AlipayGateway) Refund(ctx context.Context, req *domain.RefundGatewayRequest) (*domain.RefundGatewayResponse, error) {
-	return &domain.RefundGatewayResponse{
-		RefundID:    "REF_" + req.TransactionID,
-		Status:      "SUCCESS",
-		RawResponse: `{"code":"10000", "msg":"Success"}`,
-	}, nil
+func (g *AlipayGateway) Void(ctx context.Context, transactionID string) error {
+	return nil
 }
 
-func (g *AlipayGateway) QueryRefund(ctx context.Context, refundID string) (*domain.RefundGatewayResponse, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (g *AlipayGateway) VerifyCallback(ctx context.Context, data map[string]string) (bool, error) {
-	// 模拟验签：总是通过
-	return true, nil
-}
-
-func (g *AlipayGateway) GetType() domain.GatewayType {
-	return domain.GatewayTypeAlipay
+func (g *AlipayGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
+	return nil
 }

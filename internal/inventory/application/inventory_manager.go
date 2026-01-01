@@ -9,17 +9,19 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
+	orderv1 "github.com/wyfcoding/financialtrading/goapi/order/v1"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // InventoryManager 处理库存的写操作（增删改、锁定、分配）。
 type InventoryManager struct {
-	repo          domain.InventoryRepository
-	warehouseRepo domain.WarehouseRepository
-	allocator     *algorithm.WarehouseAllocator
-	logger        *slog.Logger
-	soldOutFilter *algorithm.CuckooFilter
-	filterMu      sync.RWMutex
+	repo           domain.InventoryRepository
+	warehouseRepo  domain.WarehouseRepository
+	allocator      *algorithm.WarehouseAllocator
+	logger         *slog.Logger
+	soldOutFilter  *algorithm.CuckooFilter
+	filterMu       sync.RWMutex
+	remoteOrderCli orderv1.OrderServiceClient
 }
 
 // NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
@@ -31,6 +33,10 @@ func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.W
 		logger:        logger,
 		soldOutFilter: algorithm.NewCuckooFilter(100000),
 	}
+}
+
+func (m *InventoryManager) SetRemoteOrderClient(cli orderv1.OrderServiceClient) {
+	m.remoteOrderCli = cli
 }
 
 // IsSoldOutQuickCheck 本地快速检查是否售罄
@@ -93,7 +99,7 @@ func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, f
 		if err.Error() != "optimistic lock failed" {
 			return err
 		}
-		
+
 		// 乐观锁失败，等待后重试
 		time.Sleep(time.Millisecond * time.Duration(10*(i+1)))
 	}
@@ -107,7 +113,7 @@ func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity 
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// 如果库存不再为0，从售罄过滤器中移除
 		if inv.AvailableStock > 0 {
 			m.filterMu.Lock()
@@ -132,6 +138,29 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 			m.soldOutFilter.Add([]byte(fmt.Sprintf("%d", skuID)))
 			m.filterMu.Unlock()
 		}
+
+		// --- 架构增强：自动补货触发 (Cross-Project Interaction) ---
+		if inv.AvailableStock < inv.WarningThreshold && m.remoteOrderCli != nil {
+			m.logger.InfoContext(ctx, "low stock detected, triggering institutional replenishment", "sku_id", skuID, "stock", inv.AvailableStock)
+			go func() {
+				// 异步下单，不阻塞主流程
+				replenishCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				_, err := m.remoteOrderCli.CreateOrder(replenishCtx, &orderv1.CreateOrderRequest{
+					UserId:    "SYSTEM", // 系统账户
+					Symbol:    fmt.Sprintf("SKU-%d", skuID),
+					Side:      "BUY",
+					OrderType: "MARKET",
+					Quantity:  "500", // 默认补货 500
+				})
+				if err != nil {
+					m.logger.Error("failed to place replenishment order", "sku_id", skuID, "error", err)
+				} else {
+					m.logger.Info("replenishment order placed successfully", "sku_id", skuID)
+				}
+			}()
+		}
+
 		return log, nil
 	})
 }

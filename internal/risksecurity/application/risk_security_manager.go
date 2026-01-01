@@ -8,14 +8,16 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
+	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // RiskManager 处理风控安全的写操作。
 type RiskManager struct {
-	repo     domain.RiskRepository
-	logger   *slog.Logger
-	detector *algorithm.AntiBotDetector
+	repo          domain.RiskRepository
+	logger        *slog.Logger
+	detector      *algorithm.AntiBotDetector
+	remoteRiskCli riskv1.RiskServiceClient
 }
 
 // NewRiskManager creates a new RiskManager instance.
@@ -25,6 +27,10 @@ func NewRiskManager(repo domain.RiskRepository, logger *slog.Logger) *RiskManage
 		logger:   logger,
 		detector: algorithm.NewAntiBotDetector(),
 	}
+}
+
+func (m *RiskManager) SetRemoteRiskClient(cli riskv1.RiskServiceClient) {
+	m.remoteRiskCli = cli
 }
 
 // UserRelation 用户关联关系
@@ -112,7 +118,26 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 	}
 	score += int32(botScore)
 
-	// 5. 根据风险分数确定风险等级
+	// 5. 远程风控评估 (Cross-Project Interaction)
+	if m.remoteRiskCli != nil {
+		remoteResp, err := m.remoteRiskCli.AssessRisk(ctx, &riskv1.AssessRiskRequest{
+			UserId:   fmt.Sprintf("%d", userID),
+			Symbol:   "RETAIL/PAYMENT", // 模拟零售支付场景
+			Side:     "OUT",
+			Quantity: "1",
+			Price:    fmt.Sprintf("%d", amount),
+		})
+		if err != nil {
+			m.logger.WarnContext(ctx, "remote risk assessment failed, skipping", "error", err)
+		} else {
+			m.logger.InfoContext(ctx, "remote financial risk check completed", "score", remoteResp.RiskScore, "is_allowed", remoteResp.IsAllowed)
+			if !remoteResp.IsAllowed {
+				score += 40 // 叠加远程高风险分数
+			}
+		}
+	}
+
+	// 6. 根据风险分数确定风险等级
 	if score > 100 {
 		score = 100
 	}

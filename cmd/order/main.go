@@ -11,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
+	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
 	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
@@ -57,6 +59,7 @@ type AppContext struct {
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
 	Warehouse *grpc.ClientConn `service:"warehouse"`
+	Inventory *grpc.ClientConn `service:"inventory"`
 	Payment   *grpc.ClientConn `service:"payment"`
 	Product   *grpc.ClientConn `service:"product"`
 }
@@ -223,6 +226,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		m,
 		riskEvaluator,
 	)
+
+	// 注入 gRPC 客户端 (Internal Service Interaction)
+	if clients.Inventory != nil && clients.Payment != nil {
+		orderManager.SetClients(
+			inventoryv1.NewInventoryServiceClient(clients.Inventory),
+			paymentv1.NewPaymentServiceClient(clients.Payment),
+		)
+	}
 	orderQuery := application.NewOrderQuery(orderRepo)
 
 	orderService := application.NewOrderService(

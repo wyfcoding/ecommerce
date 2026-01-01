@@ -8,6 +8,8 @@ import (
 	"time"
 
 	advancedcouponv1 "github.com/wyfcoding/ecommerce/goapi/advancedcoupon/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	warehousev1 "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 
@@ -31,6 +33,8 @@ type OrderManager struct {
 	dtmServer         string
 	warehouseGrpcAddr string
 	riskEvaluator     risk.Evaluator
+	inventoryCli      inventoryv1.InventoryServiceClient
+	paymentCli        paymentv1.PaymentServiceClient
 
 	// 指标统计
 	orderCreatedCounter *prometheus.CounterVec
@@ -63,6 +67,11 @@ func NewOrderManager(
 		riskEvaluator:       riskEvaluator,
 		orderCreatedCounter: orderCreatedCounter,
 	}
+}
+
+func (s *OrderManager) SetClients(invCli inventoryv1.InventoryServiceClient, payCli paymentv1.PaymentServiceClient) {
+	s.inventoryCli = invCli
+	s.paymentCli = payCli
 }
 
 // CreateOrder 创建订单。
@@ -101,6 +110,19 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 
 	order := domain.NewOrder(orderNo, userID, items, shippingAddr)
 	order.Status = domain.Allocating // 切换到“分配中”状态，表示正在执行分布式事务
+
+	// --- 架构增强：预同步锁定库存 (Internal Service Interaction) ---
+	for _, item := range items {
+		_, err := s.inventoryCli.LockStock(ctx, &inventoryv1.LockStockRequest{
+			SkuId:    item.SkuID,
+			Quantity: int32(item.Quantity),
+			Reason:   "Order " + orderNo,
+		})
+		if err != nil {
+			s.logger.ErrorContext(ctx, "synchronous stock locking failed", "sku_id", item.SkuID, "error", err)
+			return nil, fmt.Errorf("insufficient stock for SKU %d", item.SkuID)
+		}
+	}
 
 	// 1. 本地事务：保存订单并写入 Outbox
 	err = s.repo.Transaction(ctx, userID, func(tx any) error {
@@ -169,6 +191,26 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	}
 
 	s.logger.InfoContext(ctx, "order created and saga submitted", "order_no", orderNo)
+
+	// --- 架构增强：同步发起支付 (Internal Service Interaction) ---
+	if s.paymentCli != nil {
+		payResp, err := s.paymentCli.InitiatePayment(ctx, &paymentv1.InitiatePaymentRequest{
+			OrderId:       uint64(order.ID),
+			UserId:        userID,
+			PaymentMethod: "WECHAT", // 默认微信，实际应由前端传参
+			Amount:        order.TotalAmount,
+			ClientIp:      "127.0.0.1",
+		})
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to initiate payment", "order_no", orderNo, "error", err)
+			// 注意：此时订单已创建且 Saga 已提交，支付失败不应导致订单回滚，
+			// 用户可以在订单列表重新发起支付。
+		} else {
+			s.logger.InfoContext(ctx, "payment initiated successfully", "order_no", orderNo, "payment_url", payResp.PaymentUrl)
+			// 在实际场景中，可能会将 payment_url 返回给前端
+		}
+	}
+
 	return order, nil
 }
 
@@ -182,7 +224,7 @@ func (s *OrderManager) PayOrder(ctx context.Context, id uint64, paymentMethod st
 		return errors.New("order not found")
 	}
 
-	if err := order.Pay(paymentMethod, "User"); err != nil {
+	if err := order.Pay(ctx, paymentMethod, "User"); err != nil {
 		return err
 	}
 
@@ -199,7 +241,7 @@ func (s *OrderManager) ShipOrder(ctx context.Context, id uint64, operator string
 		return errors.New("order not found")
 	}
 
-	if err := order.Ship(operator); err != nil {
+	if err := order.Ship(ctx, operator); err != nil {
 		return err
 	}
 
@@ -216,7 +258,7 @@ func (s *OrderManager) DeliverOrder(ctx context.Context, id uint64, operator str
 		return errors.New("order not found")
 	}
 
-	if err := order.Deliver(operator); err != nil {
+	if err := order.Deliver(ctx, operator); err != nil {
 		return err
 	}
 
@@ -233,7 +275,7 @@ func (s *OrderManager) CompleteOrder(ctx context.Context, id uint64, operator st
 		return errors.New("order not found")
 	}
 
-	if err := order.Complete(operator); err != nil {
+	if err := order.Complete(ctx, operator); err != nil {
 		return err
 	}
 
@@ -250,7 +292,7 @@ func (s *OrderManager) CancelOrder(ctx context.Context, id uint64, operator, rea
 		return errors.New("order not found")
 	}
 
-	if err := order.Cancel(operator, reason); err != nil {
+	if err := order.Cancel(ctx, operator, reason); err != nil {
 		return err
 	}
 
@@ -283,7 +325,7 @@ func (s *OrderManager) HandleInventoryReservationFailed(ctx context.Context, ord
 		return errors.New("order not found")
 	}
 
-	return order.Cancel("System", fmt.Sprintf("Inventory reservation failed: %s", reason))
+	return order.Cancel(ctx, "System", fmt.Sprintf("Inventory reservation failed: %s", reason))
 }
 
 // HandlePaymentProcessed 处理支付已完成事件。
@@ -296,7 +338,7 @@ func (s *OrderManager) HandlePaymentProcessed(ctx context.Context, orderID uint6
 		return errors.New("order not found")
 	}
 
-	return order.Pay("Online", "System")
+	return order.Pay(ctx, "Online", "System")
 }
 
 // HandlePaymentFailed 处理支付失败事件。
@@ -309,7 +351,7 @@ func (s *OrderManager) HandlePaymentFailed(ctx context.Context, orderID uint64, 
 		return errors.New("order not found")
 	}
 
-	if err := order.Cancel("System", fmt.Sprintf("Payment failed: %s", reason)); err != nil {
+	if err := order.Cancel(ctx, "System", fmt.Sprintf("Payment failed: %s", reason)); err != nil {
 		return err
 	}
 

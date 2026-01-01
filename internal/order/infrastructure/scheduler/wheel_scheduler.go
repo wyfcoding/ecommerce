@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/order/domain/service"
+	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
@@ -57,4 +57,4 @@ func (s *WheelScheduler) Stop() {
 	s.wheel.Stop()
 }
 
-var _ service.TimeoutScheduler = (*WheelScheduler)(nil)
+var _ domain.TimeoutScheduler = (*WheelScheduler)(nil)

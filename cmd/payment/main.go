@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -29,6 +30,8 @@ import (
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/lock"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -177,7 +180,20 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("id generator init error: %w", err)
 	}
 
-	// 4. 初始化下游微服务客户端
+	// 4. 初始化消息队列与 Outbox (架构增强)
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
+	masterDB := shardingManager.GetDB(0)
+	if err := masterDB.AutoMigrate(&outbox.OutboxMessage{}); err != nil {
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(masterDB, logger.Logger)
+	outboxProc := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProc.Start()
+
+	// 5. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
@@ -208,6 +224,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),
 		domain.GatewayTypeStripe: gateway.NewStripeGateway(),
 		domain.GatewayTypeWechat: gateway.NewWechatGateway(),
+		domain.GatewayTypeMock:   gateway.NewMockGateway(),
 	}
 
 	// 5.2 Application (Components)
@@ -217,6 +234,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		riskSvc,
 		idGenerator,
 		gateways,
+		outboxMgr,
 		logger.Logger,
 	)
 	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, redisLock, logger.Logger)
@@ -238,6 +256,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProc.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {

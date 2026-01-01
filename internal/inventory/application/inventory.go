@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
+	orderv1 "github.com/wyfcoding/financialtrading/goapi/order/v1"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
@@ -19,6 +20,10 @@ func NewInventory(manager *InventoryManager, query *InventoryQuery) *Inventory {
 		Manager: manager,
 		Query:   query,
 	}
+}
+
+func (s *Inventory) SetRemoteOrderClient(cli orderv1.OrderServiceClient) {
+	s.Manager.SetRemoteOrderClient(cli)
 }
 
 // CreateInventory 创建库存记录。

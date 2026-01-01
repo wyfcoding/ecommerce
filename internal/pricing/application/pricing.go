@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
+	marketdatav1 "github.com/wyfcoding/financialtrading/goapi/marketdata/v1"
 )
 
 // PricingService 作为定价操作的门面。
@@ -18,6 +19,10 @@ func NewPricingService(manager *PricingManager, query *PricingQuery) *PricingSer
 		manager: manager,
 		query:   query,
 	}
+}
+
+func (s *PricingService) SetMarketDataClient(cli marketdatav1.MarketDataServiceClient) {
+	s.query.SetMarketDataClient(cli)
 }
 
 // --- 写操作（委托给 Manager）---
@@ -37,6 +42,10 @@ func (s *PricingService) RecordHistory(ctx context.Context, productID, skuID, pr
 // CalculatePrice 计算动态价格。
 func (s *PricingService) CalculatePrice(ctx context.Context, productID, skuID uint64, demand, competition float64) (uint64, error) {
 	return s.query.CalculatePrice(ctx, productID, skuID, demand, competition)
+}
+
+func (s *PricingService) ConvertPrice(ctx context.Context, amount uint64, baseCurrency, targetCurrency string) (float64, error) {
+	return s.query.ConvertPrice(ctx, amount, baseCurrency, targetCurrency)
 }
 
 // ListRules 列出定价规则。

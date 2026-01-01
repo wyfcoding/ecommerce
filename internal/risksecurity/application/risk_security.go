@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
+	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
 )
 
 // RiskService 作为风控安全操作的门面。
@@ -19,6 +20,10 @@ func NewRiskService(manager *RiskManager, query *RiskQuery) *RiskService {
 		manager: manager,
 		query:   query,
 	}
+}
+
+func (s *RiskService) SetRemoteRiskClient(cli riskv1.RiskServiceClient) {
+	s.manager.SetRemoteRiskClient(cli)
 }
 
 // --- 写操作（委托给 Manager）---

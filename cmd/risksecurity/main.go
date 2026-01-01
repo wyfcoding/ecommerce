@@ -15,6 +15,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/infrastructure/persistence"
 	riskgrpc "github.com/wyfcoding/ecommerce/internal/risksecurity/interfaces/grpc"
 	riskhttp "github.com/wyfcoding/ecommerce/internal/risksecurity/interfaces/http"
+	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -51,7 +52,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 RiskSecurity 服务无下游强依赖
+	RiskConn *grpc.ClientConn `service:"risk"`
+	Risk     riskv1.RiskServiceClient
 }
 
 func main() {
@@ -154,6 +156,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
+	// 显式转换 gRPC 客户端 (Cross-Project Bridge)
+	if clients.RiskConn != nil {
+		clients.Risk = riskv1.NewRiskServiceClient(clients.RiskConn)
+	}
 
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -164,6 +170,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 5.2 Application (Service)
 	query := application.NewRiskQuery(riskRepo)
 	manager := application.NewRiskManager(riskRepo, logger.Logger)
+	if clients.Risk != nil {
+		manager.SetRemoteRiskClient(clients.Risk)
+	}
 	riskService := application.NewRiskService(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)

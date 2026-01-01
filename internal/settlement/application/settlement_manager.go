@@ -8,13 +8,15 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
+	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
 )
 
 // SettlementManager 处理所有结算相关的写入操作（Commands）。
 type SettlementManager struct {
-	repo          domain.SettlementRepository
-	ledgerService *domain.LedgerService
-	logger        *slog.Logger
+	repo             domain.SettlementRepository
+	ledgerService    *domain.LedgerService
+	logger           *slog.Logger
+	remoteAccountCli accountv1.AccountServiceClient
 }
 
 // NewSettlementManager 构造函数。
@@ -24,6 +26,10 @@ func NewSettlementManager(repo domain.SettlementRepository, ledgerService *domai
 		ledgerService: ledgerService,
 		logger:        logger,
 	}
+}
+
+func (m *SettlementManager) SetRemoteAccountClient(cli accountv1.AccountServiceClient) {
+	m.remoteAccountCli = cli
 }
 
 // RecordPaymentSuccess 记录支付成功事件 (核心清分与记账逻辑)。
@@ -78,6 +84,22 @@ func (m *SettlementManager) RecordPaymentSuccess(ctx context.Context, orderID ui
 	if err := m.ledgerService.PostEntry(ctx, entry); err != nil {
 		m.logger.ErrorContext(ctx, "failed to post ledger entry", "order_id", orderID, "error", err)
 		return err
+	}
+
+	// 5. 跨项目同步 (Cross-Project Interaction)
+	// 假设商户在 FinancialTrading 系统中也有对应的交易账户 (UserID = MerchantID)
+	if m.remoteAccountCli != nil {
+		_, err := m.remoteAccountCli.Deposit(ctx, &accountv1.DepositRequest{
+			UserId:   fmt.Sprintf("%d", merchantID),
+			Amount:   fmt.Sprintf("%d", merchantReceivable),
+			Currency: "USD",
+		})
+		if err != nil {
+			m.logger.ErrorContext(ctx, "failed to sync settlement to financial account", "merchant_id", merchantID, "error", err)
+			// 注意：此时本地账务已完成，跨项目失败可记录日志后补偿，此处不强制阻塞
+		} else {
+			m.logger.InfoContext(ctx, "settlement synced to financial account successfully", "merchant_id", merchantID)
+		}
 	}
 
 	m.logger.InfoContext(ctx, "payment recorded in ledger", "entry_no", entry.EntryNo)

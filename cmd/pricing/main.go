@@ -15,6 +15,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence"
 	pricinggrpc "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/grpc"
 	pricinghttp "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/http"
+	marketdatav1 "github.com/wyfcoding/financialtrading/goapi/marketdata/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -51,7 +52,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 Pricing 服务无下游强依赖
+	MarketDataConn *grpc.ClientConn `service:"marketdata"`
+	MarketData     marketdatav1.MarketDataServiceClient
 }
 
 func main() {
@@ -154,6 +156,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
+	// 显式转换 gRPC 客户端 (Cross-Project Bridge)
+	if clients.MarketDataConn != nil {
+		clients.MarketData = marketdatav1.NewMarketDataServiceClient(clients.MarketDataConn)
+	}
 
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -163,6 +169,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewPricingQuery(pricingRepo)
+	if clients.MarketData != nil {
+		query.SetMarketDataClient(clients.MarketData)
+	}
 	manager := application.NewPricingManager(pricingRepo, logger.Logger)
 	pricingService := application.NewPricingService(manager, query)
 

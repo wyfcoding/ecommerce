@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -14,8 +15,10 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/settlement/interfaces/event"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
 	settlementhttp "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/http"
+	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -24,6 +27,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -52,7 +56,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 Settlement 服务无下游强依赖
+	AccountConn *grpc.ClientConn `service:"account"`
+	Account     accountv1.AccountServiceClient
 }
 
 func main() {
@@ -155,6 +160,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
+	// 显式转换 gRPC 客户端 (Cross-Project Bridge)
+	if clients.AccountConn != nil {
+		clients.Account = accountv1.NewAccountServiceClient(clients.AccountConn)
+	}
 
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -166,13 +175,31 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	settlementService := application.NewSettlementService(settlementRepo, ledgerService, logger.Logger)
+	if clients.Account != nil {
+		settlementService.SetRemoteAccountClient(clients.Account)
+	}
 
-	// 5.3 Interface (HTTP Handlers)
+	// 5.3 Event Handlers (Kafka Consumer)
+	bootLog.Info("initializing kafka consumer for payment events...")
+	paymentHandler := event.NewPaymentHandler(settlementService, logger.Logger)
+
+	// 配置消费者组
+	consumerCfg := c.MessageQueue.Kafka
+	consumerCfg.Topic = "payment.captured"
+	consumerCfg.GroupID = BootstrapName + "-group"
+
+	consumer := kafka.NewConsumer(consumerCfg, logger, m)
+	consumer.Start(context.Background(), 3, paymentHandler.HandlePaymentCaptured)
+
+	// 5.4 Interface (HTTP Handlers)
 	handler := settlementhttp.NewHandler(settlementService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		if consumer != nil {
+			consumer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
