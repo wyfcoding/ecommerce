@@ -61,7 +61,7 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 		// 利润最大化策略
 		// 获取历史数据用于需求预测
 		history, _ := m.repo.GetPriceHistory(ctx, req.SKUID, 30) // 最近30条记录
-		
+
 		// 转换历史数据格式
 		var demandData []algorithm.DemandData
 		for _, h := range history {
@@ -81,7 +81,7 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 		finalPrice = engine.OptimalPriceForProfit(cost, demandFunc)
 
 		// 填充默认因子
-		algoFactors.DemandFactor = 1.0 
+		algoFactors.DemandFactor = 1.0
 		algoFactors.InventoryFactor = 1.0
 
 	case "competitive":
@@ -139,7 +139,7 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 
 		result := engine.CalculatePrice(factors)
 		finalPrice = result.FinalPrice
-		
+
 		// 记录因子
 		algoFactors.InventoryFactor = result.InventoryFactor
 		algoFactors.DemandFactor = result.DemandFactor

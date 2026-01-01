@@ -127,7 +127,7 @@ func (m *InventoryForecastManager) AnalyzeStockoutRisk(ctx context.Context, skuI
 	}
 
 	daysUntilStockout := currentStock / avgDailySales
-	
+
 	var riskLevel domain.StockoutRiskLevel
 	if daysUntilStockout <= 3 {
 		riskLevel = domain.StockoutRiskLevelCritical

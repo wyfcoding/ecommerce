@@ -69,7 +69,7 @@ func (m *AIModelManager) runTrainingTask(modelID uint64) {
 
 	// 使用 pkg/algorithm/naive_bayes 进行实际训练 (示例数据)
 	nb := algorithm.NewNaiveBayes()
-	
+
 	// 模拟一些简单的文本分类数据 (例如：情感分析 Positive/Negative)
 	docs := [][]string{
 		{"good", "great", "awesome", "fantastic"},
@@ -185,7 +185,7 @@ func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input stri
 		// 如果内存中不存在（可能是重启后），则重新初始化并“加载”
 		// 实际场景应从文件系统加载序列化的模型
 		m.logger.Warn("model not in memory, re-initializing dummy model", "model_id", modelID)
-		
+
 		// 重新训练一个 dummy 模型
 		nb = algorithm.NewNaiveBayes()
 		docs := [][]string{
@@ -203,7 +203,7 @@ func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input stri
 	// 执行预测
 	inputTokens := strings.Fields(strings.ToLower(input))
 	output := nb.Predict(inputTokens)
-	
+
 	// NaiveBayes 实现暂未返回置信度，这里模拟一个
 	confidence := 0.88
 

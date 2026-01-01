@@ -53,12 +53,12 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 		}
 		// 仅分配待揽收状态的订单
 		if logistics.Status != domain.LogisticsStatusPending && logistics.Status != domain.LogisticsStatusPickedUp {
-			continue 
+			continue
 		}
 
 		logisticsList = append(logisticsList, logistics)
 		orders = append(orders, OrderInfo{
-			ID:  logistics.OrderNo, // Assuming OrderNo is unique enough for logic, but we use index mostly
+			ID:  logistics.OrderNo,   // Assuming OrderNo is unique enough for logic, but we use index mostly
 			Lat: logistics.SenderLat, // 骑手前往发件人位置
 			Lon: logistics.SenderLon,
 		})
@@ -97,15 +97,15 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 			// 找回对应的 Logistics 实体
 			// match oIdx corresponds to orders[oIdx] which corresponds to logisticsList[oIdx] (since we appended linearly)
 			logistics := logisticsList[oIdx]
-			
+
 			logistics.AssignRider(riderID)
 			logistics.Status = domain.LogisticsStatusPickedUp // 假设分配即揽收，或改为 PendingPickup
-			
+
 			if err := m.repo.Save(ctx, logistics); err != nil {
 				m.logger.ErrorContext(ctx, "failed to save assigned rider", "logistics_id", logistics.ID, "rider_id", riderID, "error", err)
 				continue
 			}
-			
+
 			result[riderID] = uint64(logistics.ID)
 		}
 	}

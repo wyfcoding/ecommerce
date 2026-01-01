@@ -65,7 +65,7 @@ func (m *RecommendationManager) GenerateRecommendations(ctx context.Context, use
 	if err != nil {
 		return err
 	}
-	
+
 	globalBehaviors, err := m.repo.GetRecentBehaviors(ctx, 1000)
 	if err != nil {
 		return err
@@ -73,14 +73,19 @@ func (m *RecommendationManager) GenerateRecommendations(ctx context.Context, use
 
 	// 2. 初始化推荐引擎并加载数据
 	engine := algorithm.NewRecommendationEngine()
-	
+
 	mapScore := func(action string) float64 {
 		switch action {
-		case "buy": return 5.0
-		case "cart": return 3.0
-		case "click": return 2.0
-		case "view": return 1.0
-		default: return 1.0
+		case "buy":
+			return 5.0
+		case "cart":
+			return 3.0
+		case "click":
+			return 2.0
+		case "view":
+			return 1.0
+		default:
+			return 1.0
 		}
 	}
 
@@ -116,7 +121,7 @@ func (m *RecommendationManager) GenerateRecommendations(ctx context.Context, use
 			reason = "Based on your history"
 		}
 	}
-	
+
 	if len(recProductIDs) == 0 {
 		// 冷启动或无结果，使用热门推荐
 		recProductIDs = engine.HotItems(10, 24)

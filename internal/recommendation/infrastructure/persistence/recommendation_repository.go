@@ -95,15 +95,14 @@ func (r *recommendationRepository) SaveUserBehavior(ctx context.Context, behavio
 // ListUserBehaviors 从数据库列出指定用户ID的用户行为实体，支持数量限制。
 func (r *recommendationRepository) ListUserBehaviors(ctx context.Context, userID uint64, limit int) ([]*domain.UserBehavior, error) {
 	var list []*domain.UserBehavior
-		return list, nil
+	return list, nil
+}
+
+// GetRecentBehaviors 获取最近的全站用户行为。
+func (r *recommendationRepository) GetRecentBehaviors(ctx context.Context, limit int) ([]*domain.UserBehavior, error) {
+	var list []*domain.UserBehavior
+	if err := r.db.WithContext(ctx).Order("timestamp desc").Limit(limit).Find(&list).Error; err != nil {
+		return nil, err
 	}
-	
-	// GetRecentBehaviors 获取最近的全站用户行为。
-	func (r *recommendationRepository) GetRecentBehaviors(ctx context.Context, limit int) ([]*domain.UserBehavior, error) {
-		var list []*domain.UserBehavior
-		if err := r.db.WithContext(ctx).Order("timestamp desc").Limit(limit).Find(&list).Error; err != nil {
-			return nil, err
-		}
-		return list, nil
-	}
-	
+	return list, nil
+}
