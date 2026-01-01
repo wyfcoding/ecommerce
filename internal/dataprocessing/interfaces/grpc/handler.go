@@ -2,7 +2,9 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"     // 导入格式化包，用于错误信息。
+	"log/slog"
 	"strconv" // 导入字符串和数字转换工具。
 
 	pb "github.com/wyfcoding/ecommerce/goapi/dataprocessing/v1"          // 导入数据处理模块的protobuf定义。
@@ -31,10 +33,18 @@ func (s *Server) ProcessData(ctx context.Context, req *pb.ProcessDataRequest) (*
 	// 将Proto请求映射到应用服务层的 SubmitTask 方法。
 	// name: 使用 "Process-" + data_id 作为任务名称。
 	// taskType: 直接使用 req.ProcessingType。
-	// config: 如果需要，可以序列化 req.ProcessingParams。当前简化为字符串。
+	// config: 如果需要，可以序列化 req.ProcessingParams。
 	// workflowID: 默认使用0，表示不属于任何特定工作流。
 	name := "Process-" + req.DataId
-	config := "" // TODO: 根据req.ProcessingParams序列化配置信息。
+	config := ""
+	if req.ProcessingParams != nil {
+		paramsJSON, err := json.Marshal(req.ProcessingParams)
+		if err != nil {
+			slog.Warn("failed to marshal processing params", "error", err)
+		} else {
+			config = string(paramsJSON)
+		}
+	}
 
 	// 调用应用服务层提交任务。
 	task, err := s.app.SubmitTask(ctx, name, req.ProcessingType, config, 0)
