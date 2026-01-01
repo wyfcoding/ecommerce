@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"          // 导入仓库模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application" // 导入仓库模块的应用服务。
@@ -27,11 +29,16 @@ func NewServer(app *application.WarehouseService) *Server {
 
 // CreateWarehouse 处理创建仓库的gRPC请求。
 func (s *Server) CreateWarehouse(ctx context.Context, req *pb.CreateWarehouseRequest) (*pb.CreateWarehouseResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateWarehouse received", "code", req.Code, "name", req.Name)
+
 	warehouse, err := s.app.CreateWarehouse(ctx, req.Code, req.Name)
 	if err != nil {
+		slog.Error("gRPC CreateWarehouse failed", "code", req.Code, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create warehouse: %v", err))
 	}
 
+	slog.Info("gRPC CreateWarehouse successful", "warehouse_id", warehouse.ID, "duration", time.Since(start))
 	return &pb.CreateWarehouseResponse{
 		Warehouse: convertWarehouseToProto(warehouse),
 	}, nil
@@ -39,6 +46,9 @@ func (s *Server) CreateWarehouse(ctx context.Context, req *pb.CreateWarehouseReq
 
 // ListWarehouses 处理列出仓库的gRPC请求。
 func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesRequest) (*pb.ListWarehousesResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC ListWarehouses received", "page", req.Page)
+
 	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
@@ -47,6 +57,7 @@ func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesReque
 
 	warehouses, total, err := s.app.ListWarehouses(ctx, page, pageSize)
 	if err != nil {
+		slog.Error("gRPC ListWarehouses failed", "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list warehouses: %v", err))
 	}
 
@@ -55,6 +66,7 @@ func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesReque
 		pbWarehouses[i] = convertWarehouseToProto(w)
 	}
 
+	slog.Debug("gRPC ListWarehouses successful", "count", len(pbWarehouses), "duration", time.Since(start))
 	return &pb.ListWarehousesResponse{
 		Warehouses: pbWarehouses,
 		TotalCount: total,
@@ -63,19 +75,30 @@ func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesReque
 
 // UpdateStock 处理更新库存的gRPC请求（增加或减少）。
 func (s *Server) UpdateStock(ctx context.Context, req *pb.UpdateStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
+
 	if err := s.app.UpdateStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+		slog.Error("gRPC UpdateStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update stock: %v", err))
 	}
+
+	slog.Info("gRPC UpdateStock successful", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // GetStock 处理获取库存的gRPC请求。
 func (s *Server) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.GetStockResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC GetStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId)
+
 	stock, err := s.app.GetStock(ctx, req.WarehouseId, req.SkuId)
 	if err != nil {
+		slog.Error("gRPC GetStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get stock: %v", err))
 	}
 
+	slog.Debug("gRPC GetStock successful", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "duration", time.Since(start))
 	return &pb.GetStockResponse{
 		Stock: convertStockToProto(stock),
 	}, nil
@@ -83,11 +106,16 @@ func (s *Server) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.Get
 
 // CreateTransfer 处理创建库存调拨单的gRPC请求。
 func (s *Server) CreateTransfer(ctx context.Context, req *pb.CreateTransferRequest) (*pb.CreateTransferResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateTransfer received", "from", req.FromWarehouseId, "to", req.ToWarehouseId, "sku_id", req.SkuId)
+
 	transfer, err := s.app.CreateTransfer(ctx, req.FromWarehouseId, req.ToWarehouseId, req.SkuId, req.Quantity, req.CreatedBy)
 	if err != nil {
+		slog.Error("gRPC CreateTransfer failed", "from", req.FromWarehouseId, "to", req.ToWarehouseId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create transfer: %v", err))
 	}
 
+	slog.Info("gRPC CreateTransfer successful", "transfer_id", transfer.ID, "duration", time.Since(start))
 	return &pb.CreateTransferResponse{
 		Transfer: convertTransferToProto(transfer),
 	}, nil
@@ -95,25 +123,43 @@ func (s *Server) CreateTransfer(ctx context.Context, req *pb.CreateTransferReque
 
 // CompleteTransfer 处理完成库存调拨的gRPC请求。
 func (s *Server) CompleteTransfer(ctx context.Context, req *pb.CompleteTransferRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC CompleteTransfer received", "transfer_id", req.TransferId)
+
 	if err := s.app.CompleteTransfer(ctx, req.TransferId); err != nil {
+		slog.Error("gRPC CompleteTransfer failed", "transfer_id", req.TransferId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to complete transfer: %v", err))
 	}
+
+	slog.Info("gRPC CompleteTransfer successful", "transfer_id", req.TransferId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // DeductStock 扣减库存（Saga正向操作）。
 func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC DeductStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
+
 	if err := s.app.DeductStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+		slog.Error("gRPC DeductStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("failed to deduct stock for saga: %v", err))
 	}
+
+	slog.Info("gRPC DeductStock successful", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // RevertStock 回滚库存（Saga补偿操作）。
 func (s *Server) RevertStock(ctx context.Context, req *pb.RevertStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC RevertStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
+
 	if err := s.app.RevertStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+		slog.Error("gRPC RevertStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to revert stock for saga: %v", err))
 	}
+
+	slog.Info("gRPC RevertStock successful", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 

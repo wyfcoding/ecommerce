@@ -3,7 +3,9 @@ package grpc
 import (
 	"context"
 	"fmt"     // 导入格式化包，用于错误信息。
+	"log/slog"
 	"strconv" // 导入字符串和数字转换工具。
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/coupon/v1"          // 导入优惠券模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/coupon/application" // 导入优惠券模块的应用服务。
@@ -28,9 +30,10 @@ func NewServer(app *application.Coupon) *Server {
 }
 
 // CreateCoupon 处理创建优惠券的gRPC请求。
-// req: 包含创建优惠券所需信息的请求体。
-// 返回created successfully的优惠券响应和可能发生的gRPC错误。
 func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) (*pb.CouponResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateCoupon received", "name", req.Name, "discount_type", req.DiscountType)
+
 	// 简化：默认使用 CouponTypeDiscount。
 	couponType := int(domain.CouponTypeDiscount)
 	// 将Proto中的浮点金额转换为整型（分）。
@@ -40,22 +43,28 @@ func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) 
 	// 调用应用服务层创建优惠券.
 	coupon, err := s.app.CreateCoupon(ctx, req.Name, req.Description, couponType, discountVal, minOrder)
 	if err != nil {
+		slog.Error("gRPC CreateCoupon failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create coupon: %v", err))
 	}
 
+	slog.Info("gRPC CreateCoupon successful", "coupon_id", coupon.ID, "duration", time.Since(start))
 	return &pb.CouponResponse{
 		Coupon: s.toProto(coupon),
 	}, nil
 }
 
 // GetCouponByID 处理根据ID获取优惠券信息的gRPC请求。
-// req: 包含优惠券ID的请求体。
-// 返回优惠券响应和可能发生的gRPC错误。
 func (s *Server) GetCouponByID(ctx context.Context, req *pb.GetCouponByIDRequest) (*pb.CouponResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC GetCouponByID received", "coupon_id", req.CouponId)
+
 	coupon, err := s.app.GetCoupon(ctx, req.CouponId)
 	if err != nil {
+		slog.Error("gRPC GetCouponByID failed", "coupon_id", req.CouponId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get coupon: %v", err))
 	}
+
+	slog.Debug("gRPC GetCouponByID successful", "coupon_id", req.CouponId, "duration", time.Since(start))
 	return &pb.CouponResponse{
 		Coupon: s.toProto(coupon),
 	}, nil
@@ -72,22 +81,27 @@ func (s *Server) DeleteCoupon(ctx context.Context, req *pb.DeleteCouponRequest) 
 }
 
 // IssueCoupon 处理向用户发放优惠券的gRPC请求。
-// req: 包含用户ID和优惠券ID的请求体。
-// 返回用户优惠券响应和可能发生的gRPC错误。
 func (s *Server) IssueCoupon(ctx context.Context, req *pb.IssueCouponRequest) (*pb.UserCouponResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC IssueCoupon received", "user_id", req.UserId, "coupon_id", req.CouponId)
+
 	userCoupon, err := s.app.AcquireCoupon(ctx, req.UserId, req.CouponId)
 	if err != nil {
+		slog.Error("gRPC IssueCoupon failed", "user_id", req.UserId, "coupon_id", req.CouponId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to issue coupon: %v", err))
 	}
+
+	slog.Info("gRPC IssueCoupon successful", "user_id", req.UserId, "user_coupon_id", userCoupon.ID, "duration", time.Since(start))
 	return &pb.UserCouponResponse{
 		UserCoupon: s.userCouponToProto(userCoupon),
 	}, nil
 }
 
 // GetUserCoupons 处理获取用户优惠券列表的gRPC请求。
-// req: 包含用户ID和状态过滤的请求体。
-// 返回用户优惠券列表响应和可能发生的gRPC错误。
 func (s *Server) GetUserCoupons(ctx context.Context, req *pb.GetUserCouponsRequest) (*pb.GetUserCouponsResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC GetUserCoupons received", "user_id", req.UserId)
+
 	statusFilter := ""
 	if req.Status != nil {
 		statusFilter = *req.Status
@@ -96,6 +110,7 @@ func (s *Server) GetUserCoupons(ctx context.Context, req *pb.GetUserCouponsReque
 	// 应用服务层需要分页参数，此处使用默认值1页100条。
 	userCoupons, _, err := s.app.ListUserCoupons(ctx, req.UserId, statusFilter, 1, 100)
 	if err != nil {
+		slog.Error("gRPC GetUserCoupons failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list user coupons: %v", err))
 	}
 
@@ -105,22 +120,26 @@ func (s *Server) GetUserCoupons(ctx context.Context, req *pb.GetUserCouponsReque
 		pbUserCoupons[i] = s.userCouponToProto(uc)
 	}
 
+	slog.Debug("gRPC GetUserCoupons successful", "user_id", req.UserId, "count", len(pbUserCoupons), "duration", time.Since(start))
 	return &pb.GetUserCouponsResponse{
 		UserCoupons: pbUserCoupons,
 	}, nil
 }
 
 // UseCoupon 处理使用优惠券的gRPC请求。
-// req: 包含用户优惠券ID和订单ID的请求体。
-// 返回更新后的用户优惠券响应和可能发生的gRPC错误。
 func (s *Server) UseCoupon(ctx context.Context, req *pb.UseCouponRequest) (*pb.UserCouponResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC UseCoupon received", "user_id", req.UserId, "user_coupon_id", req.UserCouponId, "order_id", req.OrderId)
+
 	// 调用应用服务层使用优惠券。
 	// 注意：Proto中的OrderId是uint64，这里将其转换为字符串传递给服务。
 	err := s.app.UseCoupon(ctx, req.UserCouponId, req.UserId, strconv.FormatUint(req.OrderId, 10))
 	if err != nil {
+		slog.Error("gRPC UseCoupon failed", "user_id", req.UserId, "user_coupon_id", req.UserCouponId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to use coupon: %v", err))
 	}
 
+	slog.Info("gRPC UseCoupon successful", "user_id", req.UserId, "user_coupon_id", req.UserCouponId, "duration", time.Since(start))
 	return &pb.UserCouponResponse{
 		UserCoupon: &pb.UserCouponInfo{
 			UserCouponId: req.UserCouponId,

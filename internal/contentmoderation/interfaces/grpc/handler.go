@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/application"
@@ -25,8 +27,12 @@ func NewServer(app *application.ModerationService) *Server {
 
 // ModerateText 处理文本内容审核的gRPC请求。
 func (s *Server) ModerateText(ctx context.Context, req *pb.ModerateTextRequest) (*pb.ModerateTextResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC ModerateText received", "user_id", req.UserId, "text_len", len(req.Text))
+
 	record, err := s.app.SubmitContent(ctx, domain.ContentTypeText, 0, req.Text, req.UserId)
 	if err != nil {
+		slog.Error("gRPC ModerateText failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to submit text for moderation: %v", err))
 	}
 
@@ -46,6 +52,7 @@ func (s *Server) ModerateText(ctx context.Context, req *pb.ModerateTextRequest) 
 		rejectionReason = &r
 	}
 
+	slog.Info("gRPC ModerateText successful", "record_id", record.ID, "is_safe", isSafe, "duration", time.Since(start))
 	return &pb.ModerateTextResponse{
 		IsSafe:           isSafe,
 		ModerationLabels: record.AITags,

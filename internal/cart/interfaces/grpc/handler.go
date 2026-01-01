@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"          // 导入购物车模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/cart/application" // 导入购物车模块的应用服务。
@@ -28,113 +30,121 @@ func NewServer(app *application.CartService) *Server {
 }
 
 // AddItemToCart 处理添加商品到购物车的gRPC请求。
-// req: 包含用户ID、商品ID、SKU ID和数量的请求体。
-// 返回更新后的购物车信息和可能发生的gRPC错误。
 func (s *Server) AddItemToCart(ctx context.Context, req *pb.AddItemToCartRequest) (*pb.CartInfo, error) {
-	// TODO: 从商品服务（Product Service）获取商品的详细信息（名称、价格、图片URL）。
-	// 目前，Proto请求中缺少这些字段，此处使用占位符。
-	// 这是一个设计上的权衡：购物车服务是否应该调用商品服务来获取这些信息，
-	// 还是客户端（调用方）应该在请求中提供这些信息。
-	// 假设：为了简化，当前使用占位符。
+	start := time.Now()
+	slog.Info("gRPC AddItemToCart received", "user_id", req.UserId, "product_id", req.ProductId, "sku_id", req.SkuId, "quantity", req.Quantity)
+
 	err := s.app.AddItem(ctx, req.UserId, req.ProductId, req.SkuId, "Unknown Product", "Unknown SKU", 0.0, req.Quantity, "")
 	if err != nil {
+		slog.Error("gRPC AddItemToCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add item to cart: %v", err))
 	}
 
+	slog.Info("gRPC AddItemToCart successful", "user_id", req.UserId, "duration", time.Since(start))
 	// 添加成功后，返回最新的购物车信息。
-	// 这里直接调用GetCart方法来获取最新的购物车数据。
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 
 // UpdateCartItem 处理更新购物车中商品数量的gRPC请求。
-// req: 包含用户ID、购物车商品ID和更新数量的请求体。
-// 返回更新后的购物车信息和可能发生的gRPC错误。
 func (s *Server) UpdateCartItem(ctx context.Context, req *pb.UpdateCartItemRequest) (*pb.CartInfo, error) {
-	// 注意：应用服务层的UpdateItemQuantity方法使用 SkuID 作为商品标识，
-	// 而Proto请求中使用 CartItemId。
-	// 当前假设 req.CartItemId 即为 SkuID。如果 CartItemId 是一个独立的购物车项ID，
-	// 则需要先通过 CartItemID 查找对应的 SkuID。
+	start := time.Now()
+	slog.Info("gRPC UpdateCartItem received", "user_id", req.UserId, "cart_item_id", req.CartItemId, "quantity", req.Quantity)
+
 	err := s.app.UpdateItemQuantity(ctx, req.UserId, req.CartItemId, req.Quantity)
 	if err != nil {
+		slog.Error("gRPC UpdateCartItem failed", "user_id", req.UserId, "cart_item_id", req.CartItemId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update cart item quantity: %v", err))
 	}
 
-	// 数量更新成功后，返回最新的购物车信息。
+	slog.Info("gRPC UpdateCartItem successful", "user_id", req.UserId, "duration", time.Since(start))
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 
 // RemoveItemFromCart 处理从购物车中移除商品的gRPC请求。
-// req: 包含用户ID和要移除的购物车商品ID列表的请求体。
-// 返回更新后的购物车信息和可能发生的gRPC错误。
 func (s *Server) RemoveItemFromCart(ctx context.Context, req *pb.RemoveItemFromCartRequest) (*pb.CartInfo, error) {
-	// 遍历要移除的购物车商品ID列表。
+	start := time.Now()
+	slog.Info("gRPC RemoveItemFromCart received", "user_id", req.UserId, "item_ids", req.CartItemIds)
+
 	for _, id := range req.CartItemIds {
-		// 假设 id 是 SkuID。
 		if err := s.app.RemoveItem(ctx, req.UserId, id); err != nil {
+			slog.Error("gRPC RemoveItemFromCart failed", "user_id", req.UserId, "item_id", id, "error", err, "duration", time.Since(start))
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove item from cart: %v", err))
 		}
 	}
-	// 移除成功后，返回最新的购物车信息。
+
+	slog.Info("gRPC RemoveItemFromCart successful", "user_id", req.UserId, "duration", time.Since(start))
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 
 // GetCart 处理获取用户购物车信息的gRPC请求。
-// req: 包含用户ID的请求体。
-// 返回用户的购物车信息和可能发生的gRPC错误。
 func (s *Server) GetCart(ctx context.Context, req *pb.GetCartRequest) (*pb.CartInfo, error) {
+	start := time.Now()
+	slog.Debug("gRPC GetCart received", "user_id", req.UserId)
+
 	cart, err := s.app.GetCart(ctx, req.UserId)
 	if err != nil {
+		slog.Error("gRPC GetCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get cart: %v", err))
 	}
 
-	// 将领域实体转换为protobuf响应格式。
+	slog.Debug("gRPC GetCart successful", "user_id", req.UserId, "duration", time.Since(start))
 	return s.toProto(cart), nil
 }
 
 // ClearCart 处理清空用户购物车的gRPC请求。
-// req: 包含用户ID的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) ClearCart(ctx context.Context, req *pb.ClearCartRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC ClearCart received", "user_id", req.UserId)
+
 	err := s.app.ClearCart(ctx, req.UserId)
 	if err != nil {
+		slog.Error("gRPC ClearCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to clear cart: %v", err))
 	}
+
+	slog.Info("gRPC ClearCart successful", "user_id", req.UserId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // MergeCarts 处理合并购物车的gRPC请求。
-// req: 包含源用户ID和目标用户ID的请求体。
-// 返回合并后的购物车信息和可能发生的gRPC错误。
 func (s *Server) MergeCarts(ctx context.Context, req *pb.MergeCartsRequest) (*pb.CartInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC MergeCarts received", "source_user_id", req.SourceUserId, "target_user_id", req.TargetUserId)
+
 	if err := s.app.MergeCarts(ctx, req.SourceUserId, req.TargetUserId); err != nil {
+		slog.Error("gRPC MergeCarts failed", "source_user_id", req.SourceUserId, "target_user_id", req.TargetUserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to merge carts: %v", err))
 	}
 
-	// 合并成功后,返回目标用户的购物车信息。
+	slog.Info("gRPC MergeCarts successful", "target_user_id", req.TargetUserId, "duration", time.Since(start))
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.TargetUserId})
 }
 
 // ApplyCouponToCart 处理为购物车应用优惠券的gRPC请求。
-// req: 包含用户ID和优惠券码的请求体。
-// 返回应用优惠券后的购物车信息和可能发生的gRPC错误。
 func (s *Server) ApplyCouponToCart(ctx context.Context, req *pb.ApplyCouponToCartRequest) (*pb.CartInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC ApplyCouponToCart received", "user_id", req.UserId, "coupon_code", req.CouponCode)
+
 	if err := s.app.ApplyCoupon(ctx, req.UserId, req.CouponCode); err != nil {
+		slog.Error("gRPC ApplyCouponToCart failed", "user_id", req.UserId, "coupon_code", req.CouponCode, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to apply coupon to cart: %v", err))
 	}
 
-	// 应用优惠券成功后,返回最新的购物车信息。
+	slog.Info("gRPC ApplyCouponToCart successful", "user_id", req.UserId, "duration", time.Since(start))
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 
 // RemoveCouponFromCart 处理从购物车中移除优惠券的gRPC请求。
-// req: 包含用户ID的请求体。
-// 返回移除优惠券后的购物车信息和可能发生的gRPC错误。
 func (s *Server) RemoveCouponFromCart(ctx context.Context, req *pb.RemoveCouponFromCartRequest) (*pb.CartInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC RemoveCouponFromCart received", "user_id", req.UserId)
+
 	if err := s.app.RemoveCoupon(ctx, req.UserId); err != nil {
+		slog.Error("gRPC RemoveCouponFromCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove coupon from cart: %v", err))
 	}
 
-	// 移除优惠券成功后,返回最新的购物车信息。
+	slog.Info("gRPC RemoveCouponFromCart successful", "user_id", req.UserId, "duration", time.Since(start))
 	return s.GetCart(ctx, &pb.GetCartRequest{UserId: req.UserId})
 }
 

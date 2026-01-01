@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"          // 导入库存模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
@@ -27,111 +29,136 @@ func NewServer(app *application.Inventory) *Server {
 }
 
 // CreateInventory 处理创建库存记录的gRPC请求。
-// req: 包含SKU ID、商品ID、仓库ID、总库存和预警阈值的请求体。
-// 返回created successfully的库存记录响应和可能发生的gRPC错误。
 func (s *Server) CreateInventory(ctx context.Context, req *pb.CreateInventoryRequest) (*pb.CreateInventoryResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateInventory received", "sku_id", req.SkuId, "product_id", req.ProductId, "warehouse_id", req.WarehouseId)
+
 	inventory, err := s.app.CreateInventory(ctx, req.SkuId, req.ProductId, req.WarehouseId, req.TotalStock, req.WarningThreshold)
 	if err != nil {
+		slog.Error("gRPC CreateInventory failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create inventory: %v", err))
 	}
 
+	slog.Info("gRPC CreateInventory successful", "sku_id", req.SkuId, "inventory_id", inventory.ID, "duration", time.Since(start))
 	return &pb.CreateInventoryResponse{
 		Inventory: convertInventoryToProto(inventory),
 	}, nil
 }
 
 // GetInventory 处理获取库存记录的gRPC请求。
-// req: 包含SKU ID的请求体。
-// 返回库存记录响应和可能发生的gRPC错误。
 func (s *Server) GetInventory(ctx context.Context, req *pb.GetInventoryRequest) (*pb.GetInventoryResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC GetInventory received", "sku_id", req.SkuId)
+
 	inventory, err := s.app.GetInventory(ctx, req.SkuId)
 	if err != nil {
+		slog.Error("gRPC GetInventory failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("failed to get inventory for sku %d: %v", req.SkuId, err))
 	}
-	// 应用服务层的 GetInventory 如果找不到记录，可能返回 (nil, nil) 或 (nil, ErrRecordNotFound)。
-	// 这里显式检查 inventory == nil。
 	if inventory == nil {
+		slog.Debug("gRPC GetInventory successful (not found)", "sku_id", req.SkuId, "duration", time.Since(start))
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("inventory not found for sku %d", req.SkuId))
 	}
 
+	slog.Debug("gRPC GetInventory successful", "sku_id", req.SkuId, "duration", time.Since(start))
 	return &pb.GetInventoryResponse{
 		Inventory: convertInventoryToProto(inventory),
 	}, nil
 }
 
 // AddStock 处理增加库存的gRPC请求。
-// req: 包含SKU ID、增加数量和原因的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) AddStock(ctx context.Context, req *pb.AddStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC AddStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
+
 	if err := s.app.AddStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+		slog.Error("gRPC AddStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add stock: %v", err))
 	}
+
+	slog.Info("gRPC AddStock successful", "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // DeductStock 处理扣减库存的gRPC请求。
-// req: 包含SKU ID、扣减数量和原因的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC DeductStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
+
 	if err := s.app.DeductStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+		slog.Error("gRPC DeductStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to deduct stock: %v", err))
 	}
+
+	slog.Info("gRPC DeductStock successful", "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // LockStock 处理锁定库存的gRPC请求。
-// req: 包含SKU ID、锁定数量和原因的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) LockStock(ctx context.Context, req *pb.LockStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC LockStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
+
 	if err := s.app.LockStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+		slog.Error("gRPC LockStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to lock stock: %v", err))
 	}
+
+	slog.Info("gRPC LockStock successful", "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // UnlockStock 处理解锁库存的gRPC请求。
-// req: 包含SKU ID、解锁数量和原因的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) UnlockStock(ctx context.Context, req *pb.UnlockStockRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC UnlockStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
+
 	if err := s.app.UnlockStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+		slog.Error("gRPC UnlockStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to unlock stock: %v", err))
 	}
+
+	slog.Info("gRPC UnlockStock successful", "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // ConfirmDeduction 处理确认扣减库存的gRPC请求。
-// req: 包含SKU ID、确认扣减数量和原因的请求体。
-// 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) ConfirmDeduction(ctx context.Context, req *pb.ConfirmDeductionRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC ConfirmDeduction received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
+
 	if err := s.app.ConfirmDeduction(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+		slog.Error("gRPC ConfirmDeduction failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to confirm deduction: %v", err))
 	}
+
+	slog.Info("gRPC ConfirmDeduction successful", "sku_id", req.SkuId, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 // ListInventories 处理列出库存记录的gRPC请求。
-// req: 包含分页参数的请求体。
-// 返回库存记录列表响应和可能发生的gRPC错误。
 func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesRequest) (*pb.ListInventoriesResponse, error) {
-	// 获取分页参数。
+	start := time.Now()
+	slog.Debug("gRPC ListInventories received", "page_num", req.PageNum, "page_size", req.PageSize)
+
 	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
 	}
 
-	// 调用应用服务层获取库存列表。
 	inventories, total, err := s.app.ListInventories(ctx, page, pageSize)
 	if err != nil {
+		slog.Error("gRPC ListInventories failed", "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list inventories: %v", err))
 	}
 
-	// 将领域实体列表转换为protobuf响应格式的列表。
 	pbInventories := make([]*pb.Inventory, len(inventories))
 	for i, inv := range inventories {
 		pbInventories[i] = convertInventoryToProto(inv)
 	}
 
+	slog.Debug("gRPC ListInventories successful", "count", len(pbInventories), "duration", time.Since(start))
 	return &pb.ListInventoriesResponse{
 		Inventories: pbInventories,
 		TotalCount:  uint64(total), // 总记录数。
@@ -139,28 +166,28 @@ func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesReq
 }
 
 // GetInventoryLogs 处理获取库存日志的gRPC请求。
-// req: 包含库存ID和分页参数的请求体。
-// 返回库存日志列表响应和可能发生的gRPC错误。
 func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsRequest) (*pb.GetInventoryLogsResponse, error) {
-	// 获取分页参数。
+	start := time.Now()
+	slog.Debug("gRPC GetInventoryLogs received", "inventory_id", req.InventoryId, "page_num", req.PageNum)
+
 	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
 	}
 
-	// 调用应用服务层获取库存日志列表。
 	logs, total, err := s.app.GetInventoryLogs(ctx, req.InventoryId, page, pageSize)
 	if err != nil {
+		slog.Error("gRPC GetInventoryLogs failed", "inventory_id", req.InventoryId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get inventory logs: %v", err))
 	}
 
-	// 将领域实体列表转换为protobuf响应格式的列表。
 	pbLogs := make([]*pb.InventoryLog, len(logs))
 	for i, log := range logs {
 		pbLogs[i] = convertLogToProto(log)
 	}
 
+	slog.Debug("gRPC GetInventoryLogs successful", "inventory_id", req.InventoryId, "count", len(pbLogs), "duration", time.Since(start))
 	return &pb.GetInventoryLogsResponse{
 		Logs:       pbLogs,
 		TotalCount: uint64(total), // 总记录数。
@@ -184,7 +211,6 @@ func convertInventoryToProto(inv *domain.Inventory) *pb.Inventory {
 		WarningThreshold: inv.WarningThreshold,           // 预警阈值。
 		CreatedAt:        timestamppb.New(inv.CreatedAt), // 创建时间。
 		UpdatedAt:        timestamppb.New(inv.UpdatedAt), // 更新时间。
-		// Proto中还包含 DeletedAt 等字段，但实体中没有或未映射。
 	}
 }
 
@@ -204,6 +230,5 @@ func convertLogToProto(log *domain.InventoryLog) *pb.InventoryLog {
 		NewLocked:      log.NewLocked,                  // 变更后锁定库存。
 		Reason:         log.Reason,                     // 原因。
 		CreatedAt:      timestamppb.New(log.CreatedAt), // 创建时间。
-		// Proto中还包含 UpdatedAt, DeletedAt 等字段，但实体中没有或未映射。
 	}
 }
