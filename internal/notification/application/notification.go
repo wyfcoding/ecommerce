@@ -36,6 +36,11 @@ func (s *Notification) GetNotification(ctx context.Context, id uint64) (*domain.
 	return s.query.GetNotification(ctx, id)
 }
 
+// DeleteNotification 删除一条通知。
+func (s *Notification) DeleteNotification(ctx context.Context, id uint64) error {
+	return s.manager.DeleteNotification(ctx, id)
+}
+
 // MarkAsRead 标记指定通知为已读。
 func (s *Notification) MarkAsRead(ctx context.Context, id uint64, userID uint64) error {
 	return s.manager.MarkAsRead(ctx, id, userID)
@@ -54,4 +59,9 @@ func (s *Notification) GetUnreadCount(ctx context.Context, userID uint64) (int64
 // CreateTemplate 创建一个新的通知模板。
 func (s *Notification) CreateTemplate(ctx context.Context, template *domain.NotificationTemplate) error {
 	return s.manager.CreateTemplate(ctx, template)
+}
+
+// ListTemplates 获取通知模板列表（分页）。
+func (s *Notification) ListTemplates(ctx context.Context, page, pageSize int) ([]*domain.NotificationTemplate, int64, error) {
+	return s.query.ListTemplates(ctx, page, pageSize)
 }

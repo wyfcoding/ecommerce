@@ -41,3 +41,9 @@ func (q *NotificationQuery) ListNotifications(ctx context.Context, userID uint64
 func (q *NotificationQuery) GetUnreadCount(ctx context.Context, userID uint64) (int64, error) {
 	return q.repo.CountUnreadNotifications(ctx, userID)
 }
+
+// ListTemplates 获取通知模板列表（分页）。
+func (q *NotificationQuery) ListTemplates(ctx context.Context, page, pageSize int) ([]*domain.NotificationTemplate, int64, error) {
+	offset := (page - 1) * pageSize
+	return q.repo.ListTemplates(ctx, offset, pageSize)
+}

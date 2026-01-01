@@ -168,6 +168,65 @@ func (h *Handler) ListInventories(c *gin.Context) {
 	})
 }
 
+// DeleteInventory 处理删除库存记录的HTTP请求。
+func (h *Handler) DeleteInventory(c *gin.Context) {
+	skuID, err := strconv.ParseUint(c.Param("sku_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid SKU ID", err.Error())
+		return
+	}
+
+	if err := h.app.DeleteInventory(c.Request.Context(), skuID); err != nil {
+		h.logger.Error("Failed to delete inventory", "sku_id", skuID, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete inventory", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Inventory deleted successfully", nil)
+}
+
+// GetInventoryLogs 处理获取库存变更日志的HTTP请求。
+func (h *Handler) GetInventoryLogs(c *gin.Context) {
+	skuID, err := strconv.ParseUint(c.Param("sku_id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid SKU ID", err.Error())
+		return
+	}
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
+
+	// 这里的业务逻辑可能需要先根据 sku_id 查到 inventory_id，
+	// 但 domain.Inventory 模型中 sku_id 已经是 key。
+	// 这里假设 GetInventoryLogs 接受的第一个参数是 inventory_id (uint64)，
+	// 我们可以先获取 inventory 实体。
+	inv, err := h.app.GetInventory(c.Request.Context(), skuID)
+	if err != nil || inv == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Inventory not found", "")
+		return
+	}
+
+	list, total, err := h.app.GetInventoryLogs(c.Request.Context(), uint64(inv.ID), page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to get inventory logs", "sku_id", skuID, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logs", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Inventory logs retrieved successfully", gin.H{
+		"data":      list,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Inventory模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -177,7 +236,8 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		group.POST("", h.CreateInventory)           // 创建库存。
 		group.GET("", h.ListInventories)            // 获取库存列表。
 		group.GET("/:sku_id", h.GetInventory)       // 获取指定SKU库存信息。
-		group.POST("/:sku_id/stock", h.UpdateStock) // 更新库存（增加、扣减、锁定、解锁、确认扣减）。
-		// TODO: 补充删除库存、获取库存日志等接口。
+		group.DELETE("/:sku_id", h.DeleteInventory) // 删除库存。
+		group.POST("/:sku_id/stock", h.UpdateStock) // 更新库存。
+		group.GET("/:sku_id/logs", h.GetInventoryLogs) // 获取库存日志。
 	}
 }

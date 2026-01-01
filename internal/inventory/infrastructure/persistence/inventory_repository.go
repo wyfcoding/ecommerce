@@ -96,6 +96,11 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 	return list, total, nil
 }
 
+// Delete 从数据库删除指定SKU的库存记录。
+func (r *inventoryRepository) Delete(ctx context.Context, skuID uint64) error {
+	return r.db.WithContext(ctx).Where("sku_id = ?", skuID).Delete(&domain.Inventory{}).Error
+}
+
 // GetLogs 获取指定库存ID的所有库存日志，支持分页。
 func (r *inventoryRepository) GetLogs(ctx context.Context, inventoryID uint64, offset, limit int) ([]*domain.InventoryLog, int64, error) {
 	var list []*domain.InventoryLog

@@ -29,6 +29,8 @@ type InventoryRepository interface {
 	List(ctx context.Context, offset, limit int) ([]*Inventory, int64, error)
 	// GetLogs 获取指定库存ID的所有库存日志。
 	GetLogs(ctx context.Context, inventoryID uint64, offset, limit int) ([]*InventoryLog, int64, error)
+	// Delete 删除指定库存记录。
+	Delete(ctx context.Context, skuID uint64) error
 }
 
 // WarehouseRepository 是仓库模块的仓储接口。

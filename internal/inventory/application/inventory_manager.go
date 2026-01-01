@@ -65,6 +65,16 @@ func (m *InventoryManager) CreateInventory(ctx context.Context, skuID, productID
 	return inventory, nil
 }
 
+// DeleteInventory 删除库存记录。
+func (m *InventoryManager) DeleteInventory(ctx context.Context, skuID uint64) error {
+	if err := m.repo.Delete(ctx, skuID); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete inventory", "sku_id", skuID, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "inventory deleted successfully", "sku_id", skuID)
+	return nil
+}
+
 // executeWithRetry 执行带乐观锁重试的库存更新逻辑
 func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, fn func(*domain.Inventory) (*domain.InventoryLog, error)) error {
 	maxRetries := 3

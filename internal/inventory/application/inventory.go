@@ -31,6 +31,11 @@ func (s *Inventory) CreateInventory(ctx context.Context, skuID, productID, wareh
 	return s.Manager.CreateInventory(ctx, skuID, productID, warehouseID, totalStock, warningThreshold)
 }
 
+// DeleteInventory 删除库存记录。
+func (s *Inventory) DeleteInventory(ctx context.Context, skuID uint64) error {
+	return s.Manager.DeleteInventory(ctx, skuID)
+}
+
 // GetInventory 获取库存详情。
 func (s *Inventory) GetInventory(ctx context.Context, skuID uint64) (*domain.Inventory, error) {
 	return s.Query.GetInventory(ctx, skuID)

@@ -73,6 +73,11 @@ func (r *notificationRepository) CountUnreadNotifications(ctx context.Context, u
 	return count, err
 }
 
+// DeleteNotification 从数据库删除指定ID的通知记录。
+func (r *notificationRepository) DeleteNotification(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&domain.Notification{}, id).Error
+}
+
 // --- 模板 (NotificationTemplate methods) ---
 
 // SaveTemplate 将通知模板实体保存到数据库。

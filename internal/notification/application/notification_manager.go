@@ -81,6 +81,16 @@ func (m *NotificationManager) MarkAsRead(ctx context.Context, id uint64, userID 
 	return m.repo.SaveNotification(ctx, notification)
 }
 
+// DeleteNotification 删除一条通知。
+func (m *NotificationManager) DeleteNotification(ctx context.Context, id uint64) error {
+	if err := m.repo.DeleteNotification(ctx, id); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete notification", "id", id, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "notification deleted successfully", "id", id)
+	return nil
+}
+
 // CreateTemplate 创建一个通知模板。
 func (m *NotificationManager) CreateTemplate(ctx context.Context, template *domain.NotificationTemplate) error {
 	return m.repo.SaveTemplate(ctx, template)

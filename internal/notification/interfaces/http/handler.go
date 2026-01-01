@@ -217,6 +217,71 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusCreated, "Template created successfully", req)
 }
 
+// GetNotification 处理获取通知详情的HTTP请求.
+func (h *Handler) GetNotification(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	notification, err := h.app.GetNotification(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("Failed to get notification", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get notification", err.Error())
+		return
+	}
+	if notification == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Notification not found", "")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Notification retrieved successfully", notification)
+}
+
+// DeleteNotification 处理删除通知的HTTP请求.
+func (h *Handler) DeleteNotification(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	if err := h.app.DeleteNotification(c.Request.Context(), id); err != nil {
+		h.logger.Error("Failed to delete notification", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete notification", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Notification deleted successfully", nil)
+}
+
+// ListTemplates 处理获取通知模板列表的HTTP请求.
+func (h *Handler) ListTemplates(c *gin.Context) {
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
+
+	list, total, err := h.app.ListTemplates(c.Request.Context(), page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to list templates", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list templates", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Templates listed successfully", gin.H{
+		"data":      list,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Notification模块的HTTP路由.
 // r: Gin的路由组.
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -226,9 +291,11 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		group.POST("", h.SendNotification)                    // 发送通知.
 		group.POST("/template", h.SendNotificationByTemplate) // 使用模板发送通知.
 		group.GET("", h.ListNotifications)                    // 获取通知列表.
+		group.GET("/:id", h.GetNotification)                  // 获取通知详情.
+		group.DELETE("/:id", h.DeleteNotification)            // 删除通知.
 		group.PUT("/:id/read", h.MarkAsRead)                  // 标记通知为已读.
 		group.GET("/unread-count", h.GetUnreadCount)          // 获取未读通知数量.
 		group.POST("/templates", h.CreateTemplate)            // 创建通知模板.
-		// TODO: 补充获取通知详情、删除通知、更新模板、获取模板列表等接口.
+		group.GET("/templates", h.ListTemplates)              // 获取模板列表.
 	}
 }

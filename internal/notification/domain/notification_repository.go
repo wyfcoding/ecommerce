@@ -20,6 +20,8 @@ type NotificationRepository interface {
 	ListNotifications(ctx context.Context, userID uint64, status *NotificationStatus, offset, limit int) ([]*Notification, int64, error)
 	// CountUnreadNotifications 统计指定用户ID的未读通知数量。
 	CountUnreadNotifications(ctx context.Context, userID uint64) (int64, error)
+	// DeleteNotification 删除指定ID的通知。
+	DeleteNotification(ctx context.Context, id uint64) error
 
 	// --- 模板 (NotificationTemplate methods) ---
 
