@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/wyfcoding/pkg/ruleengine"
 )
@@ -12,9 +13,9 @@ type CouponValidator struct {
 	engine *ruleengine.Engine
 }
 
-func NewCouponValidator() *CouponValidator {
+func NewCouponValidator(logger *slog.Logger) *CouponValidator {
 	return &CouponValidator{
-		engine: ruleengine.NewEngine(),
+		engine: ruleengine.NewEngine(logger),
 	}
 }
 

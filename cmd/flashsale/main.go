@@ -152,16 +152,36 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	idGenerator, _ := idgen.NewGenerator(c.Snowflake)
+	idGenerator, err := idgen.NewGenerator(c.Snowflake)
+	if err != nil {
+		if err := producer.Close(); err != nil {
+			bootLog.Error("failed to close kafka producer", "error", err)
+		}
+		if err := redisCache.Close(); err != nil {
+			bootLog.Error("failed to close redis cache", "error", err)
+		}
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			if cerr := sqlDB.Close(); cerr != nil {
+				bootLog.Error("failed to close sql database", "error", cerr)
+			}
+		}
+		return nil, nil, fmt.Errorf("id generator init error: %w", err)
+	}
 
 	// 5. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
-		producer.Close()
-		redisCache.Close()
+		if err := producer.Close(); err != nil {
+			bootLog.Error("failed to close kafka producer", "error", err)
+		}
+		if err := redisCache.Close(); err != nil {
+			bootLog.Error("failed to close redis cache", "error", err)
+		}
 		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
+			if cerr := sqlDB.Close(); cerr != nil {
+				bootLog.Error("failed to close sql database", "error", cerr)
+			}
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
@@ -186,10 +206,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()
 		if producer != nil {
-			producer.Close()
+			if err := producer.Close(); err != nil {
+				bootLog.Error("failed to close kafka producer", "error", err)
+			}
 		}
 		if redisCache != nil {
-			redisCache.Close()
+			if err := redisCache.Close(); err != nil {
+				bootLog.Error("failed to close redis cache", "error", err)
+			}
 		}
 		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
 			if err := sqlDB.Close(); err != nil {

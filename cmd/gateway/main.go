@@ -115,7 +115,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	clients := &ServiceClients{}
-	clientCleanup, _ := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
+	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
+	if err != nil {
+		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
+	}
 
 	// K8s 控制器
 	var k8sConfig *rest.Config
@@ -131,10 +134,20 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	service := application.NewGatewayService(repo, logger.Logger)
 
 	if err == nil {
-		dynamicClient, _ := dynamic.NewForConfig(k8sConfig)
-		// 修正 logger 传递：logger.Logger 是 *slog.Logger
-		controller := k8s.NewRouteController(dynamicClient, service, logger.Logger)
-		go controller.Start(ctx)
+		dynamicClient, err := dynamic.NewForConfig(k8sConfig)
+		if err != nil {
+			slog.Error("failed to create dynamic k8s client", "error", err)
+		} else {
+			// 修正 logger 传递：logger.Logger 是 *slog.Logger
+			controller := k8s.NewRouteController(dynamicClient, service, logger.Logger)
+			go func() {
+				if err := controller.Start(ctx); err != nil {
+					slog.Error("failed to start k8s route controller", "error", err)
+				}
+			}()
+		}
+	} else {
+		slog.Warn("skipping k8s controller initialization: k8s config not found or invalid", "error", err)
 	}
 
 	cleanup := func() {

@@ -164,14 +164,27 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	idGenerator, _ := idgen.NewGenerator(c.Snowflake)
+	idGenerator, err := idgen.NewGenerator(c.Snowflake)
+	if err != nil {
+		if err := redisCache.Close(); err != nil {
+			bootLog.Error("failed to close redis cache", "error", err)
+		}
+		if err := shardingManager.Close(); err != nil {
+			bootLog.Error("failed to close sharding manager", "error", err)
+		}
+		return nil, nil, fmt.Errorf("id generator init error: %w", err)
+	}
 
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
-		redisCache.Close()
-		shardingManager.Close()
+		if err := redisCache.Close(); err != nil {
+			bootLog.Error("failed to close redis cache", "error", err)
+		}
+		if err := shardingManager.Close(); err != nil {
+			bootLog.Error("failed to close sharding manager", "error", err)
+		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 	// 显式转换 gRPC 客户端
@@ -225,10 +238,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		bootLog.Info("shutting down, releasing resources...")
 		clientCleanup()
 		if redisCache != nil {
-			redisCache.Close()
+			if err := redisCache.Close(); err != nil {
+				bootLog.Error("failed to close redis cache", "error", err)
+			}
 		}
 		if shardingManager != nil {
-			shardingManager.Close()
+			if err := shardingManager.Close(); err != nil {
+				bootLog.Error("failed to close sharding manager", "error", err)
+			}
 		}
 	}
 

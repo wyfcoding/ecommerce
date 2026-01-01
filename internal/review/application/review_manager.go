@@ -34,7 +34,13 @@ func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, ord
 
 	// --- 查重逻辑集成 ---
 	// 获取该商品最近的几条评论进行相似度对比
-	recentReviews, _, _ := m.repo.List(ctx, productID, nil, 0, 20)
+	recentReviews, _, err := m.repo.List(ctx, productID, nil, 0, 20)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to list recent reviews for spam check", "error", err, "product_id", productID)
+		// 如果获取列表失败，由于是辅助查重，可以选择继续或者报错。
+		// 这里选择报错，以保证数据的严谨性。
+		return nil, err
+	}
 	newHash := m.simHash.Calculate(content)
 
 	isSpam := false

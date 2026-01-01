@@ -18,7 +18,12 @@ type TrafficMonitor struct {
 // NewTrafficMonitor 创建流量监控器
 func NewTrafficMonitor(threshold uint64, logger *slog.Logger) *TrafficMonitor {
 	// epsilon=0.001, delta=0.01 (高精度，低内存占用)
-	cms, _ := algorithm.NewCountMinSketch(0.001, 0.01)
+	cms, err := algorithm.NewCountMinSketch(0.001, 0.01)
+	if err != nil {
+		logger.Error("failed to initialize CountMinSketch", "error", err)
+		// 即使失败也返回一个空的结构或抛出异常，这里由于是初始化函数且返回类型不含 error，
+		// 生产环境下建议修改函数签名，此处暂且记录日志。
+	}
 
 	m := &TrafficMonitor{
 		cms:    cms,

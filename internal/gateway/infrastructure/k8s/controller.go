@@ -40,7 +40,7 @@ func (c *RouteController) Start(ctx context.Context) error {
 	factory := dynamicinformer.NewDynamicSharedInformerFactory(c.dynamicClient, time.Minute*30)
 	informer := factory.ForResource(c.resource).Informer()
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.reconcile(obj.(*unstructured.Unstructured))
 		},
@@ -50,7 +50,9 @@ func (c *RouteController) Start(ctx context.Context) error {
 		DeleteFunc: func(obj interface{}) {
 			c.remove(obj.(*unstructured.Unstructured))
 		},
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to add event handler: %w", err)
+	}
 
 	go informer.Run(ctx.Done())
 
@@ -90,5 +92,7 @@ func (c *RouteController) reconcile(u *unstructured.Unstructured) {
 
 func (c *RouteController) remove(u *unstructured.Unstructured) {
 	c.logger.Info("removing route deleted from K8s", "name", u.GetName())
-	_ = c.appService.DeleteRouteByExternalID(context.Background(), string(u.GetUID()))
+	if err := c.appService.DeleteRouteByExternalID(context.Background(), string(u.GetUID())); err != nil {
+		c.logger.Error("failed to delete route from K8s", "error", err, "uid", u.GetUID())
+	}
 }

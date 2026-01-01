@@ -42,14 +42,16 @@ func NewSchedulerManager(repo domain.SchedulerRepository, logger *slog.Logger) *
 func (m *SchedulerManager) ScheduleDelayJob(ctx context.Context, delay time.Duration, jobID uint64) {
 	m.logger.InfoContext(ctx, "scheduling delay job", "job_id", jobID, "delay", delay)
 
-	m.timerWheel.AddTask(delay, func() {
+	if err := m.timerWheel.AddTask(delay, func() {
 		// 时间轮触发后的执行逻辑
 		// 注意：此处在独立 goroutine 中运行
 		innerCtx := context.Background()
 		if err := m.RunJob(innerCtx, jobID); err != nil {
 			m.logger.ErrorContext(innerCtx, "failed to run delay job from timer wheel", "job_id", jobID, "error", err)
 		}
-	})
+	}); err != nil {
+		m.logger.ErrorContext(ctx, "failed to add task to timer wheel", "job_id", jobID, "error", err)
+	}
 }
 
 // CreateJob 创建一个新的定时任务。

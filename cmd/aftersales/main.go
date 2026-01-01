@@ -145,7 +145,16 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	idGenerator, _ := idgen.NewGenerator(c.Snowflake)
+	idGenerator, err := idgen.NewGenerator(c.Snowflake)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			if cerr := sqlDB.Close(); cerr != nil {
+				bootLog.Error("failed to close sql database", "error", cerr)
+			}
+		}
+		return nil, nil, fmt.Errorf("id generator init error: %w", err)
+	}
 
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
