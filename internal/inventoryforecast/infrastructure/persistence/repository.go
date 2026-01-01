@@ -112,15 +112,26 @@ func (r *inventoryForecastRepository) SaveStockoutRisk(ctx context.Context, risk
 	return r.db.WithContext(ctx).Save(risk).Error
 }
 
-// GetSalesHistory 获取历史销量数据（Mock实现）
+// GetSalesHistory 获取历史销量数据。
 func (r *inventoryForecastRepository) GetSalesHistory(ctx context.Context, skuID uint64, days int) ([]int32, error) {
-	// TODO: 实际应查询 aggregated_daily_sales 表
-	mockData := []int32{95, 105, 90, 110, 120, 85, 100, 115}
+	var sales []domain.AggregatedDailySales
+	// 查询最近指定天数的销量，按日期降序排列
+	err := r.db.WithContext(ctx).
+		Where("sku_id = ?", skuID).
+		Order("date desc").
+		Limit(days).
+		Find(&sales).Error
 
-	result := make([]int32, 0, days)
-	for i := 0; i < days; i++ {
-		result = append(result, mockData[i%len(mockData)])
+	if err != nil {
+		return nil, err
 	}
+
+	result := make([]int32, len(sales))
+	// 反转数组，使其按日期升序排列（预测算法通常需要升序）
+	for i, s := range sales {
+		result[len(sales)-1-i] = s.Quantity
+	}
+
 	return result, nil
 }
 

@@ -124,3 +124,11 @@ type StockoutRisk struct {
 	EstimatedStockoutDate time.Time         `gorm:"comment:预计缺货日期" json:"estimated_stockout_date"`
 	RiskLevel             StockoutRiskLevel `gorm:"type:varchar(32);comment:风险等级" json:"risk_level"`
 }
+
+// AggregatedDailySales 实体代表每日聚合的销量数据（用于预测）。
+type AggregatedDailySales struct {
+	gorm.Model
+	SKUID    uint64    `gorm:"not null;index:idx_sku_date;comment:SKU ID" json:"sku_id"`
+	Date     time.Time `gorm:"type:date;not null;index:idx_sku_date;comment:日期" json:"date"`
+	Quantity int32     `gorm:"not null;default:0;comment:销量" json:"quantity"`
+}

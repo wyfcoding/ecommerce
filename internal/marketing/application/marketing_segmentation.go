@@ -5,24 +5,27 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
 // UserSegmentService 基于位图的海量用户圈选服务
 type UserSegmentService struct {
+	repo   domain.MarketingRepository
 	logger *slog.Logger
 	// 内存缓存常用的标签位图（真实生产中可存储在 Redis 中并定期同步）
 	tagCache map[string]*algorithm.RoaringBitmap
 }
 
-func NewUserSegmentService(logger *slog.Logger) *UserSegmentService {
+func NewUserSegmentService(repo domain.MarketingRepository, logger *slog.Logger) *UserSegmentService {
 	return &UserSegmentService{
+		repo:     repo,
 		logger:   logger,
 		tagCache: make(map[string]*algorithm.RoaringBitmap),
 	}
 }
 
-// LoadTag 模拟从数据源加载用户标签
+// LoadTag 手动加载标签数据
 func (s *UserSegmentService) LoadTag(tagName string, userIDs []uint32) {
 	bm := algorithm.NewRoaringBitmap()
 	for _, id := range userIDs {
@@ -30,6 +33,18 @@ func (s *UserSegmentService) LoadTag(tagName string, userIDs []uint32) {
 	}
 	s.tagCache[tagName] = bm
 	s.logger.Info("tag loaded into bitmap", "tag", tagName, "count", len(userIDs))
+}
+
+// LoadTagFromDB 从数据库加载并刷新标签位图
+func (s *UserSegmentService) LoadTagFromDB(ctx context.Context, tagName string) error {
+	userIDs, err := s.repo.GetUserIDsByTag(ctx, tagName)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to load tag from db", "tag", tagName, "error", err)
+		return err
+	}
+
+	s.LoadTag(tagName, userIDs)
+	return nil
 }
 
 // TargetUsers 精准圈选：筛选出同时满足多个标签的用户

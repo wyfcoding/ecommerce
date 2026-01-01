@@ -24,7 +24,7 @@ func NewMarketingManager(repo domain.MarketingRepository, logger *slog.Logger) *
 		repo:           repo,
 		logger:         logger,
 		userFilter:     algorithm.NewBloomFilter(1000000, 0.01),
-		segmentService: NewUserSegmentService(logger), // 初始化圈选服务
+		segmentService: NewUserSegmentService(repo, logger), // 接入仓储并初始化圈选服务
 	}
 }
 

@@ -20,4 +20,7 @@ type MarketingRepository interface {
 	GetBanner(ctx context.Context, id uint64) (*Banner, error)
 	ListBanners(ctx context.Context, position string, activeOnly bool) ([]*Banner, error)
 	DeleteBanner(ctx context.Context, id uint64) error
+
+	// User Tags
+	GetUserIDsByTag(ctx context.Context, tagName string) ([]uint32, error)
 }

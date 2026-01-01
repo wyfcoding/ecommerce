@@ -86,13 +86,16 @@ func (r *searchRepository) Search(ctx context.Context, filter *domain.SearchFilt
 
 // Suggest 提供搜索建议。
 func (r *searchRepository) Suggest(ctx context.Context, keyword string, limit int) ([]*domain.Suggestion, error) {
-	// 模拟实现，从SearchLog中查找以指定关键词开头的不同关键词作为建议。
+	// 真实实现：从 SearchLog 中查找以指定关键词开头的关键词，并按频率排序。
 	var suggestions []*domain.Suggestion
 	err := r.db.WithContext(ctx).Model(&domain.SearchLog{}).
-		Select("DISTINCT keyword").           // 选择不重复的关键词。
-		Where("keyword LIKE ?", keyword+"%"). // 查找以指定关键词开头的记录。
-		Limit(limit).                         // 应用数量限制。
-		Scan(&suggestions).Error              // 将结果扫描到Suggestion结构体中。
+		Select("keyword, COUNT(*) as score").
+		Where("keyword LIKE ?", keyword+"%").
+		Group("keyword").
+		Order("score DESC").
+		Limit(limit).
+		Scan(&suggestions).Error
+
 	if err != nil {
 		return nil, err
 	}

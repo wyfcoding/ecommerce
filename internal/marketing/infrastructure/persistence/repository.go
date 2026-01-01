@@ -113,3 +113,17 @@ func (r *marketingRepository) ListBanners(ctx context.Context, position string, 
 func (r *marketingRepository) DeleteBanner(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&domain.Banner{}, id).Error
 }
+
+// GetUserIDsByTag 从数据库获取具有特定标签的所有用户ID。
+func (r *marketingRepository) GetUserIDsByTag(ctx context.Context, tagName string) ([]uint32, error) {
+	var userIDs []uint32
+	// 假设存在 user_tags 表，存储 user_id 和 tag_name 的映射
+	err := r.db.WithContext(ctx).Table("user_tags").
+		Where("tag_name = ?", tagName).
+		Pluck("user_id", &userIDs).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return userIDs, nil
+}
