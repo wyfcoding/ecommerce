@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 
 // RiskServiceImpl 风控服务实现
 type RiskServiceImpl struct {
-	// TODO: 替换为 Redis 客户端
-	counters map[string]int
+	redisClient *redis.Client
 }
 
-// NewRiskService 定义了 NewRisk 相关的服务逻辑。
-func NewRiskService() *RiskServiceImpl {
+// NewRiskService 创建风控服务实例。
+func NewRiskService(redisClient *redis.Client) *RiskServiceImpl {
 	return &RiskServiceImpl{
-		counters: make(map[string]int),
+		redisClient: redisClient,
 	}
 }
 
@@ -34,8 +34,13 @@ func (s *RiskServiceImpl) CheckPrePayment(ctx context.Context, riskCtx *domain.R
 	}
 
 	// 规则 2: 频控 (User ID 维度)
-	key := fmt.Sprintf("user_velocity:%d", riskCtx.UserID)
-	if s.counters[key] > 5 {
+	key := fmt.Sprintf("payment:risk:user_velocity:%d", riskCtx.UserID)
+	val, err := s.redisClient.Get(ctx, key).Int()
+	if err != nil && err != redis.Nil {
+		return nil, fmt.Errorf("failed to get risk counter: %w", err)
+	}
+
+	if val > 5 {
 		return &domain.RiskResult{
 			Action:      domain.RiskActionBlock,
 			Reason:      "Velocity Limit",
@@ -49,17 +54,12 @@ func (s *RiskServiceImpl) CheckPrePayment(ctx context.Context, riskCtx *domain.R
 	}, nil
 }
 
-// RecordTransaction 记录交易数据
+// RecordTransaction 记录交易数据，增加 Redis 计数器
 func (s *RiskServiceImpl) RecordTransaction(ctx context.Context, riskCtx *domain.RiskContext) error {
-	// 模拟 Redis INCR
-	key := fmt.Sprintf("user_velocity:%d", riskCtx.UserID)
-	s.counters[key]++
-
-	// 模拟过期清理
-	go func() {
-		time.Sleep(1 * time.Hour)
-		s.counters[key]--
-	}()
-
-	return nil
+	key := fmt.Sprintf("payment:risk:user_velocity:%d", riskCtx.UserID)
+	pipe := s.redisClient.Pipeline()
+	pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, 1*time.Hour)
+	_, err := pipe.Exec(ctx)
+	return err
 }

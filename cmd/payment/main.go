@@ -218,7 +218,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	channelRepo := persistence.NewChannelRepository(shardingManager)
 	refundRepo := persistence.NewRefundRepository(shardingManager)
 
-	riskSvc := risk.NewRiskService()
+	riskSvc := risk.NewRiskService(redisCache.GetClient())
 
 	gateways := map[domain.GatewayType]domain.PaymentGateway{
 		domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),

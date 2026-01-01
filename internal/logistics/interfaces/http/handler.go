@@ -7,7 +7,8 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域实体。
-	"github.com/wyfcoding/pkg/response"                             // 导入统一的响应处理工具。
+	"github.com/wyfcoding/pkg/algorithm"
+	"github.com/wyfcoding/pkg/response" // 导入统一的响应处理工具。
 
 	"log/slog" // 导入结构化日志库。
 
@@ -227,18 +228,64 @@ func (h *Handler) ListLogistics(c *gin.Context) {
 	})
 }
 
+// GetByTrackingNo 处理根据运单号查询物流单的HTTP请求。
+func (h *Handler) GetByTrackingNo(c *gin.Context) {
+	trackingNo := c.Param("tracking_no")
+	if trackingNo == "" {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Tracking number is required", "")
+		return
+	}
+
+	logistics, err := h.app.GetLogisticsByTrackingNo(c.Request.Context(), trackingNo)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get logistics by tracking no", "tracking_no", trackingNo, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logistics", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Logistics retrieved successfully", logistics)
+}
+
+// OptimizeRoute 处理优化配送路线的HTTP请求。
+func (h *Handler) OptimizeRoute(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Destinations []algorithm.Location `json:"destinations" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	route, err := h.app.OptimizeDeliveryRoute(c.Request.Context(), id, req.Destinations)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to optimize route", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to optimize route", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Route optimized successfully", route)
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Logistics模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /logistics 路由组，用于所有物流相关接口。
 	group := r.Group("/logistics")
 	{
-		group.POST("", h.CreateLogistics)                    // 创建物流单。
-		group.GET("", h.ListLogistics)                       // 获取物流单列表。
-		group.GET("/:id", h.GetLogistics)                    // 获取物流单详情。
-		group.PUT("/:id/status", h.UpdateStatus)             // 更新物流状态。
-		group.POST("/:id/traces", h.AddTrace)                // 添加物流轨迹。
-		group.PUT("/:id/estimated_time", h.SetEstimatedTime) // 设置预计送达时间。
-		// TODO: 补充根据运单号查询、优化配送路线等接口。
+		group.POST("", h.CreateLogistics)                      // 创建物流单。
+		group.GET("", h.ListLogistics)                         // 获取物流单列表。
+		group.GET("/:id", h.GetLogistics)                      // 获取物流单详情。
+		group.GET("/tracking/:tracking_no", h.GetByTrackingNo) // 根据运单号查询详情。
+		group.PUT("/:id/status", h.UpdateStatus)               // 更新物流状态。
+		group.POST("/:id/traces", h.AddTrace)                  // 添加物流轨迹。
+		group.PUT("/:id/estimated_time", h.SetEstimatedTime)   // 设置预计送达时间。
+		group.POST("/:id/optimize-route", h.OptimizeRoute)     // 优化配送路线。
 	}
 }

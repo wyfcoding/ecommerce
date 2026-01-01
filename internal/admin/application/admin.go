@@ -48,7 +48,7 @@ type LoginRequest struct {
 
 // LoginResponse 定义了响应数据结构。
 type LoginResponse struct {
-	Token    string   `json:"token"` // TODO: 实现 JWT
+	Token    string   `json:"token"`
 	UserInfo UserInfo `json:"userInfo"`
 }
 

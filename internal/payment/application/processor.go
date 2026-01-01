@@ -9,6 +9,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
+	"github.com/wyfcoding/pkg/utils/ctxutil"
 	"gorm.io/gorm"
 )
 
@@ -51,7 +52,25 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 		return nil, nil, fmt.Errorf("unsupported gateway: %s", gatewayType)
 	}
 
-	// 2. 创建或获取支付单
+	// 2. 风控检查
+	riskCtx := &domain.RiskContext{
+		UserID:        userID,
+		Amount:        amount,
+		PaymentMethod: paymentMethodStr,
+		IP:            ctxutil.GetIP(ctx),
+		OrderID:       orderID,
+	}
+	riskResult, err := s.riskService.CheckPrePayment(ctx, riskCtx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "risk check failed", "error", err)
+		return nil, nil, fmt.Errorf("risk check failed: %w", err)
+	}
+
+	if riskResult.Action == domain.RiskActionBlock {
+		return nil, nil, fmt.Errorf("payment blocked by risk engine: %s", riskResult.Reason)
+	}
+
+	// 3. 创建或获取支付单
 	payment, err := s.paymentRepo.FindByOrderID(ctx, orderID)
 	if err != nil {
 		return nil, nil, err
@@ -60,7 +79,7 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 		payment = domain.NewPayment(orderID, fmt.Sprintf("ORD%d", orderID), userID, amount, paymentMethodStr, gatewayType)
 	}
 
-	// 3. 执行 PreAuth
+	// 4. 执行 PreAuth
 	gatewayReq := &domain.PaymentGatewayRequest{
 		OrderID:     payment.PaymentNo,
 		Amount:      payment.Amount,
@@ -72,13 +91,18 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 		return nil, nil, err
 	}
 
-	// 4. 更新领域模型状态
+	// 5. 记录风控交易 (用于频控)
+	if err := s.riskService.RecordTransaction(ctx, riskCtx); err != nil {
+		s.logger.WarnContext(ctx, "failed to record risk transaction", "error", err)
+	}
+
+	// 6. 更新领域模型状态
 	if err := payment.Trigger(ctx, "AUTH", "Pre-authorization successful"); err != nil {
 		return nil, nil, err
 	}
 	payment.TransactionID = resp.TransactionID
 
-	// 5. 保存
+	// 7. 保存
 	if payment.ID == 0 {
 		err = s.paymentRepo.Save(ctx, payment)
 	} else {
