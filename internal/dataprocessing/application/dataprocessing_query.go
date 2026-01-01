@@ -16,6 +16,16 @@ func NewDataProcessingQuery(repo domain.DataProcessingRepository) *DataProcessin
 	return &DataProcessingQuery{repo: repo}
 }
 
+// GetTask 根据ID获取任务详情。
+func (q *DataProcessingQuery) GetTask(ctx context.Context, id uint64) (*domain.ProcessingTask, error) {
+	return q.repo.GetTask(ctx, id)
+}
+
+// GetWorkflow 根据ID获取工作流详情。
+func (q *DataProcessingQuery) GetWorkflow(ctx context.Context, id uint64) (*domain.ProcessingWorkflow, error) {
+	return q.repo.GetWorkflow(ctx, id)
+}
+
 // ListTasks 获取数据处理任务列表。
 func (q *DataProcessingQuery) ListTasks(ctx context.Context, workflowID uint64, status domain.TaskStatus, page, pageSize int) ([]*domain.ProcessingTask, int64, error) {
 	offset := (page - 1) * pageSize

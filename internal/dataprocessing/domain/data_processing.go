@@ -1,9 +1,15 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm" // 导入GORM库。
+)
+
+var (
+	ErrTaskNotFound     = errors.New("processing task not found")
+	ErrWorkflowNotFound = errors.New("processing workflow not found")
 )
 
 // TaskStatus 定义了数据处理任务的生命周期状态。

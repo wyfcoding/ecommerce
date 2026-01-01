@@ -58,6 +58,45 @@ func (h *Handler) SubmitTask(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusCreated, "Task submitted successfully", task)
 }
 
+// GetTask 处理获取任务详情的HTTP请求。
+func (h *Handler) GetTask(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid task ID", err.Error())
+		return
+	}
+
+	task, err := h.service.GetTask(c.Request.Context(), id)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get task", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get task", err.Error())
+		return
+	}
+	if task == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Task not found", "")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Task retrieved successfully", task)
+}
+
+// CancelTask 处理取消任务的HTTP请求。
+func (h *Handler) CancelTask(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid task ID", err.Error())
+		return
+	}
+
+	if err := h.service.CancelTask(c.Request.Context(), id); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to cancel task", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to cancel task", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Task cancelled successfully", nil)
+}
+
 // ListTasks 处理获取数据处理任务列表的HTTP请求。
 func (h *Handler) ListTasks(c *gin.Context) {
 	// 从查询参数中获取工作流ID、任务状态、页码和每页大小，并设置默认值。
@@ -137,6 +176,82 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusCreated, "Workflow created successfully", workflow)
 }
 
+// GetWorkflow 处理获取工作流详情的HTTP请求。
+func (h *Handler) GetWorkflow(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid workflow ID", err.Error())
+		return
+	}
+
+	workflow, err := h.service.GetWorkflow(c.Request.Context(), id)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to get workflow", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get workflow", err.Error())
+		return
+	}
+	if workflow == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Workflow not found", "")
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Workflow retrieved successfully", workflow)
+}
+
+// UpdateWorkflow 处理更新工作流的HTTP请求。
+func (h *Handler) UpdateWorkflow(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid workflow ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Steps       string `json:"steps"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := h.service.UpdateWorkflow(c.Request.Context(), id, req.Name, req.Description, req.Steps); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to update workflow", "id", id, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update workflow", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Workflow updated successfully", nil)
+}
+
+// SetWorkflowActive 处理激活/停用工作流的HTTP请求。
+func (h *Handler) SetWorkflowActive(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid workflow ID", err.Error())
+		return
+	}
+
+	var req struct {
+		Active bool `json:"active" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := h.service.SetWorkflowActive(c.Request.Context(), id, req.Active); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to set workflow status", "id", id, "active", req.Active, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to set workflow status", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Workflow status updated successfully", nil)
+}
+
 // ListWorkflows 处理获取工作流列表的HTTP请求。
 // HTTP 方法: GET
 // 请求路径: /processing/workflows
@@ -177,11 +292,14 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		// 任务管理接口。
 		group.POST("/tasks", h.SubmitTask) // 提交任务。
 		group.GET("/tasks", h.ListTasks)   // 获取任务列表。
-		// TODO: 补充获取任务详情、更新任务、取消任务等接口。
+		group.GET("/tasks/:id", h.GetTask) // 获取任务详情。
+		group.POST("/tasks/:id/cancel", h.CancelTask) // 取消任务。
 
 		// 工作流管理接口。
 		group.POST("/workflows", h.CreateWorkflow) // 创建工作流。
 		group.GET("/workflows", h.ListWorkflows)   // 获取工作流列表。
-		// TODO: 补充获取工作流详情、更新工作流、激活/停用工作流等接口。
+		group.GET("/workflows/:id", h.GetWorkflow) // 获取工作流详情。
+		group.PUT("/workflows/:id", h.UpdateWorkflow) // 更新工作流。
+		group.PUT("/workflows/:id/active", h.SetWorkflowActive) // 激活/停用工作流。
 	}
 }

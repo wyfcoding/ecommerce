@@ -66,3 +66,58 @@ func (m *DataProcessingManager) CreateWorkflow(ctx context.Context, name, descri
 	m.logger.InfoContext(ctx, "workflow created successfully", "workflow_id", workflow.ID, "name", name)
 	return workflow, nil
 }
+
+// CancelTask 取消正在执行的任务。
+func (m *DataProcessingManager) CancelTask(ctx context.Context, id uint64) error {
+	task, err := m.repo.GetTask(ctx, id)
+	if err != nil {
+		return err
+	}
+	if task == nil {
+		return domain.ErrTaskNotFound
+	}
+
+	task.Status = domain.TaskStatusCancelled
+	return m.repo.UpdateTask(ctx, task)
+}
+
+// UpdateWorkflow 更新工作流定义。
+func (m *DataProcessingManager) UpdateWorkflow(ctx context.Context, id uint64, name, description, steps string) error {
+	workflow, err := m.repo.GetWorkflow(ctx, id)
+	if err != nil {
+		return err
+	}
+	if workflow == nil {
+		return domain.ErrWorkflowNotFound
+	}
+
+	if name != "" {
+		workflow.Name = name
+	}
+	if description != "" {
+		workflow.Description = description
+	}
+	if steps != "" {
+		workflow.Steps = steps
+	}
+
+	return m.repo.UpdateWorkflow(ctx, workflow)
+}
+
+// SetWorkflowActive 激活或停用工作流。
+func (m *DataProcessingManager) SetWorkflowActive(ctx context.Context, id uint64, active bool) error {
+	workflow, err := m.repo.GetWorkflow(ctx, id)
+	if err != nil {
+		return err
+	}
+	if workflow == nil {
+		return domain.ErrWorkflowNotFound
+	}
+
+	if active {
+		workflow.Status = domain.WorkflowStatusActive
+	} else {
+		workflow.Status = domain.WorkflowStatusInactive
+	}
+	return m.repo.UpdateWorkflow(ctx, workflow)
+}

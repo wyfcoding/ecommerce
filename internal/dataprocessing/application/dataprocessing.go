@@ -31,7 +31,27 @@ func (s *DataProcessingService) CreateWorkflow(ctx context.Context, name, descri
 	return s.manager.CreateWorkflow(ctx, name, description, steps)
 }
 
+func (s *DataProcessingService) CancelTask(ctx context.Context, id uint64) error {
+	return s.manager.CancelTask(ctx, id)
+}
+
+func (s *DataProcessingService) UpdateWorkflow(ctx context.Context, id uint64, name, description, steps string) error {
+	return s.manager.UpdateWorkflow(ctx, id, name, description, steps)
+}
+
+func (s *DataProcessingService) SetWorkflowActive(ctx context.Context, id uint64, active bool) error {
+	return s.manager.SetWorkflowActive(ctx, id, active)
+}
+
 // --- Query (Reads) ---
+
+func (s *DataProcessingService) GetTask(ctx context.Context, id uint64) (*domain.ProcessingTask, error) {
+	return s.query.GetTask(ctx, id)
+}
+
+func (s *DataProcessingService) GetWorkflow(ctx context.Context, id uint64) (*domain.ProcessingWorkflow, error) {
+	return s.query.GetWorkflow(ctx, id)
+}
 
 func (s *DataProcessingService) ListTasks(ctx context.Context, workflowID uint64, status domain.TaskStatus, page, pageSize int) ([]*domain.ProcessingTask, int64, error) {
 	return s.query.ListTasks(ctx, workflowID, status, page, pageSize)

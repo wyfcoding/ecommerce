@@ -339,10 +339,38 @@ func (m *AdminManager) ApproveRequest(ctx context.Context, requestID, approverID
 		bgCtx := context.Background()
 		if err := m.executeOperation(bgCtx, req); err != nil {
 			m.logger.Error("failed to execute operation", "reqID", req.ID, "error", err)
-			// TODO: 可以考虑在这里记录执行失败的状态，或者发起告警
+			// 记录失败状态
+			req.Status = domain.ApprovalStatusFailed
+			req.FailureReason = err.Error()
+			_ = m.approvalRepo.UpdateRequest(bgCtx, req)
 		}
 	}()
 	return nil
+}
+
+// RetryFailedRequest 手动重试执行失败的审批请求
+func (m *AdminManager) RetryFailedRequest(ctx context.Context, requestID uint) error {
+	req, err := m.approvalRepo.GetRequestByID(ctx, requestID)
+	if err != nil {
+		return err
+	}
+	if req.Status != domain.ApprovalStatusFailed {
+		return errors.New("only failed requests can be retried")
+	}
+
+	req.Status = domain.ApprovalStatusApproved // 临时恢复为 Approved 状态进行重试
+	req.RetryCount++
+
+	if err := m.executeOperation(ctx, req); err != nil {
+		req.Status = domain.ApprovalStatusFailed
+		req.FailureReason = fmt.Sprintf("Retry %d failed: %s", req.RetryCount, err.Error())
+		_ = m.approvalRepo.UpdateRequest(ctx, req)
+		return err
+	}
+
+	req.Status = domain.ApprovalStatusApproved
+	req.FailureReason = ""
+	return m.approvalRepo.UpdateRequest(ctx, req)
 }
 
 func (m *AdminManager) RejectRequest(ctx context.Context, requestID, approverID uint, comment string) error {

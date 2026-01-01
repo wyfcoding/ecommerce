@@ -69,7 +69,9 @@ type ApprovalRequest struct {
 
 	ApproverRole string `gorm:"column:approver_role;type:varchar(50);comment:当前需要的审批角色Code"`
 
-	FinalizedAt *time.Time `gorm:"column:finalized_at;comment:流程结束时间"`
+	FinalizedAt   *time.Time `gorm:"column:finalized_at;comment:流程结束时间"`
+	FailureReason string     `gorm:"column:failure_reason;type:varchar(255);comment:执行失败原因"`
+	RetryCount    int        `gorm:"column:retry_count;type:int;default:0;comment:重试次数"`
 
 	// 审批记录
 	Logs []ApprovalLog `gorm:"foreignKey:RequestID"`
@@ -83,6 +85,7 @@ const (
 	ApprovalStatusApproved ApprovalStatus = 2 // 已通过
 	ApprovalStatusRejected ApprovalStatus = 3 // 已拒绝
 	ApprovalStatusCanceled ApprovalStatus = 4 // 已取消
+	ApprovalStatusFailed   ApprovalStatus = 5 // 执行失败
 )
 
 // ApprovalLog 单次审批操作记录
