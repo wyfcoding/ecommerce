@@ -86,6 +86,7 @@ type Refund struct {
 type PaymentLog struct {
 	gorm.Model
 	PaymentID uint64 `gorm:"index"`
+	UserID    uint64 `gorm:"index"`
 	Action    string `gorm:"size:64"`
 	OldStatus string `gorm:"size:32"`
 	NewStatus string `gorm:"size:32"`
@@ -168,6 +169,8 @@ func generatePaymentNo() string { return fmt.Sprintf("PAY%d", time.Now().UnixNan
 
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 	p.Logs = append(p.Logs, &PaymentLog{
+		PaymentID: uint64(p.ID),
+		UserID:    p.UserID,
 		Action:    action,
 		OldStatus: oldStatus,
 		NewStatus: newStatus,
@@ -234,6 +237,8 @@ type PaymentRepository interface {
 	FindByOrderID(ctx context.Context, userID uint64, orderID uint64) (*Payment, error)
 	Save(ctx context.Context, payment *Payment) error
 	Update(ctx context.Context, payment *Payment) error
+	SaveLog(ctx context.Context, log *PaymentLog) error
+	FindLogsByPaymentID(ctx context.Context, userID uint64, paymentID uint64) ([]*PaymentLog, error)
 	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	WithTx(tx any) PaymentRepository
 }

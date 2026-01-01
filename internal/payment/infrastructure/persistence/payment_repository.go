@@ -38,7 +38,7 @@ func (r *paymentRepository) Save(ctx context.Context, entity *domain.Payment) er
 func (r *paymentRepository) FindByID(ctx context.Context, userID uint64, id uint64) (*domain.Payment, error) {
 	db := r.getDB(userID)
 	var entity domain.Payment
-	if err := db.WithContext(ctx).First(&entity, id).Error; err != nil {
+	if err := db.WithContext(ctx).Preload("Logs").First(&entity, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 如果记录未找到，返回nil。
 		}
@@ -116,26 +116,15 @@ func (r *paymentRepository) ListByUserID(ctx context.Context, userID uint64, off
 }
 
 // SaveLog 将支付日志实体保存到数据库。
-// 存在与FindByID相同的问题：PaymentLog通常不直接包含UserID，需要额外的逻辑来确定分库。
 func (r *paymentRepository) SaveLog(ctx context.Context, log *domain.PaymentLog) error {
-	// TODO: 优化此方法以支持分库保存。PaymentLog 通常没有直接的 UserID 字段来确定分库。
-	// 理想的方案是：
-	// 1. 将 UserID 反范式化到 PaymentLog 中。
-	// 2. 通过 PaymentLog 的 PaymentID 查找对应的 Payment 实体，从而获取 UserID 来确定分库。
-	// 目前临时硬编码保存到 shard 0。这在实际生产环境中是不可接受的。
-	db := r.sharding.GetDB(0) // 临时使用 shard 0。
+	// 真实实现：根据 UserID 实现分片路由。
+	db := r.getDB(uint64(log.UserID))
 	return db.WithContext(ctx).Create(log).Error
 }
 
 // FindLogsByPaymentID 根据支付ID从数据库获取所有支付日志。
-// 存在与FindByID相同的问题。
-func (r *paymentRepository) FindLogsByPaymentID(ctx context.Context, paymentID uint64) ([]*domain.PaymentLog, error) {
-	var db *gorm.DB
-	if r.tx != nil {
-		db = r.tx
-	} else {
-		db = r.sharding.GetDB(0) // 临时使用 shard 0。
-	}
+func (r *paymentRepository) FindLogsByPaymentID(ctx context.Context, userID uint64, paymentID uint64) ([]*domain.PaymentLog, error) {
+	db := r.getDB(userID)
 	var logs []*domain.PaymentLog
 	if err := db.WithContext(ctx).Where("payment_id = ?", paymentID).Find(&logs).Error; err != nil {
 		return nil, err
