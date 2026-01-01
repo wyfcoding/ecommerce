@@ -53,7 +53,8 @@ func (m *LoyaltyManager) GetTopUsers(limit int) []uint64 {
 func (m *LoyaltyManager) CalculateOrderPoints(ctx context.Context, userID uint64, orderAmount int64, items []struct {
 	Category string
 	Amount   int64
-}) (int64, error) {
+},
+) (int64, error) {
 	account, err := m.repo.GetMemberAccount(ctx, userID)
 	if err != nil {
 		return 0, err

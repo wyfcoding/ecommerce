@@ -65,7 +65,7 @@ func (q *WarehouseQuery) GetOptimalWarehouse(ctx context.Context, skuID uint64, 
 	}
 
 	var bestWH *domain.Warehouse
-	var minDistance = -1.0
+	minDistance := -1.0
 	var bestStock int32
 
 	for i, wh := range warehouses {

@@ -155,7 +155,6 @@ func (r *warehouseRepository) ListWarehousesWithStock(ctx context.Context, skuID
 		Where("warehouse_stocks.sku_id = ? AND (warehouse_stocks.stock - warehouse_stocks.locked_stock) >= ?", skuID, minQty).
 		Where("warehouses.status = ? AND warehouses.deleted_at IS NULL", domain.WarehouseStatusActive).
 		Find(&results).Error
-
 	if err != nil {
 		return nil, nil, err
 	}

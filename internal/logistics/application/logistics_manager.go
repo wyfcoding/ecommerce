@@ -42,8 +42,6 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 	// 1. 获取物流单信息
 	var logisticsList []*domain.Logistics
 	var orders []OrderInfo
-	// 维护索引映射: orders index -> logisticsList index
-	var validIndices []int
 
 	for _, id := range logisticsIDs {
 		logistics, err := m.repo.GetByID(ctx, id)
@@ -62,7 +60,6 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 			Lat: logistics.SenderLat, // 骑手前往发件人位置
 			Lon: logistics.SenderLon,
 		})
-		validIndices = append(validIndices, len(logisticsList)-1)
 	}
 
 	if len(orders) == 0 {

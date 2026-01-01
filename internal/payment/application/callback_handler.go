@@ -40,7 +40,11 @@ func (s *CallbackHandler) HandlePaymentCallback(ctx context.Context, paymentNo s
 	if err != nil {
 		return err
 	}
-	defer s.lockSvc.Unlock(ctx, lockKey, token)
+	defer func() {
+		if err := s.lockSvc.Unlock(ctx, lockKey, token); err != nil {
+			s.logger.WarnContext(ctx, "failed to unlock", "key", lockKey, "error", err)
+		}
+	}()
 
 	payment, err := s.paymentRepo.FindByPaymentNo(ctx, paymentNo)
 	if err != nil || payment == nil {
