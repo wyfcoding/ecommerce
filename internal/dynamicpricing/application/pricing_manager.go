@@ -51,8 +51,6 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 		userLevel = 7
 	case "Silver":
 		userLevel = 5
-	default:
-		userLevel = 1
 	}
 
 	factors := algorithm.PricingFactors{

@@ -1,7 +1,7 @@
 package scheduler
 
 import (
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain/service"
@@ -19,8 +19,10 @@ type WheelScheduler struct {
 func NewWheelScheduler(tick time.Duration, buckets int) (*WheelScheduler, error) {
 	tw, err := algorithm.NewTimingWheel(tick, buckets)
 	if err != nil {
+		slog.Error("Failed to initialize TimingWheel", "error", err)
 		return nil, err
 	}
+	slog.Info("WheelScheduler initialized", "tick", tick, "buckets", buckets)
 	return &WheelScheduler{
 			wheel: tw,
 		},
@@ -34,12 +36,14 @@ func (s *WheelScheduler) ScheduleTimeout(orderID string, timeout time.Duration, 
 		// 这里可以加一些恢复逻辑 (recover)
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Printf("Recovered from panic in timeout task for order %s: %v\n", orderID, r)
+				slog.Error("Recovered from panic in timeout task", "order_id", orderID, "recover", r)
 			}
 		}()
+		slog.Debug("Timeout task triggered", "order_id", orderID)
 		callback(orderID)
 	}
 
+	slog.Debug("Scheduling timeout task", "order_id", orderID, "timeout", timeout)
 	return s.wheel.AddTask(timeout, task)
 }
 

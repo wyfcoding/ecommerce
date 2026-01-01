@@ -84,7 +84,6 @@ func (c *RouteController) reconcile(u *unstructured.Unstructured) {
 		Backend:    backend,
 		Source:     "K8S_CRD",
 	})
-
 	if err != nil {
 		c.logger.Error("failed to sync route from K8s", "error", err)
 	}

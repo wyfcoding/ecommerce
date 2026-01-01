@@ -89,8 +89,8 @@ func (s *GatewayService) DeleteRouteByExternalID(ctx context.Context, externalID
 }
 
 func (s *GatewayService) updateHashRing(backend string) {
-	backends := strings.Split(backend, ",")
-	for _, b := range backends {
+	slog.Info("Updating hash ring with backends", "backends", backend)
+	for b := range strings.SplitSeq(backend, ",") {
 		if b != "" {
 			s.hashRing.Add(b)
 		}

@@ -3,7 +3,9 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv" // 导入字符串转换工具。
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"          // 导入订单模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/order/application" // 导入订单模块的应用服务。
@@ -31,6 +33,9 @@ func NewServer(app *application.OrderService) *Server {
 // req: 包含用户ID、商品列表和收货地址的请求体。
 // 返回created successfully的订单信息响应和可能发生的gRPC错误。
 func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.OrderInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateOrder received", "user_id", req.UserId, "items_count", len(req.Items))
+
 	// 将Proto的OrderItem列表转换为领域实体所需的 OrderItem 列表。
 	items := make([]*domain.OrderItem, len(req.Items))
 	for i, item := range req.Items {
@@ -38,12 +43,6 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 			ProductID: item.ProductId,
 			SkuID:     item.SkuId,
 			Quantity:  item.Quantity,
-			// 注意：Proto请求中的OrderItem可能只包含ProductId, SkuId, Quantity。
-			// ProductName, SkuName, ProductImageURL, Price, TotalPrice等字段需要：
-			// 1. 在此接口层通过调用Product服务来填充。
-			// 2. 在应用服务层（application.Order）处理时填充。
-			// 3. 假设这些信息在创建订单时暂时不需要，或有其他机制补充。
-			// 当前实现直接传递，这意味着应用服务层需要处理这些缺失的信息（例如，通过查询商品服务）。
 		}
 	}
 
@@ -61,39 +60,39 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 	// 调用应用服务层创建订单。
 	order, err := s.app.CreateOrder(ctx, req.UserId, items, shippingAddr)
 	if err != nil {
+		slog.Error("gRPC CreateOrder failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create order: %v", err))
 	}
 
+	slog.Info("gRPC CreateOrder successful", "order_id", order.ID, "user_id", req.UserId, "duration", time.Since(start))
 	// 将领域实体转换为protobuf响应格式。
 	return s.toProto(order), nil
 }
 
 // GetOrderByID 处理根据订单ID获取订单信息的gRPC请求。
-// req: 包含订单ID的请求体。
-// 返回订单信息响应和可能发生的gRPC错误。
 func (s *Server) GetOrderByID(ctx context.Context, req *pb.GetOrderByIDRequest) (*pb.OrderInfo, error) {
 	order, err := s.app.GetOrder(ctx, req.Id)
 	if err != nil {
+		slog.Error("gRPC GetOrderByID failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get order: %v", err))
 	}
 	if order == nil {
 		return nil, status.Error(codes.NotFound, "order not found")
 	}
-	// TODO: 如果需要，此处可以添加权限检查，确保只有订单所属用户或管理员才能查看订单。
 
 	return s.toProto(order), nil
 }
 
 // UpdateOrderStatus 处理更新订单状态的gRPC请求。
-// 此方法通过映射Proto的状态值到应用服务层的具体业务方法来实现订单状态流转。
-// req: 包含订单ID、新状态、操作人、备注的请求体。
-// 返回更新后的订单信息响应和可能发生的gRPC错误。
 func (s *Server) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrderStatusRequest) (*pb.OrderInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateOrderStatus received", "id", req.Id, "new_status", req.NewStatus)
+
 	var err error
 	// 根据请求中的新状态调用应用服务层的对应方法。
 	switch req.NewStatus {
 	case pb.OrderStatus_PAID:
-		err = s.app.PayOrder(ctx, req.Id, "Manual/Admin") // 假设通过此API进行的支付操作是手动或管理员触发。
+		err = s.app.PayOrder(ctx, req.Id, "Manual/Admin")
 	case pb.OrderStatus_SHIPPED:
 		err = s.app.ShipOrder(ctx, req.Id, req.Operator)
 	case pb.OrderStatus_DELIVERED:
@@ -103,34 +102,37 @@ func (s *Server) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrderStatu
 	case pb.OrderStatus_CANCELLED:
 		err = s.app.CancelOrder(ctx, req.Id, req.Operator, req.Remark)
 	default:
-		// 对于不支持通过此API直接转换的状态，返回InvalidArgument错误。
 		return nil, status.Error(codes.InvalidArgument, "unsupported status transition via this API")
 	}
 
 	if err != nil {
+		slog.Error("gRPC UpdateOrderStatus failed", "id", req.Id, "action", req.NewStatus, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update order status: %v", err))
 	}
 
+	slog.Info("gRPC UpdateOrderStatus successful", "id", req.Id, "duration", time.Since(start))
 	// 状态更新成功后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.Id})
 }
 
 // CancelOrder 处理取消订单的gRPC请求。
-// req: 包含订单ID、用户ID和取消原因的请求体。
-// 返回取消后的订单信息响应和可能发生的gRPC错误。
 func (s *Server) CancelOrder(ctx context.Context, req *pb.CancelOrderRequest) (*pb.OrderInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC CancelOrder received", "id", req.Id, "user_id", req.UserId)
+
 	// 调用应用服务层取消订单。操作人使用用户ID的字符串表示。
 	err := s.app.CancelOrder(ctx, req.Id, strconv.FormatUint(req.UserId, 10), req.Reason)
 	if err != nil {
+		slog.Error("gRPC CancelOrder failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to cancel order: %v", err))
 	}
+
+	slog.Info("gRPC CancelOrder successful", "id", req.Id, "duration", time.Since(start))
 	// 取消成功后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.Id})
 }
 
 // ListOrders 处理列出订单的gRPC请求。
-// req: 包含用户ID、状态和分页参数的请求体。
-// 返回订单列表响应和可能发生的gRPC错误。
 func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb.ListOrdersResponse, error) {
 	// 获取分页参数。
 	page := max(int(req.Page), 1)
@@ -149,6 +151,7 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 	// 调用应用服务层获取订单列表。
 	orders, total, err := s.app.ListOrders(ctx, req.UserId, statusPtr, page, pageSize)
 	if err != nil {
+		slog.Error("gRPC ListOrders failed", "user_id", req.UserId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list orders: %v", err))
 	}
 
@@ -167,11 +170,13 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 }
 
 // ProcessPayment 处理支付请求的gRPC请求。
-// req: 包含订单ID和支付方式的请求体。
-// 返回支付结果响应和可能发生的gRPC错误。
 func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentRequest) (*pb.PaymentResult, error) {
+	start := time.Now()
+	slog.Info("gRPC ProcessPayment received", "order_id", req.OrderId, "method", req.PaymentMethod)
+
 	err := s.app.PayOrder(ctx, req.OrderId, req.PaymentMethod)
 	if err != nil {
+		slog.Error("gRPC ProcessPayment failed", "order_id", req.OrderId, "error", err, "duration", time.Since(start))
 		// 支付失败时返回相应的错误状态和消息。
 		return &pb.PaymentResult{
 			OrderId: req.OrderId,
@@ -180,6 +185,7 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 		}, nil
 	}
 
+	slog.Info("gRPC ProcessPayment successful", "order_id", req.OrderId, "duration", time.Since(start))
 	// 支付成功时返回成功结果。
 	return &pb.PaymentResult{
 		OrderId:       req.OrderId,
@@ -190,19 +196,15 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 }
 
 // RequestRefund 处理退款请求的gRPC请求。
-// req: 包含订单ID的请求体。
-// 目前未实现，返回 Unimplemented 状态码。
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.OrderInfo, error) {
-	// TODO: 实现退款请求逻辑，调用应用服务层的退款方法。
 	return nil, status.Error(codes.Unimplemented, "RequestRefund not implemented")
 }
 
 // GetOrderItemsByOrderID 处理根据订单ID获取订单项列表的gRPC请求。
-// req: 包含订单ID的请求体。
-// 返回订单项列表响应和可能发生的gRPC错误。
 func (s *Server) GetOrderItemsByOrderID(ctx context.Context, req *pb.GetOrderItemsByOrderIDRequest) (*pb.GetOrderItemsByOrderIDResponse, error) {
 	order, err := s.app.GetOrder(ctx, req.OrderId)
 	if err != nil {
+		slog.Error("gRPC GetOrderItemsByOrderID failed", "order_id", req.OrderId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get order: %v", err))
 	}
 	if order == nil {
@@ -221,10 +223,10 @@ func (s *Server) GetOrderItemsByOrderID(ctx context.Context, req *pb.GetOrderIte
 }
 
 // UpdateOrderShippingStatus 处理更新订单配送状态的gRPC请求。
-// 此方法通过映射Proto的配送状态值到应用服务层的具体业务方法来实现。
-// req: 包含订单ID、新配送状态和操作人的请求体。
-// 返回更新后的订单信息响应和可能发生的gRPC错误。
 func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOrderShippingStatusRequest) (*pb.OrderInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateOrderShippingStatus received", "order_id", req.OrderId, "new_status", req.NewShippingStatus)
+
 	var err error
 	// 根据请求中的新配送状态调用应用服务层的对应方法。
 	switch req.NewShippingStatus {
@@ -233,14 +235,15 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 	case pb.ShippingStatus_SHIPPING_DELIVERED:
 		err = s.app.DeliverOrder(ctx, req.OrderId, req.Operator)
 	default:
-		// 对于不支持通过此API直接转换的配送状态，返回Unimplemented错误。
 		return nil, status.Error(codes.Unimplemented, "shipping status not mapped")
 	}
 
 	if err != nil {
+		slog.Error("gRPC UpdateOrderShippingStatus failed", "order_id", req.OrderId, "status", req.NewShippingStatus, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update order shipping status: %v", err))
 	}
 
+	slog.Info("gRPC UpdateOrderShippingStatus successful", "order_id", req.OrderId, "duration", time.Since(start))
 	// 配送状态更新成功后，重新获取订单详情并返回。
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.OrderId})
 }

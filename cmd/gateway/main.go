@@ -108,10 +108,13 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}
+	slog.Info("Database initialized", "driver", c.Data.Database.Driver)
+
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("redis init failed: %w", err)
 	}
+	slog.Info("Redis cache initialized", "addr", c.Data.Redis.Addr)
 
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	clients := &ServiceClients{}
@@ -119,6 +122,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("grpc clients init failed: %w", err)
 	}
+	slog.Info("GRPC clients initialized", "count", len(c.Services))
 
 	// K8s 控制器
 	var k8sConfig *rest.Config
@@ -141,6 +145,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 			// 修正 logger 传递：logger.Logger 是 *slog.Logger
 			controller := k8s.NewRouteController(dynamicClient, service, logger.Logger)
 			go func() {
+				slog.Info("Starting k8s route controller...")
 				if err := controller.Start(ctx); err != nil {
 					slog.Error("failed to start k8s route controller", "error", err)
 				}
@@ -151,9 +156,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	cleanup := func() {
+		slog.Info("Service shutting down, cleaning up resources...")
 		cancel()
 		clientCleanup()
 		redisCache.Close()
+		slog.Info("Cleanup completed")
 	}
 
 	return &AppContext{

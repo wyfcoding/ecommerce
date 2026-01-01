@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/product/application"
@@ -26,6 +28,9 @@ func NewServer(app *application.ProductService) *Server {
 // --- Product ---
 
 func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest) (*pb.ProductInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateProduct received", "name", req.Name, "category_id", req.CategoryId)
+
 	createReq := &application.CreateProductRequest{
 		Name:        req.Name,
 		Description: req.Description,
@@ -37,15 +42,18 @@ func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest
 
 	product, err := s.app.Manager.CreateProduct(ctx, createReq)
 	if err != nil {
+		slog.Error("gRPC CreateProduct failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create product: %v", err))
 	}
 
+	slog.Info("gRPC CreateProduct successful", "product_id", product.ID, "duration", time.Since(start))
 	return convertProductToProto(product), nil
 }
 
 func (s *Server) GetProductByID(ctx context.Context, req *pb.GetProductByIDRequest) (*pb.ProductInfo, error) {
 	product, err := s.app.Query.GetProductByID(ctx, req.Id)
 	if err != nil {
+		slog.Error("gRPC GetProductByID failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get product: %v", err))
 	}
 	if product == nil {
@@ -55,6 +63,9 @@ func (s *Server) GetProductByID(ctx context.Context, req *pb.GetProductByIDReque
 }
 
 func (s *Server) UpdateProductInfo(ctx context.Context, req *pb.UpdateProductInfoRequest) (*pb.ProductInfo, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateProductInfo received", "id", req.Id)
+
 	var name *string
 	if req.Name != nil {
 		v := req.Name.Value
@@ -91,21 +102,28 @@ func (s *Server) UpdateProductInfo(ctx context.Context, req *pb.UpdateProductInf
 
 	product, err := s.app.Manager.UpdateProduct(ctx, req.Id, updateReq)
 	if err != nil {
+		slog.Error("gRPC UpdateProductInfo failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, err
 	}
+	slog.Info("gRPC UpdateProductInfo successful", "id", req.Id, "duration", time.Since(start))
 	return convertProductToProto(product), nil
 }
 
 func (s *Server) DeleteProduct(ctx context.Context, req *pb.DeleteProductRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC DeleteProduct received", "id", req.Id)
 	if err := s.app.Manager.DeleteProduct(ctx, req.Id); err != nil {
+		slog.Error("gRPC DeleteProduct failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete product: %v", err))
 	}
+	slog.Info("gRPC DeleteProduct successful", "id", req.Id, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) (*pb.ListProductsResponse, error) {
 	products, total, err := s.app.Query.ListProducts(ctx, int(req.Page), int(req.PageSize), req.CategoryId, req.BrandId)
 	if err != nil {
+		slog.Error("gRPC ListProducts failed", "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list products: %v", err))
 	}
 
@@ -125,6 +143,8 @@ func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) 
 // --- SKU ---
 
 func (s *Server) AddSKUsToProduct(ctx context.Context, req *pb.AddSKUsToProductRequest) (*pb.AddSKUsToProductResponse, error) {
+	start := time.Now()
+	slog.Info("gRPC AddSKUsToProduct received", "product_id", req.ProductId, "count", len(req.Skus))
 	var createdSKUs []*pb.SKU
 	for _, skuReq := range req.Skus {
 		specs := make(map[string]string)
@@ -142,14 +162,18 @@ func (s *Server) AddSKUsToProduct(ctx context.Context, req *pb.AddSKUsToProductR
 
 		sku, err := s.app.Manager.AddSKU(ctx, req.ProductId, addReq)
 		if err != nil {
+			slog.Error("gRPC AddSKUsToProduct failed", "product_id", req.ProductId, "error", err, "duration", time.Since(start))
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add SKU to product %d: %v", req.ProductId, err))
 		}
 		createdSKUs = append(createdSKUs, convertSKUToProto(sku))
 	}
+	slog.Info("gRPC AddSKUsToProduct successful", "product_id", req.ProductId, "duration", time.Since(start))
 	return &pb.AddSKUsToProductResponse{CreatedSkus: createdSKUs}, nil
 }
 
 func (s *Server) UpdateSKU(ctx context.Context, req *pb.UpdateSKURequest) (*pb.SKU, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateSKU received", "id", req.Id)
 	var price *int64
 	if req.Price != nil {
 		v := req.Price.Value
@@ -174,23 +198,30 @@ func (s *Server) UpdateSKU(ctx context.Context, req *pb.UpdateSKURequest) (*pb.S
 
 	sku, err := s.app.Manager.UpdateSKU(ctx, req.Id, updateReq)
 	if err != nil {
+		slog.Error("gRPC UpdateSKU failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update SKU: %v", err))
 	}
+	slog.Info("gRPC UpdateSKU successful", "id", req.Id, "duration", time.Since(start))
 	return convertSKUToProto(sku), nil
 }
 
 func (s *Server) DeleteSKU(ctx context.Context, req *pb.DeleteSKURequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC DeleteSKU received", "ids", req.SkuIds)
 	for _, id := range req.SkuIds {
 		if err := s.app.Manager.DeleteSKU(ctx, id); err != nil {
+			slog.Error("gRPC DeleteSKU failed", "id", id, "error", err, "duration", time.Since(start))
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete SKU %d: %v", id, err))
 		}
 	}
+	slog.Info("gRPC DeleteSKU successful", "count", len(req.SkuIds), "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) GetSKUByID(ctx context.Context, req *pb.GetSKUByIDRequest) (*pb.SKU, error) {
 	sku, err := s.app.Query.GetSKUByID(ctx, req.Id)
 	if err != nil {
+		slog.Error("gRPC GetSKUByID failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get SKU: %v", err))
 	}
 	if sku == nil {
@@ -202,20 +233,25 @@ func (s *Server) GetSKUByID(ctx context.Context, req *pb.GetSKUByIDRequest) (*pb
 // --- Category ---
 
 func (s *Server) CreateCategory(ctx context.Context, req *pb.CreateCategoryRequest) (*pb.Category, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateCategory received", "name", req.Name)
 	createReq := &application.CreateCategoryRequest{
 		Name:     req.Name,
 		ParentID: req.ParentId,
 	}
 	category, err := s.app.Manager.CreateCategory(ctx, createReq)
 	if err != nil {
+		slog.Error("gRPC CreateCategory failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create category: %v", err))
 	}
+	slog.Info("gRPC CreateCategory successful", "category_id", category.ID, "duration", time.Since(start))
 	return convertCategoryToProto(category), nil
 }
 
 func (s *Server) GetCategoryByID(ctx context.Context, req *pb.GetCategoryByIDRequest) (*pb.Category, error) {
 	category, err := s.app.Query.GetCategoryByID(ctx, req.Id)
 	if err != nil {
+		slog.Error("gRPC GetCategoryByID failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get category: %v", err))
 	}
 	if category == nil {
@@ -225,6 +261,8 @@ func (s *Server) GetCategoryByID(ctx context.Context, req *pb.GetCategoryByIDReq
 }
 
 func (s *Server) UpdateCategory(ctx context.Context, req *pb.UpdateCategoryRequest) (*pb.Category, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateCategory received", "id", req.Id)
 	var name *string
 	if req.Name != nil {
 		v := req.Name.Value
@@ -249,21 +287,28 @@ func (s *Server) UpdateCategory(ctx context.Context, req *pb.UpdateCategoryReque
 
 	category, err := s.app.Manager.UpdateCategory(ctx, req.Id, updateReq)
 	if err != nil {
+		slog.Error("gRPC UpdateCategory failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update category: %v", err))
 	}
+	slog.Info("gRPC UpdateCategory successful", "id", req.Id, "duration", time.Since(start))
 	return convertCategoryToProto(category), nil
 }
 
 func (s *Server) DeleteCategory(ctx context.Context, req *pb.DeleteCategoryRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC DeleteCategory received", "id", req.Id)
 	if err := s.app.Manager.DeleteCategory(ctx, req.Id); err != nil {
+		slog.Error("gRPC DeleteCategory failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete category: %v", err))
 	}
+	slog.Info("gRPC DeleteCategory successful", "id", req.Id, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) ListCategories(ctx context.Context, req *pb.ListCategoriesRequest) (*pb.ListCategoriesResponse, error) {
 	categories, err := s.app.Query.ListCategories(ctx, req.ParentId)
 	if err != nil {
+		slog.Error("gRPC ListCategories failed", "parent_id", req.ParentId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list categories: %v", err))
 	}
 
@@ -277,20 +322,25 @@ func (s *Server) ListCategories(ctx context.Context, req *pb.ListCategoriesReque
 // --- Brand ---
 
 func (s *Server) CreateBrand(ctx context.Context, req *pb.CreateBrandRequest) (*pb.Brand, error) {
+	start := time.Now()
+	slog.Info("gRPC CreateBrand received", "name", req.Name)
 	createReq := &application.CreateBrandRequest{
 		Name: req.Name,
 		Logo: req.LogoUrl,
 	}
 	brand, err := s.app.Manager.CreateBrand(ctx, createReq)
 	if err != nil {
+		slog.Error("gRPC CreateBrand failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create brand: %v", err))
 	}
+	slog.Info("gRPC CreateBrand successful", "brand_id", brand.ID, "duration", time.Since(start))
 	return convertBrandToProto(brand), nil
 }
 
 func (s *Server) GetBrandByID(ctx context.Context, req *pb.GetBrandByIDRequest) (*pb.Brand, error) {
 	brand, err := s.app.Query.GetBrandByID(ctx, req.Id)
 	if err != nil {
+		slog.Error("gRPC GetBrandByID failed", "id", req.Id, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get brand: %v", err))
 	}
 	if brand == nil {
@@ -300,6 +350,8 @@ func (s *Server) GetBrandByID(ctx context.Context, req *pb.GetBrandByIDRequest) 
 }
 
 func (s *Server) UpdateBrand(ctx context.Context, req *pb.UpdateBrandRequest) (*pb.Brand, error) {
+	start := time.Now()
+	slog.Info("gRPC UpdateBrand received", "id", req.Id)
 	var name *string
 	if req.Name != nil {
 		v := req.Name.Value
@@ -318,21 +370,28 @@ func (s *Server) UpdateBrand(ctx context.Context, req *pb.UpdateBrandRequest) (*
 
 	brand, err := s.app.Manager.UpdateBrand(ctx, req.Id, updateReq)
 	if err != nil {
+		slog.Error("gRPC UpdateBrand failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update brand: %v", err))
 	}
+	slog.Info("gRPC UpdateBrand successful", "id", req.Id, "duration", time.Since(start))
 	return convertBrandToProto(brand), nil
 }
 
 func (s *Server) DeleteBrand(ctx context.Context, req *pb.DeleteBrandRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC DeleteBrand received", "id", req.Id)
 	if err := s.app.Manager.DeleteBrand(ctx, req.Id); err != nil {
+		slog.Error("gRPC DeleteBrand failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete brand: %v", err))
 	}
+	slog.Info("gRPC DeleteBrand successful", "id", req.Id, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) ListBrands(ctx context.Context, req *pb.ListBrandsRequest) (*pb.ListBrandsResponse, error) {
 	brands, err := s.app.Query.ListBrands(ctx)
 	if err != nil {
+		slog.Error("gRPC ListBrands failed", "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list brands: %v", err))
 	}
 

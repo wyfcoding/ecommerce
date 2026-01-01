@@ -105,10 +105,12 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	order.Status = domain.PendingPayment
 
 	// 顶级架构实践：利用本地事务确保业务数据与 Outbox 消息的强一致性
+	s.logger.InfoContext(ctx, "starting local transaction for order creation", "order_no", orderNo)
 	err = s.repo.Transaction(ctx, userID, func(tx any) error {
 		// 1. 使用事务中的仓储
 		txRepo := s.repo.WithTx(tx)
 		if err := txRepo.Save(ctx, order); err != nil {
+			s.logger.ErrorContext(ctx, "failed to save order in transaction", "error", err)
 			return err
 		}
 
@@ -129,19 +131,16 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 
 		return nil
 	})
-
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create order in transaction", "error", err)
+		s.logger.ErrorContext(ctx, "local transaction failed for order creation", "order_no", orderNo, "error", err)
 		return nil, err
 	}
+	s.logger.InfoContext(ctx, "local transaction committed successfully", "order_no", orderNo)
 
 	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
 
 	// --- 启动 DTM Saga 分布式事务 ---
-	// 在电商场景中，创建订单和扣减库存通常不在同一个数据库或服务中。
-	// 为了保证最终一致性，我们使用 Saga 模式：
-	// 1. 正向操作 (Action)：DeductStock (扣减库存)
-	// 2. 逆向补偿 (Compensate)：RevertStock (回滚库存，用于事务失败时的补偿)
+	s.logger.InfoContext(ctx, "submitting saga transaction to DTM", "gid", orderNo, "dtm_server", s.dtmServer)
 	gid := orderNo
 	saga := dtmgrpc.NewSagaGrpc(s.dtmServer, gid).
 		Add(
@@ -156,19 +155,19 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		)
 
 	// 提交 Saga 事务给 DTM 服务器。
-	// DTM 会负责根据定义的步骤进行编排，并在发生故障时执行补偿逻辑。
 	if err := saga.Submit(); err != nil {
-		s.logger.ErrorContext(ctx, "failed to submit saga", "error", err)
+		s.logger.ErrorContext(ctx, "failed to submit saga to DTM", "gid", gid, "error", err)
 		// 如果 Saga 提交失败，本地订单需要标记为取消。
 		if cancelErr := order.Cancel("System", "Saga Submit Failed"); cancelErr != nil {
-			s.logger.ErrorContext(ctx, "failed to cancel order after saga submit failure", "error", cancelErr)
+			s.logger.ErrorContext(ctx, "failed to cancel order after saga submit failure", "gid", gid, "error", cancelErr)
 		}
 		if saveErr := s.repo.Save(ctx, order); saveErr != nil {
-			s.logger.ErrorContext(ctx, "failed to save cancelled order", "error", saveErr)
+			s.logger.ErrorContext(ctx, "failed to save cancelled order state", "gid", gid, "error", saveErr)
 		}
 		return nil, fmt.Errorf("failed to submit distributed transaction: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "saga transaction submitted successfully", "gid", gid)
 	s.logger.InfoContext(ctx, "order created successfully", "order_id", order.ID, "order_no", order.OrderNo)
 	return order, nil
 }
