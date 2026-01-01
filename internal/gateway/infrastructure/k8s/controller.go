@@ -65,24 +65,24 @@ func (c *RouteController) Start(ctx context.Context) error {
 // reconcile 核心调和逻辑：将 K8s 的 YAML 状态映射为业务路由
 func (c *RouteController) reconcile(u *unstructured.Unstructured) {
 	spec := u.Object["spec"].(map[string]interface{})
-	
+
 	path := spec["path"].(string)
 	method := spec["method"].(string)
 	backend := spec["backend"].(string)
-	
+
 	c.logger.Info("reconciling route from K8s CRD", "name", u.GetName(), "path", path)
 
 	// 调用应用层更新路由表（如果存在则更新，不存在则创建）
 	// 这里体现了声明式：最终状态由 K8s 决定
 	_, err := c.appService.SyncRoute(context.Background(), application.SyncRouteRequest{
-		ExternalID:  string(u.GetUID()),
-		Name:        u.GetName(),
-		Path:        path,
-		Method:      method,
-		Backend:     backend,
-		Source:      "K8S_CRD",
+		ExternalID: string(u.GetUID()),
+		Name:       u.GetName(),
+		Path:       path,
+		Method:     method,
+		Backend:    backend,
+		Source:     "K8S_CRD",
 	})
-	
+
 	if err != nil {
 		c.logger.Error("failed to sync route from K8s", "error", err)
 	}

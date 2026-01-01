@@ -19,7 +19,7 @@ type TrafficMonitor struct {
 func NewTrafficMonitor(threshold uint64, logger *slog.Logger) *TrafficMonitor {
 	// epsilon=0.001, delta=0.01 (高精度，低内存占用)
 	cms, _ := algorithm.NewCountMinSketch(0.001, 0.01)
-	
+
 	m := &TrafficMonitor{
 		cms:    cms,
 		logger: logger,
@@ -47,9 +47,9 @@ func (m *TrafficMonitor) RecordAndCheck(key string) bool {
 	count := m.cms.Estimate([]byte(key))
 
 	if count > m.limit {
-		m.logger.Warn("risk detected: frequency limit exceeded", 
-			"key", key, 
-			"estimated_count", count, 
+		m.logger.Warn("risk detected: frequency limit exceeded",
+			"key", key,
+			"estimated_count", count,
 			"threshold", m.limit)
 		return true // 触发风险
 	}

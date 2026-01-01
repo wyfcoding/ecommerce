@@ -66,7 +66,7 @@ func main() {
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.CORS(),                            // 跨域处理
+			middleware.CORS(), // 跨域处理
 			middleware.TimeoutMiddleware(30*time.Second), // 全局超时 (注: 此处无法读取配置，使用默认值)
 		).
 		Build().

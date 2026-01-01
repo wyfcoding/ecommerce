@@ -199,7 +199,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-
 	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 

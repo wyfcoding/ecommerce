@@ -35,7 +35,7 @@ func (m *MarketingManager) DistributeTargetedCoupons(ctx context.Context, coupon
 
 	// 1. 调用算法层的 Roaring Bitmap 运算进行快速人群圈选
 	targetUserIDs := m.segmentService.TargetUsers(targetTags)
-	
+
 	m.logger.InfoContext(ctx, "segmentation complete", "user_count", len(targetUserIDs))
 
 	// 2. 批量异步处理（真实场景中应推入 MQ）

@@ -36,7 +36,7 @@ type UserRelation struct {
 // DetectFraudGroups 检测欺诈团伙
 func (m *RiskManager) DetectFraudGroups(ctx context.Context, numUsers int, relations []UserRelation) [][]int {
 	m.logger.InfoContext(ctx, "starting fraud group detection", "nodes", numUsers, "relations", len(relations))
-	
+
 	// 1. 构建图
 	g := algorithm.NewGraph(numUsers)
 	for _, rel := range relations {

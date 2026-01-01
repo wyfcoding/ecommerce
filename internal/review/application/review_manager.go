@@ -34,7 +34,7 @@ func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, ord
 
 	// --- 查重逻辑集成 ---
 	// 获取该商品最近的几条评论进行相似度对比
-	recentReviews, _, _ := m.repo.List(ctx, productID, nil, 0, 20) 
+	recentReviews, _, _ := m.repo.List(ctx, productID, nil, 0, 20)
 	newHash := m.simHash.Calculate(content)
 
 	isSpam := false

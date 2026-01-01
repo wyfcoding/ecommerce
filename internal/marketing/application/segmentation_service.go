@@ -66,7 +66,7 @@ func (s *UserSegmentService) TargetUsers(tags []string) []uint32 {
 func (s *UserSegmentService) DistributeCouponsToSegment(ctx context.Context, couponID string, tags []string) error {
 	// 1. 毫秒级位图运算，圈定目标人群
 	targetIDs := s.TargetUsers(tags)
-	
+
 	s.logger.Info("segmentation finished", "target_count", len(targetIDs), "tags", tags)
 
 	// 2. 异步批量发放（顶级架构中应发送到 Kafka）

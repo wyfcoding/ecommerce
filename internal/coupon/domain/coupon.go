@@ -46,7 +46,7 @@ type Coupon struct {
 	UsagePerUser    int32        `gorm:"default:1;comment:每人限领" json:"usage_per_user"`                         // 每个用户可以领取的优惠券数量。
 	TotalIssued     int32        `gorm:"default:0;comment:已发行量" json:"total_issued"`                           // 已经发放的数量。
 	TotalUsed       int32        `gorm:"default:0;comment:已使用量" json:"total_used"`                             // 已经使用的数量。
-	ConditionExpr   string       `gorm:"type:text;comment:判定表达式" json:"condition_expr"`                       // 判定表达式，用于规则引擎判定。
+	ConditionExpr   string       `gorm:"type:text;comment:判定表达式" json:"condition_expr"`                        // 判定表达式，用于规则引擎判定。
 	ApplicableScope string       `gorm:"type:varchar(255);comment:适用范围" json:"applicable_scope"`               // 优惠券适用范围，例如“全场通用”、“指定商品”。
 	ApplicableIDs   []uint64     `gorm:"type:json;serializer:json;comment:适用ID列表" json:"applicable_ids"`       // 适用商品ID或品类ID列表（JSON存储）。
 }

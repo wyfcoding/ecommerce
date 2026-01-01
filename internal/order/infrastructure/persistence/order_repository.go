@@ -42,7 +42,7 @@ func (r *orderRepository) getDB(userID uint64) *gorm.DB {
 // Save 将订单聚合根保存到对应的分库中。
 func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 	db := r.getDB(order.UserID)
-	
+
 	// 如果已经在事务中（r.tx != nil），则直接执行，不再开启新事务
 	execute := func(tx *gorm.DB) error {
 		if err := tx.Save(order).Error; err != nil {
