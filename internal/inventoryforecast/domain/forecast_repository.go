@@ -9,6 +9,7 @@ type InventoryForecastRepository interface {
 	// 销售预测
 	SaveForecast(ctx context.Context, forecast *SalesForecast) error
 	GetForecastBySKU(ctx context.Context, skuID uint64) (*SalesForecast, error)
+	GetSalesHistory(ctx context.Context, skuID uint64, days int) ([]int32, error)
 
 	// 库存预警
 	SaveWarning(ctx context.Context, warning *InventoryWarning) error

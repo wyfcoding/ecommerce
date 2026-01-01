@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/flashsale/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"
@@ -57,6 +58,7 @@ type ServiceClients struct {
 	Order     *grpc.ClientConn `service:"order"`
 	Product   *grpc.ClientConn `service:"product"`
 	Inventory *grpc.ClientConn `service:"inventory"`
+	Risk      *grpc.ClientConn `service:"risksecurity"`
 }
 
 func main() {
@@ -194,8 +196,17 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	flashsaleCache := cache.NewRedisFlashSaleCache(redisCache.GetClient())
 
 	// 6.2 Application (Service)
+	riskClient := risksecurityv1.NewRiskSecurityServiceClient(clients.Risk)
+
 	query := application.NewFlashsaleQuery(flashsaleRepo)
-	manager := application.NewFlashsaleManager(flashsaleRepo, flashsaleCache, producer, idGenerator, logger.Logger)
+	manager := application.NewFlashsaleManager(
+		flashsaleRepo,
+		flashsaleCache,
+		producer,
+		idGenerator,
+		logger.Logger,
+		riskClient,
+	)
 	flashsaleService := application.NewFlashsaleService(manager, query)
 
 	// 6.3 Interface (HTTP Handlers)

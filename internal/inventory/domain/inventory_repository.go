@@ -13,6 +13,14 @@ type InventoryRepository interface {
 	// ctx: 上下文。
 	// inventory: 待保存的库存实体。
 	Save(ctx context.Context, inventory *Inventory) error
+	
+	// SaveWithOptimisticLock 使用乐观锁保存库存实体。
+	// 更新时会检查版本号，如果版本号不匹配则返回错误。
+	SaveWithOptimisticLock(ctx context.Context, inventory *Inventory) error
+
+	// SaveLog 保存库存日志。
+	SaveLog(ctx context.Context, log *InventoryLog) error
+
 	// GetBySkuID 根据SKU ID获取库存实体。
 	GetBySkuID(ctx context.Context, skuID uint64) (*Inventory, error)
 	// GetBySkuIDs 根据SKU ID列表获取多个库存实体。

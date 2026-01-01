@@ -2,11 +2,15 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
@@ -230,13 +234,63 @@ func (m *AdminManager) LogAction(ctx context.Context, log *domain.AuditLog) {
 func (m *AdminManager) CreateRequest(ctx context.Context, req *domain.ApprovalRequest) error {
 	req.Status = domain.ApprovalStatusPending
 	req.CurrentStep = 1
-	req.TotalSteps = 1
-	req.ApproverRole = "SUPER_ADMIN"
+
+	// 根据业务类型和 Payload 内容决定审批流
+	if err := m.determineApprovalFlow(req); err != nil {
+		return err
+	}
+
 	if err := m.approvalRepo.CreateRequest(ctx, req); err != nil {
 		return err
 	}
-	m.LogAction(ctx, &domain.AuditLog{UserID: req.RequesterID, Action: "workflow:create", Resource: "approval_request", TargetID: fmt.Sprintf("%d", req.ID), Status: 1})
+	m.LogAction(ctx, &domain.AuditLog{
+		UserID:   req.RequesterID,
+		Action:   "workflow:create",
+		Resource: "approval_request",
+		TargetID: fmt.Sprintf("%d", req.ID),
+		Status:   1,
+		Payload:  req.Payload,
+	})
 	return nil
+}
+
+// determineApprovalFlow 决定审批所需的步骤数和初始/后续审批人角色
+func (m *AdminManager) determineApprovalFlow(req *domain.ApprovalRequest) error {
+	switch req.ActionType {
+	case "ORDER_FORCE_REFUND":
+		var payload struct {
+			Amount float64 `json:"amount"`
+		}
+		if err := json.Unmarshal([]byte(req.Payload), &payload); err != nil {
+			return fmt.Errorf("invalid payload for ORDER_FORCE_REFUND: %w", err)
+		}
+		// 金额 > 1000 需要两级审批：财务(FINANCE) -> 超管(SUPER_ADMIN)
+		if payload.Amount > 1000 {
+			req.TotalSteps = 2
+			req.ApproverRole = "FINANCE" // 第一步
+		} else {
+			req.TotalSteps = 1
+			req.ApproverRole = "FINANCE"
+		}
+
+	case "SYSTEM_CONFIG_UPDATE":
+		req.TotalSteps = 1
+		req.ApproverRole = "SUPER_ADMIN"
+
+	default:
+		// 默认通用流程
+		req.TotalSteps = 1
+		req.ApproverRole = "SUPER_ADMIN"
+	}
+	return nil
+}
+
+// calculateNextApprover 简单的流转逻辑，实际场景可能查库配置
+func (m *AdminManager) calculateNextApprover(req *domain.ApprovalRequest) string {
+	if req.ActionType == "ORDER_FORCE_REFUND" && req.CurrentStep == 2 {
+		return "SUPER_ADMIN"
+	}
+	return "SUPER_ADMIN" // Default fallback
 }
 
 func (m *AdminManager) ApproveRequest(ctx context.Context, requestID, approverID uint, comment string) error {
@@ -247,20 +301,45 @@ func (m *AdminManager) ApproveRequest(ctx context.Context, requestID, approverID
 	if req.Status != domain.ApprovalStatusPending {
 		return errors.New("request is not pending")
 	}
-	logEntry := &domain.ApprovalLog{RequestID: req.ID, ApproverID: approverID, Action: domain.ApprovalActionApprove, Comment: comment}
+
+	// 记录当前步骤的审批日志
+	logEntry := &domain.ApprovalLog{
+		RequestID:  req.ID,
+		ApproverID: approverID,
+		Action:     domain.ApprovalActionApprove,
+		Comment:    comment,
+	}
 	if err := m.approvalRepo.AddLog(ctx, logEntry); err != nil {
 		return err
 	}
+
+	// 判断是否还有后续步骤
+	if req.CurrentStep < req.TotalSteps {
+		req.CurrentStep++
+		// 计算下一步的审批角色
+		req.ApproverRole = m.calculateNextApprover(req)
+		// 状态保持 Pending
+		if err := m.approvalRepo.UpdateRequest(ctx, req); err != nil {
+			return err
+		}
+		m.logger.InfoContext(ctx, "approval request moved to next step", "req_id", req.ID, "next_step", req.CurrentStep, "next_role", req.ApproverRole)
+		return nil
+	}
+
+	// 最后一步完成，更新为已通过
 	req.Status = domain.ApprovalStatusApproved
 	now := time.Now()
 	req.FinalizedAt = &now
 	if err := m.approvalRepo.UpdateRequest(ctx, req); err != nil {
 		return err
 	}
+
+	// 异步执行具体的业务操作
 	go func() {
 		bgCtx := context.Background()
 		if err := m.executeOperation(bgCtx, req); err != nil {
 			m.logger.Error("failed to execute operation", "reqID", req.ID, "error", err)
+			// TODO: 可以考虑在这里记录执行失败的状态，或者发起告警
 		}
 	}()
 	return nil
@@ -285,6 +364,7 @@ func (m *AdminManager) RejectRequest(ctx context.Context, requestID, approverID 
 }
 
 func (m *AdminManager) executeOperation(ctx context.Context, req *domain.ApprovalRequest) error {
+	m.logger.Info("executing approved operation", "type", req.ActionType, "req_id", req.ID)
 	switch req.ActionType {
 	case "ORDER_FORCE_REFUND":
 		return m.handleForceRefund(ctx, req.Payload)
@@ -295,12 +375,78 @@ func (m *AdminManager) executeOperation(ctx context.Context, req *domain.Approva
 	}
 }
 
-func (m *AdminManager) handleForceRefund(ctx context.Context, payload string) error {
-	m.logger.InfoContext(ctx, "Mocking Force Refund (Real gRPC call pending)", "payload", payload)
+func (m *AdminManager) handleForceRefund(ctx context.Context, payloadStr string) error {
+	var payload struct {
+		OrderID   string  `json:"orderId"`
+		Amount    float64 `json:"amount"`
+		Reason    string  `json:"reason"`
+		UserID    uint64  `json:"userId"`
+		PaymentID string  `json:"paymentId"`
+	}
+	if err := json.Unmarshal([]byte(payloadStr), &payload); err != nil {
+		return fmt.Errorf("unmarshal payload failed: %w", err)
+	}
+
+	orderID, _ := strconv.ParseUint(payload.OrderID, 10, 64)
+	paymentTxID, _ := strconv.ParseUint(payload.PaymentID, 10, 64)
+	refundAmountCents := int64(payload.Amount * 100)
+
+	// 1. 调用订单服务发起退款请求/取消订单
+	orderClient := orderv1.NewOrderServiceClient(m.opsDeps.OrderClient)
+
+	// 修正：OrderId (uint64), RefundAmount (int64)
+	_, err := orderClient.RequestRefund(ctx, &orderv1.RequestRefundRequest{
+		OrderId:      orderID,
+		UserId:       payload.UserID,
+		RefundAmount: refundAmountCents,
+		Reason:       payload.Reason,
+	})
+	if err != nil {
+		return fmt.Errorf("call order service failed: %w", err)
+	}
+
+	// 2. 如果需要直接操作支付网关退款
+	if m.opsDeps.PaymentClient != nil {
+		paymentClient := paymentv1.NewPaymentServiceClient(m.opsDeps.PaymentClient)
+		// 修正：PaymentTransactionId (uint64), OrderId (uint64), RefundAmount (int64)
+		_, err := paymentClient.RequestRefund(ctx, &paymentv1.RequestRefundRequest{
+			PaymentTransactionId: paymentTxID,
+			OrderId:              orderID,
+			UserId:               payload.UserID,
+			RefundAmount:         refundAmountCents,
+			Reason:               payload.Reason,
+		})
+		if err != nil {
+			return fmt.Errorf("call payment service failed: %w", err)
+		}
+	}
+
+	m.logger.Info("force refund executed successfully", "order_id", payload.OrderID)
 	return nil
 }
 
-func (m *AdminManager) handleConfigUpdate(ctx context.Context, payload string) error {
-	m.logger.InfoContext(ctx, "Mocking Config Update", "payload", payload)
+func (m *AdminManager) handleConfigUpdate(ctx context.Context, payloadStr string) error {
+	var payload struct {
+		Key         string `json:"key"`
+		Value       string `json:"value"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal([]byte(payloadStr), &payload); err != nil {
+		return fmt.Errorf("unmarshal payload failed: %w", err)
+	}
+
+	// 实际更新数据库配置
+	setting := &domain.SystemSetting{
+		Key:         payload.Key,
+		Value:       payload.Value,
+		Description: payload.Description,
+	}
+
+	// 使用 Repository 更新 (Save 通常包含 CreateOrUpdate 逻辑)
+	if err := m.settingRepo.Save(ctx, setting); err != nil {
+		return fmt.Errorf("save setting failed: %w", err)
+	}
+
+	m.logger.Info("system config updated", "key", payload.Key)
 	return nil
 }

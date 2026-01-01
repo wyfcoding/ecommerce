@@ -27,6 +27,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/limiter"
+	"github.com/wyfcoding/pkg/lock"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
@@ -164,6 +165,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+	redisLock := lock.NewRedisLock(redisCache.GetClient())
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
 		if err := redisCache.Close(); err != nil {
@@ -217,7 +219,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		gateways,
 		logger.Logger,
 	)
-	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, logger.Logger)
+	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, redisLock, logger.Logger)
 	refundService := application.NewRefundService(paymentRepo, refundRepo, idGenerator, gateways, logger.Logger)
 	paymentQuery := application.NewPaymentQuery(paymentRepo)
 

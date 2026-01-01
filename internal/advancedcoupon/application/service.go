@@ -46,43 +46,56 @@ func (s *AdvancedCoupon) ListCoupons(ctx context.Context, status domain.CouponSt
 }
 
 // UseCoupon 核心核销逻辑：验证并使用指定的优惠券码。
+// 采用数据库事务保证扣减库存与记录使用的一致性。
 func (s *AdvancedCoupon) UseCoupon(ctx context.Context, userID uint64, code string, orderID uint64) error {
-	coupon, err := s.repo.GetByCode(ctx, code)
-	if err != nil {
-		return err
-	}
-	if coupon == nil {
-		return errors.New("coupon not found")
-	}
+	return s.repo.Transaction(ctx, func(txCtx context.Context) error {
+		// 1. 获取优惠券信息（轻量读）
+		coupon, err := s.repo.GetByCode(txCtx, code)
+		if err != nil {
+			return err
+		}
+		if coupon == nil {
+			return errors.New("coupon not found")
+		}
 
-	if !coupon.IsValid() {
-		return errors.New("coupon is invalid or expired")
-	}
+		// 2. 基础校验
+		if !coupon.IsValid() {
+			return errors.New("coupon is invalid or expired")
+		}
 
-	// 检查每位用户的限制
-	usedCount, err := s.repo.CountUsageByUser(ctx, userID, uint64(coupon.ID))
-	if err != nil {
-		return err
-	}
-	if usedCount >= coupon.PerUserLimit {
-		return errors.New("coupon usage limit exceeded for user")
-	}
+		// 3. 用户限领校验
+		usedCount, err := s.repo.CountUsageByUser(txCtx, userID, uint64(coupon.ID))
+		if err != nil {
+			return err
+		}
+		if usedCount >= coupon.PerUserLimit {
+			return errors.New("coupon usage limit exceeded for user")
+		}
 
-	// 更新优惠券使用情况
-	coupon.UsedQuantity++
-	if err := s.repo.Save(ctx, coupon); err != nil {
-		return err
-	}
+		// TODO: 调用 User Service 检查 UserTierRequirement (此处暂略，需注入 UserClient)
 
-	// 记录使用情况
-	usage := &domain.CouponUsage{
-		UserID:   userID,
-		CouponID: uint64(coupon.ID),
-		OrderID:  orderID,
-		Code:     code,
-		UsedAt:   time.Now(),
-	}
-	return s.repo.SaveUsage(ctx, usage)
+		// 4. 扣减库存 (Atomic Update + Check)
+		// 使用 IncrementUsage 原子更新，如果库存不足或并发冲突导致 RowsAffected=0，会返回错误
+		if err := s.repo.IncrementUsage(txCtx, uint64(coupon.ID)); err != nil {
+			s.logger.Warn("failed to increment usage", "code", code, "error", err)
+			return err
+		}
+
+		// 5. 记录使用日志
+		usage := &domain.CouponUsage{
+			UserID:   userID,
+			CouponID: uint64(coupon.ID),
+			OrderID:  orderID,
+			Code:     code,
+			UsedAt:   time.Now(),
+		}
+		if err := s.repo.SaveUsage(txCtx, usage); err != nil {
+			return err
+		}
+
+		s.logger.InfoContext(ctx, "coupon used successfully", "user_id", userID, "code", code, "order_id", orderID)
+		return nil
+	})
 }
 
 // CalculateBestDiscount 核心算法：基于多种约束计算订单的最优优惠组合及最终金额。

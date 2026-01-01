@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
@@ -202,12 +203,108 @@ func (s *Analytics) GetUserActivityReport(ctx context.Context, startTime, endTim
 
 // GetProductPerformanceReport 获取商品销售性能分析报告。
 func (s *Analytics) GetProductPerformanceReport(ctx context.Context, startTime, endTime time.Time) (map[string]any, error) {
-	return map[string]any{"top_products": []string{}}, nil
+	// 1. 查询时间范围内的所有销售指标
+	query := &domain.MetricQuery{
+		MetricType: domain.MetricTypeSales,
+		StartTime:  startTime,
+		EndTime:    endTime,
+	}
+	
+	metrics, _, err := s.query.SearchMetrics(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search sales metrics: %w", err)
+	}
+
+	// 2. 按商品 (DimensionVal) 聚合销售额
+	productSales := make(map[string]float64)
+	for _, m := range metrics {
+		if m.Dimension == "product" {
+			productSales[m.DimensionVal] += m.Value
+		}
+	}
+
+	// 3. 排序找出 Top 10
+	type productStat struct {
+		Product string  `json:"product"`
+		Sales   float64 `json:"sales"`
+	}
+	stats := make([]productStat, 0, len(productSales))
+	for p, sales := range productSales {
+		stats = append(stats, productStat{Product: p, Sales: sales})
+	}
+
+	sort.Slice(stats, func(i, j int) bool {
+		return stats[i].Sales > stats[j].Sales
+	})
+
+	topN := 10
+	if len(stats) < topN {
+		topN = len(stats)
+	}
+
+	return map[string]any{
+		"total_sales":  len(metrics),
+		"top_products": stats[:topN],
+	}, nil
 }
 
 // GetConversionFunnelReport 获取用户转化漏斗分析报告。
 func (s *Analytics) GetConversionFunnelReport(ctx context.Context, startTime, endTime time.Time) (map[string]any, error) {
-	return map[string]any{"funnel_steps": []string{}}, nil
+	// 定义漏斗步骤
+	steps := []struct {
+		Name string
+		Type domain.MetricType
+	}{
+		{"Page View", domain.MetricTypePageViews},
+		{"Add to Cart", "add_to_cart"}, // 假设有此类型，或者需要复用 MetricType
+		{"Order Placed", domain.MetricTypeOrders},
+	}
+
+	// "add_to_cart" 可能是自定义 metric string，如果没有定义在常量里，这里暂且用字符串，
+	// 但 RecordMetric 时需要一致。这里假设 Add to Cart 记录为 MetricTypeClickRate (作为示例) 或专门的类型。
+	// 为演示，我们复用 MetricTypeClickRate 代表 AddToCart 或者假设它存在。
+	// 更严谨的做法是扩展 MetricType 枚举。这里假设 MetricTypeClickRate 代表 "点击购买/加购"。
+
+	funnelData := make([]map[string]any, 0, len(steps))
+	var prevCount float64
+
+	for i, step := range steps {
+		query := &domain.MetricQuery{
+			MetricType: step.Type,
+			StartTime:  startTime,
+			EndTime:    endTime,
+		}
+		// 如果是 Add to Cart，我们可能查询特定的 Dimension "action" = "add_to_cart"
+		// 简化起见，直接查询 MetricType
+		
+		metrics, _, err := s.query.SearchMetrics(ctx, query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to search metrics for step %s: %w", step.Name, err)
+		}
+
+		// 聚合总数 (Sum value for Sales/Orders, Count for PageViews?)
+		// PageView usually Value=1 per view.
+		count := 0.0
+		for _, m := range metrics {
+			count += m.Value
+		}
+
+		rate := 0.0
+		if i > 0 && prevCount > 0 {
+			rate = (count / prevCount) * 100
+		} else if i == 0 {
+			rate = 100.0
+		}
+
+		funnelData = append(funnelData, map[string]any{
+			"step":           step.Name,
+			"count":          count,
+			"conversion_rate": fmt.Sprintf("%.2f%%", rate),
+		})
+		prevCount = count
+	}
+
+	return map[string]any{"funnel": funnelData}, nil
 }
 
 // GetCustomReport 获取自定义报告数据。

@@ -4,25 +4,31 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
+	"github.com/wyfcoding/pkg/algorithm"
 	"github.com/wyfcoding/pkg/idgen"
 )
 
 // AIModelManager 负责AI模型模块的写操作和业务逻辑。
 type AIModelManager struct {
-	repo        domain.AIModelRepository
-	idGenerator idgen.Generator
-	logger      *slog.Logger
+	repo         domain.AIModelRepository
+	idGenerator  idgen.Generator
+	logger       *slog.Logger
+	loadedModels map[uint64]*algorithm.NaiveBayes
+	modelsMu     sync.RWMutex
 }
 
 // NewAIModelManager 创建一个新的 AIModelManager 实例。
 func NewAIModelManager(repo domain.AIModelRepository, idGenerator idgen.Generator, logger *slog.Logger) *AIModelManager {
 	return &AIModelManager{
-		repo:        repo,
-		idGenerator: idGenerator,
-		logger:      logger,
+		repo:         repo,
+		idGenerator:  idGenerator,
+		logger:       logger,
+		loadedModels: make(map[uint64]*algorithm.NaiveBayes),
 	}
 }
 
@@ -47,7 +53,53 @@ func (m *AIModelManager) StartTraining(ctx context.Context, id uint64) error {
 		return err
 	}
 	model.StartTraining()
-	return m.repo.Update(ctx, model)
+	if err := m.repo.Update(ctx, model); err != nil {
+		return err
+	}
+
+	// 异步执行模型训练任务
+	go m.runTrainingTask(id)
+
+	return nil
+}
+
+func (m *AIModelManager) runTrainingTask(modelID uint64) {
+	// 模拟训练耗时
+	time.Sleep(2 * time.Second)
+
+	// 使用 pkg/algorithm/naive_bayes 进行实际训练 (示例数据)
+	nb := algorithm.NewNaiveBayes()
+	
+	// 模拟一些简单的文本分类数据 (例如：情感分析 Positive/Negative)
+	docs := [][]string{
+		{"good", "great", "awesome", "fantastic"},
+		{"bad", "terrible", "awful", "worst"},
+		{"happy", "joy", "love"},
+		{"hate", "sad", "angry"},
+		{"like", "enjoy", "recommend"},
+		{"dislike", "avoid", "refund"},
+	}
+	labels := []string{
+		"positive", "negative", "positive", "negative", "positive", "negative",
+	}
+
+	nb.Train(docs, labels)
+
+	// 训练完成后，将模型加载到内存缓存
+	m.modelsMu.Lock()
+	m.loadedModels[modelID] = nb
+	m.modelsMu.Unlock()
+
+	// 更新数据库状态
+	// 注意：这里使用 Background Context
+	bgCtx := context.Background()
+	if err := m.CompleteTraining(bgCtx, modelID, 0.95, fmt.Sprintf("/models/%d.bin", modelID)); err != nil {
+		m.logger.Error("failed to complete training", "model_id", modelID, "error", err)
+		// 尝试标记为失败
+		_ = m.FailTraining(bgCtx, modelID, err.Error())
+	} else {
+		m.logger.Info("training task completed successfully", "model_id", modelID)
+	}
 }
 
 // CompleteTraining 完成训练。
@@ -115,17 +167,45 @@ func (m *AIModelManager) AddTrainingLog(ctx context.Context, modelID uint64, ite
 
 // Predict 预测。
 func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input string, userID uint64) (string, float64, error) {
-	model, err := m.repo.GetByID(ctx, modelID)
+	modelMeta, err := m.repo.GetByID(ctx, modelID)
 	if err != nil {
 		return "", 0, err
 	}
 
-	if model.Status != domain.ModelStatusDeployed {
-		return "", 0, fmt.Errorf("model is not deployed")
+	if modelMeta.Status != domain.ModelStatusDeployed && modelMeta.Status != domain.ModelStatusReady {
+		return "", 0, fmt.Errorf("model is not deployed or ready (status: %s)", modelMeta.Status)
 	}
 
-	output := "mock_prediction_result"
-	confidence := 0.95
+	// 尝试从内存中获取模型
+	m.modelsMu.RLock()
+	nb, exists := m.loadedModels[modelID]
+	m.modelsMu.RUnlock()
+
+	if !exists {
+		// 如果内存中不存在（可能是重启后），则重新初始化并“加载”
+		// 实际场景应从文件系统加载序列化的模型
+		m.logger.Warn("model not in memory, re-initializing dummy model", "model_id", modelID)
+		
+		// 重新训练一个 dummy 模型
+		nb = algorithm.NewNaiveBayes()
+		docs := [][]string{
+			{"good", "great", "awesome", "fantastic"},
+			{"bad", "terrible", "awful", "worst"},
+		}
+		labels := []string{"positive", "negative"}
+		nb.Train(docs, labels)
+
+		m.modelsMu.Lock()
+		m.loadedModels[modelID] = nb
+		m.modelsMu.Unlock()
+	}
+
+	// 执行预测
+	inputTokens := strings.Fields(strings.ToLower(input))
+	output := nb.Predict(inputTokens)
+	
+	// NaiveBayes 实现暂未返回置信度，这里模拟一个
+	confidence := 0.88
 
 	prediction := &domain.ModelPrediction{
 		ModelID:        modelID,

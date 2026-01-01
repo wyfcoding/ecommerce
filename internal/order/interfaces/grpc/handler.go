@@ -57,8 +57,14 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 		PostalCode:      req.ShippingAddress.PostalCode,
 	}
 
+	// 获取优惠券码
+	var couponCode string
+	if req.CouponCode != nil {
+		couponCode = req.CouponCode.Value
+	}
+
 	// 调用应用服务层创建订单。
-	order, err := s.app.CreateOrder(ctx, req.UserId, items, shippingAddr)
+	order, err := s.app.CreateOrder(ctx, req.UserId, items, shippingAddr, couponCode)
 	if err != nil {
 		slog.Error("gRPC CreateOrder failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create order: %v", err))

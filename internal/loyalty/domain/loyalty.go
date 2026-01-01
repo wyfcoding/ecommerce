@@ -127,15 +127,19 @@ func (t *PointsTransaction) IsExpired() bool {
 	return time.Now().After(*t.ExpireAt)
 }
 
+// CategoryMultipliers 定义类目积分倍率。
+type CategoryMultipliers map[string]float64
+
 // MemberBenefit 结构体定义。
 type MemberBenefit struct {
 	gorm.Model
-	Level        MemberLevel `gorm:"type:varchar(32);not null;index;comment:会员等级" json:"level"`
-	Name         string      `gorm:"type:varchar(64);not null;comment:权益名称" json:"name"`
-	Description  string      `gorm:"type:text;comment:权益描述" json:"description"`
-	DiscountRate float64     `gorm:"type:decimal(5,2);default:1.00;comment:折扣率" json:"discount_rate"`
-	PointsRate   float64     `gorm:"type:decimal(5,2);default:1.00;comment:积分倍率" json:"points_rate"`
-	Enabled      bool        `gorm:"default:true;comment:是否启用" json:"enabled"`
+	Level        MemberLevel         `gorm:"type:varchar(32);not null;index;comment:会员等级" json:"level"`
+	Name         string              `gorm:"type:varchar(64);not null;comment:权益名称" json:"name"`
+	Description  string              `gorm:"type:text;comment:权益描述" json:"description"`
+	DiscountRate float64             `gorm:"type:decimal(5,2);default:1.00;comment:折扣率" json:"discount_rate"`
+	PointsRate   float64             `gorm:"type:decimal(5,2);default:1.00;comment:积分倍率" json:"points_rate"`
+	Multipliers  CategoryMultipliers `gorm:"type:json;serializer:json;comment:类目特定倍率" json:"multipliers"`
+	Enabled      bool                `gorm:"default:true;comment:是否启用" json:"enabled"`
 }
 
 // NewMemberBenefit 函数。
@@ -146,6 +150,7 @@ func NewMemberBenefit(level MemberLevel, name, description string, discountRate,
 		Description:  description,
 		DiscountRate: discountRate,
 		PointsRate:   pointsRate,
+		Multipliers:  make(CategoryMultipliers),
 		Enabled:      true,
 	}
 }

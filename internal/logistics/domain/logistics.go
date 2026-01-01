@@ -52,6 +52,7 @@ type Logistics struct {
 	DeliveredAt     *time.Time        `gorm:"comment:签收时间" json:"delivered_at"`                             // 实际签收时间。
 	Traces          []*LogisticsTrace `gorm:"foreignKey:LogisticsID" json:"traces"`                         // 关联的物流轨迹记录列表，一对多关系。
 	Route           *DeliveryRoute    `gorm:"foreignKey:LogisticsID" json:"route"`                          // 关联的配送路线信息，一对一关系。
+	RiderID         string            `gorm:"type:varchar(64);comment:骑手ID" json:"rider_id"`                // 负责配送的骑手ID。
 }
 
 // LogisticsTrace 实体代表物流单的一条轨迹记录。
@@ -148,6 +149,11 @@ func (l *Logistics) UpdateLocation(location string) {
 // SetEstimatedTime 设置物流单的预计送达时间。
 func (l *Logistics) SetEstimatedTime(estimatedTime time.Time) {
 	l.EstimatedTime = &estimatedTime
+}
+
+// AssignRider 指派骑手。
+func (l *Logistics) AssignRider(riderID string) {
+	l.RiderID = riderID
 }
 
 // AddTrace 添加一条物流轨迹记录。

@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"context"
-	"time"
+	"errors"
 
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
 
@@ -27,51 +27,22 @@ func (r *pricingRepository) SaveDynamicPrice(ctx context.Context, price *domain.
 func (r *pricingRepository) GetLatestDynamicPrice(ctx context.Context, skuID uint64) (*domain.DynamicPrice, error) {
 	var price domain.DynamicPrice
 	if err := r.db.WithContext(ctx).Where("sku_id = ?", skuID).Order("created_at desc").First(&price).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &price, nil
 }
 
-func (r *pricingRepository) ListDynamicPrices(ctx context.Context, skuID uint64, offset, limit int) ([]*domain.DynamicPrice, int64, error) {
-	var list []*domain.DynamicPrice
-	var total int64
-
-	db := r.db.WithContext(ctx).Model(&domain.DynamicPrice{})
-	if skuID != 0 {
-		db = db.Where("sku_id = ?", skuID)
-	}
-
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return list, total, nil
-}
-
 // --- CompetitorPrice methods ---
-
-func (r *pricingRepository) SaveCompetitorPriceInfo(ctx context.Context, info *domain.CompetitorPriceInfo) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(info).Error; err != nil {
-			return err
-		}
-		for _, comp := range info.Competitors {
-			comp.InfoID = uint64(info.ID)
-			if err := tx.Save(comp).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
 
 func (r *pricingRepository) GetCompetitorPriceInfo(ctx context.Context, skuID uint64) (*domain.CompetitorPriceInfo, error) {
 	var info domain.CompetitorPriceInfo
 	if err := r.db.WithContext(ctx).Preload("Competitors").Where("sku_id = ?", skuID).Order("created_at desc").First(&info).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &info, nil
@@ -79,17 +50,25 @@ func (r *pricingRepository) GetCompetitorPriceInfo(ctx context.Context, skuID ui
 
 // --- PriceHistory methods ---
 
-func (r *pricingRepository) SavePriceHistory(ctx context.Context, history *domain.PriceHistoryData) error {
-	return r.db.WithContext(ctx).Save(history).Error
-}
-
-func (r *pricingRepository) GetPriceHistory(ctx context.Context, skuID uint64, days int) ([]*domain.PriceHistoryData, error) {
-	var list []*domain.PriceHistoryData
-	startTime := time.Now().AddDate(0, 0, -days)
-	if err := r.db.WithContext(ctx).Where("sku_id = ? AND date >= ?", skuID, startTime).Order("date asc").Find(&list).Error; err != nil {
+func (r *pricingRepository) GetPriceHistory(ctx context.Context, skuID uint64, limit int) ([]domain.PriceHistoryData, error) {
+	var list []domain.PriceHistoryData
+	if err := r.db.WithContext(ctx).Where("sku_id = ?", skuID).Order("date desc").Limit(limit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
+}
+
+// --- PriceElasticity methods ---
+
+func (r *pricingRepository) GetPriceElasticity(ctx context.Context, skuID uint64) (*domain.PriceElasticity, error) {
+	var elasticity domain.PriceElasticity
+	if err := r.db.WithContext(ctx).Where("sku_id = ?", skuID).Order("created_at desc").First(&elasticity).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &elasticity, nil
 }
 
 // --- PricingStrategy methods ---
@@ -101,6 +80,9 @@ func (r *pricingRepository) SavePricingStrategy(ctx context.Context, strategy *d
 func (r *pricingRepository) GetPricingStrategy(ctx context.Context, skuID uint64) (*domain.PricingStrategy, error) {
 	var strategy domain.PricingStrategy
 	if err := r.db.WithContext(ctx).Where("sku_id = ?", skuID).First(&strategy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &strategy, nil

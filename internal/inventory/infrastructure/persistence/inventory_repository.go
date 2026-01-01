@@ -20,26 +20,37 @@ func NewInventoryRepository(db *gorm.DB) domain.InventoryRepository {
 }
 
 // Save 将库存实体保存到数据库。
-// 如果库存已存在（通过ID），则更新其信息；如果不存在，则创建。
-// 此方法在一个事务中保存库存主实体及其关联的新增日志。
 func (r *inventoryRepository) Save(ctx context.Context, inventory *domain.Inventory) error {
-	// 使用事务确保库存主表和日志表的更新操作的原子性。
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 保存或更新库存主实体。
-		if err := tx.Save(inventory).Error; err != nil {
-			return err
-		}
-		// 遍历所有日志，只保存新增的日志（ID为0的日志）。
-		for _, log := range inventory.Logs {
-			if log.ID == 0 { // 检查是否是新日志。
-				log.InventoryID = uint64(inventory.ID) // 关联库存ID。
-				if err := tx.Save(log).Error; err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
+	return r.db.WithContext(ctx).Save(inventory).Error
+}
+
+// SaveWithOptimisticLock 使用乐观锁保存库存实体。
+func (r *inventoryRepository) SaveWithOptimisticLock(ctx context.Context, inventory *domain.Inventory) error {
+	if inventory.ID == 0 {
+		return r.Save(ctx, inventory)
+	}
+
+	currentVersion := inventory.Version
+	inventory.Version++
+
+	// 使用 Updates 更新所有字段，包括零值（如果需要，应使用 Select("*") 或指定字段）
+	// 这里假设 inventory 包含了所有最新状态
+	res := r.db.WithContext(ctx).Model(inventory).
+		Where("id = ? AND version = ?", inventory.ID, currentVersion).
+		Updates(inventory)
+
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return errors.New("optimistic lock failed")
+	}
+	return nil
+}
+
+// SaveLog 保存库存日志。
+func (r *inventoryRepository) SaveLog(ctx context.Context, log *domain.InventoryLog) error {
+	return r.db.WithContext(ctx).Create(log).Error
 }
 
 // GetBySkuID 根据SKU ID从数据库获取库存记录。

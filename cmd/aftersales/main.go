@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/persistence"
 	aftersalesgrpc "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"
@@ -174,7 +176,17 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	aftersalesRepo := persistence.NewAfterSalesRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	aftersalesService := application.NewAfterSalesService(aftersalesRepo, idGenerator, logger.Logger)
+	// 【关键改动】：注入下游服务的 gRPC Client
+	orderClient := orderv1.NewOrderServiceClient(clients.Order)
+	paymentClient := paymentv1.NewPaymentServiceClient(clients.Payment)
+
+	aftersalesService := application.NewAfterSalesService(
+		aftersalesRepo,
+		idGenerator,
+		logger.Logger,
+		orderClient,
+		paymentClient,
+	)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := aftersaleshttp.NewHandler(aftersalesService, logger.Logger)

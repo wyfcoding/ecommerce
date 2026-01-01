@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"github.com/wyfcoding/pkg/algorithm"
@@ -58,125 +59,102 @@ func (m *InventoryManager) CreateInventory(ctx context.Context, skuID, productID
 	return inventory, nil
 }
 
+// executeWithRetry 执行带乐观锁重试的库存更新逻辑
+func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, fn func(*domain.Inventory) (*domain.InventoryLog, error)) error {
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		inventory, err := m.repo.GetBySkuID(ctx, skuID)
+		if err != nil {
+			return err
+		}
+		if inventory == nil {
+			return errors.New("inventory not found")
+		}
+
+		// 执行业务逻辑
+		log, err := fn(inventory)
+		if err != nil {
+			return err
+		}
+
+		// 尝试保存（带版本检查）
+		err = m.repo.SaveWithOptimisticLock(ctx, inventory)
+		if err == nil {
+			// 保存成功，记录日志
+			if log != nil {
+				if logErr := m.repo.SaveLog(ctx, log); logErr != nil {
+					m.logger.WarnContext(ctx, "failed to save inventory log", "log", log, "error", logErr)
+				}
+			}
+			return nil
+		}
+
+		// 如果不是乐观锁失败，直接返回错误
+		if err.Error() != "optimistic lock failed" {
+			return err
+		}
+		
+		// 乐观锁失败，等待后重试
+		time.Sleep(time.Millisecond * time.Duration(10*(i+1)))
+	}
+	return errors.New("concurrent update failed after retries")
+}
+
 // AddStock 增加库存。
 func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	inventory, err := m.repo.GetBySkuID(ctx, skuID)
-	if err != nil {
-		return err
-	}
-	if inventory == nil {
-		return errors.New("inventory not found")
-	}
-
-	if err := inventory.Add(quantity, reason); err != nil {
-		return err
-	}
-
-	if err := m.repo.Save(ctx, inventory); err != nil {
-		m.logger.ErrorContext(ctx, "failed to add stock", "sku_id", skuID, "error", err)
-		return err
-	}
-
-	// 如果库存不再为0，从售罄过滤器中移除
-	if inventory.AvailableStock > 0 {
-		m.filterMu.Lock()
-		m.soldOutFilter.Delete([]byte(fmt.Sprintf("%d", skuID)))
-		m.filterMu.Unlock()
-	}
-
-	return nil
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+		log, err := inv.Add(quantity, reason)
+		if err != nil {
+			return nil, err
+		}
+		
+		// 如果库存不再为0，从售罄过滤器中移除
+		if inv.AvailableStock > 0 {
+			m.filterMu.Lock()
+			m.soldOutFilter.Delete([]byte(fmt.Sprintf("%d", skuID)))
+			m.filterMu.Unlock()
+		}
+		return log, nil
+	})
 }
 
 // DeductStock 扣减库存。
 func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	inventory, err := m.repo.GetBySkuID(ctx, skuID)
-	if err != nil {
-		return err
-	}
-	if inventory == nil {
-		return errors.New("inventory not found")
-	}
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+		log, err := inv.Deduct(quantity, reason)
+		if err != nil {
+			return nil, err
+		}
 
-	if err := inventory.Deduct(quantity, reason); err != nil {
-		return err
-	}
-
-	if err := m.repo.Save(ctx, inventory); err != nil {
-		m.logger.ErrorContext(ctx, "failed to deduct stock", "sku_id", skuID, "error", err)
-		return err
-	}
-
-	// 如果库存归零，加入售罄过滤器
-	if inventory.AvailableStock <= 0 {
-		m.filterMu.Lock()
-		m.soldOutFilter.Add([]byte(fmt.Sprintf("%d", skuID)))
-		m.filterMu.Unlock()
-	}
-
-	return nil
+		// 如果库存归零，加入售罄过滤器
+		if inv.AvailableStock <= 0 {
+			m.filterMu.Lock()
+			m.soldOutFilter.Add([]byte(fmt.Sprintf("%d", skuID)))
+			m.filterMu.Unlock()
+		}
+		return log, nil
+	})
 }
 
 // LockStock 锁定库存。
 func (m *InventoryManager) LockStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	inventory, err := m.repo.GetBySkuID(ctx, skuID)
-	if err != nil {
-		return err
-	}
-	if inventory == nil {
-		return errors.New("inventory not found")
-	}
-
-	if err := inventory.Lock(quantity, reason); err != nil {
-		return err
-	}
-
-	if err := m.repo.Save(ctx, inventory); err != nil {
-		m.logger.ErrorContext(ctx, "failed to lock stock", "sku_id", skuID, "error", err)
-		return err
-	}
-	return nil
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+		return inv.Lock(quantity, reason)
+	})
 }
 
 // UnlockStock 解锁库存。
 func (m *InventoryManager) UnlockStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	inventory, err := m.repo.GetBySkuID(ctx, skuID)
-	if err != nil {
-		return err
-	}
-	if inventory == nil {
-		return errors.New("inventory not found")
-	}
-
-	if err := inventory.Unlock(quantity, reason); err != nil {
-		return err
-	}
-
-	if err := m.repo.Save(ctx, inventory); err != nil {
-		m.logger.ErrorContext(ctx, "failed to unlock stock", "sku_id", skuID, "error", err)
-		return err
-	}
-	return nil
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+		return inv.Unlock(quantity, reason)
+	})
 }
 
 // ConfirmDeduction 确认扣减。
 func (m *InventoryManager) ConfirmDeduction(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	inventory, err := m.repo.GetBySkuID(ctx, skuID)
-	if err != nil {
-		return err
-	}
-	if inventory == nil {
-		return errors.New("inventory not found")
-	}
-
-	if err := inventory.ConfirmDeduction(quantity, reason); err != nil {
-		return err
-	}
-
-	if err := m.repo.Save(ctx, inventory); err != nil {
-		m.logger.ErrorContext(ctx, "failed to confirm deduction", "sku_id", skuID, "error", err)
-		return err
-	}
-	return nil
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+		return inv.ConfirmDeduction(quantity, reason)
+	})
 }
 
 // AllocateStock 分配库存。

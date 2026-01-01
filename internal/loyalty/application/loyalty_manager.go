@@ -49,6 +49,45 @@ func (m *LoyaltyManager) GetTopUsers(limit int) []uint64 {
 	return results
 }
 
+// CalculateOrderPoints 计算订单应得积分。
+func (m *LoyaltyManager) CalculateOrderPoints(ctx context.Context, userID uint64, orderAmount int64, items []struct {
+	Category string
+	Amount   int64
+}) (int64, error) {
+	account, err := m.repo.GetMemberAccount(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	level := domain.MemberLevelBronze
+	if account != nil {
+		level = account.Level
+	}
+
+	benefit, err := m.repo.GetMemberBenefitByLevel(ctx, level)
+	if err != nil {
+		m.logger.WarnContext(ctx, "failed to get member benefit, using default", "level", level)
+		benefit = &domain.MemberBenefit{PointsRate: 1.0}
+	}
+
+	var totalPoints float64
+	// 基础积分：每 100 分 (1元) 积 1 分
+	baseRate := 0.01
+
+	for _, item := range items {
+		itemPoints := float64(item.Amount) * baseRate * benefit.PointsRate
+
+		// 检查类目特定加倍
+		if benefit.Multipliers != nil {
+			if multiplier, ok := benefit.Multipliers[item.Category]; ok {
+				itemPoints *= multiplier
+			}
+		}
+		totalPoints += itemPoints
+	}
+
+	return int64(totalPoints), nil
+}
+
 func (m *LoyaltyManager) AddPoints(ctx context.Context, userID uint64, points int64, transactionType, description string, orderID uint64) error {
 	account, err := m.repo.GetMemberAccount(ctx, userID)
 	if err != nil {

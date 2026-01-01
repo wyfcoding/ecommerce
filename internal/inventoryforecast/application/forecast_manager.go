@@ -42,8 +42,19 @@ func (m *InventoryForecastManager) SmoothSalesData(history []float64) float64 {
 
 // GenerateForecast 生成销售预测。
 func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID uint64) (*domain.SalesForecast, error) {
-	// 1. 模拟获取历史销量数据
-	history := []float64{95, 105, 90, 110, 120, 85, 100, 115}
+	// 1. 获取历史销量数据
+	intHistory, err := m.repo.GetSalesHistory(ctx, skuID, 30)
+	if err != nil {
+		return nil, err
+	}
+	history := make([]float64, len(intHistory))
+	for i, v := range intHistory {
+		history[i] = float64(v)
+	}
+
+	if len(history) == 0 {
+		history = []float64{0} // Prevent panic
+	}
 
 	// 2. 初始化卡尔曼滤波器和 EWMA (用于计算增长趋势)
 	kf := algorithm.NewKalmanFilter(0.01, 0.1, history[0])
@@ -55,7 +66,7 @@ func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID u
 		lastLevel = currentLevel
 		currentLevel = kf.Update(val)
 
-		if i > 0 {
+		if i > 0 && lastLevel > 0 {
 			// 计算环比增长趋势并使用 EWMA 平滑
 			growth := (currentLevel - lastLevel) / lastLevel
 			ewmaTrend.Update(growth)
@@ -77,7 +88,6 @@ func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID u
 		// 预测值 = 当前水平 * (1 + 趋势)^天数
 		predictedQty := currentLevel * math.Pow(1+trendRate, float64(i))
 
-		// 修复：DailyForecastArray 是 []*DailyForecast，需要传指针
 		forecast.Predictions = append(forecast.Predictions, &domain.DailyForecast{
 			Date:       time.Now().AddDate(0, 0, i),
 			Quantity:   int32(predictedQty),
@@ -97,4 +107,49 @@ func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID u
 		"confidence", confidence)
 
 	return forecast, nil
+}
+
+// AnalyzeStockoutRisk 分析缺货风险。
+func (m *InventoryForecastManager) AnalyzeStockoutRisk(ctx context.Context, skuID uint64, currentStock int32) (*domain.StockoutRisk, error) {
+	// 获取或生成预测
+	forecast, err := m.repo.GetForecastBySKU(ctx, skuID)
+	if err != nil {
+		// 尝试生成
+		forecast, err = m.GenerateForecast(ctx, skuID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	avgDailySales := forecast.AverageDailySales
+	if avgDailySales <= 0 {
+		avgDailySales = 1 // 避免除以零
+	}
+
+	daysUntilStockout := currentStock / avgDailySales
+	
+	var riskLevel domain.StockoutRiskLevel
+	if daysUntilStockout <= 3 {
+		riskLevel = domain.StockoutRiskLevelCritical
+	} else if daysUntilStockout <= 7 {
+		riskLevel = domain.StockoutRiskLevelHigh
+	} else if daysUntilStockout <= 14 {
+		riskLevel = domain.StockoutRiskLevelMedium
+	} else {
+		riskLevel = domain.StockoutRiskLevelLow
+	}
+
+	risk := &domain.StockoutRisk{
+		SKUID:                 skuID,
+		CurrentStock:          currentStock,
+		DaysUntilStockout:     daysUntilStockout,
+		EstimatedStockoutDate: time.Now().AddDate(0, 0, int(daysUntilStockout)),
+		RiskLevel:             riskLevel,
+	}
+
+	if err := m.repo.SaveStockoutRisk(ctx, risk); err != nil {
+		return nil, err
+	}
+
+	return risk, nil
 }

@@ -12,8 +12,9 @@ type LoyaltyRepository interface {
 	SavePointsTransaction(ctx context.Context, transaction *PointsTransaction) error
 	ListPointsTransactions(ctx context.Context, userID uint64, offset, limit int) ([]*PointsTransaction, int64, error)
 
+	// 会员权益
 	SaveMemberBenefit(ctx context.Context, benefit *MemberBenefit) error
-	GetMemberBenefit(ctx context.Context, id uint64) (*MemberBenefit, error)
+	GetMemberBenefitByLevel(ctx context.Context, level MemberLevel) (*MemberBenefit, error)
 	ListMemberBenefits(ctx context.Context, level MemberLevel) ([]*MemberBenefit, error)
 	DeleteMemberBenefit(ctx context.Context, id uint64) error
 }

@@ -48,6 +48,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 			DetailedAddress string `json:"detailed_address" binding:"required"`
 			PostalCode      string `json:"postal_code"`
 		} `json:"shipping_address" binding:"required"`
+		CouponCode string `json:"coupon_code"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -78,7 +79,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		PostalCode:      req.ShippingAddress.PostalCode,
 	}
 
-	order, err := h.service.CreateOrder(c.Request.Context(), req.UserID, items, shippingAddr)
+	order, err := h.service.CreateOrder(c.Request.Context(), req.UserID, items, shippingAddr, req.CouponCode)
 	if err != nil {
 		h.logger.Error("Failed to create order", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create order: "+err.Error(), "")

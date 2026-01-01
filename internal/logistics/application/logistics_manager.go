@@ -33,15 +33,45 @@ type OrderInfo struct {
 	Lon float64
 }
 
-// AssignRidersToOrders 将骑手分配给订单 (最小总距离指派)
-func (m *LogisticsManager) AssignRidersToOrders(riders []RiderInfo, orders []OrderInfo) map[string]string {
-	if len(riders) == 0 || len(orders) == 0 {
-		return nil
+// AssignRidersToOrders 将骑手分配给订单 (最小总距离指派)，并更新数据库。
+func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []RiderInfo, logisticsIDs []uint64) (map[string]uint64, error) {
+	if len(riders) == 0 || len(logisticsIDs) == 0 {
+		return nil, nil
 	}
 
+	// 1. 获取物流单信息
+	var logisticsList []*domain.Logistics
+	var orders []OrderInfo
+	// 维护索引映射: orders index -> logisticsList index
+	var validIndices []int
+
+	for _, id := range logisticsIDs {
+		logistics, err := m.repo.GetByID(ctx, id)
+		if err != nil {
+			m.logger.WarnContext(ctx, "logistics not found for assignment", "id", id, "error", err)
+			continue
+		}
+		// 仅分配待揽收状态的订单
+		if logistics.Status != domain.LogisticsStatusPending && logistics.Status != domain.LogisticsStatusPickedUp {
+			continue 
+		}
+
+		logisticsList = append(logisticsList, logistics)
+		orders = append(orders, OrderInfo{
+			ID:  logistics.OrderNo, // Assuming OrderNo is unique enough for logic, but we use index mostly
+			Lat: logistics.SenderLat, // 骑手前往发件人位置
+			Lon: logistics.SenderLon,
+		})
+		validIndices = append(validIndices, len(logisticsList)-1)
+	}
+
+	if len(orders) == 0 {
+		return nil, nil
+	}
+
+	// 2. 构建二分图并求解 (KM算法)
 	nx := len(riders)
 	ny := len(orders)
-	// KM 算法通常要求左右节点数量相等。这里我们取最大值构建方阵。
 	size := nx
 	if ny > size {
 		size = ny
@@ -49,26 +79,38 @@ func (m *LogisticsManager) AssignRidersToOrders(riders []RiderInfo, orders []Ord
 
 	bg := algorithm.NewWeightedBipartiteGraph(size, size)
 
-	// 计算距离矩阵
 	for i, rider := range riders {
 		for j, order := range orders {
 			dist := m.calculateDistance(rider.Lat, rider.Lon, order.Lat, order.Lon)
-			// KM 求最大权匹配。为了求最小距离，我们传入负距离。
-			bg.SetWeight(i, j, -dist)
+			bg.SetWeight(i, j, -dist) // 负权重求最大匹配 = 最小距离
 		}
 	}
 
 	bg.Solve()
 	match := bg.GetMatch()
 
-	result := make(map[string]string)
+	// 3. 应用分配结果
+	result := make(map[string]uint64)
 	for rIdx, oIdx := range match {
 		if rIdx < len(riders) && oIdx < len(orders) {
-			result[riders[rIdx].ID] = orders[oIdx].ID
+			riderID := riders[rIdx].ID
+			// 找回对应的 Logistics 实体
+			// match oIdx corresponds to orders[oIdx] which corresponds to logisticsList[oIdx] (since we appended linearly)
+			logistics := logisticsList[oIdx]
+			
+			logistics.AssignRider(riderID)
+			logistics.Status = domain.LogisticsStatusPickedUp // 假设分配即揽收，或改为 PendingPickup
+			
+			if err := m.repo.Save(ctx, logistics); err != nil {
+				m.logger.ErrorContext(ctx, "failed to save assigned rider", "logistics_id", logistics.ID, "rider_id", riderID, "error", err)
+				continue
+			}
+			
+			result[riderID] = uint64(logistics.ID)
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 // calculateDistance 计算两点间的欧几里得距离 (简化版)

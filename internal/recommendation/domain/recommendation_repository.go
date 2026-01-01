@@ -39,4 +39,6 @@ type RecommendationRepository interface {
 	SaveUserBehavior(ctx context.Context, behavior *UserBehavior) error
 	// ListUserBehaviors 列出指定用户ID的用户行为实体，支持数量限制。
 	ListUserBehaviors(ctx context.Context, userID uint64, limit int) ([]*UserBehavior, error)
+	// GetRecentBehaviors 获取最近的全站用户行为（用于构建协同过滤矩阵）。
+	GetRecentBehaviors(ctx context.Context, limit int) ([]*UserBehavior, error)
 }

@@ -91,6 +91,17 @@ func (r *loyaltyRepository) ListMemberBenefits(ctx context.Context, level domain
 	return list, nil
 }
 
+func (r *loyaltyRepository) GetMemberBenefitByLevel(ctx context.Context, level domain.MemberLevel) (*domain.MemberBenefit, error) {
+	var benefit domain.MemberBenefit
+	if err := r.db.WithContext(ctx).Where("level = ? AND enabled = ?", level, true).First(&benefit).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &benefit, nil
+}
+
 // DeleteMemberBenefit 根据ID从数据库删除会员权益记录。
 func (r *loyaltyRepository) DeleteMemberBenefit(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&domain.MemberBenefit{}, id).Error

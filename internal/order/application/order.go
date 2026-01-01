@@ -30,8 +30,8 @@ func NewOrderService(
 // --- Delegate Methods ---
 
 // CreateOrder 创建订单。
-func (s *OrderService) CreateOrder(ctx context.Context, userID uint64, items []*domain.OrderItem, shippingAddr *domain.ShippingAddress) (*domain.Order, error) {
-	return s.Manager.CreateOrder(ctx, userID, items, shippingAddr)
+func (s *OrderService) CreateOrder(ctx context.Context, userID uint64, items []*domain.OrderItem, shippingAddr *domain.ShippingAddress, couponCode string) (*domain.Order, error) {
+	return s.Manager.CreateOrder(ctx, userID, items, shippingAddr, couponCode)
 }
 
 // PayOrder 支付订单。

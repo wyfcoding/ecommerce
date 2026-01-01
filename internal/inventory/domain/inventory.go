@@ -35,7 +35,7 @@ type Inventory struct {
 	TotalStock       int32           `gorm:"not null;default:0;comment:总库存" json:"total_stock"`      // 总库存数量（可用库存 + 锁定库存）。
 	Status           InventoryStatus `gorm:"default:1;comment:状态" json:"status"`                     // 库存状态，默认为正常。
 	WarningThreshold int32           `gorm:"default:10;comment:预警阈值" json:"warning_threshold"`       // 触发库存预警的阈值。
-	Logs             []*InventoryLog `gorm:"foreignKey:InventoryID" json:"logs"`                     // 关联的库存操作日志列表，一对多关系。
+	Version          int64           `gorm:"default:1;comment:乐观锁版本号" json:"version"`                // 乐观锁版本号
 }
 
 // InventoryLog 实体代表库存的一次操作日志。
@@ -73,6 +73,7 @@ func NewInventory(skuID, productID, warehouseID uint64, totalStock, warningThres
 		TotalStock:       totalStock,
 		Status:           status,
 		WarningThreshold: warningThreshold,
+		Version:          1,
 	}
 }
 
@@ -92,9 +93,10 @@ func (inv *Inventory) CanDeduct(quantity int32) error {
 // Deduct 扣减指定数量的库存。
 // quantity: 待扣减的数量。
 // reason: 扣减原因。
-func (inv *Inventory) Deduct(quantity int32, reason string) error {
+// 返回生成的日志对象，由调用者负责保存。
+func (inv *Inventory) Deduct(quantity int32, reason string) (*InventoryLog, error) {
 	if err := inv.CanDeduct(quantity); err != nil {
-		return err
+		return nil, err
 	}
 
 	oldAvailable := inv.AvailableStock
@@ -103,10 +105,8 @@ func (inv *Inventory) Deduct(quantity int32, reason string) error {
 	inv.TotalStock -= quantity
 
 	inv.updateStatus() // 更新库存状态。
-	// 记录库存日志。
-	inv.AddLog("Deduct", -quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason)
-
-	return nil
+	
+	return inv.createLog("Deduct", -quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
 }
 
 // CanLock 检查是否可以锁定指定数量的库存。
@@ -125,9 +125,9 @@ func (inv *Inventory) CanLock(quantity int32) error {
 // Lock 锁定指定数量的库存。
 // quantity: 待锁定的数量。
 // reason: 锁定原因。
-func (inv *Inventory) Lock(quantity int32, reason string) error {
+func (inv *Inventory) Lock(quantity int32, reason string) (*InventoryLog, error) {
 	if err := inv.CanLock(quantity); err != nil {
-		return err
+		return nil, err
 	}
 
 	oldAvailable := inv.AvailableStock
@@ -138,10 +138,8 @@ func (inv *Inventory) Lock(quantity int32, reason string) error {
 	inv.LockedStock += quantity
 
 	inv.updateStatus() // 更新库存状态。
-	// 记录库存日志。
-	inv.AddLog("Lock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason) // 数量变更设为0，表示只是状态转移。
-
-	return nil
+	
+	return inv.createLog("Lock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
 }
 
 // CanUnlock 检查是否可以解锁指定数量的库存。
@@ -160,9 +158,9 @@ func (inv *Inventory) CanUnlock(quantity int32) error {
 // Unlock 解锁指定数量的库存。
 // quantity: 待解锁的数量。
 // reason: 解锁原因。
-func (inv *Inventory) Unlock(quantity int32, reason string) error {
+func (inv *Inventory) Unlock(quantity int32, reason string) (*InventoryLog, error) {
 	if err := inv.CanUnlock(quantity); err != nil {
-		return err
+		return nil, err
 	}
 
 	oldAvailable := inv.AvailableStock
@@ -173,10 +171,8 @@ func (inv *Inventory) Unlock(quantity int32, reason string) error {
 	inv.LockedStock -= quantity
 
 	inv.updateStatus() // 更新库存状态。
-	// 记录库存日志。
-	inv.AddLog("Unlock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason) // 数量变更设为0，表示只是状态转移。
-
-	return nil
+	
+	return inv.createLog("Unlock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
 }
 
 // CanConfirmDeduction 检查是否可以确认扣减指定数量的库存（从锁定库存中扣减）。
@@ -195,9 +191,9 @@ func (inv *Inventory) CanConfirmDeduction(quantity int32) error {
 // ConfirmDeduction 确认扣减指定数量的库存（从锁定库存中扣减）。
 // quantity: 待确认扣减的数量。
 // reason: 确认扣减原因。
-func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) error {
+func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) (*InventoryLog, error) {
 	if err := inv.CanConfirmDeduction(quantity); err != nil {
-		return err
+		return nil, err
 	}
 
 	oldLocked := inv.LockedStock
@@ -207,10 +203,8 @@ func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) error {
 	inv.TotalStock -= quantity
 
 	inv.updateStatus() // 更新库存状态。
-	// 记录库存日志。
-	inv.AddLog("ConfirmDeduction", -quantity, inv.AvailableStock, inv.AvailableStock, oldLocked, inv.LockedStock, reason)
-
-	return nil
+	
+	return inv.createLog("ConfirmDeduction", -quantity, inv.AvailableStock, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
 }
 
 // CanAdd 检查是否可以增加指定数量的库存。
@@ -225,9 +219,9 @@ func (inv *Inventory) CanAdd(quantity int32) error {
 // Add 增加指定数量的库存。
 // quantity: 待增加的数量。
 // reason: 增加库存的原因。
-func (inv *Inventory) Add(quantity int32, reason string) error {
+func (inv *Inventory) Add(quantity int32, reason string) (*InventoryLog, error) {
 	if err := inv.CanAdd(quantity); err != nil {
-		return err
+		return nil, err
 	}
 
 	oldAvailable := inv.AvailableStock
@@ -236,10 +230,8 @@ func (inv *Inventory) Add(quantity int32, reason string) error {
 	inv.TotalStock += quantity
 
 	inv.updateStatus() // 更新库存状态。
-	// 记录库存日志。
-	inv.AddLog("Add", quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason)
-
-	return nil
+	
+	return inv.createLog("Add", quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
 }
 
 // updateStatus 根据当前可用库存和总库存更新库存状态。
@@ -253,14 +245,10 @@ func (inv *Inventory) updateStatus() {
 	}
 }
 
-// AddLog 添加一条库存操作日志到当前库存记录。
-// action: 操作类型。
-// changeQuantity: 本次操作导致的库存数量变化。
-// oldAvailable, newAvailable: 变更前后可用库存。
-// oldLocked, newLocked: 变更前后锁定库存。
-// reason: 操作原因。
-func (inv *Inventory) AddLog(action string, changeQuantity, oldAvailable, newAvailable, oldLocked, newLocked int32, reason string) {
-	log := &InventoryLog{
+// createLog 创建一条库存操作日志对象。
+func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, newAvailable, oldLocked, newLocked int32, reason string) *InventoryLog {
+	return &InventoryLog{
+		InventoryID:    uint64(inv.ID),
 		Action:         action,
 		ChangeQuantity: changeQuantity,
 		OldAvailable:   oldAvailable,
@@ -269,5 +257,4 @@ func (inv *Inventory) AddLog(action string, changeQuantity, oldAvailable, newAva
 		NewLocked:      newLocked,
 		Reason:         reason,
 	}
-	inv.Logs = append(inv.Logs, log) // 将日志添加到关联的Logs切片。
 }

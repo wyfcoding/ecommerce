@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	advancedcouponv1 "github.com/wyfcoding/ecommerce/goapi/advancedcoupon/v1"
 	warehousev1 "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 
@@ -65,7 +66,7 @@ func NewOrderManager(
 }
 
 // CreateOrder 创建订单。
-func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*domain.OrderItem, shippingAddr *domain.ShippingAddress) (*domain.Order, error) {
+func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*domain.OrderItem, shippingAddr *domain.ShippingAddress, couponCode string) (*domain.Order, error) {
 	// --- 架构增强：内联风控拦截 (Inline Risk Control) ---
 	var totalAmount int64
 	for _, it := range items {
@@ -78,11 +79,10 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		"item_count":   len(items),
 		"client_ip":    ctx.Value("client_ip"),
 		"device_id":    ctx.Value("device_id"),
-		"is_real_name": true, // 假设从 Context 或 Auth 获取
+		"is_real_name": true,
 	})
 
 	if err != nil {
-		// Fail-Open 策略：风控引擎故障时默认放行，保证业务连续性
 		s.logger.ErrorContext(ctx, "risk assessment failed, fail-open applied", "error", err)
 	} else {
 		switch riskAssessment.Level {
@@ -93,28 +93,22 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		case risk.Review:
 			s.logger.InfoContext(ctx, "order needs risk review",
 				"user_id", userID, "code", riskAssessment.Code)
-			// 此处可以抛出特定错误让前端触发 MFA (多因素认证)
 		}
 	}
-	// --- 内联风控结束 ---
 
 	orderID := s.idGen.Generate()
 	orderNo := fmt.Sprintf("%s%d", time.Now().Format("20060102"), orderID)
 
 	order := domain.NewOrder(orderNo, userID, items, shippingAddr)
-	order.Status = domain.PendingPayment
+	order.Status = domain.Allocating // 切换到“分配中”状态，表示正在执行分布式事务
 
-	// 顶级架构实践：利用本地事务确保业务数据与 Outbox 消息的强一致性
-	s.logger.InfoContext(ctx, "starting local transaction for order creation", "order_no", orderNo)
+	// 1. 本地事务：保存订单并写入 Outbox
 	err = s.repo.Transaction(ctx, userID, func(tx any) error {
-		// 1. 使用事务中的仓储
 		txRepo := s.repo.WithTx(tx)
 		if err := txRepo.Save(ctx, order); err != nil {
-			s.logger.ErrorContext(ctx, "failed to save order in transaction", "error", err)
 			return err
 		}
 
-		// 2. 在同一事务中写入 Outbox 消息
 		event := map[string]any{
 			"order_id": order.ID,
 			"order_no": order.OrderNo,
@@ -124,51 +118,57 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		}
 
 		gormTx := tx.(*gorm.DB)
-		if err := s.outboxMgr.PublishInTx(gormTx, "order.created", orderNo, event); err != nil {
-			s.logger.ErrorContext(ctx, "failed to publish order created event to outbox", "error", err)
-			return err
-		}
-
-		return nil
+		return s.outboxMgr.PublishInTx(gormTx, "order.created", orderNo, event)
 	})
 	if err != nil {
-		s.logger.ErrorContext(ctx, "local transaction failed for order creation", "order_no", orderNo, "error", err)
 		return nil, err
 	}
-	s.logger.InfoContext(ctx, "local transaction committed successfully", "order_no", orderNo)
 
 	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
 
-	// --- 启动 DTM Saga 分布式事务 ---
-	s.logger.InfoContext(ctx, "submitting saga transaction to DTM", "gid", orderNo, "dtm_server", s.dtmServer)
-	gid := orderNo
-	saga := dtmgrpc.NewSagaGrpc(s.dtmServer, gid).
-		Add(
-			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/DeductStock", // 调用库存服务的扣减接口
-			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/RevertStock", // 注册补偿接口
+	// --- 2. 启动 DTM Saga 分布式事务 ---
+	s.logger.InfoContext(ctx, "submitting saga transaction to DTM", "gid", orderNo)
+	saga := dtmgrpc.NewSagaGrpc(s.dtmServer, orderNo)
+
+	// 2.1 为每个商品添加库存扣减步骤
+	for _, item := range items {
+		saga.Add(
+			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/DeductStock",
+			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/RevertStock",
 			&warehousev1.DeductStockRequest{
 				OrderId:     uint64(order.ID),
-				SkuId:       items[0].SkuID,
-				Quantity:    items[0].Quantity,
-				WarehouseId: 1,
+				SkuId:       item.SkuID,
+				Quantity:    item.Quantity,
+				WarehouseId: 1, // 实际场景应由库存分配算法决定
 			},
 		)
-
-	// 提交 Saga 事务给 DTM 服务器。
-	if err := saga.Submit(); err != nil {
-		s.logger.ErrorContext(ctx, "failed to submit saga to DTM", "gid", gid, "error", err)
-		// 如果 Saga 提交失败，本地订单需要标记为取消。
-		if cancelErr := order.Cancel("System", "Saga Submit Failed"); cancelErr != nil {
-			s.logger.ErrorContext(ctx, "failed to cancel order after saga submit failure", "gid", gid, "error", cancelErr)
-		}
-		if saveErr := s.repo.Save(ctx, order); saveErr != nil {
-			s.logger.ErrorContext(ctx, "failed to save cancelled order state", "gid", gid, "error", saveErr)
-		}
-		return nil, fmt.Errorf("failed to submit distributed transaction: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "saga transaction submitted successfully", "gid", gid)
-	s.logger.InfoContext(ctx, "order created successfully", "order_id", order.ID, "order_no", order.OrderNo)
+	// 2.2 如果使用了优惠券，添加核销步骤 (假设 AdvancedCoupon 服务的 gRPC 地址)
+	if couponCode != "" {
+		// 注意：此处需要 AdvancedCoupon 的 gRPC 地址，这里假设一个或通过配置注入
+		couponSvcAddr := "advancedcoupon:50051" // 示例
+		saga.Add(
+			couponSvcAddr+"/api.advancedcoupon.v1.AdvancedCouponService/UseCoupon",
+			"", // 假设 UseCoupon 是幂等的或不需要显式补偿（或者由内部逻辑处理）
+			&advancedcouponv1.UseCouponRequest{
+				UserId:  userID,
+				Code:    couponCode,
+				OrderId: uint64(order.ID),
+			},
+		)
+	}
+
+	// 提交 Saga
+	if err := saga.Submit(); err != nil {
+		s.logger.ErrorContext(ctx, "failed to submit saga to DTM", "gid", orderNo, "error", err)
+		// 容错处理：本地标记为取消
+		order.Status = domain.Cancelled
+		_ = s.repo.Save(ctx, order)
+		return nil, fmt.Errorf("distributed transaction failed: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "order created and saga submitted", "order_no", orderNo)
 	return order, nil
 }
 

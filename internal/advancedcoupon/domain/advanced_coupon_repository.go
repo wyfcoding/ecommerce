@@ -11,6 +11,7 @@ type AdvancedCouponRepository interface {
 	GetByID(ctx context.Context, id uint64) (*Coupon, error)
 	GetByCode(ctx context.Context, code string) (*Coupon, error)
 	List(ctx context.Context, status CouponStatus, offset, limit int) ([]*Coupon, int64, error)
+	IncrementUsage(ctx context.Context, couponID uint64) error
 
 	// 使用记录
 	SaveUsage(ctx context.Context, usage *CouponUsage) error
@@ -19,4 +20,7 @@ type AdvancedCouponRepository interface {
 	// 统计
 	SaveStatistics(ctx context.Context, stats *CouponStatistics) error
 	GetStatistics(ctx context.Context, couponID uint64) (*CouponStatistics, error)
+
+	// 事务
+	Transaction(ctx context.Context, fn func(ctx context.Context) error) error
 }
