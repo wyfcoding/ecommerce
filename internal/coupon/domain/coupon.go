@@ -49,6 +49,8 @@ type Coupon struct {
 	ConditionExpr   string       `gorm:"type:text;comment:判定表达式" json:"condition_expr"`                        // 判定表达式，用于规则引擎判定。
 	ApplicableScope string       `gorm:"type:varchar(255);comment:适用范围" json:"applicable_scope"`               // 优惠券适用范围，例如“全场通用”、“指定商品”。
 	ApplicableIDs   []uint64     `gorm:"type:json;serializer:json;comment:适用ID列表" json:"applicable_ids"`       // 适用商品ID或品类ID列表（JSON存储）。
+	CanStack        bool         `gorm:"default:false;comment:是否可叠加" json:"can_stack"`                         // 是否允许与其他优惠券叠加使用。
+	StackingRules   string       `gorm:"type:text;comment:叠加规则(JSON)" json:"stacking_rules"`                   // 详细的叠加规则，如“仅限同类券叠加”。
 }
 
 // UserCoupon 实体代表用户拥有的优惠券。

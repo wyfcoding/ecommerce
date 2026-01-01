@@ -202,10 +202,7 @@ func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input stri
 
 	// 执行预测
 	inputTokens := strings.Fields(strings.ToLower(input))
-	output := nb.Predict(inputTokens)
-
-	// NaiveBayes 实现暂未返回置信度，这里模拟一个
-	confidence := 0.88
+	output, confidence := nb.PredictWithConfidence(inputTokens)
 
 	prediction := &domain.ModelPrediction{
 		ModelID:        modelID,

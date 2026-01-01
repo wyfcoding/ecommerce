@@ -198,7 +198,7 @@ func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, o
 			DiscountRate:    discountRate,
 			ReductionAmount: reductionAmount,
 			MaxDiscount:     template.MaxDiscount,
-			CanStack:        false, // 简化：默认不可叠加，或者需要从 template 获取 stackable 字段
+			CanStack:        template.CanStack,
 			Priority:        1,
 		})
 	}
