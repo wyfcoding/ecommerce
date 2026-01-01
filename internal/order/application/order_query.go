@@ -19,8 +19,8 @@ func NewOrderQuery(repo domain.OrderRepository) *OrderQuery {
 }
 
 // GetOrder 获取指定ID的订单详情。
-func (s *OrderQuery) GetOrder(ctx context.Context, id uint64) (*domain.Order, error) {
-	return s.repo.FindByID(ctx, uint(id))
+func (s *OrderQuery) GetOrder(ctx context.Context, userID, id uint64) (*domain.Order, error) {
+	return s.repo.FindByID(ctx, userID, uint(id))
 }
 
 // ListOrders 获取订单列表。

@@ -46,42 +46,59 @@ func (s *RefundService) RequestRefund(ctx context.Context, paymentID uint64, amo
 		return nil, fmt.Errorf("gateway not found: %s", payment.GatewayType)
 	}
 
-	err = gateway.Refund(ctx, payment.TransactionID, amount)
+	if err := gateway.Refund(ctx, payment.TransactionID, amount); err != nil {
+		return nil, err
+	}
+
+	var refund *domain.Refund
+	// 2. 事务处理
+	err = s.paymentRepo.Transaction(ctx, func(tx any) error {
+		txPaymentRepo := s.paymentRepo.WithTx(tx)
+		txRefundRepo := s.refundRepo.WithTx(tx)
+
+		// 重新加载支付单状态
+		p, err := txPaymentRepo.FindByID(ctx, paymentID)
+		if err != nil {
+			return err
+		}
+
+		// 状态机处理 (退款申请)
+		if err := p.Trigger(ctx, "REFUND_REQ", reason); err != nil {
+			return err
+		}
+
+		// 创建退款单
+		refund = &domain.Refund{
+			RefundNo:     fmt.Sprintf("REF%d", s.idGenerator.Generate()),
+			PaymentID:    uint64(p.ID),
+			PaymentNo:    p.PaymentNo,
+			OrderID:      p.OrderID,
+			OrderNo:      p.OrderNo,
+			UserID:       p.UserID,
+			RefundAmount: amount,
+			Reason:       reason,
+			Status:       p.Status,
+		}
+
+		// 状态机处理 (退款完成)
+		if err := p.Trigger(ctx, "REFUND_FINISH", "Refund completed"); err != nil {
+			return err
+		}
+
+		refund.Status = p.Status
+		now := time.Now()
+		refund.RefundedAt = &now
+
+		// 保存支付单和退款单
+		if err := txPaymentRepo.Update(ctx, p); err != nil {
+			return err
+		}
+		return txRefundRepo.Save(ctx, refund)
+	})
+
 	if err != nil {
 		return nil, err
 	}
-
-	// 2. 状态机处理 (退款申请)
-	if err := payment.Trigger(ctx, "REFUND_REQ", reason); err != nil {
-		return nil, err
-	}
-
-	// 3. 创建退款单
-	refund := &domain.Refund{
-		RefundNo:     fmt.Sprintf("REF%d", s.idGenerator.Generate()),
-		PaymentID:    uint64(payment.ID),
-		PaymentNo:    payment.PaymentNo,
-		OrderID:      payment.OrderID,
-		OrderNo:      payment.OrderNo,
-		UserID:       payment.UserID,
-		RefundAmount: amount,
-		Reason:       reason,
-		Status:       payment.Status,
-	}
-
-	// 4. 退款完成 (这里简化为同步完成)
-	if err := payment.Trigger(ctx, "REFUND_FINISH", "Refund completed"); err != nil {
-		return nil, err
-	}
-	refund.Status = payment.Status
-	now := time.Now()
-	refund.RefundedAt = &now
-
-	// 5. 保存
-	if err := s.paymentRepo.Update(ctx, payment); err != nil {
-		return nil, err
-	}
-	// TODO: s.refundRepo.Save(ctx, refund)
 
 	return refund, nil
 }

@@ -215,8 +215,8 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 }
 
 // PayOrder 支付订单。
-func (s *OrderManager) PayOrder(ctx context.Context, id uint64, paymentMethod string) error {
-	order, err := s.repo.FindByID(ctx, uint(id))
+func (s *OrderManager) PayOrder(ctx context.Context, userID, id uint64, paymentMethod string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(id))
 	if err != nil {
 		return err
 	}
@@ -232,8 +232,8 @@ func (s *OrderManager) PayOrder(ctx context.Context, id uint64, paymentMethod st
 }
 
 // ShipOrder 发货订单。
-func (s *OrderManager) ShipOrder(ctx context.Context, id uint64, operator string) error {
-	order, err := s.repo.FindByID(ctx, uint(id))
+func (s *OrderManager) ShipOrder(ctx context.Context, userID, id uint64, operator string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(id))
 	if err != nil {
 		return err
 	}
@@ -249,8 +249,8 @@ func (s *OrderManager) ShipOrder(ctx context.Context, id uint64, operator string
 }
 
 // DeliverOrder 送达订单。
-func (s *OrderManager) DeliverOrder(ctx context.Context, id uint64, operator string) error {
-	order, err := s.repo.FindByID(ctx, uint(id))
+func (s *OrderManager) DeliverOrder(ctx context.Context, userID, id uint64, operator string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(id))
 	if err != nil {
 		return err
 	}
@@ -266,8 +266,8 @@ func (s *OrderManager) DeliverOrder(ctx context.Context, id uint64, operator str
 }
 
 // CompleteOrder 完成订单。
-func (s *OrderManager) CompleteOrder(ctx context.Context, id uint64, operator string) error {
-	order, err := s.repo.FindByID(ctx, uint(id))
+func (s *OrderManager) CompleteOrder(ctx context.Context, userID, id uint64, operator string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(id))
 	if err != nil {
 		return err
 	}
@@ -283,8 +283,8 @@ func (s *OrderManager) CompleteOrder(ctx context.Context, id uint64, operator st
 }
 
 // CancelOrder 取消订单。
-func (s *OrderManager) CancelOrder(ctx context.Context, id uint64, operator, reason string) error {
-	order, err := s.repo.FindByID(ctx, uint(id))
+func (s *OrderManager) CancelOrder(ctx context.Context, userID, id uint64, operator, reason string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(id))
 	if err != nil {
 		return err
 	}
@@ -300,8 +300,8 @@ func (s *OrderManager) CancelOrder(ctx context.Context, id uint64, operator, rea
 }
 
 // HandleInventoryReserved 处理库存已预留事件。
-func (s *OrderManager) HandleInventoryReserved(ctx context.Context, orderID uint64) error {
-	order, err := s.repo.FindByID(ctx, uint(orderID))
+func (s *OrderManager) HandleInventoryReserved(ctx context.Context, userID, orderID uint64) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
 	if err != nil {
 		return err
 	}
@@ -316,8 +316,8 @@ func (s *OrderManager) HandleInventoryReserved(ctx context.Context, orderID uint
 }
 
 // HandleInventoryReservationFailed 处理库存预留失败事件。
-func (s *OrderManager) HandleInventoryReservationFailed(ctx context.Context, orderID uint64, reason string) error {
-	order, err := s.repo.FindByID(ctx, uint(orderID))
+func (s *OrderManager) HandleInventoryReservationFailed(ctx context.Context, userID, orderID uint64, reason string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
 	if err != nil {
 		return err
 	}
@@ -329,8 +329,8 @@ func (s *OrderManager) HandleInventoryReservationFailed(ctx context.Context, ord
 }
 
 // HandlePaymentProcessed 处理支付已完成事件。
-func (s *OrderManager) HandlePaymentProcessed(ctx context.Context, orderID uint64) error {
-	order, err := s.repo.FindByID(ctx, uint(orderID))
+func (s *OrderManager) HandlePaymentProcessed(ctx context.Context, userID, orderID uint64) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
 	if err != nil {
 		return err
 	}
@@ -342,8 +342,8 @@ func (s *OrderManager) HandlePaymentProcessed(ctx context.Context, orderID uint6
 }
 
 // HandlePaymentFailed 处理支付失败事件。
-func (s *OrderManager) HandlePaymentFailed(ctx context.Context, orderID uint64, reason string) error {
-	order, err := s.repo.FindByID(ctx, uint(orderID))
+func (s *OrderManager) HandlePaymentFailed(ctx context.Context, userID, orderID uint64, reason string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
 	if err != nil {
 		return err
 	}

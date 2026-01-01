@@ -35,53 +35,53 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uint64, items []*
 }
 
 // PayOrder 支付订单。
-func (s *OrderService) PayOrder(ctx context.Context, id uint64, paymentMethod string) error {
-	return s.Manager.PayOrder(ctx, id, paymentMethod)
+func (s *OrderService) PayOrder(ctx context.Context, userID, id uint64, paymentMethod string) error {
+	return s.Manager.PayOrder(ctx, userID, id, paymentMethod)
 }
 
 // ShipOrder 发货订单。
-func (s *OrderService) ShipOrder(ctx context.Context, id uint64, operator string) error {
-	return s.Manager.ShipOrder(ctx, id, operator)
+func (s *OrderService) ShipOrder(ctx context.Context, userID, id uint64, operator string) error {
+	return s.Manager.ShipOrder(ctx, userID, id, operator)
 }
 
 // DeliverOrder 确认收货。
-func (s *OrderService) DeliverOrder(ctx context.Context, id uint64, operator string) error {
-	return s.Manager.DeliverOrder(ctx, id, operator)
+func (s *OrderService) DeliverOrder(ctx context.Context, userID, id uint64, operator string) error {
+	return s.Manager.DeliverOrder(ctx, userID, id, operator)
 }
 
 // CompleteOrder 完成订单。
-func (s *OrderService) CompleteOrder(ctx context.Context, id uint64, operator string) error {
-	return s.Manager.CompleteOrder(ctx, id, operator)
+func (s *OrderService) CompleteOrder(ctx context.Context, userID, id uint64, operator string) error {
+	return s.Manager.CompleteOrder(ctx, userID, id, operator)
 }
 
 // CancelOrder 取消订单。
-func (s *OrderService) CancelOrder(ctx context.Context, id uint64, operator, reason string) error {
-	return s.Manager.CancelOrder(ctx, id, operator, reason)
+func (s *OrderService) CancelOrder(ctx context.Context, userID, id uint64, operator, reason string) error {
+	return s.Manager.CancelOrder(ctx, userID, id, operator, reason)
 }
 
 // HandleInventoryReserved 处理库存预留成功事件。
-func (s *OrderService) HandleInventoryReserved(ctx context.Context, orderID uint64) error {
-	return s.Manager.HandleInventoryReserved(ctx, orderID)
+func (s *OrderService) HandleInventoryReserved(ctx context.Context, userID, orderID uint64) error {
+	return s.Manager.HandleInventoryReserved(ctx, userID, orderID)
 }
 
 // HandleInventoryReservationFailed 处理库存预留失败事件。
-func (s *OrderService) HandleInventoryReservationFailed(ctx context.Context, orderID uint64, reason string) error {
-	return s.Manager.HandleInventoryReservationFailed(ctx, orderID, reason)
+func (s *OrderService) HandleInventoryReservationFailed(ctx context.Context, userID, orderID uint64, reason string) error {
+	return s.Manager.HandleInventoryReservationFailed(ctx, userID, orderID, reason)
 }
 
 // HandlePaymentProcessed 处理支付成功事件。
-func (s *OrderService) HandlePaymentProcessed(ctx context.Context, orderID uint64) error {
-	return s.Manager.HandlePaymentProcessed(ctx, orderID)
+func (s *OrderService) HandlePaymentProcessed(ctx context.Context, userID, orderID uint64) error {
+	return s.Manager.HandlePaymentProcessed(ctx, userID, orderID)
 }
 
 // HandlePaymentFailed 处理支付失败事件。
-func (s *OrderService) HandlePaymentFailed(ctx context.Context, orderID uint64, reason string) error {
-	return s.Manager.HandlePaymentFailed(ctx, orderID, reason)
+func (s *OrderService) HandlePaymentFailed(ctx context.Context, userID, orderID uint64, reason string) error {
+	return s.Manager.HandlePaymentFailed(ctx, userID, orderID, reason)
 }
 
 // GetOrder 获取订单详情。
-func (s *OrderService) GetOrder(ctx context.Context, id uint64) (*domain.Order, error) {
-	return s.Query.GetOrder(ctx, id)
+func (s *OrderService) GetOrder(ctx context.Context, userID, id uint64) (*domain.Order, error) {
+	return s.Query.GetOrder(ctx, userID, id)
 }
 
 // ListOrders 获取订单列表。

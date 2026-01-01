@@ -97,9 +97,12 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := h.service.GetOrder(c.Request.Context(), id)
+	// 尝试从 query 获取 user_id 用于分片定位
+	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
+
+	order, err := h.service.GetOrder(c.Request.Context(), userID, id)
 	if err != nil {
-		h.logger.Error("Failed to get order", "id", id, "error", err)
+		h.logger.Error("Failed to get order", "id", id, "user_id", userID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
 	}
@@ -120,6 +123,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	var req struct {
+		UserID        uint64 `json:"user_id" binding:"required"`
 		Action        string `json:"action" binding:"required,oneof=pay ship deliver complete cancel"`
 		PaymentMethod string `json:"payment_method"`
 		Reason        string `json:"reason"`
@@ -145,19 +149,19 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 	switch req.Action {
 	case "pay":
-		opErr = h.service.PayOrder(ctx, id, req.PaymentMethod)
+		opErr = h.service.PayOrder(ctx, req.UserID, id, req.PaymentMethod)
 	case "ship":
-		opErr = h.service.ShipOrder(ctx, id, operator)
+		opErr = h.service.ShipOrder(ctx, req.UserID, id, operator)
 	case "deliver":
-		opErr = h.service.DeliverOrder(ctx, id, operator)
+		opErr = h.service.DeliverOrder(ctx, req.UserID, id, operator)
 	case "complete":
-		opErr = h.service.CompleteOrder(ctx, id, operator)
+		opErr = h.service.CompleteOrder(ctx, req.UserID, id, operator)
 	case "cancel":
-		opErr = h.service.CancelOrder(ctx, id, operator, req.Reason)
+		opErr = h.service.CancelOrder(ctx, req.UserID, id, operator, req.Reason)
 	}
 
 	if opErr != nil {
-		h.logger.Error("Failed to update order status", "id", id, "action", req.Action, "error", opErr)
+		h.logger.Error("Failed to update order status", "id", id, "user_id", req.UserID, "action", req.Action, "error", opErr)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, opErr.Error(), "")
 		return
 	}

@@ -83,10 +83,8 @@ func (r *orderRepository) Transaction(ctx context.Context, userID uint64, fn fun
 }
 
 // FindByID 根据ID从数据库中查询订单。
-// 注意：当前实现暂不支持跨分片的主键查询优化。
-func (r *orderRepository) FindByID(ctx context.Context, id uint) (*domain.Order, error) {
-	// TODO: 支持按 ID 或用户 ID 提示进行分片
-	db := r.sharding.GetDB(0)
+func (r *orderRepository) FindByID(ctx context.Context, userID uint64, id uint) (*domain.Order, error) {
+	db := r.sharding.GetDB(userID)
 	var order domain.Order
 	if err := db.WithContext(ctx).Preload("Items").Preload("Logs").First(&order, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -98,9 +96,8 @@ func (r *orderRepository) FindByID(ctx context.Context, id uint) (*domain.Order,
 }
 
 // FindByOrderNo 根据订单编号查询订单。
-// 注意：由于订单编号未包含分片信息，当前仅默认查询分片0。
-func (r *orderRepository) FindByOrderNo(ctx context.Context, orderNo string) (*domain.Order, error) {
-	db := r.sharding.GetDB(0)
+func (r *orderRepository) FindByOrderNo(ctx context.Context, userID uint64, orderNo string) (*domain.Order, error) {
+	db := r.sharding.GetDB(userID)
 	var order domain.Order
 	if err := db.WithContext(ctx).Preload("Items").Preload("Logs").Where("order_no = ?", orderNo).First(&order).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -118,31 +115,40 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 }
 
 // Delete 根据ID物理删除订单记录。
-func (r *orderRepository) Delete(ctx context.Context, id uint) error {
-	db := r.sharding.GetDB(0) // TODO: 支持分片删除
+func (r *orderRepository) Delete(ctx context.Context, userID uint64, id uint) error {
+	db := r.sharding.GetDB(userID)
 	return db.WithContext(ctx).Delete(&domain.Order{}, id).Error
 }
 
 // List 分页列出所有订单记录。
-// 当前实现仅扫描分片0，在大规模分片环境下需要优化。
 func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
-	// 扫描所有分片？还是仅扫描分片 0？
-	// 目前，在分片中列出没有 UserID 的所有订单开销很大。
-	// 我们默认为分片 0，或者可能需要遍历所有分片（此处为简单起见未实现）。
-	db := r.sharding.GetDB(0).WithContext(ctx).Model(&domain.Order{})
+	dbs := r.sharding.GetAllDBs()
+	var allOrders []*domain.Order
+	var totalCount int64
 
-	var list []*domain.Order
-	var total int64
+	// 分布式全表扫描 (简单实现，未处理排序和跨页全局优化)
+	for _, db := range dbs {
+		var list []*domain.Order
+		var count int64
+		query := db.WithContext(ctx).Model(&domain.Order{})
+		if err := query.Count(&count).Error; err != nil {
+			return nil, 0, err
+		}
+		totalCount += count
 
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
+		// 简单起见，从每个分片取 offset, limit，实际全局分页逻辑更复杂
+		if err := query.Preload("Items").Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+			return nil, 0, err
+		}
+		allOrders = append(allOrders, list...)
 	}
 
-	if err := db.Preload("Items").Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
-		return nil, 0, err
+	// 如果聚合后的数据超过 limit，进行简单截断
+	if len(allOrders) > limit {
+		allOrders = allOrders[:limit]
 	}
 
-	return list, total, nil
+	return allOrders, totalCount, nil
 }
 
 // ListByUserID 获取指定用户的订单列表（支持分片定位）。

@@ -15,10 +15,10 @@ type OrderRepository interface {
 	Save(ctx context.Context, order *Order) error
 	WithTx(tx any) OrderRepository
 	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
-	FindByID(ctx context.Context, id uint) (*Order, error)
-	FindByOrderNo(ctx context.Context, orderNo string) (*Order, error)
+	FindByID(ctx context.Context, userID uint64, id uint) (*Order, error)
+	FindByOrderNo(ctx context.Context, userID uint64, orderNo string) (*Order, error)
 	Update(ctx context.Context, order *Order) error
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, userID uint64, id uint) error
 	List(ctx context.Context, offset, limit int) ([]*Order, int64, error)
 	ListByUserID(ctx context.Context, userID uint, offset, limit int) ([]*Order, int64, error)
 }
