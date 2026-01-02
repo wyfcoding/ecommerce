@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/analytics/v1"          // 导入分析模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/analytics/application" // 导入分析模块的应用服务。
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"                   // gRPC状态码。
 	"google.golang.org/grpc/status"                  // gRPC状态处理。
 	"google.golang.org/protobuf/types/known/emptypb" // 导入空消息类型。
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Server 结构体实现了 Analytics 的 gRPC 服务端接口。
@@ -115,26 +117,76 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 
 // GetUserActivityReport 获取用户活动报告。
 func (s *Server) GetUserActivityReport(ctx context.Context, req *pb.GetUserActivityReportRequest) (*pb.UserActivityReportResponse, error) {
-	// 调用应用服务层获取报告数据
-	// 这里简化处理，直接返回空响应或模拟数据
+	data, err := s.app.GetUserActivityReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get activity report: %v", err))
+	}
+
+	totalCount := int32(0)
+	if val, ok := data["active_users"].(int); ok {
+		totalCount = int32(val)
+	}
+
 	return &pb.UserActivityReportResponse{
-		Activities: []*pb.UserActivity{},
-		TotalCount: 0,
+		TotalCount: totalCount,
 	}, nil
 }
 
 // GetProductPerformanceReport 获取产品性能报告。
 func (s *Server) GetProductPerformanceReport(ctx context.Context, req *pb.GetProductPerformanceReportRequest) (*pb.ProductPerformanceReportResponse, error) {
+	data, err := s.app.GetProductPerformanceReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get product performance report: %v", err))
+	}
+
+	// 映射结果
+	var pbPerformances []*pb.ProductPerformance
+
+	type productStat struct {
+		Product string  `json:"product"`
+		Sales   float64 `json:"sales"`
+	}
+
+	if products, ok := data["top_products"].([]productStat); ok {
+		for _, p := range products {
+			productID, _ := strconv.ParseUint(p.Product, 10, 64)
+			pbPerformances = append(pbPerformances, &pb.ProductPerformance{
+				ProductId:        productID,
+				TotalSalesAmount: p.Sales,
+			})
+		}
+	}
+
 	return &pb.ProductPerformanceReportResponse{
-		ProductPerformances: []*pb.ProductPerformance{},
-		TotalCount:          0,
+		ProductPerformances: pbPerformances,
+		TotalCount:          int32(len(pbPerformances)),
 	}, nil
 }
 
 // GetConversionFunnelReport 获取转化漏斗报告。
 func (s *Server) GetConversionFunnelReport(ctx context.Context, req *pb.GetConversionFunnelReportRequest) (*pb.ConversionFunnelReportResponse, error) {
+	data, err := s.app.GetConversionFunnelReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get conversion funnel report: %v", err))
+	}
+
+	var pbSteps []*pb.FunnelStepData
+	if steps, ok := data["funnel"].([]map[string]any); ok {
+		for _, step := range steps {
+			rateStr := step["conversion_rate"].(string)
+			// 去掉百分号并转为 float
+			rate, _ := strconv.ParseFloat(strings.TrimSuffix(rateStr, "%"), 64)
+
+			pbSteps = append(pbSteps, &pb.FunnelStepData{
+				StepName:       step["step"].(string),
+				Count:          uint64(step["count"].(float64)),
+				ConversionRate: rate,
+			})
+		}
+	}
+
 	return &pb.ConversionFunnelReportResponse{
-		FunnelData: []*pb.FunnelStepData{},
+		FunnelData: pbSteps,
 	}, nil
 }
 
@@ -189,9 +241,8 @@ func (s *Server) GetUnifiedWealthDashboard(ctx context.Context, req *pb.GetUnifi
 	return resp, nil
 }
 
-// --- 仪表盘与报表管理（Proto 中未实现）---
+// --- 仪表盘与报表管理 ---
 
-/*
 // CreateDashboard 创建仪表板。
 func (s *Server) CreateDashboard(ctx context.Context, req *pb.CreateDashboardRequest) (*pb.DashboardResponse, error) {
 	dashboard, err := s.app.CreateDashboard(ctx, req.Name, req.Description, req.UserId)
@@ -204,6 +255,7 @@ func (s *Server) CreateDashboard(ctx context.Context, req *pb.CreateDashboardReq
 			Name:        dashboard.Name,
 			Description: dashboard.Description,
 			UserId:      dashboard.UserID,
+			CreatedAt:   timestamppb.New(dashboard.CreatedAt),
 		},
 	}, nil
 }
@@ -223,6 +275,7 @@ func (s *Server) GetDashboard(ctx context.Context, req *pb.GetDashboardRequest) 
 			Name:        dashboard.Name,
 			Description: dashboard.Description,
 			UserId:      dashboard.UserID,
+			CreatedAt:   timestamppb.New(dashboard.CreatedAt),
 		},
 	}, nil
 }
@@ -239,6 +292,7 @@ func (s *Server) UpdateDashboard(ctx context.Context, req *pb.UpdateDashboardReq
 			Name:        dashboard.Name,
 			Description: dashboard.Description,
 			UserId:      dashboard.UserID,
+			CreatedAt:   timestamppb.New(dashboard.CreatedAt),
 		},
 	}, nil
 }
@@ -274,6 +328,7 @@ func (s *Server) ListDashboards(ctx context.Context, req *pb.ListDashboardsReque
 			Name:        d.Name,
 			Description: d.Description,
 			UserId:      d.UserID,
+			CreatedAt:   timestamppb.New(d.CreatedAt),
 		}
 	}
 
@@ -296,6 +351,7 @@ func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) 
 			Description: report.Description,
 			UserId:      report.UserID,
 			ReportType:  report.ReportType,
+			CreatedAt:   timestamppb.New(report.CreatedAt),
 		},
 	}, nil
 }
@@ -316,6 +372,7 @@ func (s *Server) GetReport(ctx context.Context, req *pb.GetReportRequest) (*pb.R
 			Description: report.Description,
 			UserId:      report.UserID,
 			ReportType:  report.ReportType,
+			CreatedAt:   timestamppb.New(report.CreatedAt),
 		},
 	}, nil
 }
@@ -333,6 +390,7 @@ func (s *Server) UpdateReport(ctx context.Context, req *pb.UpdateReportRequest) 
 			Description: report.Description,
 			UserId:      report.UserID,
 			ReportType:  report.ReportType,
+			CreatedAt:   timestamppb.New(report.CreatedAt),
 		},
 	}, nil
 }
@@ -369,6 +427,7 @@ func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*
 			Description: r.Description,
 			UserId:      r.UserID,
 			ReportType:  r.ReportType,
+			CreatedAt:   timestamppb.New(r.CreatedAt),
 		}
 	}
 
@@ -377,4 +436,3 @@ func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*
 		TotalCount: int32(total),
 	}, nil
 }
-*/
