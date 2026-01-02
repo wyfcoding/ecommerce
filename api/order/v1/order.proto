@@ -161,6 +161,10 @@ message ShippingAddress {
   string detailed_address = 6;
   // 邮编。
   string postal_code = 7;
+  // 纬度。
+  double lat = 8;
+  // 经度。
+  double lon = 9;
 }
 
 // 状态流转日志。

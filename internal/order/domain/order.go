@@ -81,13 +81,15 @@ type OrderItem struct {
 
 // ShippingAddress 值对象定义了订单的收货地址信息。
 type ShippingAddress struct {
-	RecipientName   string `gorm:"type:varchar(64);comment:收货人姓名" json:"recipient_name"`
-	PhoneNumber     string `gorm:"type:varchar(20);comment:手机号" json:"phone_number"`
-	Province        string `gorm:"type:varchar(64);comment:省份" json:"province"`
-	City            string `gorm:"type:varchar(64);comment:城市" json:"city"`
-	District        string `gorm:"type:varchar(64);comment:区县" json:"district"`
-	DetailedAddress string `gorm:"type:varchar(255);comment:详细地址" json:"detailed_address"`
-	PostalCode      string `gorm:"type:varchar(20);comment:邮政编码" json:"postal_code"`
+	RecipientName   string  `gorm:"type:varchar(64);comment:收货人姓名" json:"recipient_name"`
+	PhoneNumber     string  `gorm:"type:varchar(20);comment:手机号" json:"phone_number"`
+	Province        string  `gorm:"type:varchar(64);comment:省份" json:"province"`
+	City            string  `gorm:"type:varchar(64);comment:城市" json:"city"`
+	District        string  `gorm:"type:varchar(64);comment:区县" json:"district"`
+	DetailedAddress string  `gorm:"type:varchar(255);comment:详细地址" json:"detailed_address"`
+	PostalCode      string  `gorm:"type:varchar(20);comment:邮政编码" json:"postal_code"`
+	Lat             float64 `gorm:"type:decimal(10,6);comment:纬度" json:"lat"`
+	Lon             float64 `gorm:"type:decimal(10,6);comment:经度" json:"lon"`
 }
 
 // OrderLog 值对象定义了订单的操作日志记录。

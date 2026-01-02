@@ -9,6 +9,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"          // 导入库存模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"      // 导入库存模块的领域层。
+	"github.com/wyfcoding/pkg/algorithm"
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -168,7 +169,7 @@ func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesReq
 // GetInventoryLogs 处理获取库存日志的gRPC请求。
 func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsRequest) (*pb.GetInventoryLogsResponse, error) {
 	start := time.Now()
-	slog.Debug("gRPC GetInventoryLogs received", "inventory_id", req.InventoryId, "page_num", req.PageNum)
+	slog.Debug("gRPC GetInventoryLogs received", "inventory_id", req.InventoryId, "sku_id", req.SkuId, "page_num", req.PageNum)
 
 	page := max(int(req.PageNum), 1)
 	pageSize := int(req.PageSize)
@@ -176,11 +177,10 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 		pageSize = 10
 	}
 
-	// TODO: Regenerate PB to include SkuId in GetInventoryLogsRequest. Using 0 for now.
-	skuID := uint64(0)
-	logs, total, err := s.app.GetInventoryLogs(ctx, skuID, req.InventoryId, page, pageSize)
+	// 直接使用请求中的 SkuId 进行分片路由，不再使用 0 占位
+	logs, total, err := s.app.GetInventoryLogs(ctx, req.SkuId, req.InventoryId, page, pageSize)
 	if err != nil {
-		slog.Error("gRPC GetInventoryLogs failed", "inventory_id", req.InventoryId, "error", err, "duration", time.Since(start))
+		slog.Error("gRPC GetInventoryLogs failed", "inventory_id", req.InventoryId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get inventory logs: %v", err))
 	}
 
@@ -193,6 +193,47 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 	return &pb.GetInventoryLogsResponse{
 		Logs:       pbLogs,
 		TotalCount: uint64(total), // 总记录数。
+	}, nil
+}
+
+// AllocateOrderStock 处理订单库存分配请求。
+func (s *Server) AllocateOrderStock(ctx context.Context, req *pb.AllocateOrderStockRequest) (*pb.AllocateOrderStockResponse, error) {
+	// 转换请求参数为算法输入 DTO
+	algoItems := make([]algorithm.OrderItem, len(req.Items))
+	for i, it := range req.Items {
+		algoItems[i] = algorithm.OrderItem{
+			SkuID:    it.SkuId,
+			Quantity: it.Quantity,
+		}
+	}
+
+	// 调用应用服务层（已有的分配逻辑）
+	results, err := s.app.AllocateStock(ctx, req.UserLat, req.UserLon, algoItems)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to allocate stock: %v", err))
+	}
+
+	// 映射结果
+	pbAllocations := make([]*pb.WarehouseAllocation, len(results))
+	for i, res := range results {
+		pbItems := make([]*pb.OrderItemShort, len(res.Items))
+		for j, it := range res.Items {
+			pbItems[j] = &pb.OrderItemShort{
+				SkuId:    it.SkuID,
+				Quantity: it.Quantity,
+			}
+		}
+		pbAllocations[i] = &pb.WarehouseAllocation{
+			WarehouseId:   res.WarehouseID,
+			Items:         pbItems,
+			Distance:      res.Distance,
+			EstimatedCost: res.TotalCost,
+		}
+	}
+
+	return &pb.AllocateOrderStockResponse{
+		OrderId:     req.OrderId,
+		Allocations: pbAllocations,
 	}, nil
 }
 

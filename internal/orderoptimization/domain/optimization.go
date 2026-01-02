@@ -33,6 +33,7 @@ func (m *JSONMap) Scan(value any) error {
 // OrderItem 值对象定义了订单中的一个商品项。
 type OrderItem struct {
 	ProductID uint64 `json:"product_id"`
+	SkuID     uint64 `json:"sku_id"`
 	Quantity  int32  `json:"quantity"`
 	Price     int64  `json:"price"` // 单价（单位：分）。
 }

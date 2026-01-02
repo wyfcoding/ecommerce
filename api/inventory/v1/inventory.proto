@@ -35,6 +35,37 @@ service InventoryService {
 
   // 查询库存变动明细日志。
   rpc GetInventoryLogs(GetInventoryLogsRequest) returns (GetInventoryLogsResponse);
+
+  // 核心算法：针对订单进行最优仓库分配计算。
+  rpc AllocateOrderStock(AllocateOrderStockRequest) returns (AllocateOrderStockResponse);
+}
+
+// ... (existing messages)
+
+// 订单库存分配请求。
+message AllocateOrderStockRequest {
+  uint64 order_id = 1;
+  double user_lat = 2; // 用户纬度
+  double user_lon = 3; // 用户经度
+  repeated OrderItemShort items = 4;
+}
+
+message OrderItemShort {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+}
+
+// 订单库存分配结果。
+message AllocateOrderStockResponse {
+  uint64 order_id = 1;
+  repeated WarehouseAllocation allocations = 2;
+}
+
+message WarehouseAllocation {
+  uint64 warehouse_id = 1;
+  repeated OrderItemShort items = 2;
+  double distance = 3;
+  int64 estimated_cost = 4;
 }
 
 // 库存记录。

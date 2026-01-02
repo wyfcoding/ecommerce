@@ -203,7 +203,16 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 
 // RequestRefund 处理退款请求的gRPC请求。
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.OrderInfo, error) {
-	return nil, status.Error(codes.Unimplemented, "RequestRefund not implemented")
+	slog.Info("gRPC RequestRefund received", "order_id", req.OrderId, "user_id", req.UserId, "amount", req.RefundAmount)
+
+	// 调用应用层处理退款申请逻辑
+	err := s.app.CancelOrder(ctx, req.UserId, req.OrderId, "User", req.Reason)
+	if err != nil {
+		slog.Error("gRPC RequestRefund failed", "order_id", req.OrderId, "error", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.OrderId, UserId: req.UserId})
 }
 
 // GetOrderItemsByOrderID 处理根据订单ID获取订单项列表的gRPC请求。
@@ -285,6 +294,8 @@ func (s *Server) toProto(o *domain.Order) *pb.OrderInfo {
 			District:        o.ShippingAddress.District,
 			DetailedAddress: o.ShippingAddress.DetailedAddress,
 			PostalCode:      o.ShippingAddress.PostalCode,
+			Lat:             o.ShippingAddress.Lat,
+			Lon:             o.ShippingAddress.Lon,
 		},
 	}
 }

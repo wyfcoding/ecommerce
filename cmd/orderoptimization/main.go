@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/orderoptimization/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/application"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/persistence"
 	optimizationgrpc "github.com/wyfcoding/ecommerce/internal/orderoptimization/interfaces/grpc"
@@ -51,7 +53,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 OrderOptimization 服务无下游强依赖
+	OrderConn     *grpc.ClientConn `service:"order"`
+	InventoryConn *grpc.ClientConn `service:"inventory"`
 }
 
 func main() {
@@ -163,7 +166,19 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewOptimizationQuery(optimizationRepo)
-	manager := application.NewOptimizationManager(optimizationRepo, logger.Logger)
+	
+	var (
+		orderCli     orderv1.OrderServiceClient
+		inventoryCli inventoryv1.InventoryServiceClient
+	)
+	if clients.OrderConn != nil {
+		orderCli = orderv1.NewOrderServiceClient(clients.OrderConn)
+	}
+	if clients.InventoryConn != nil {
+		inventoryCli = inventoryv1.NewInventoryServiceClient(clients.InventoryConn)
+	}
+
+	manager := application.NewOptimizationManager(optimizationRepo, orderCli, inventoryCli, logger.Logger)
 	optimizationService := application.NewOrderOptimizationService(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)
