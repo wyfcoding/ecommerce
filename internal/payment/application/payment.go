@@ -56,3 +56,7 @@ func (s *PaymentService) CapturePayment(ctx context.Context, userID uint64, paym
 func (s *PaymentService) GetPaymentStatus(ctx context.Context, userID, id uint64) (*domain.Payment, error) {
 	return s.Query.GetPaymentStatus(ctx, userID, id)
 }
+
+func (s *PaymentService) GetUserIDByPaymentNo(ctx context.Context, paymentNo string) (uint64, error) {
+	return s.Processor.paymentRepo.GetUserIDByPaymentNo(ctx, paymentNo)
+}

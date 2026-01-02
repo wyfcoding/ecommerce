@@ -80,6 +80,14 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 		return
 	}
 
+	// 真实化执行：通过支付单号反查用户ID，用于分片路由
+	userID, err := h.app.GetUserIDByPaymentNo(c.Request.Context(), req.PaymentNo)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to lookup user_id for callback", "payment_no", req.PaymentNo, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "payment record context not found", "")
+		return
+	}
+
 	callbackData := map[string]string{
 		"payment_no":     req.PaymentNo,
 		"status":         strconv.FormatBool(req.Success),
@@ -87,9 +95,8 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 		"third_party_no": req.ThirdPartyNo,
 	}
 
-	// TODO: Third-party callbacks often lack userID. Need global lookup or sharding key in payment_no.
-	if err := h.app.HandlePaymentCallback(c.Request.Context(), 0, req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "payment callback processing failed", "payment_no", req.PaymentNo, "error", err)
+	if err := h.app.HandlePaymentCallback(c.Request.Context(), userID, req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "payment callback processing failed", "payment_no", req.PaymentNo, "user_id", userID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "callback processing error", "")
 		return
 	}

@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"sort"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/databases/sharding"
@@ -12,7 +13,7 @@ import (
 
 type orderRepository struct {
 	sharding *sharding.Manager
-	tx       *gorm.DB // 增加事务支持
+	tx       *gorm.DB 
 }
 
 // NewOrderRepository 定义了数据持久层接口。
@@ -43,7 +44,6 @@ func (r *orderRepository) getDB(userID uint64) *gorm.DB {
 func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 	db := r.getDB(order.UserID)
 
-	// 如果已经在事务中（r.tx != nil），则直接执行，不再开启新事务
 	execute := func(tx *gorm.DB) error {
 		if err := tx.Save(order).Error; err != nil {
 			return err
@@ -110,7 +110,6 @@ func (r *orderRepository) FindByOrderNo(ctx context.Context, userID uint64, orde
 
 // Update 更新订单聚合根状态及相关信息。
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
-	// 与 GORM 的 Save 相同，但在逻辑上更明确
 	return r.Save(ctx, order)
 }
 
@@ -120,13 +119,13 @@ func (r *orderRepository) Delete(ctx context.Context, userID uint64, id uint) er
 	return db.WithContext(ctx).Delete(&domain.Order{}, id).Error
 }
 
-// List 分页列出所有订单记录。
+// List 全局分页列出所有订单记录。
 func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
 	dbs := r.sharding.GetAllDBs()
 	var allOrders []*domain.Order
 	var totalCount int64
 
-	// 分布式全表扫描 (简单实现，未处理排序和跨页全局优化)
+	// 真实化执行：分布式全表聚合与全局排序分页
 	for _, db := range dbs {
 		var list []*domain.Order
 		var count int64
@@ -136,22 +135,31 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 		}
 		totalCount += count
 
-		// 简单起见，从每个分片取 offset, limit，实际全局分页逻辑更复杂
-		if err := query.Preload("Items").Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+		// 为保证分页准确性，每个分片拉取足够的样本进行合并排序
+		if err := query.Preload("Items").Order("created_at desc").Limit(offset + limit).Find(&list).Error; err != nil {
 			return nil, 0, err
 		}
 		allOrders = append(allOrders, list...)
 	}
 
-	// 如果聚合后的数据超过 limit，进行简单截断
-	if len(allOrders) > limit {
-		allOrders = allOrders[:limit]
+	// 全局按时间降序排列
+	sort.Slice(allOrders, func(i, j int) bool {
+		return allOrders[i].CreatedAt.After(allOrders[j].CreatedAt)
+	})
+
+	start := offset
+	if start > len(allOrders) {
+		return []*domain.Order{}, totalCount, nil
+	}
+	end := offset + limit
+	if end > len(allOrders) {
+		end = len(allOrders)
 	}
 
-	return allOrders, totalCount, nil
+	return allOrders[start:end], totalCount, nil
 }
 
-// ListByUserID 获取指定用户的订单列表（支持分片定位）。
+// ListByUserID 获取指定用户的订单列表。
 func (r *orderRepository) ListByUserID(ctx context.Context, userID uint, offset, limit int) ([]*domain.Order, int64, error) {
 	db := r.sharding.GetDB(uint64(userID)).WithContext(ctx).Model(&domain.Order{})
 
