@@ -75,12 +75,42 @@ func (r *searchRepository) GetHotKeywords(ctx context.Context, limit int) ([]*do
 
 // --- 核心搜索功能 (Search & Suggest methods) ---
 
-// Search 执行搜索操作。
+// Search 执行基于数据库的模糊搜索。
 func (r *searchRepository) Search(ctx context.Context, filter *domain.SearchFilter) (*domain.SearchResult, error) {
-	// 模拟实现，总是返回空结果。
+	// 真实化实现：从产品表中搜索
+	var products []struct {
+		ID          uint64 `gorm:"column:id"`
+		Name        string `gorm:"column:name"`
+		Description string `gorm:"column:description"`
+	}
+	var total int64
+
+	db := r.db.WithContext(ctx).Table("products")
+
+	if filter.Keyword != "" {
+		likeQuery := "%" + filter.Keyword + "%"
+		db = db.Where("name LIKE ? OR description LIKE ? OR category LIKE ?", likeQuery, likeQuery, likeQuery)
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	offset := (filter.Page - 1) * filter.PageSize
+	err := db.Offset(offset).Limit(filter.PageSize).Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为通用的 any 列表返回
+	items := make([]any, len(products))
+	for i, p := range products {
+		items[i] = p
+	}
+
 	return &domain.SearchResult{
-		Total: 0,
-		Items: []any{},
+		Total: total,
+		Items: items,
 	}, nil
 }
 
