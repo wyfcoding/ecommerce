@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/marketing/v1"
+	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"
 	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/persistence"
 	marketinggrpc "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/grpc"
@@ -51,7 +52,7 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 Marketing 服务无下游强依赖
+	CouponConn *grpc.ClientConn `service:"coupon"`
 }
 
 func main() {
@@ -163,7 +164,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewMarketingQuery(marketingRepo)
-	manager := application.NewMarketingManager(marketingRepo, logger.Logger)
+	var couponCli couponv1.CouponServiceClient
+	if clients.CouponConn != nil {
+		couponCli = couponv1.NewCouponServiceClient(clients.CouponConn)
+	}
+	manager := application.NewMarketingManager(marketingRepo, couponCli, logger.Logger)
 	marketingService := application.NewMarketing(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)

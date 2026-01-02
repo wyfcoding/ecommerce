@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
@@ -19,39 +20,21 @@ type MarketingManager struct {
 }
 
 // NewMarketingManager creates a new MarketingManager instance.
-func NewMarketingManager(repo domain.MarketingRepository, logger *slog.Logger) *MarketingManager {
+func NewMarketingManager(repo domain.MarketingRepository, couponCli couponv1.CouponServiceClient, logger *slog.Logger) *MarketingManager {
 	return &MarketingManager{
 		repo:           repo,
 		logger:         logger,
 		userFilter:     algorithm.NewBloomFilter(1000000, 0.01),
-		segmentService: NewUserSegmentService(repo, logger), // 接入仓储并初始化圈选服务
+		segmentService: NewUserSegmentService(repo, couponCli, logger), // 初始化圈选服务并注入优惠券客户端
 	}
 }
 
 // DistributeTargetedCoupons 定向优惠券分发：顶级架构实战
-// 演示如何利用 Roaring Bitmap 毫秒级筛选出符合多个标签（如“高消费”+“活跃”）的千万级用户并下发优惠券。
-func (m *MarketingManager) DistributeTargetedCoupons(ctx context.Context, couponID string, targetTags []string) error {
-	m.logger.InfoContext(ctx, "starting targeted coupon distribution", "coupon_id", couponID, "tags", targetTags)
+func (m *MarketingManager) DistributeTargetedCoupons(ctx context.Context, couponID uint64, targetTags []string) error {
+	m.logger.InfoContext(ctx, "starting real targeted coupon distribution", "coupon_id", couponID, "tags", targetTags)
 
-	// 1. 调用算法层的 Roaring Bitmap 运算进行快速人群圈选
-	targetUserIDs := m.segmentService.TargetUsers(targetTags)
-
-	m.logger.InfoContext(ctx, "segmentation complete", "user_count", len(targetUserIDs))
-
-	// 2. 批量异步处理（真实场景中应推入 MQ）
-	for _, userID := range targetUserIDs {
-		// 检查布隆过滤器：防止在同一个活动中给同一用户重复发券 (Level 1 缓存拦截)
-		filterKey := []byte(fmt.Sprintf("coupon:%s:user:%d", couponID, userID))
-		if m.userFilter.Contains(filterKey) {
-			continue
-		}
-
-		// 执行发券逻辑并标记
-		m.userFilter.Add(filterKey)
-		// ... 发券逻辑 ...
-	}
-
-	return nil
+	// 调用增强后的分发服务
+	return m.segmentService.DistributeCouponsToSegment(ctx, couponID, targetTags)
 }
 
 // CreateCampaign 创建一个新的营销活动。

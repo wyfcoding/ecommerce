@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
@@ -122,18 +123,17 @@ func (m *ModerationManager) LoadSensitiveWords(ctx context.Context) error {
 	return nil
 }
 
-// CheckSensitiveWords 检查内容中是否包含敏感词 (基于 Trie 的分词精确匹配)。
+var wordRegex = regexp.MustCompile(`\w+`)
+
+// CheckSensitiveWords 检查内容中是否包含敏感词。
 func (m *ModerationManager) CheckSensitiveWords(content string) []string {
-	// 简单的分词逻辑：按空格和标点分割 (实际应根据语言使用更复杂的分词器)
-	// 这里为了演示 Trie 用法，仅按空格分割
-	tokens := strings.Fields(content)
+	// 真实化分词逻辑：使用正则提取所有词元，并自动过滤标点符号
+	tokens := wordRegex.FindAllString(strings.ToLower(content), -1)
 	found := make([]string, 0)
 
 	for _, token := range tokens {
-		// 去除标点符号 (简化处理)
-		cleanToken := strings.Trim(token, ".,!?;:\"'")
-		if _, ok := m.sensitiveTrie.Search(cleanToken); ok {
-			found = append(found, cleanToken)
+		if _, ok := m.sensitiveTrie.Search(token); ok {
+			found = append(found, token)
 		}
 	}
 	return found
