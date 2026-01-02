@@ -176,7 +176,9 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 		pageSize = 10
 	}
 
-	logs, total, err := s.app.GetInventoryLogs(ctx, req.InventoryId, page, pageSize)
+	// TODO: Regenerate PB to include SkuId in GetInventoryLogsRequest. Using 0 for now.
+	skuID := uint64(0)
+	logs, total, err := s.app.GetInventoryLogs(ctx, skuID, req.InventoryId, page, pageSize)
 	if err != nil {
 		slog.Error("gRPC GetInventoryLogs failed", "inventory_id", req.InventoryId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get inventory logs: %v", err))

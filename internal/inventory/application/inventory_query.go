@@ -35,7 +35,7 @@ func (q *InventoryQuery) ListInventories(ctx context.Context, page, pageSize int
 }
 
 // GetInventoryLogs 获取指定库存的日志列表。
-func (q *InventoryQuery) GetInventoryLogs(ctx context.Context, inventoryID uint64, page, pageSize int) ([]*domain.InventoryLog, int64, error) {
+func (q *InventoryQuery) GetInventoryLogs(ctx context.Context, skuID uint64, inventoryID uint64, page, pageSize int) ([]*domain.InventoryLog, int64, error) {
 	offset := (page - 1) * pageSize
-	return q.repo.GetLogs(ctx, inventoryID, offset, pageSize)
+	return q.repo.GetLogs(ctx, skuID, inventoryID, offset, pageSize)
 }

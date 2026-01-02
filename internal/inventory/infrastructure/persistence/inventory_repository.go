@@ -4,38 +4,38 @@ import (
 	"context"
 	"errors"
 
-	"github.com/wyfcoding/ecommerce/internal/inventory/domain" // 导入库存模块的领域层。
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
+	"github.com/wyfcoding/pkg/databases/sharding"
 
-	"gorm.io/gorm" // 导入GORM ORM框架。
+	"gorm.io/gorm"
 )
 
 type inventoryRepository struct {
-	db *gorm.DB // GORM数据库连接实例。
+	sharding *sharding.Manager
 }
 
-// NewInventoryRepository 创建并返回一个新的 inventoryRepository 实例。
-// db: GORM数据库连接实例。
-func NewInventoryRepository(db *gorm.DB) domain.InventoryRepository {
-	return &inventoryRepository{db: db}
+// NewInventoryRepository 创建分片库存仓储。
+func NewInventoryRepository(sharding *sharding.Manager) domain.InventoryRepository {
+	return &inventoryRepository{sharding: sharding}
 }
 
-// Save 将库存实体保存到数据库。
+// Save 将库存实体保存到对应分片。
 func (r *inventoryRepository) Save(ctx context.Context, inventory *domain.Inventory) error {
-	return r.db.WithContext(ctx).Save(inventory).Error
+	db := r.sharding.GetDB(inventory.SkuID)
+	return db.WithContext(ctx).Save(inventory).Error
 }
 
-// SaveWithOptimisticLock 使用乐观锁保存库存实体。
+// SaveWithOptimisticLock 使用乐观锁保存。
 func (r *inventoryRepository) SaveWithOptimisticLock(ctx context.Context, inventory *domain.Inventory) error {
+	db := r.sharding.GetDB(inventory.SkuID)
 	if inventory.ID == 0 {
-		return r.Save(ctx, inventory)
+		return db.WithContext(ctx).Create(inventory).Error
 	}
 
 	currentVersion := inventory.Version
 	inventory.Version++
 
-	// 使用 Updates 更新所有字段，包括零值（如果需要，应使用 Select("*") 或指定字段）
-	// 这里假设 inventory 包含了所有最新状态
-	res := r.db.WithContext(ctx).Model(inventory).
+	res := db.WithContext(ctx).Model(inventory).
 		Where("id = ? AND version = ?", inventory.ID, currentVersion).
 		Updates(inventory)
 
@@ -48,73 +48,79 @@ func (r *inventoryRepository) SaveWithOptimisticLock(ctx context.Context, invent
 	return nil
 }
 
-// SaveLog 保存库存日志。
+// SaveLog 保存库存日志到对应分片。
 func (r *inventoryRepository) SaveLog(ctx context.Context, log *domain.InventoryLog) error {
-	return r.db.WithContext(ctx).Create(log).Error
+	db := r.sharding.GetDB(log.SkuID)
+	return db.WithContext(ctx).Create(log).Error
 }
 
-// GetBySkuID 根据SKU ID从数据库获取库存记录。
-// 如果记录未找到，则返回nil而非错误，由应用层进行判断。
+// GetBySkuID 定向查询分片。
 func (r *inventoryRepository) GetBySkuID(ctx context.Context, skuID uint64) (*domain.Inventory, error) {
+	db := r.sharding.GetDB(skuID)
 	var inventory domain.Inventory
-	if err := r.db.WithContext(ctx).Where("sku_id = ?", skuID).First(&inventory).Error; err != nil {
+	if err := db.WithContext(ctx).Where("sku_id = ?", skuID).First(&inventory).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // 如果记录未找到，返回nil。
+			return nil, nil
 		}
-		return nil, err // 其他错误则返回。
+		return nil, err
 	}
 	return &inventory, nil
 }
 
-// GetBySkuIDs 根据SKU ID列表获取多个库存记录。
+// GetBySkuIDs 跨分片查询。
 func (r *inventoryRepository) GetBySkuIDs(ctx context.Context, skuIDs []uint64) ([]*domain.Inventory, error) {
-	var list []*domain.Inventory
-	// 使用IN查询获取多个SKU的库存。
-	if err := r.db.WithContext(ctx).Where("sku_id IN ?", skuIDs).Find(&list).Error; err != nil {
-		return nil, err
+	var allList []*domain.Inventory
+	for _, id := range skuIDs {
+		inv, err := r.GetBySkuID(ctx, id)
+		if err == nil && inv != nil {
+			allList = append(allList, inv)
+		}
 	}
-	return list, nil
+	return allList, nil
 }
 
-// List 从数据库列出所有库存记录，支持分页。
+// List 扫描所有分片。
 func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*domain.Inventory, int64, error) {
-	var list []*domain.Inventory
-	var total int64
+	dbs := r.sharding.GetAllDBs()
+	var allList []*domain.Inventory
+	var totalCount int64
 
-	db := r.db.WithContext(ctx).Model(&domain.Inventory{})
+	for _, db := range dbs {
+		var list []*domain.Inventory
+		var count int64
+		query := db.WithContext(ctx).Model(&domain.Inventory{})
+		query.Count(&count)
+		totalCount += count
 
-	// 统计总记录数。
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
+		query.Offset(offset).Limit(limit).Order("created_at desc").Find(&list)
+		allList = append(allList, list...)
 	}
 
-	// 应用分页和排序。
-	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
-		return nil, 0, err
+	if len(allList) > limit {
+		allList = allList[:limit]
 	}
 
-	return list, total, nil
+	return allList, totalCount, nil
 }
 
-// Delete 从数据库删除指定SKU的库存记录。
+// Delete 从对应分片删除。
 func (r *inventoryRepository) Delete(ctx context.Context, skuID uint64) error {
-	return r.db.WithContext(ctx).Where("sku_id = ?", skuID).Delete(&domain.Inventory{}).Error
+	db := r.sharding.GetDB(skuID)
+	return db.WithContext(ctx).Where("sku_id = ?", skuID).Delete(&domain.Inventory{}).Error
 }
 
-// GetLogs 获取指定库存ID的所有库存日志，支持分页。
-func (r *inventoryRepository) GetLogs(ctx context.Context, inventoryID uint64, offset, limit int) ([]*domain.InventoryLog, int64, error) {
+// GetLogs 获取指定分片下的日志。
+func (r *inventoryRepository) GetLogs(ctx context.Context, skuID uint64, inventoryID uint64, offset, limit int) ([]*domain.InventoryLog, int64, error) {
+	db := r.sharding.GetDB(skuID)
 	var list []*domain.InventoryLog
 	var total int64
 
-	db := r.db.WithContext(ctx).Model(&domain.InventoryLog{}).Where("inventory_id = ?", inventoryID)
-
-	// 统计总记录数。
-	if err := db.Count(&total).Error; err != nil {
+	query := db.WithContext(ctx).Model(&domain.InventoryLog{}).Where("inventory_id = ?", inventoryID)
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 应用分页和排序。
-	if err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+	if err := query.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
 

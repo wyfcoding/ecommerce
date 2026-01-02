@@ -212,7 +212,7 @@ func (h *Handler) GetInventoryLogs(c *gin.Context) {
 		return
 	}
 
-	list, total, err := h.app.GetInventoryLogs(c.Request.Context(), uint64(inv.ID), page, pageSize)
+	list, total, err := h.app.GetInventoryLogs(c.Request.Context(), skuID, uint64(inv.ID), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to get inventory logs", "sku_id", skuID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logs", err.Error())

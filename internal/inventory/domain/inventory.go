@@ -43,6 +43,7 @@ type Inventory struct {
 type InventoryLog struct {
 	gorm.Model            // 嵌入gorm.Model。
 	InventoryID    uint64 `gorm:"not null;index;comment:库存ID" json:"inventory_id"`      // 关联的库存记录ID，索引字段。
+	SkuID          uint64 `gorm:"not null;index;comment:SKU ID" json:"sku_id"`          // 关联的SKU ID，用于分片。
 	Action         string `gorm:"type:varchar(32);not null;comment:操作类型" json:"action"` // 操作类型，例如“Add”（增加），“Deduct”（扣减），“Lock”（锁定）。
 	ChangeQuantity int32  `gorm:"not null;comment:变更数量" json:"change_quantity"`         // 本次操作导致的库存数量变化。
 	OldAvailable   int32  `gorm:"not null;comment:变更前可用" json:"old_available"`          // 变更前的可用库存数量。
@@ -249,6 +250,7 @@ func (inv *Inventory) updateStatus() {
 func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, newAvailable, oldLocked, newLocked int32, reason string) *InventoryLog {
 	return &InventoryLog{
 		InventoryID:    uint64(inv.ID),
+		SkuID:          inv.SkuID,
 		Action:         action,
 		ChangeQuantity: changeQuantity,
 		OldAvailable:   oldAvailable,

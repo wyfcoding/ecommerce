@@ -72,8 +72,8 @@ func (s *Inventory) ListInventories(ctx context.Context, page, pageSize int) ([]
 }
 
 // GetInventoryLogs 获取库存变更日志。
-func (s *Inventory) GetInventoryLogs(ctx context.Context, inventoryID uint64, page, pageSize int) ([]*domain.InventoryLog, int64, error) {
-	return s.Query.GetInventoryLogs(ctx, inventoryID, page, pageSize)
+func (s *Inventory) GetInventoryLogs(ctx context.Context, skuID uint64, inventoryID uint64, page, pageSize int) ([]*domain.InventoryLog, int64, error) {
+	return s.Query.GetInventoryLogs(ctx, skuID, inventoryID, page, pageSize)
 }
 
 // AllocateStock 为订单分配库存。

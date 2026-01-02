@@ -169,6 +169,8 @@ message GetInventoryLogsRequest {
   uint32 page_size = 2;
   // 页码。
   uint32 page_num = 3;
+  // SKU ID (用于分片路由)。
+  uint64 sku_id = 4;
 }
 
 // 变动日志实体。

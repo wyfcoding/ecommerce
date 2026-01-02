@@ -19,7 +19,7 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/databases/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
@@ -127,18 +127,25 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 打印脱敏配置
 	configpkg.PrintWithMask(c)
 
-	// 1. 初始化数据库 (MySQL)
-	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
+	// 1. 初始化分片数据库 (MySQL Sharding)
+	bootLog.Info("initializing sharding database manager...")
+	var (
+		shardingMgr *sharding.Manager
+		err         error
+	)
+	if len(c.Data.Shards) > 0 {
+		shardingMgr, err = sharding.NewManager(c.Data.Shards, c.CircuitBreaker, logger, m)
+	} else {
+		shardingMgr, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, c.CircuitBreaker, logger, m)
+	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("database init error: %w", err)
+		return nil, nil, fmt.Errorf("sharding database init error: %w", err)
 	}
 
 	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
+		shardingMgr.Close()
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
@@ -151,9 +158,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
 		redisCache.Close()
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
+		shardingMgr.Close()
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 	// 显式转换 gRPC 客户端 (Cross-Project Bridge)
@@ -165,8 +170,8 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	inventoryRepo := persistence.NewInventoryRepository(db.RawDB())
-	warehouseRepo := persistence.NewWarehouseRepository(db.RawDB())
+	inventoryRepo := persistence.NewInventoryRepository(shardingMgr)
+	warehouseRepo := persistence.NewWarehouseRepository(shardingMgr.GetDB(0))
 
 	// 5.2 Application (Service)
 	query := application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger)
@@ -188,9 +193,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 				bootLog.Error("failed to close redis cache", "error", err)
 			}
 		}
-		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
-			if err := sqlDB.Close(); err != nil {
-				bootLog.Error("failed to close sql database", "error", err)
+		if shardingMgr != nil {
+			if err := shardingMgr.Close(); err != nil {
+				bootLog.Error("failed to close sharding manager", "error", err)
 			}
 		}
 	}
