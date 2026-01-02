@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
+	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/application"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/infrastructure/persistence"
 	aimodelgrpc "github.com/wyfcoding/ecommerce/internal/aimodel/interfaces/grpc"
@@ -52,7 +53,7 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 AIModel 服务无下游强依赖
+	RecommendationConn *grpc.ClientConn `service:"recommendation"`
 }
 
 func main() {
@@ -173,7 +174,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	aimodelRepo := persistence.NewAIModelRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	aimodelService := application.NewAIModelService(aimodelRepo, idGenerator, logger.Logger)
+	var reconCli recommendationv1.RecommendationServiceClient
+	if clients.RecommendationConn != nil {
+		reconCli = recommendationv1.NewRecommendationServiceClient(clients.RecommendationConn)
+	}
+	aimodelService := application.NewAIModelService(aimodelRepo, idGenerator, reconCli, logger.Logger)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := aimodelhttp.NewHandler(aimodelService, logger.Logger)

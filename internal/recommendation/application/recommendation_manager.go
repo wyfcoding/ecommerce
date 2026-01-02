@@ -93,9 +93,10 @@ func (m *RecommendationManager) GenerateRecommendations(ctx context.Context, use
 	for _, b := range globalBehaviors {
 		score := mapScore(b.Action)
 		engine.AddRating(b.UserID, b.ProductID, score)
-		if b.Action == "view" {
+		switch b.Action {
+		case "view":
 			engine.AddView(b.ProductID)
-		} else if b.Action == "buy" {
+		case "buy":
 			engine.AddSale(b.ProductID)
 		}
 	}

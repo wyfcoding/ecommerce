@@ -2,22 +2,27 @@ package application
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"time"
 
+	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 )
 
 // AIModelQuery 负责AI模型模块的查询操作。
 type AIModelQuery struct {
-	repo    domain.AIModelRepository
-	manager *AIModelManager // 引入 Manager 以调用真实的 Predict
+	repo     domain.AIModelRepository
+	manager  *AIModelManager // 引入 Manager 以调用真实的 Predict
+	reconCli recommendationv1.RecommendationServiceClient
 }
 
 // NewAIModelQuery 创建一个新的 AIModelQuery 实例。
-func NewAIModelQuery(repo domain.AIModelRepository, manager *AIModelManager) *AIModelQuery {
+func NewAIModelQuery(repo domain.AIModelRepository, manager *AIModelManager, reconCli recommendationv1.RecommendationServiceClient) *AIModelQuery {
 	return &AIModelQuery{
-		repo:    repo,
-		manager: manager,
+		repo:     repo,
+		manager:  manager,
+		reconCli: reconCli,
 	}
 }
 
@@ -43,29 +48,84 @@ func (q *AIModelQuery) ListPredictions(ctx context.Context, modelID uint64, star
 
 // --- Mock AI Operations (Read-only or Mock) ---
 
-// GetProductRecommendations 返回模拟的产品推荐。
+// GetProductRecommendations 返回真实的商品推荐。
 func (q *AIModelQuery) GetProductRecommendations(ctx context.Context, userID uint64, contextPage string) ([]ProductRecommendationDTO, error) {
-	return []ProductRecommendationDTO{
-		{ProductID: 101, Score: 0.95, Reason: "Based on your history"},
-		{ProductID: 102, Score: 0.88, Reason: "Popular in your area"},
-		{ProductID: 103, Score: 0.75, Reason: "You might also like"},
-	}, nil
+	if q.reconCli == nil {
+		return nil, fmt.Errorf("recommendation service not available")
+	}
+
+	resp, err := q.reconCli.GetRecommendedProducts(ctx, &recommendationv1.GetRecommendedProductsRequest{
+		UserId: strconv.FormatUint(userID, 10),
+		Count:  10,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]ProductRecommendationDTO, len(resp.Products))
+	for i, p := range resp.Products {
+		id, _ := strconv.ParseUint(p.Id, 10, 64)
+		results[i] = ProductRecommendationDTO{
+			ProductID: id,
+			Score:     0.9, 
+			Reason:    p.Description,
+		}
+	}
+	return results, nil
 }
 
-// GetRelatedProducts 返回模拟的相关产品。
+// GetRelatedProducts 获取真实的关联产品（调用推荐服务图接口）。
 func (q *AIModelQuery) GetRelatedProducts(ctx context.Context, productID uint64) ([]ProductRecommendationDTO, error) {
-	return []ProductRecommendationDTO{
-		{ProductID: 201, Score: 0.92, Reason: "Frequently bought together"},
-		{ProductID: 202, Score: 0.85, Reason: "Similar style"},
-	}, nil
+	if q.reconCli == nil {
+		return nil, fmt.Errorf("recommendation service not available")
+	}
+
+	resp, err := q.reconCli.GetGraphRecommendedProducts(ctx, &recommendationv1.GetGraphRecommendedProductsRequest{
+		ProductId: strconv.FormatUint(productID, 10),
+		Count:     5,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]ProductRecommendationDTO, len(resp.Products))
+	for i, p := range resp.Products {
+		id, _ := strconv.ParseUint(p.Id, 10, 64)
+		results[i] = ProductRecommendationDTO{
+			ProductID: id,
+			Score:     0.8,
+			Reason:    "Frequently bought together",
+		}
+	}
+	return results, nil
 }
 
-// GetPersonalizedFeed 返回模拟的个性化 Feed 流。
+// GetPersonalizedFeed 返回真实的个性化 Feed 流。
 func (q *AIModelQuery) GetPersonalizedFeed(ctx context.Context, userID uint64) ([]FeedItemDTO, error) {
-	return []FeedItemDTO{
-		{ItemType: "product", ItemID: "301", Title: "New Arrival", ImageURL: "http://example.com/img1.jpg", TargetURL: "http://example.com/prod/301", Score: 0.99},
-		{ItemType: "article", ItemID: "ART-001", Title: "Fashion Trends", ImageURL: "http://example.com/img2.jpg", TargetURL: "http://example.com/art/001", Score: 0.95},
-	}, nil
+	if q.reconCli == nil {
+		return nil, fmt.Errorf("recommendation service not available")
+	}
+
+	resp, err := q.reconCli.GetAdvancedRecommendedProducts(ctx, &recommendationv1.GetAdvancedRecommendedProductsRequest{
+		UserId: strconv.FormatUint(userID, 10),
+		Count:  20,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]FeedItemDTO, len(resp.Products))
+	for i, p := range resp.Products {
+		results[i] = FeedItemDTO{
+			ItemType:  "product",
+			ItemID:    p.Id,
+			Title:     p.Name,
+			ImageURL:  p.ImageUrl,
+			TargetURL: fmt.Sprintf("/products/%s", p.Id),
+			Score:     0.9,
+		}
+	}
+	return results, nil
 }
 
 // RecognizeImageContent 返回模拟的图像标签。
