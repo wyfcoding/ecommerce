@@ -98,3 +98,12 @@ type PricingStrategy struct {
 	CompetitorPriceOffset int64  `gorm:"comment:竞品价格偏移量" json:"competitor_price_offset"`
 	Enabled               bool   `gorm:"default:true;comment:是否启用" json:"enabled"`
 }
+
+// UserProfile 结构体定义了用于个性化定价的用户画像信息。
+type UserProfile struct {
+	PurchasePower     int   // 购买力（例如，1-10分，分数越高购买力越强）。
+	PriceSensitivity  int   // 价格敏感度（例如，1-10分，分数越高越敏感）。
+	Loyalty           int   // 忠诚度（例如，1-10分，分数越高越忠诚）。
+	PurchaseFrequency int   // 购买频率（例如，每月购买次数）。
+	AvgOrderValue     int64 // 平均客单价（单位：分）。
+}

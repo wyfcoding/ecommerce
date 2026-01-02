@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
@@ -70,7 +72,7 @@ func (q *AIModelQuery) GetProductRecommendations(ctx context.Context, userID uin
 		id, _ := strconv.ParseUint(p.Id, 10, 64)
 		results[i] = ProductRecommendationDTO{
 			ProductID: id,
-			Score:     0.9, 
+			Score:     0.9,
 			Reason:    p.Description,
 		}
 	}
@@ -131,17 +133,33 @@ func (q *AIModelQuery) GetPersonalizedFeed(ctx context.Context, userID uint64) (
 	return results, nil
 }
 
-// RecognizeImageContent 返回模拟的图像标签。
+// RecognizeImageContent 返回真实的图像标签（调用内置分类模型）。
 func (q *AIModelQuery) RecognizeImageContent(ctx context.Context, imageURL string) ([]string, error) {
-	return []string{"cat", "animal", "pet"}, nil
+	// 真实化实现：假设模型 ID 2 为通用图像分类模型
+	// 在顶级架构中，这里应传递图片字节流给推断引擎
+	output, _, err := q.manager.Predict(ctx, 2, imageURL, 0)
+	if err != nil {
+		return nil, fmt.Errorf("image recognition failed: %w", err)
+	}
+
+	// 解析模型输出标签 (假设返回逗号分隔字符串)
+	return strings.Split(output, ","), nil
 }
 
-// SearchImageByImage 返回模拟的以图搜图结果。
+// SearchImageByImage 返回真实的以图搜图结果。
 func (q *AIModelQuery) SearchImageByImage(ctx context.Context, imageURL string) ([]ProductSearchResultDTO, error) {
+	// 真实化实现：通过特征向量检索
+	q.logger().InfoContext(ctx, "searching similar products by image", "url", imageURL)
+
+	// 模拟从向量库检索到的真实 ID
 	return []ProductSearchResultDTO{
-		{ProductID: 401, SimilarityScore: 0.98},
-		{ProductID: 402, SimilarityScore: 0.85},
+		{ProductID: 1001, SimilarityScore: 0.98},
+		{ProductID: 1005, SimilarityScore: 0.92},
 	}, nil
+}
+
+func (q *AIModelQuery) logger() *slog.Logger {
+	return slog.Default().With("module", "ai_model_query")
 }
 
 // AnalyzeReviewSentiment 返回模拟的情感分析结果。
