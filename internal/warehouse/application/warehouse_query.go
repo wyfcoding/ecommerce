@@ -53,7 +53,7 @@ func (q *WarehouseQuery) ListTransfers(ctx context.Context, fromWH, toWH uint64,
 	return q.repo.ListTransfers(ctx, fromWH, toWH, status, offset, limit)
 }
 
-// GetOptimalWarehouse 根据地理优先级寻找到最优的仓库。
+// GetOptimalWarehouse 根据综合评分寻找最优的仓库。
 func (q *WarehouseQuery) GetOptimalWarehouse(ctx context.Context, skuID uint64, qty int32, lat, lon float64) (*domain.Warehouse, float64, int32, error) {
 	warehouses, stocks, err := q.repo.ListWarehousesWithStock(ctx, skuID, qty)
 	if err != nil {
@@ -65,20 +65,36 @@ func (q *WarehouseQuery) GetOptimalWarehouse(ctx context.Context, skuID uint64, 
 	}
 
 	var bestWH *domain.Warehouse
-	minDistance := -1.0
-	var bestStock int32
+	bestScore := -1.0
+	bestDist := 0.0
+	bestStock := int32(0)
 
 	for i, wh := range warehouses {
 		dist := calculateDistance(lat, lon, wh.Latitude, wh.Longitude)
-		// 结合距离和优先级（权重）进行选择，此处简化为仅限距离
-		if minDistance < 0 || dist < minDistance {
-			minDistance = dist
+		stock := stocks[i]
+
+		// 真实化实现：加权评分模型
+		// 1. 距离得分 (0-1): 越近越高
+		distScore := 1.0 / (1.0 + dist/100.0) // 100km 为衰减基准
+		
+		// 2. 优先级得分 (0-1): 假设领域模型中 Priority 范围 1-100
+		priorityScore := float64(wh.Priority) / 100.0
+		
+		// 3. 库存得分 (0-1): 库存越充裕越高 (防止单一仓库被耗尽)
+		stockScore := math.Min(1.0, float64(stock)/float64(qty*10))
+
+		// 综合得分 (权重: 距离40%, 优先级40%, 库存20%)
+		score := 0.4*distScore + 0.4*priorityScore + 0.2*stockScore
+
+		if score > bestScore {
+			bestScore = score
 			bestWH = wh
-			bestStock = stocks[i]
+			bestDist = dist
+			bestStock = stock
 		}
 	}
 
-	return bestWH, minDistance, bestStock, nil
+	return bestWH, bestDist, bestStock, nil
 }
 
 // calculateDistance 使用 Haversine 公式计算两点间的距离（单位：公里）。

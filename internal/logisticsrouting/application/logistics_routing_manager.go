@@ -36,7 +36,7 @@ func (m *LogisticsRoutingManager) RegisterCarrier(ctx context.Context, carrier *
 	return nil
 }
 
-// OptimizeRoute 优化配送路线。
+// OptimizeRoute 优化多车配送路线。
 func (m *LogisticsRoutingManager) OptimizeRoute(ctx context.Context, orderIDs []uint64) (*domain.OptimizedRoute, error) {
 	carriers, err := m.repo.ListCarriers(ctx, true)
 	if err != nil {
@@ -46,37 +46,37 @@ func (m *LogisticsRoutingManager) OptimizeRoute(ctx context.Context, orderIDs []
 		return nil, errors.New("no active carriers found for route optimization")
 	}
 
-	// 1. 构造地理位置数据 (实际应从订单详情中获取 Lat/Lon)
-	start := algorithm.Location{ID: 0, Lat: 31.2304, Lon: 121.4737} // 假设从上海中心仓库出发
+	// 1. 构造地理位置数据 (真实化：应从订单服务获取真实的 Lat/Lon 和重量需求)
+	start := algorithm.Location{ID: 0, Lat: 31.2304, Lon: 121.4737, Demand: 0}
 	destinations := make([]algorithm.Location, len(orderIDs))
+	
+	// 临时生成逻辑补全：假设每个订单需求量为 10.0，坐标在上海周边
 	for i, id := range orderIDs {
 		destinations[i] = algorithm.Location{
-			ID:  id,
-			Lat: start.Lat + (rand.Float64()-0.5)*0.5, // 随机生成周边的配送点
-			Lon: start.Lon + (rand.Float64()-0.5)*0.5,
+			ID:     id,
+			Lat:    start.Lat + (rand.Float64()-0.5)*0.2, 
+			Lon:    start.Lon + (rand.Float64()-0.5)*0.2,
+			Demand: 10.0,
 		}
 	}
 
-	// 2. 调用算法进行多车路线规划 (VRP 简化版)
-	// 假设每辆车可以处理的量是有限的，或者我们根据配送商数量进行拆分
-	numVehicles := len(carriers)
-	if numVehicles > len(orderIDs) {
-		numVehicles = len(orderIDs)
-	}
-
-	routes := m.optimizer.OptimizeBatchRoutes(start, destinations, numVehicles)
+	// 2. 调用真实 Savings 算法进行多车路线规划
+	// 假设所有配送商使用统一的载重上限
+	capacity := 100.0 // 示例容量限制
+	routes := m.optimizer.ClarkeWrightVRP(start, destinations, capacity)
 
 	// 3. 将算法结果映射回业务领域模型
 	var routeOrders []*domain.RouteOrder
 	var totalCost int64
 
 	for i, r := range routes {
-		carrier := carriers[i%len(carriers)] // 简单分配给承运商
+		carrier := carriers[i%len(carriers)] // 循环分配至承运商
 		for _, loc := range r.Locations {
 			if loc.ID == 0 {
 				continue // 跳过起点
 			}
-			cost := carrier.BaseCost + int64(r.Distance/1000.0*carrier.DistanceRate)
+			// 基于 Haversine 距离计算真实配送成本 (元/公里)
+			cost := carrier.BaseCost + int64(r.Distance * float64(carrier.DistanceRate))
 			routeOrders = append(routeOrders, &domain.RouteOrder{
 				OrderID:       loc.ID,
 				CarrierID:     uint64(carrier.ID),
@@ -99,7 +99,7 @@ func (m *LogisticsRoutingManager) OptimizeRoute(ctx context.Context, orderIDs []
 		m.logger.ErrorContext(ctx, "failed to save optimized route", "error", err)
 		return nil, err
 	}
-	m.logger.InfoContext(ctx, "multi-vehicle optimized route created", "route_id", route.ID, "order_count", route.OrderCount, "vehicles_used", len(routes))
+	m.logger.InfoContext(ctx, "Clarke-Wright optimized multi-vehicle route created", "route_id", route.ID, "vehicles_used", len(routes))
 
 	return route, nil
 }
