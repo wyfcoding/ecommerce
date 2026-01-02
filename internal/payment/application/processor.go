@@ -76,7 +76,7 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 		return nil, nil, err
 	}
 	if payment == nil {
-		payment = domain.NewPayment(orderID, fmt.Sprintf("ORD%d", orderID), userID, amount, paymentMethodStr, gatewayType)
+		payment = domain.NewPayment(orderID, fmt.Sprintf("ORD%d", orderID), userID, amount, paymentMethodStr, gatewayType, s.idGenerator)
 	}
 
 	// 4. 执行 PreAuth

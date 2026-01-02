@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/pkg/fsm"
+	"github.com/wyfcoding/pkg/idgen"
 	"gorm.io/gorm"
 )
 
@@ -93,9 +94,9 @@ type PaymentLog struct {
 	Remark    string `gorm:"size:255"`
 }
 
-func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string, gatewayType GatewayType) *Payment {
+func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string, gatewayType GatewayType, idGenerator idgen.Generator) *Payment {
 	p := &Payment{
-		PaymentNo:     generatePaymentNo(),
+		PaymentNo:     fmt.Sprintf("PAY%d", idGenerator.Generate()),
 		OrderID:       orderID,
 		OrderNo:       orderNo,
 		UserID:        userID,
@@ -163,9 +164,6 @@ var statusNamesMap = map[PaymentStatus]string{
 	PaymentReconciled:     "Reconciled",
 	PaymentReconcileError: "ReconcileError",
 }
-
-// 模拟生成
-func generatePaymentNo() string { return fmt.Sprintf("PAY%d", time.Now().UnixNano()) }
 
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 	p.Logs = append(p.Logs, &PaymentLog{
