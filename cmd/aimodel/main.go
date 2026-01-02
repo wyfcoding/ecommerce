@@ -12,6 +12,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/application"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/infrastructure/persistence"
 	aimodelgrpc "github.com/wyfcoding/ecommerce/internal/aimodel/interfaces/grpc"
@@ -54,6 +55,7 @@ type AppContext struct {
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
 	RecommendationConn *grpc.ClientConn `service:"recommendation"`
+	RiskSecurityConn   *grpc.ClientConn `service:"risksecurity"`
 }
 
 func main() {
@@ -174,11 +176,17 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	aimodelRepo := persistence.NewAIModelRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	var reconCli recommendationv1.RecommendationServiceClient
+	var (
+		reconCli recommendationv1.RecommendationServiceClient
+		riskCli  risksecurityv1.RiskSecurityServiceClient
+	)
 	if clients.RecommendationConn != nil {
 		reconCli = recommendationv1.NewRecommendationServiceClient(clients.RecommendationConn)
 	}
-	aimodelService := application.NewAIModelService(aimodelRepo, idGenerator, reconCli, logger.Logger)
+	if clients.RiskSecurityConn != nil {
+		riskCli = risksecurityv1.NewRiskSecurityServiceClient(clients.RiskSecurityConn)
+	}
+	aimodelService := application.NewAIModelService(aimodelRepo, idGenerator, reconCli, riskCli, logger.Logger)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := aimodelhttp.NewHandler(aimodelService, logger.Logger)

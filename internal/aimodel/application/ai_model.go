@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 	"github.com/wyfcoding/pkg/idgen"
 )
@@ -17,9 +18,9 @@ type AIModelService struct {
 }
 
 // NewAIModelService 创建并返回一个新的 AIModelService 实例。
-func NewAIModelService(repo domain.AIModelRepository, idGenerator idgen.Generator, reconCli recommendationv1.RecommendationServiceClient, logger *slog.Logger) *AIModelService {
+func NewAIModelService(repo domain.AIModelRepository, idGenerator idgen.Generator, reconCli recommendationv1.RecommendationServiceClient, riskCli risksecurityv1.RiskSecurityServiceClient, logger *slog.Logger) *AIModelService {
 	manager := NewAIModelManager(repo, idGenerator, logger)
-	query := NewAIModelQuery(repo, manager, reconCli)
+	query := NewAIModelQuery(repo, manager, reconCli, riskCli)
 	return &AIModelService{
 		manager: manager,
 		query:   query,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 )
 
@@ -15,14 +16,16 @@ type AIModelQuery struct {
 	repo     domain.AIModelRepository
 	manager  *AIModelManager // 引入 Manager 以调用真实的 Predict
 	reconCli recommendationv1.RecommendationServiceClient
+	riskCli  risksecurityv1.RiskSecurityServiceClient
 }
 
 // NewAIModelQuery 创建一个新的 AIModelQuery 实例。
-func NewAIModelQuery(repo domain.AIModelRepository, manager *AIModelManager, reconCli recommendationv1.RecommendationServiceClient) *AIModelQuery {
+func NewAIModelQuery(repo domain.AIModelRepository, manager *AIModelManager, reconCli recommendationv1.RecommendationServiceClient, riskCli risksecurityv1.RiskSecurityServiceClient) *AIModelQuery {
 	return &AIModelQuery{
 		repo:     repo,
 		manager:  manager,
 		reconCli: reconCli,
+		riskCli:  riskCli,
 	}
 }
 
@@ -156,11 +159,24 @@ func (q *AIModelQuery) SummarizeText(ctx context.Context, text string) (string, 
 	return "This is a mock summary of the text.", nil
 }
 
-// GetFraudScore 返回模拟的欺诈评分。
+// GetFraudScore 返回真实的欺诈评分（调用风险安全服务）。
 func (q *AIModelQuery) GetFraudScore(ctx context.Context, userID uint64, amount float64, ip string) (FraudScoreDTO, error) {
+	if q.riskCli == nil {
+		return FraudScoreDTO{}, fmt.Errorf("risk security service not available")
+	}
+
+	resp, err := q.riskCli.EvaluateRisk(ctx, &risksecurityv1.EvaluateRiskRequest{
+		UserId: userID,
+		Ip:     ip,
+		Amount: int64(amount * 100), // 转为分
+	})
+	if err != nil {
+		return FraudScoreDTO{}, err
+	}
+
 	return FraudScoreDTO{
-		FraudScore:   0.05,
-		IsFraudulent: false,
-		Reasons:      []string{"Normal transaction pattern"},
+		FraudScore:   float64(resp.Result.RiskScore) / 100.0,
+		IsFraudulent: resp.Result.RiskLevel > 3, // 假设 4 以上为风险
+		Reasons:      []string{"Real-time risk assessment completed"},
 	}, nil
 }
