@@ -42,6 +42,7 @@ type Flashsale struct {
 	EndTime       time.Time       `gorm:"not null;comment:结束时间" json:"end_time"`                   // 秒杀活动结束时间。
 	Status        FlashsaleStatus `gorm:"default:0;comment:状态" json:"status"`                      // 秒杀活动状态，默认为未开始。
 	Description   string          `gorm:"type:text;comment:描述" json:"description"`                 // 活动描述。
+	Version       int64           `gorm:"default:1;comment:乐观锁版本" json:"version"`                  // 乐观锁版本
 }
 
 // NewFlashsale 创建并返回一个新的 Flashsale 实体实例。
@@ -121,13 +122,13 @@ func (f *Flashsale) CanBuy(userBoughtCount int32, quantity int32) error {
 	return nil // 可以购买。
 }
 
-// Buy 模拟购买指定数量的秒杀商品，减少库存。
+// Buy 真实执行购买库存扣减。
 func (f *Flashsale) Buy(quantity int32) error {
 	if f.SoldCount+quantity > f.TotalStock {
-		return ErrFlashsaleSoldOut // 再次检查库存，防止超卖。
+		return ErrFlashsaleSoldOut 
 	}
 
-	f.SoldCount += quantity // 增加已售数量。
+	f.SoldCount += quantity 
 	return nil
 }
 
