@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"database/sql/driver" // 导入数据库驱动接口。
 	"encoding/json"       // 导入JSON编码/解码库。
 	"errors"              // 导入标准错误处理库。
@@ -8,6 +9,11 @@ import (
 
 	"gorm.io/gorm" // 导入GORM库。
 )
+
+// Sender 定义了通知发送器的通用接口
+type Sender interface {
+	Send(ctx context.Context, target, subject, content string) error
+}
 
 // NotificationType 定义了通知的类型。
 type NotificationType string
@@ -23,7 +29,7 @@ const (
 type NotificationChannel string
 
 const (
-	NotificationChannelApp   NotificationChannel = "APP"   // 应用程序内通知。
+	NotificationChannelApp   NotificationChannel = "APP"   // 站内信/应用程序内通知。
 	NotificationChannelSMS   NotificationChannel = "SMS"   // 短信通知。
 	NotificationChannelEmail NotificationChannel = "EMAIL" // 邮件通知。
 	NotificationChannelPush  NotificationChannel = "PUSH"  // 推送通知（例如，App Push）。

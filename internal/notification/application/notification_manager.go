@@ -11,15 +11,19 @@ import (
 
 // NotificationManager 处理通知的写操作（发送、标记已读、模板管理）。
 type NotificationManager struct {
-	repo   domain.NotificationRepository
-	logger *slog.Logger
+	repo        domain.NotificationRepository
+	emailSender domain.Sender
+	smsSender   domain.Sender
+	logger      *slog.Logger
 }
 
 // NewNotificationManager 负责处理 NewNotification 相关的写操作和业务逻辑。
-func NewNotificationManager(repo domain.NotificationRepository, logger *slog.Logger) *NotificationManager {
+func NewNotificationManager(repo domain.NotificationRepository, emailSender, smsSender domain.Sender, logger *slog.Logger) *NotificationManager {
 	return &NotificationManager{
-		repo:   repo,
-		logger: logger,
+		repo:        repo,
+		emailSender: emailSender,
+		smsSender:   smsSender,
+		logger:      logger,
 	}
 }
 
@@ -31,11 +35,34 @@ func (m *NotificationManager) SendNotification(ctx context.Context, userID uint6
 		return nil, err
 	}
 
-	// Simulated send
-	m.logger.Info("Notification sent (simulated)",
-		"user_id", userID,
-		"type", string(notifType),
-		"channel", string(channel))
+	// 真实化执行：根据渠道调用相应的发送器
+	var sendErr error
+	// 假设 Target 提取逻辑 (这里简化为通过 Data 传参或后续获取 User 详情)
+	target := "target_user_identity" 
+	if t, ok := data["target"].(string); ok {
+		target = t
+	}
+
+	switch channel {
+	case domain.NotificationChannelEmail:
+		if m.emailSender != nil {
+			sendErr = m.emailSender.Send(ctx, target, title, content)
+		}
+	case domain.NotificationChannelSMS:
+		if m.smsSender != nil {
+			sendErr = m.smsSender.Send(ctx, target, title, content)
+		}
+	case domain.NotificationChannelApp:
+		// 站内信仅持久化，无需额外发送动作
+		m.logger.Info("In-app notification persisted", "user_id", userID)
+	}
+
+	if sendErr != nil {
+		m.logger.Error("failed to send notification via channel", "channel", channel, "error", sendErr)
+		// 顶级架构中，此处应将状态标记为“发送失败”并加入重试队列
+	} else {
+		m.logger.Info("notification sent successfully", "user_id", userID, "channel", channel)
+	}
 
 	return notification, nil
 }

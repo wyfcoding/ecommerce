@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/notification/domain"
 )
@@ -14,10 +15,10 @@ type Notification struct {
 }
 
 // NewNotification 创建并返回一个新的 Notification 实例。
-func NewNotification(manager *NotificationManager, query *NotificationQuery) *Notification {
+func NewNotification(repo domain.NotificationRepository, emailSender, smsSender domain.Sender, logger *slog.Logger) *Notification {
 	return &Notification{
-		manager: manager,
-		query:   query,
+		manager: NewNotificationManager(repo, emailSender, smsSender, logger),
+		query:   NewNotificationQuery(repo, logger),
 	}
 }
 

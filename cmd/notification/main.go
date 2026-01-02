@@ -20,6 +20,7 @@ import (
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
@@ -158,13 +159,16 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence)
+	// 5.1 Infrastructure (Persistence & Senders)
 	notificationRepo := persistence.NewNotificationRepository(db.RawDB())
+	
+	// 初始化真实 Kafka 发送器
+	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
+	emailSender := kafka.NewKafkaNotificationSender(kafkaProducer, "notification.email")
+	smsSender := kafka.NewKafkaNotificationSender(kafkaProducer, "notification.sms")
 
 	// 5.2 Application (Service)
-	query := application.NewNotificationQuery(notificationRepo, logger.Logger)
-	manager := application.NewNotificationManager(notificationRepo, logger.Logger)
-	notificationService := application.NewNotification(manager, query)
+	notificationService := application.NewNotification(notificationRepo, emailSender, smsSender, logger.Logger)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := notificationhttp.NewHandler(notificationService, logger.Logger)
@@ -172,6 +176,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		if kafkaProducer != nil {
+			kafkaProducer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
