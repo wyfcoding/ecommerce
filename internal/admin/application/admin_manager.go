@@ -419,10 +419,16 @@ func (m *AdminManager) handleForceRefund(ctx context.Context, payloadStr string)
 	paymentTxID, _ := strconv.ParseUint(payload.PaymentID, 10, 64)
 	refundAmountCents := int64(payload.Amount * 100)
 
+	auditLog := &domain.AuditLog{
+		Action:   "order:force_refund",
+		Resource: "order",
+		TargetID: payload.OrderID,
+		Payload:  payloadStr,
+		Status:   1,
+	}
+
 	// 1. 调用订单服务发起退款请求/取消订单
 	orderClient := orderv1.NewOrderServiceClient(m.opsDeps.OrderClient)
-
-	// 修正：OrderId (uint64), RefundAmount (int64)
 	_, err := orderClient.RequestRefund(ctx, &orderv1.RequestRefundRequest{
 		OrderId:      orderID,
 		UserId:       payload.UserID,
@@ -430,13 +436,15 @@ func (m *AdminManager) handleForceRefund(ctx context.Context, payloadStr string)
 		Reason:       payload.Reason,
 	})
 	if err != nil {
+		auditLog.Status = 0
+		auditLog.Result = fmt.Sprintf("order service failed: %v", err)
+		m.LogAction(ctx, auditLog)
 		return fmt.Errorf("call order service failed: %w", err)
 	}
 
 	// 2. 如果需要直接操作支付网关退款
 	if m.opsDeps.PaymentClient != nil {
 		paymentClient := paymentv1.NewPaymentServiceClient(m.opsDeps.PaymentClient)
-		// 修正：PaymentTransactionId (uint64), OrderId (uint64), RefundAmount (int64)
 		_, err := paymentClient.RequestRefund(ctx, &paymentv1.RequestRefundRequest{
 			PaymentTransactionId: paymentTxID,
 			OrderId:              orderID,
@@ -445,10 +453,15 @@ func (m *AdminManager) handleForceRefund(ctx context.Context, payloadStr string)
 			Reason:               payload.Reason,
 		})
 		if err != nil {
+			auditLog.Status = 0
+			auditLog.Result = fmt.Sprintf("payment service failed: %v", err)
+			m.LogAction(ctx, auditLog)
 			return fmt.Errorf("call payment service failed: %w", err)
 		}
 	}
 
+	auditLog.Result = "Success"
+	m.LogAction(ctx, auditLog)
 	m.logger.Info("force refund executed successfully", "order_id", payload.OrderID)
 	return nil
 }
@@ -463,6 +476,14 @@ func (m *AdminManager) handleConfigUpdate(ctx context.Context, payloadStr string
 		return fmt.Errorf("unmarshal payload failed: %w", err)
 	}
 
+	auditLog := &domain.AuditLog{
+		Action:   "config:update",
+		Resource: "system_setting",
+		TargetID: payload.Key,
+		Payload:  payloadStr,
+		Status:   1,
+	}
+
 	// 实际更新数据库配置
 	setting := &domain.SystemSetting{
 		Key:         payload.Key,
@@ -470,11 +491,15 @@ func (m *AdminManager) handleConfigUpdate(ctx context.Context, payloadStr string
 		Description: payload.Description,
 	}
 
-	// 使用 Repository 更新 (Save 通常包含 CreateOrUpdate 逻辑)
 	if err := m.settingRepo.Save(ctx, setting); err != nil {
+		auditLog.Status = 0
+		auditLog.Result = err.Error()
+		m.LogAction(ctx, auditLog)
 		return fmt.Errorf("save setting failed: %w", err)
 	}
 
+	auditLog.Result = "Success"
+	m.LogAction(ctx, auditLog)
 	m.logger.Info("system config updated", "key", payload.Key)
 	return nil
 }
