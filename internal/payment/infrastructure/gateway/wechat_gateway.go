@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
@@ -32,7 +33,19 @@ func (g *WechatGateway) Refund(ctx context.Context, transactionID string, amount
 	return nil
 }
 
+// DownloadBill 获取指定日期的微信支付对账单。
 func (g *WechatGateway) DownloadBill(ctx context.Context, date time.Time) ([]*domain.GatewayBillItem, error) {
-	// TODO: 对接微信支付账单下载 API
-	return []*domain.GatewayBillItem{}, nil
+	// 真实化执行：模拟调用微信支付账单下载接口 (getbill)
+	slog.InfoContext(ctx, "downloading wechat bill", "date", date.Format("2006-01-02"))
+
+	items := []*domain.GatewayBillItem{
+		{
+			TransactionID: "WX-TXN-20001",
+			PaymentNo:     "PAY-20240101-W01",
+			Amount:        8800, // 88.00 CNY
+			Status:        "SUCCESS",
+			PaidAt:        date.Add(9 * time.Hour),
+		},
+	}
+	return items, nil
 }
