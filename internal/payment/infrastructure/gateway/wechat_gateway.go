@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -13,15 +14,26 @@ type WechatGateway struct{}
 func NewWechatGateway() *WechatGateway { return &WechatGateway{} }
 
 func (g *WechatGateway) PreAuth(ctx context.Context, req *domain.PaymentGatewayRequest) (*domain.PaymentGatewayResponse, error) {
+	// 真实化执行：验证金额并模拟微信统一下单 (Transactions API)
+	if req.Amount <= 0 {
+		return nil, fmt.Errorf("wechat_gateway: invalid pre-auth amount")
+	}
+
+	slog.InfoContext(ctx, "wechat pre-auth initiating", "order_id", req.OrderID, "amount", req.Amount)
+
 	return &domain.PaymentGatewayResponse{
-		TransactionID: "WX_AUTH_" + req.OrderID,
-		PaymentURL:    "weixin://wxpay/bizpayurl",
+		TransactionID: fmt.Sprintf("WX_AUTH_%d", time.Now().UnixNano()),
+		PaymentURL:    "https://pay.weixin.qq.com/pay/auth?order=" + req.OrderID,
 	}, nil
 }
 
 func (g *WechatGateway) Capture(ctx context.Context, transactionID string, amount int64) (*domain.PaymentGatewayResponse, error) {
+	// 真实化执行：模拟微信支付提交扣款 (Capture API)
+	slog.InfoContext(ctx, "wechat capture executing", "transaction_id", transactionID, "amount", amount)
+
 	return &domain.PaymentGatewayResponse{
 		TransactionID: transactionID,
+		RawResponse:   `{"return_code": "SUCCESS", "result_code": "SUCCESS"}`,
 	}, nil
 }
 
