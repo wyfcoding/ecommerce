@@ -25,26 +25,16 @@ func NewCustomerManager(repo domain.CustomerRepository, logger *slog.Logger) *Cu
 }
 
 // SegmentUsers 利用 K-Means 算法对用户进行分群。
-// k: 期望的分群数量。
-// 该功能通过分析用户的工单频率、处理时长等维度，识别不同价值或行为偏好的用户群体。
 func (m *CustomerManager) SegmentUsers(ctx context.Context, k int) (map[uint64]int, error) {
-	// 1. 获取所有活跃用户的统计数据
-	// 这里简化模拟获取数据，实际应从 Repository 中进行聚合查询
-	// 假设我们关心两个维度：1. 工单总数 (反映活跃/问题度) 2. 平均优先级 (反映紧迫度)
-	userStats := []struct {
-		UserID      uint64
-		TicketCount float64
-		AvgPriority float64
-	}{
-		{UserID: 1, TicketCount: 10, AvgPriority: 4},
-		{UserID: 2, TicketCount: 2, AvgPriority: 1},
-		{UserID: 3, TicketCount: 15, AvgPriority: 3},
-		{UserID: 4, TicketCount: 1, AvgPriority: 2},
-		{UserID: 5, TicketCount: 8, AvgPriority: 4},
+	// 1. 从 Repository 获取真实的聚合统计数据
+	userStats, err := m.repo.GetCustomerSegmentationStats(ctx)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get customer stats for segmentation", "error", err)
+		return nil, err
 	}
 
 	if len(userStats) < k {
-		return nil, fmt.Errorf("not enough data points for k=%d", k)
+		return nil, fmt.Errorf("not enough data points for k=%d (found %d)", k, len(userStats))
 	}
 
 	// 2. 构造 KMeans 输入点

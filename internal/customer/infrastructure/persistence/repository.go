@@ -88,3 +88,24 @@ func (r *customerRepository) ListMessages(ctx context.Context, ticketID uint64, 
 
 	return list, total, nil
 }
+
+// GetCustomerSegmentationStats 通过聚合工单数据获取用户分群统计。
+func (r *customerRepository) GetCustomerSegmentationStats(ctx context.Context) ([]struct {
+	UserID      uint64
+	TicketCount float64
+	AvgPriority float64
+}, error) {
+	var results []struct {
+		UserID      uint64
+		TicketCount float64
+		AvgPriority float64
+	}
+
+	// 聚合查询：按用户分组，统计工单数和平均优先级
+	err := r.db.WithContext(ctx).Table("tickets").
+		Select("user_id, COUNT(*) as ticket_count, AVG(priority) as avg_priority").
+		Group("user_id").
+		Scan(&results).Error
+
+	return results, err
+}

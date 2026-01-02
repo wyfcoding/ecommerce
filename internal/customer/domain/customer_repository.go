@@ -16,4 +16,11 @@ type CustomerRepository interface {
 	// --- Message methods ---
 	SaveMessage(ctx context.Context, message *Message) error
 	ListMessages(ctx context.Context, ticketID uint64, offset, limit int) ([]*Message, int64, error)
+
+	// --- Statistics for AI/ML ---
+	GetCustomerSegmentationStats(ctx context.Context) ([]struct {
+		UserID      uint64
+		TicketCount float64
+		AvgPriority float64
+	}, error)
 }

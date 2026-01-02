@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
+	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/application"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/infrastructure/persistence"
 	moderationgrpc "github.com/wyfcoding/ecommerce/internal/contentmoderation/interfaces/grpc"
@@ -51,7 +52,7 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 ContentModeration 服务无下游强依赖
+	AIModelConn *grpc.ClientConn `service:"aimodel"`
 }
 
 func main() {
@@ -163,7 +164,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewModerationQuery(moderationRepo)
-	manager := application.NewModerationManager(moderationRepo, logger.Logger)
+	var aimodelCli aimodelv1.AIModelServiceClient
+	if clients.AIModelConn != nil {
+		aimodelCli = aimodelv1.NewAIModelServiceClient(clients.AIModelConn)
+	}
+	manager := application.NewModerationManager(moderationRepo, logger.Logger, aimodelCli)
 	moderationService := application.NewModerationService(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)

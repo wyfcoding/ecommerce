@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
@@ -14,14 +15,16 @@ type ModerationManager struct {
 	repo          domain.ModerationRepository
 	logger        *slog.Logger
 	sensitiveTrie *algorithm.Trie
+	aimodelCli    aimodelv1.AIModelServiceClient
 }
 
 // NewModerationManager 创建并返回一个新的 ModerationManager 实例。
-func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger) *ModerationManager {
+func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger, aimodelCli aimodelv1.AIModelServiceClient) *ModerationManager {
 	return &ModerationManager{
 		repo:          repo,
 		logger:        logger,
 		sensitiveTrie: algorithm.NewTrie(),
+		aimodelCli:    aimodelCli,
 	}
 }
 
@@ -29,15 +32,33 @@ func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger)
 func (m *ModerationManager) SubmitContent(ctx context.Context, contentType domain.ContentType, contentID uint64, content string, userID uint64) (*domain.ModerationRecord, error) {
 	record := domain.NewModerationRecord(contentType, contentID, content, userID)
 
-	// 使用 Trie 进行敏感词检测 (简单的分词匹配)
+	// 1. 使用 Trie 进行敏感词检测 (简单的分词匹配)
 	sensitiveWords := m.CheckSensitiveWords(content)
 
 	if len(sensitiveWords) > 0 {
 		// 命中敏感词，直接标记为高风险
 		record.SetAIResult(0.95, append([]string{"sensitive_word_detected"}, sensitiveWords...))
+	} else if m.aimodelCli != nil {
+		// 2. 敏感词未命中，调用 AI 模型进行深度情感/风险分析
+		resp, err := m.aimodelCli.AnalyzeReviewSentiment(ctx, &aimodelv1.AnalyzeReviewSentimentRequest{
+			ReviewText: content,
+		})
+		if err != nil {
+			m.logger.WarnContext(ctx, "AI model analysis failed, falling back to manual review", "error", err)
+			record.SetAIResult(0.5, []string{"ai_analysis_failed"})
+		} else {
+			// 根据情感得分判定风险：如果是负面 (NEGATIVE)，风险较高
+			riskScore := resp.Score
+			if resp.Sentiment == aimodelv1.Sentiment_SENTIMENT_NEGATIVE {
+				// 转换为风险分，假设 0.8 以上需要审核
+				record.SetAIResult(riskScore, []string{"negative_sentiment_detected"})
+			} else {
+				record.SetAIResult(1.0-riskScore, []string{"safe_sentiment"})
+			}
+		}
 	} else {
-		// 未命中，模拟 AI 结果为安全
-		record.SetAIResult(0.1, []string{"safe"})
+		// 未命中且无 AI 客户端，保守起见设为待定
+		record.SetAIResult(0.5, []string{"no_ai_service"})
 	}
 
 	if err := m.repo.CreateRecord(ctx, record); err != nil {
