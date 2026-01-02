@@ -121,7 +121,6 @@ func (r *marketingRepository) GetUserIDsByTag(ctx context.Context, tagName strin
 	err := r.db.WithContext(ctx).Table("user_tags").
 		Where("tag_name = ?", tagName).
 		Pluck("user_id", &userIDs).Error
-
 	if err != nil {
 		return nil, err
 	}

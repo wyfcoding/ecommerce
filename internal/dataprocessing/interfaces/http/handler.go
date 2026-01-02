@@ -290,16 +290,16 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	group := r.Group("/processing")
 	{
 		// 任务管理接口。
-		group.POST("/tasks", h.SubmitTask) // 提交任务。
-		group.GET("/tasks", h.ListTasks)   // 获取任务列表。
-		group.GET("/tasks/:id", h.GetTask) // 获取任务详情。
+		group.POST("/tasks", h.SubmitTask)            // 提交任务。
+		group.GET("/tasks", h.ListTasks)              // 获取任务列表。
+		group.GET("/tasks/:id", h.GetTask)            // 获取任务详情。
 		group.POST("/tasks/:id/cancel", h.CancelTask) // 取消任务。
 
 		// 工作流管理接口。
-		group.POST("/workflows", h.CreateWorkflow) // 创建工作流。
-		group.GET("/workflows", h.ListWorkflows)   // 获取工作流列表。
-		group.GET("/workflows/:id", h.GetWorkflow) // 获取工作流详情。
-		group.PUT("/workflows/:id", h.UpdateWorkflow) // 更新工作流。
+		group.POST("/workflows", h.CreateWorkflow)              // 创建工作流。
+		group.GET("/workflows", h.ListWorkflows)                // 获取工作流列表。
+		group.GET("/workflows/:id", h.GetWorkflow)              // 获取工作流详情。
+		group.PUT("/workflows/:id", h.UpdateWorkflow)           // 更新工作流。
 		group.PUT("/workflows/:id/active", h.SetWorkflowActive) // 激活/停用工作流。
 	}
 }

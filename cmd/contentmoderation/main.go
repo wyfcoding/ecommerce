@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
 	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/application"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/infrastructure/persistence"
 	moderationgrpc "github.com/wyfcoding/ecommerce/internal/contentmoderation/interfaces/grpc"

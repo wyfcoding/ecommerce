@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/orderoptimization/v1"
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/orderoptimization/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/application"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/persistence"
 	optimizationgrpc "github.com/wyfcoding/ecommerce/internal/orderoptimization/interfaces/grpc"
@@ -166,7 +166,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewOptimizationQuery(optimizationRepo)
-	
+
 	var (
 		orderCli     orderv1.OrderServiceClient
 		inventoryCli inventoryv1.InventoryServiceClient

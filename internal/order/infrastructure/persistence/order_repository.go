@@ -13,7 +13,7 @@ import (
 
 type orderRepository struct {
 	sharding *sharding.Manager
-	tx       *gorm.DB 
+	tx       *gorm.DB
 }
 
 // NewOrderRepository 定义了数据持久层接口。

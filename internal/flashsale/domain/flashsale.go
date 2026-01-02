@@ -125,10 +125,10 @@ func (f *Flashsale) CanBuy(userBoughtCount int32, quantity int32) error {
 // Buy 真实执行购买库存扣减。
 func (f *Flashsale) Buy(quantity int32) error {
 	if f.SoldCount+quantity > f.TotalStock {
-		return ErrFlashsaleSoldOut 
+		return ErrFlashsaleSoldOut
 	}
 
-	f.SoldCount += quantity 
+	f.SoldCount += quantity
 	return nil
 }
 

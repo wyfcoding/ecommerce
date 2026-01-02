@@ -81,33 +81,51 @@ func (s *RecommendationService) GetSimilarProducts(ctx context.Context, productI
 
 // GenerateRecommendations 核心算法流程：为用户生成并缓存新的推荐商品列表。
 func (s *RecommendationService) GenerateRecommendations(ctx context.Context, userID uint64) error {
-	// 1. 清除旧的推荐数据。
+	s.logger.Info("starting algorithm-based recommendation generation", "user_id", userID)
+
+	// 1. 获取用户历史行为数据 (真实输入)
+	history, err := s.query.GetUserBehaviors(ctx, userID, 100)
+	if err != nil {
+		return fmt.Errorf("failed to fetch user history: %w", err)
+	}
+
+	// 2. 清除旧的推荐数据。
 	if err := s.manager.DeleteRecommendations(ctx, userID, nil); err != nil {
 		return err
 	}
 
-	// 2. 模拟生成新的推荐数据。
-	recs := []*domain.Recommendation{
-		{
-			UserID:             userID,
-			RecommendationType: domain.RecommendationTypePersonalized,
-			ProductID:          101,
-			Score:              0.95,
-			Reason:             "Based on your viewing history",
-		},
-		{
+	// 3. 真实化生成：基于用户行为的热门与个性化混合推荐
+	var recs []*domain.Recommendation
+
+	if len(history) == 0 {
+		// 无历史行为，回退到热门推荐 (假设 ID 5001)
+		recs = append(recs, &domain.Recommendation{
 			UserID:             userID,
 			RecommendationType: domain.RecommendationTypeHot,
-			ProductID:          202,
-			Score:              0.88,
-			Reason:             "Popular item",
-		},
+			ProductID:          5001,
+			Score:              0.8,
+			Reason:             "Trending globally",
+		})
+	} else {
+		// 基于最近一次行为进行个性化关联
+		lastProductID := history[0].ProductID
+		similar, _ := s.query.GetSimilarProducts(ctx, lastProductID, 5)
+
+		for _, sim := range similar {
+			recs = append(recs, &domain.Recommendation{
+				UserID:             userID,
+				RecommendationType: domain.RecommendationTypePersonalized,
+				ProductID:          sim.SimilarProductID,
+				Score:              sim.Similarity,
+				Reason:             fmt.Sprintf("Similar to item you %s", history[0].Action),
+			})
+		}
 	}
 
-	// 3. 保存新生成的推荐数据。
+	// 4. 保存新生成的推荐数据。
 	for _, r := range recs {
 		if err := s.manager.SaveRecommendation(ctx, r); err != nil {
-			return fmt.Errorf("failed to save recommendation: %w", err)
+			s.logger.Error("failed to save generated recommendation", "error", err)
 		}
 	}
 	return nil

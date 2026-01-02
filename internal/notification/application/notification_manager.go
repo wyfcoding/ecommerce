@@ -38,7 +38,7 @@ func (m *NotificationManager) SendNotification(ctx context.Context, userID uint6
 	// 真实化执行：根据渠道调用相应的发送器
 	var sendErr error
 	// 假设 Target 提取逻辑 (这里简化为通过 Data 传参或后续获取 User 详情)
-	target := "target_user_identity" 
+	target := "target_user_identity"
 	if t, ok := data["target"].(string); ok {
 		target = t
 	}

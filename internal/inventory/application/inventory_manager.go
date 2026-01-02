@@ -152,7 +152,7 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 		// --- 架构增强：自动补货触发 (Cross-Project Interaction) ---
 		if inv.AvailableStock < inv.WarningThreshold && m.remoteOrderCli != nil {
 			m.logger.InfoContext(ctx, "low stock detected, triggering institutional replenishment", "sku_id", skuID, "stock", inv.AvailableStock)
-			
+
 			// 真实化逻辑：根据预警阈值动态计算补货量
 			replenishQty := int32(inv.WarningThreshold * 2)
 			if replenishQty == 0 {
@@ -163,7 +163,7 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 				// 异步下单，不阻塞主流程
 				replenishCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
-				
+
 				// 调用跨项目订单服务发起补货申请
 				_, err := m.remoteOrderCli.CreateOrder(replenishCtx, &orderv1.CreateOrderRequest{
 					UserId:    "INVENTORY_BOT", // 使用专用的补货机器人账户

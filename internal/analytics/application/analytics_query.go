@@ -138,15 +138,17 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 	equityDec := decimal.NewFromFloat(resp.CashBalance).
 		Add(decimal.NewFromFloat(resp.TotalTradingPnl)).
 		Sub(decimal.NewFromFloat(resp.TotalRetailSpending)) // 假设零售支出作为负债抵扣
-	
+
 	resp.TotalEquity, _ = equityDec.Float64()
 
 	// 4. 计算多维资产分布 (真实权重占比)
 	if resp.TotalEquity > 0 {
 		total := decimal.NewFromFloat(resp.TotalEquity)
-		
+
 		addAsset := func(assetType string, amount float64) {
-			if amount == 0 { return }
+			if amount == 0 {
+				return
+			}
 			pct, _ := decimal.NewFromFloat(amount).Div(total).Mul(decimal.NewFromInt(100)).Float64()
 			resp.AssetDistribution = append(resp.AssetDistribution, &analyticsv1.AssetDistribution{
 				AssetType:  assetType,

@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/marketing/v1"
 	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/marketing/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"
 	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/persistence"
 	marketinggrpc "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/grpc"

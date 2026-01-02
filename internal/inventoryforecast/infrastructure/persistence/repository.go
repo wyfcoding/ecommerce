@@ -121,7 +121,6 @@ func (r *inventoryForecastRepository) GetSalesHistory(ctx context.Context, skuID
 		Order("date desc").
 		Limit(days).
 		Find(&sales).Error
-
 	if err != nil {
 		return nil, err
 	}

@@ -76,10 +76,10 @@ func (q *WarehouseQuery) GetOptimalWarehouse(ctx context.Context, skuID uint64, 
 		// 真实化实现：加权评分模型
 		// 1. 距离得分 (0-1): 越近越高
 		distScore := 1.0 / (1.0 + dist/100.0) // 100km 为衰减基准
-		
+
 		// 2. 优先级得分 (0-1): 假设领域模型中 Priority 范围 1-100
 		priorityScore := float64(wh.Priority) / 100.0
-		
+
 		// 3. 库存得分 (0-1): 库存越充裕越高 (防止单一仓库被耗尽)
 		stockScore := math.Min(1.0, float64(stock)/float64(qty*10))
 

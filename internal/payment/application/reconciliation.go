@@ -38,7 +38,7 @@ func (s *ReconciliationService) RunDailyReconciliation(ctx context.Context, date
 	if err != nil {
 		return err
 	}
-	
+
 	localMap := make(map[string]*domain.Payment)
 	for _, p := range localPayments {
 		localMap[p.PaymentNo] = p
@@ -47,7 +47,7 @@ func (s *ReconciliationService) RunDailyReconciliation(ctx context.Context, date
 	// 2. 遍历网关下载对账单并核对
 	for gatewayType, gateway := range s.gateways {
 		s.logger.InfoContext(ctx, "processing gateway bill", "gateway", gatewayType)
-		
+
 		billItems, err := gateway.DownloadBill(ctx, date)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to download bill", "gateway", gatewayType, "error", err)

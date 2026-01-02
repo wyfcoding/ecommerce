@@ -101,7 +101,7 @@ func (m *OptimizationManager) SplitOrder(ctx context.Context, orderID uint64) ([
 				productID = orig.ProductId
 				price = orig.Price
 			}
-			
+
 			splitItems[j] = &domain.OrderItem{
 				ProductID: productID,
 				SkuID:     it.SkuId,
@@ -119,7 +119,7 @@ func (m *OptimizationManager) SplitOrder(ctx context.Context, orderID uint64) ([
 			WarehouseID:     alloc.WarehouseId,
 			Status:          "optimized_suggestion",
 		}
-		
+
 		if err := m.repo.SaveSplitOrder(ctx, split); err != nil {
 			m.logger.WarnContext(ctx, "failed to save optimized split suggestion", "error", err)
 		}

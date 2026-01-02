@@ -233,11 +233,11 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /inventory 路由组，用于所有库存相关接口。
 	group := r.Group("/inventory")
 	{
-		group.POST("", h.CreateInventory)           // 创建库存。
-		group.GET("", h.ListInventories)            // 获取库存列表。
-		group.GET("/:sku_id", h.GetInventory)       // 获取指定SKU库存信息。
-		group.DELETE("/:sku_id", h.DeleteInventory) // 删除库存。
-		group.POST("/:sku_id/stock", h.UpdateStock) // 更新库存。
+		group.POST("", h.CreateInventory)              // 创建库存。
+		group.GET("", h.ListInventories)               // 获取库存列表。
+		group.GET("/:sku_id", h.GetInventory)          // 获取指定SKU库存信息。
+		group.DELETE("/:sku_id", h.DeleteInventory)    // 删除库存。
+		group.POST("/:sku_id/stock", h.UpdateStock)    // 更新库存。
 		group.GET("/:sku_id/logs", h.GetInventoryLogs) // 获取库存日志。
 	}
 }

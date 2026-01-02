@@ -49,12 +49,12 @@ func (m *LogisticsRoutingManager) OptimizeRoute(ctx context.Context, orderIDs []
 	// 1. 构造地理位置数据 (真实化：应从订单服务获取真实的 Lat/Lon 和重量需求)
 	start := algorithm.Location{ID: 0, Lat: 31.2304, Lon: 121.4737, Demand: 0}
 	destinations := make([]algorithm.Location, len(orderIDs))
-	
+
 	// 临时生成逻辑补全：假设每个订单需求量为 10.0，坐标在上海周边
 	for i, id := range orderIDs {
 		destinations[i] = algorithm.Location{
 			ID:     id,
-			Lat:    start.Lat + (rand.Float64()-0.5)*0.2, 
+			Lat:    start.Lat + (rand.Float64()-0.5)*0.2,
 			Lon:    start.Lon + (rand.Float64()-0.5)*0.2,
 			Demand: 10.0,
 		}
@@ -76,7 +76,7 @@ func (m *LogisticsRoutingManager) OptimizeRoute(ctx context.Context, orderIDs []
 				continue // 跳过起点
 			}
 			// 基于 Haversine 距离计算真实配送成本 (元/公里)
-			cost := carrier.BaseCost + int64(r.Distance * float64(carrier.DistanceRate))
+			cost := carrier.BaseCost + int64(r.Distance*float64(carrier.DistanceRate))
 			routeOrders = append(routeOrders, &domain.RouteOrder{
 				OrderID:       loc.ID,
 				CarrierID:     uint64(carrier.ID),

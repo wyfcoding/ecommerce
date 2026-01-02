@@ -20,10 +20,10 @@ import (
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
-	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -161,7 +161,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.1 Infrastructure (Persistence & Senders)
 	notificationRepo := persistence.NewNotificationRepository(db.RawDB())
-	
+
 	// 初始化真实 Kafka 发送器
 	kafkaProducer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 	emailSender := kafka.NewKafkaNotificationSender(kafkaProducer, "notification.email")

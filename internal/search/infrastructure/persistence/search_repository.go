@@ -125,7 +125,6 @@ func (r *searchRepository) Suggest(ctx context.Context, keyword string, limit in
 		Order("score DESC").
 		Limit(limit).
 		Scan(&suggestions).Error
-
 	if err != nil {
 		return nil, err
 	}

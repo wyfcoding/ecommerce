@@ -165,7 +165,7 @@ func (r *paymentRepository) SaveReconciliationRecord(ctx context.Context, record
 // GetUserIDByPaymentNo 跨分片查找支付单归属的用户ID。
 func (r *paymentRepository) GetUserIDByPaymentNo(ctx context.Context, paymentNo string) (uint64, error) {
 	dbs := r.sharding.GetAllDBs()
-	
+
 	// 真实化执行：扫描所有分片寻找 PaymentNo
 	// 顶级优化：如果 PaymentNo 包含分片信息，则无需全表扫描
 	for _, db := range dbs {
@@ -176,7 +176,7 @@ func (r *paymentRepository) GetUserIDByPaymentNo(ctx context.Context, paymentNo 
 			Select("user_id").
 			Where("payment_no = ?", paymentNo).
 			First(&p).Error
-		
+
 		if err == nil {
 			return p.UserID, nil
 		}

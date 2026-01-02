@@ -95,7 +95,6 @@ func (s *RefundService) RequestRefund(ctx context.Context, userID, paymentID uin
 		}
 		return txRefundRepo.Save(ctx, refund)
 	})
-
 	if err != nil {
 		return nil, err
 	}

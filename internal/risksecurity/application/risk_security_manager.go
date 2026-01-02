@@ -74,14 +74,14 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 	// 1. 检查黑名单 (一票否决)
 	isIPBlacklisted, _ := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeIP, ip)
 	isUserBlacklisted, _ := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeUser, fmt.Sprintf("%d", userID))
-	
+
 	if isIPBlacklisted || isUserBlacklisted {
 		return m.createResult(ctx, userID, domain.RiskLevelCritical, 100, "Entity found in blacklist")
 	}
 
 	// 2. 准备多准则评分因子 (0-1)
 	factors := make(map[string]float64)
-	
+
 	// 2.1 金额风险 (假设 50000 以上为高风险)
 	if amount > 5000000 {
 		factors["amount_risk"] = 1.0
@@ -113,10 +113,10 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 	// 2.4 远程金融风控风险
 	if m.remoteRiskCli != nil {
 		remoteResp, err := m.remoteRiskCli.AssessRisk(ctx, &riskv1.AssessRiskRequest{
-			UserId:   fmt.Sprintf("%d", userID),
-			Symbol:   "PAYMENT",
-			Side:     "OUT",
-			Price:    fmt.Sprintf("%d", amount),
+			UserId: fmt.Sprintf("%d", userID),
+			Symbol: "PAYMENT",
+			Side:   "OUT",
+			Price:  fmt.Sprintf("%d", amount),
 		})
 		if err == nil {
 			score, _ := strconv.ParseFloat(remoteResp.RiskScore, 64)
@@ -131,7 +131,7 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 		"location_risk":  0.2,
 		"amount_risk":    0.1,
 	}
-	
+
 	finalScore := m.calculator.EvaluateFraudScore(factors, weights)
 	intScore := int32(finalScore * 100)
 

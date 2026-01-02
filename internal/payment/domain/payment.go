@@ -254,7 +254,7 @@ type PaymentRepository interface {
 
 	// 辅助查询
 	GetUserIDByPaymentNo(ctx context.Context, paymentNo string) (uint64, error)
-	
+
 	// 对账相关
 	FindSuccessPaymentsByDate(ctx context.Context, date time.Time) ([]*Payment, error)
 	SaveReconciliationRecord(ctx context.Context, record *ReconciliationRecord) error

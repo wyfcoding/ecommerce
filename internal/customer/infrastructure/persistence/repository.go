@@ -94,7 +94,8 @@ func (r *customerRepository) GetCustomerSegmentationStats(ctx context.Context) (
 	UserID      uint64
 	TicketCount float64
 	AvgPriority float64
-}, error) {
+}, error,
+) {
 	var results []struct {
 		UserID      uint64
 		TicketCount float64
