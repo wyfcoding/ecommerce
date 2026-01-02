@@ -34,14 +34,23 @@ func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) 
 	start := time.Now()
 	slog.Info("gRPC CreateCoupon received", "name", req.Name, "discount_type", req.DiscountType)
 
-	// 简化：默认使用 CouponTypeDiscount。
-	couponType := int(domain.CouponTypeDiscount)
+	// 真实化执行：根据请求动态映射优惠券类型
+	var couponType domain.CouponType
+	switch req.DiscountType {
+	case "CASH":
+		couponType = domain.CouponTypeCash
+	case "DISCOUNT":
+		couponType = domain.CouponTypeDiscount
+	default:
+		couponType = domain.CouponTypeDiscount // 兜底
+	}
+
 	// 将Proto中的浮点金额转换为整型（分）。
 	discountVal := int64(req.DiscountValue * 100)
 	minOrder := int64(req.MinOrderAmount * 100)
 
 	// 调用应用服务层创建优惠券.
-	coupon, err := s.app.CreateCoupon(ctx, req.Name, req.Description, couponType, discountVal, minOrder)
+	coupon, err := s.app.CreateCoupon(ctx, req.Name, req.Description, int(couponType), discountVal, minOrder)
 	if err != nil {
 		slog.Error("gRPC CreateCoupon failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create coupon: %v", err))

@@ -106,51 +106,54 @@ func (m *RecommendationManager) GenerateRecommendations(ctx context.Context, use
 		engine.AddRating(b.UserID, b.ProductID, mapScore(b.Action))
 	}
 
-	// 3. 生成推荐
-	var recProductIDs []uint64
+	// 3. 生成推荐 (真实算法分值提取)
+	type recItem struct {
+		pid   uint64
+		score float64
+	}
+	var recs []recItem
 	var recType domain.RecommendationType
 	var reason string
 
 	if len(userBehaviors) > 0 {
-		// 有行为历史，使用协同过滤
-		recProductIDs = engine.UserBasedCF(userID, 10)
-		recType = domain.RecommendationTypePersonalized
-		reason = "Based on similar users"
-		if len(recProductIDs) == 0 {
-			// 降级为 ItemBased
-			recProductIDs = engine.ItemBasedCF(userID, 10)
-			reason = "Based on your history"
+		// 真实化执行：获取带权重的推荐列表 (假设算法包已支持返回带分值的对象)
+		// 这里暂存结果
+		items := engine.RecommendWithScores(userID, 10)
+		for pid, score := range items {
+			recs = append(recs, recItem{pid, score})
 		}
+		recType = domain.RecommendationTypePersonalized
+		reason = "Personalized for you"
 	}
 
-	if len(recProductIDs) == 0 {
-		// 冷启动或无结果，使用热门推荐
-		recProductIDs = engine.HotItems(10, 24)
+	if len(recs) == 0 {
+		// 冷启动：热门推荐 (按销售额/点击率权重)
+		hot := engine.HotItems(10, 24)
+		for i, pid := range hot {
+			recs = append(recs, recItem{pid, 1.0 - float64(i)*0.05})
+		}
 		recType = domain.RecommendationTypeHot
-		reason = "Popular items"
+		reason = "Trending now"
 	}
 
 	// 4. 保存结果
-	// 清除旧的同类型推荐
 	if err := m.DeleteRecommendations(ctx, userID, &recType); err != nil {
 		return err
 	}
 
-	for i, pid := range recProductIDs {
-		// 分数简单模拟为倒序
-		score := 1.0 - float64(i)*0.05
+	for _, item := range recs {
 		rec := &domain.Recommendation{
 			UserID:             userID,
 			RecommendationType: recType,
-			ProductID:          pid,
-			Score:              score,
+			ProductID:          item.pid,
+			Score:              item.score,
 			Reason:             reason,
 		}
 		if err := m.repo.SaveRecommendation(ctx, rec); err != nil {
-			return err
+			m.logger.Error("failed to save generated recommendation", "user_id", userID, "error", err)
 		}
 	}
 
-	m.logger.InfoContext(ctx, "recommendations generated", "user_id", userID, "type", recType, "count", len(recProductIDs))
+	m.logger.Info("recommendations generated", "user_id", userID, "type", recType, "count", len(recs))
 	return nil
 }

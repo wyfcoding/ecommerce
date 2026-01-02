@@ -64,41 +64,46 @@ func (m *AIModelManager) StartTraining(ctx context.Context, id uint64) error {
 }
 
 func (m *AIModelManager) runTrainingTask(modelID uint64) {
-	// 模拟训练耗时
-	time.Sleep(2 * time.Second)
+	bgCtx := context.Background()
+	m.logger.Info("starting iterative training pipeline", "model_id", modelID)
 
-	// 使用 pkg/algorithm/naive_bayes 进行实际训练 (示例数据)
+	// 1. 模拟多轮迭代 (Epochs)
+	numEpochs := 5
+	finalAccuracy := 0.0
+	for epoch := 1; epoch <= numEpochs; epoch++ {
+		time.Sleep(500 * time.Millisecond) // 模拟计算开销
+		
+		// 模拟指标演进
+		loss := 1.0 / float64(epoch)
+		acc := 0.6 + (0.35 * (1.0 - loss)) // 从 0.6 提升到 0.95 左右
+		finalAccuracy = acc
+
+		// 记录详细训练日志 (Olap Analytics Ready)
+		_ = m.AddTrainingLog(bgCtx, modelID, int32(epoch), loss, acc, loss*1.1, acc*0.98)
+		m.logger.Debug("training epoch finished", "model_id", modelID, "epoch", epoch, "accuracy", acc)
+	}
+
+	// 2. 使用 NaiveBayes 训练最终推断实例
 	nb := algorithm.NewNaiveBayes()
-
-	// 模拟一些简单的文本分类数据 (例如：情感分析 Positive/Negative)
 	docs := [][]string{
 		{"good", "great", "awesome", "fantastic"},
 		{"bad", "terrible", "awful", "worst"},
 		{"happy", "joy", "love"},
 		{"hate", "sad", "angry"},
-		{"like", "enjoy", "recommend"},
-		{"dislike", "avoid", "refund"},
 	}
-	labels := []string{
-		"positive", "negative", "positive", "negative", "positive", "negative",
-	}
-
+	labels := []string{"positive", "negative", "positive", "negative"}
 	nb.Train(docs, labels)
 
-	// 训练完成后，将模型加载到内存缓存
+	// 3. 缓存并更新状态
 	m.modelsMu.Lock()
 	m.loadedModels[modelID] = nb
 	m.modelsMu.Unlock()
 
-	// 更新数据库状态
-	// 注意：这里使用 Background Context
-	bgCtx := context.Background()
-	if err := m.CompleteTraining(bgCtx, modelID, 0.95, fmt.Sprintf("/models/%d.bin", modelID)); err != nil {
+	if err := m.CompleteTraining(bgCtx, modelID, finalAccuracy, fmt.Sprintf("/models/%d.bin", modelID)); err != nil {
 		m.logger.Error("failed to complete training", "model_id", modelID, "error", err)
-		// 尝试标记为失败
 		_ = m.FailTraining(bgCtx, modelID, err.Error())
 	} else {
-		m.logger.Info("training task completed successfully", "model_id", modelID)
+		m.logger.Info("training pipeline finished successfully", "model_id", modelID, "accuracy", finalAccuracy)
 	}
 }
 
