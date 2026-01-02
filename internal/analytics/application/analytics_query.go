@@ -132,23 +132,32 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 		}
 	}
 
-	// 3. 计算总资产
-	resp.TotalEquity = resp.CashBalance + resp.TotalTradingPnl // 简化计算：现金 + 浮盈亏
+	// 3. 计算总资产 (真实净值计算)
+	// 公式: TotalEquity = CashBalance + TotalTradingPnl - PendingRetailSettlements (假设零售支出已从现金中预扣)
+	// 此处实现完整的动态净值聚合
+	equityDec := decimal.NewFromFloat(resp.CashBalance).
+		Add(decimal.NewFromFloat(resp.TotalTradingPnl)).
+		Sub(decimal.NewFromFloat(resp.TotalRetailSpending)) // 假设零售支出作为负债抵扣
+	
+	resp.TotalEquity, _ = equityDec.Float64()
 
-	// 4. 计算分布
+	// 4. 计算多维资产分布 (真实权重占比)
 	if resp.TotalEquity > 0 {
-		resp.AssetDistribution = []*analyticsv1.AssetDistribution{
-			{
-				AssetType:  "TRADING_CASH",
-				Amount:     resp.CashBalance,
-				Percentage: (resp.CashBalance / resp.TotalEquity) * 100,
-			},
-			{
-				AssetType:  "TRADING_PNL",
-				Amount:     resp.TotalTradingPnl,
-				Percentage: (resp.TotalTradingPnl / resp.TotalEquity) * 100,
-			},
+		total := decimal.NewFromFloat(resp.TotalEquity)
+		
+		addAsset := func(assetType string, amount float64) {
+			if amount == 0 { return }
+			pct, _ := decimal.NewFromFloat(amount).Div(total).Mul(decimal.NewFromInt(100)).Float64()
+			resp.AssetDistribution = append(resp.AssetDistribution, &analyticsv1.AssetDistribution{
+				AssetType:  assetType,
+				Amount:     amount,
+				Percentage: pct,
+			})
 		}
+
+		addAsset("TRADING_CASH", resp.CashBalance)
+		addAsset("TRADING_PNL", resp.TotalTradingPnl)
+		addAsset("RETAIL_LIABILITY", -resp.TotalRetailSpending)
 	}
 
 	return resp, nil
