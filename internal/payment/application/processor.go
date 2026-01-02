@@ -163,32 +163,3 @@ func (s *PaymentProcessor) CapturePayment(ctx context.Context, userID uint64, pa
 		return s.outboxMgr.PublishInTx(gormTx, "payment.captured", payment.PaymentNo, event)
 	})
 }
-
-func (s *PaymentProcessor) routeChannel(ctx context.Context, method string) (domain.GatewayType, *domain.ChannelConfig) {
-	// 真实化实现：从 Repository 查询已启用的渠道配置
-	var channelType domain.ChannelType
-	switch method {
-	case "alipay":
-		channelType = domain.ChannelTypeAlipay
-	case "wechat":
-		channelType = domain.ChannelTypeWechat
-	case "stripe":
-		channelType = domain.ChannelTypeStripe
-	default:
-		// 如果未匹配到标准类型，尝试直接通过 code 查找单渠道
-		cfg, err := s.channelRepo.FindByCode(ctx, method)
-		if err == nil && cfg != nil && cfg.Enabled {
-			return domain.GatewayType(cfg.Type), cfg
-		}
-		return domain.GatewayTypeMock, nil
-	}
-
-	channels, err := s.channelRepo.ListEnabledByType(ctx, channelType)
-	if err != nil || len(channels) == 0 {
-		s.logger.WarnContext(ctx, "no enabled channel found for type", "type", channelType)
-		return domain.GatewayTypeMock, nil
-	}
-
-	// 返回优先级最高的一个 (ListEnabledByType 已按 Priority DESC 排序)
-	return domain.GatewayType(channels[0].Type), channels[0]
-}
