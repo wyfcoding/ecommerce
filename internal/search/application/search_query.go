@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/wyfcoding/ecommerce/internal/search/domain"
 	"github.com/wyfcoding/pkg/algorithm"
@@ -12,6 +13,7 @@ import (
 type SearchQuery struct {
 	repo           domain.SearchRepository
 	suggestionTrie *algorithm.Trie
+	mu             sync.RWMutex // 保护 suggestionTrie 的原子替换和读取
 }
 
 // NewSearchQuery 创建并返回一个新的 SearchQuery 实例。
@@ -30,7 +32,11 @@ func (q *SearchQuery) Search(ctx context.Context, filter *domain.SearchFilter) (
 // Suggest 提供搜索建议。
 func (q *SearchQuery) Suggest(ctx context.Context, keyword string, limit int) ([]*domain.Suggestion, error) {
 	// 1. 尝试从内存 Trie 中获取建议 (高性能)
-	trieResults := q.suggestionTrie.StartsWith(keyword)
+	q.mu.RLock()
+	trie := q.suggestionTrie
+	trieResults := trie.StartsWith(keyword)
+	q.mu.RUnlock()
+
 	if len(trieResults) > 0 {
 		suggestions := make([]*domain.Suggestion, 0, len(trieResults))
 		for _, res := range trieResults {
@@ -59,16 +65,14 @@ func (q *SearchQuery) GetHotKeywords(ctx context.Context, limit int) ([]*domain.
 	return q.repo.GetHotKeywords(ctx, limit)
 }
 
-// LoadHotKeywordsToTrie 加载热门搜索词到内存 Trie 中 (通常由定时任务调用)。
+// LoadHotKeywordsToTrie 加载热门搜索词到内存 Trie 中 (原子切换模式)。
 func (q *SearchQuery) LoadHotKeywordsToTrie(ctx context.Context) error {
 	hotKeywords, err := q.repo.GetHotKeywords(ctx, 1000) // 加载前1000个热词
 	if err != nil {
 		return err
 	}
 
-	// 重建一个新的 Trie 或清空旧的 (这里简化为直接插入，实际可能需要并发控制或替换 Trie 实例)
-	// 为了线程安全且原子性，建议创建一个新 Trie 然后替换指针，但 SearchQuery struct 中 trie 是值类型/指针?
-	// 这里直接插入，Trie 内部有锁。
+	// 在内存中构建新索引，不影响当前查询
 	newTrie := algorithm.NewTrie()
 
 	for _, k := range hotKeywords {
@@ -80,8 +84,11 @@ func (q *SearchQuery) LoadHotKeywordsToTrie(ctx context.Context) error {
 		newTrie.Insert(k.Keyword, suggestion)
 	}
 
-	// 替换旧 Trie
+	// 执行原子切换
+	q.mu.Lock()
 	q.suggestionTrie = newTrie
+	q.mu.Unlock()
+
 	return nil
 }
 
