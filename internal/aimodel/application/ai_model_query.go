@@ -162,19 +162,34 @@ func (q *AIModelQuery) logger() *slog.Logger {
 	return slog.Default().With("module", "ai_model_query")
 }
 
-// AnalyzeReviewSentiment 返回模拟的情感分析结果。
+// AnalyzeReviewSentiment 返回真实的情感分析结果。
 func (q *AIModelQuery) AnalyzeReviewSentiment(ctx context.Context, text string) (float64, string, error) {
-	return 0.8, "Positive sentiment detected", nil
+	// 真实化实现：假设模型 ID 3 为情感分析模型
+	output, score, err := q.manager.Predict(ctx, 3, text, 0)
+	if err != nil {
+		return 0, "", fmt.Errorf("sentiment analysis failed: %w", err)
+	}
+	return score, output, nil
 }
 
-// ExtractKeywordsFromText 从文本中提取模拟的关键词。
+// ExtractKeywordsFromText 从文本中提取真实的关键词。
 func (q *AIModelQuery) ExtractKeywordsFromText(ctx context.Context, text string) ([]string, error) {
-	return []string{"keyword1", "keyword2", "keyword3"}, nil
+	// 真实化实现：假设模型 ID 4 为关键词提取模型
+	output, _, err := q.manager.Predict(ctx, 4, text, 0)
+	if err != nil {
+		return nil, fmt.Errorf("keyword extraction failed: %w", err)
+	}
+	return strings.Split(output, ","), nil
 }
 
-// SummarizeText 返回模拟的文本摘要。
+// SummarizeText 返回真实的文本摘要。
 func (q *AIModelQuery) SummarizeText(ctx context.Context, text string) (string, error) {
-	return "This is a mock summary of the text.", nil
+	// 真实化实现：假设模型 ID 5 为摘要生成模型
+	output, _, err := q.manager.Predict(ctx, 5, text, 0)
+	if err != nil {
+		return "", fmt.Errorf("text summarization failed: %w", err)
+	}
+	return output, nil
 }
 
 // GetFraudScore 返回真实的欺诈评分（调用风险安全服务）。
