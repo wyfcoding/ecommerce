@@ -30,10 +30,10 @@ type FulfillmentOptimizer struct{}
 // Optimize 寻找最优发货仓库组合
 func (o *FulfillmentOptimizer) Optimize(ctx context.Context, orderItems map[uint64]int32, userLat, userLon float64, stocks []*WarehouseStock) ([]FulfillmentPlan, error) {
 	plans := make([]FulfillmentPlan, 0)
-	
+
 	for skuID, neededQty := range orderItems {
 		remaining := neededQty
-		
+
 		// 1. 过滤出有该SKU的仓库并按距离排序
 		type candidate struct {
 			ws   *WarehouseStock
@@ -53,7 +53,7 @@ func (o *FulfillmentOptimizer) Optimize(ctx context.Context, orderItems map[uint
 			if remaining <= 0 {
 				break
 			}
-			
+
 			shipQty := cand.ws.Available
 			if shipQty > remaining {
 				shipQty = remaining

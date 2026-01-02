@@ -66,7 +66,7 @@ type Payment struct {
 	fsm     *fsm.Machine  `gorm:"-"`
 	Logs    []*PaymentLog `gorm:"foreignKey:PaymentID"`
 	Refunds []*Refund     `gorm:"foreignKey:PaymentID"`
-	
+
 	// 世界级特性：分账信息 (用于平台抽佣、多商家结算)
 	Splits []PaymentSplit `gorm:"foreignKey:PaymentID"`
 }
