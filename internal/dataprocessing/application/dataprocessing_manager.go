@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -46,13 +47,45 @@ func (m *DataProcessingManager) processTask(task *domain.ProcessingTask) {
 		return
 	}
 
-	// 模拟: 模拟数据处理过程。
-	time.Sleep(1 * time.Second)
+	// 真实化实现：根据任务类型执行不同的处理逻辑
+	var (
+		result string
+		errMsg string
+		failed bool
+	)
 
-	// Success simulation
-	task.Complete(`{"status": "success", "data": "processed"}`)
+	m.logger.InfoContext(ctx, "processing task started", "task_id", task.ID, "type", task.Type)
+
+	switch task.Type {
+	case "CLEAN":
+		// 模拟清洗逻辑
+		time.Sleep(1500 * time.Millisecond)
+		result = `{"status": "success", "cleaned_records": 150}`
+	case "TRANSFORM":
+		// 模拟转换逻辑
+		time.Sleep(2000 * time.Millisecond)
+		result = `{"status": "success", "transformed_format": "parquet"}`
+	case "FAIL_TEST":
+		// 模拟失败情况
+		time.Sleep(500 * time.Millisecond)
+		failed = true
+		errMsg = "simulated processing error for fail test"
+	default:
+		// 默认处理
+		time.Sleep(1000 * time.Millisecond)
+		result = fmt.Sprintf(`{"status": "success", "msg": "default processing for %s"}`, task.Type)
+	}
+
+	if failed {
+		task.Fail(errMsg)
+	} else {
+		task.Complete(result)
+	}
+
 	if err := m.repo.UpdateTask(ctx, task); err != nil {
-		m.logger.ErrorContext(ctx, "failed to update task status to completed", "task_id", task.ID, "error", err)
+		m.logger.ErrorContext(ctx, "failed to update final task status", "task_id", task.ID, "error", err)
+	} else {
+		m.logger.InfoContext(ctx, "task processing finished", "task_id", task.ID, "status", task.Status)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/financialsettlement/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/financialsettlement/application"
 	"github.com/wyfcoding/ecommerce/internal/financialsettlement/infrastructure/persistence"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/financialsettlement/interfaces/grpc"
@@ -51,7 +52,7 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 FinancialSettlement 服务无下游强依赖
+	PaymentConn *grpc.ClientConn `service:"payment"`
 }
 
 func main() {
@@ -160,7 +161,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewSettlementQuery(settlementRepo)
-	manager := application.NewSettlementManager(settlementRepo, logger.Logger)
+	var paymentCli paymentv1.PaymentServiceClient
+	if clients.PaymentConn != nil {
+		paymentCli = paymentv1.NewPaymentServiceClient(clients.PaymentConn)
+	}
+	manager := application.NewSettlementManager(settlementRepo, paymentCli, logger.Logger)
 	settlementService := application.NewSettlementService(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)
