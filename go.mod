@@ -9,8 +9,8 @@ require (
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/shopspring/decimal v1.4.0
-	github.com/wyfcoding/financialtrading v0.0.0-20260101103823-c583d99e8cf1
-	github.com/wyfcoding/pkg v0.0.0-20260101105815-f5ef0dcef130
+	github.com/wyfcoding/financialtrading v0.0.0-20260102112645-403804c4e2d3
+	github.com/wyfcoding/pkg v0.0.0-20260102114139-e0caa5d78535
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	gorm.io/gorm v1.31.1
@@ -119,7 +119,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tinylib/msgp v1.6.2 // indirect
+	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
