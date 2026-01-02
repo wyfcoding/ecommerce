@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"math"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
@@ -58,8 +57,8 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 
 		logisticsList = append(logisticsList, logistics)
 		orders = append(orders, OrderInfo{
-			ID:  logistics.OrderNo,   // Assuming OrderNo is unique enough for logic, but we use index mostly
-			Lat: logistics.SenderLat, // 骑手前往发件人位置
+			ID:  logistics.OrderNo,
+			Lat: logistics.SenderLat,
 			Lon: logistics.SenderLon,
 		})
 	}
@@ -80,7 +79,8 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 
 	for i, rider := range riders {
 		for j, order := range orders {
-			dist := m.calculateDistance(rider.Lat, rider.Lon, order.Lat, order.Lon)
+			// 真实化执行：使用 Haversine 球面距离
+			dist := algorithm.HaversineDistance(rider.Lat, rider.Lon, order.Lat, order.Lon)
 			bg.SetWeight(i, j, -dist) // 负权重求最大匹配 = 最小距离
 		}
 	}
@@ -93,12 +93,10 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 	for rIdx, oIdx := range match {
 		if rIdx < len(riders) && oIdx < len(orders) {
 			riderID := riders[rIdx].ID
-			// 找回对应的 Logistics 实体
-			// match oIdx corresponds to orders[oIdx] which corresponds to logisticsList[oIdx] (since we appended linearly)
 			logistics := logisticsList[oIdx]
 
 			logistics.AssignRider(riderID)
-			logistics.Status = domain.LogisticsStatusPickedUp // 假设分配即揽收，或改为 PendingPickup
+			logistics.Status = domain.LogisticsStatusPickedUp
 
 			if err := m.repo.Save(ctx, logistics); err != nil {
 				m.logger.ErrorContext(ctx, "failed to save assigned rider", "logistics_id", logistics.ID, "rider_id", riderID, "error", err)
@@ -112,12 +110,7 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 	return result, nil
 }
 
-// calculateDistance 计算两点间的欧几里得距离 (简化版)
-func (m *LogisticsManager) calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	dx := lat1 - lat2
-	dy := lon1 - lon2
-	return math.Sqrt(dx*dx + dy*dy)
-}
+// ... (other methods)
 
 // NewLogisticsManager 负责处理 NewLogistics 相关的写操作和业务逻辑。
 func NewLogisticsManager(repo domain.LogisticsRepository, logger *slog.Logger) *LogisticsManager {
