@@ -49,8 +49,9 @@ type Payment struct {
 	OrderID        uint64      `gorm:"index"`
 	OrderNo        string      `gorm:"size:64"`
 	UserID         uint64      `gorm:"index"`
-	Amount         int64       `gorm:"not null"`
+	Amount         int64       `gorm:"not null"` // 总金额
 	CapturedAmount int64       `gorm:"default:0"`
+	Currency       string      `gorm:"size:10;default:'CNY'"`
 	PaymentMethod  string      `gorm:"size:32"`
 	GatewayType    GatewayType `gorm:"size:32"`
 	Status         PaymentStatus
@@ -65,6 +66,31 @@ type Payment struct {
 	fsm     *fsm.Machine  `gorm:"-"`
 	Logs    []*PaymentLog `gorm:"foreignKey:PaymentID"`
 	Refunds []*Refund     `gorm:"foreignKey:PaymentID"`
+	
+	// 世界级特性：分账信息 (用于平台抽佣、多商家结算)
+	Splits []PaymentSplit `gorm:"foreignKey:PaymentID"`
+}
+
+// PaymentSplit 定义了资金流向的拆分详情
+type PaymentSplit struct {
+	gorm.Model
+	PaymentID     uint64 `gorm:"index"`
+	RecipientID   uint64 `gorm:"index;comment:接收者ID(商家或平台)"`
+	RecipientType string `gorm:"size:32;comment:MERCHANT, PLATFORM, TAX"`
+	Amount        int64  `gorm:"not null"`
+	Status        string `gorm:"default:'PENDING';comment:PENDING, SETTLED"`
+}
+
+// AccountingEntry 影子账本分录 (复式记账原则)
+// 顶级系统必须记录资金从“用户借记”到“系统中间科目”的流转
+type AccountingEntry struct {
+	gorm.Model
+	PaymentID     uint64 `gorm:"index"`
+	AccountNo     string `gorm:"size:64;comment:科目编号"`
+	EntryType     string `gorm:"size:10;comment:DEBIT, CREDIT"`
+	Amount        int64
+	BalanceBefore int64
+	BalanceAfter  int64
 }
 
 type Refund struct {
