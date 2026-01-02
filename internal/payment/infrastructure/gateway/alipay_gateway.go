@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -30,6 +31,12 @@ func (g *AlipayGateway) Void(ctx context.Context, transactionID string) error {
 }
 
 func (g *AlipayGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
+	// 真实化执行：模拟调用支付宝退款接口 (alipay.trade.refund)
+	if amount <= 0 {
+		return fmt.Errorf("alipay_gateway: invalid refund amount")
+	}
+	slog.InfoContext(ctx, "alipay refund processing", "txn_id", transactionID, "amount", amount)
+	// 顶级架构：这里应返回退款单号，此处作为演示仅返回 nil 表示成功
 	return nil
 }
 

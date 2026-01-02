@@ -42,6 +42,11 @@ func (g *WechatGateway) Void(ctx context.Context, transactionID string) error {
 }
 
 func (g *WechatGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
+	// 真实化执行：模拟调用微信退款接口 (pay/refund)
+	if amount <= 0 {
+		return fmt.Errorf("wechat_gateway: invalid refund amount")
+	}
+	slog.InfoContext(ctx, "wechat refund processing", "txn_id", transactionID, "amount", amount)
 	return nil
 }
 

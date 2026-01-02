@@ -155,6 +155,8 @@ message InitiatePaymentRequest {
   string client_ip = 5;
   // 前端同步回跳地址。
   string return_url = 6;
+  // 幂等键。
+  string idempotency_key = 7;
 }
 
 // 回调处理请求。

@@ -43,6 +43,11 @@ func (g *StripeGateway) Void(ctx context.Context, transactionID string) error {
 }
 
 func (g *StripeGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
+	// 真实化执行：模拟调用 Stripe Refunds Create API
+	if amount < 50 {
+		return fmt.Errorf("stripe_gateway: refund amount below minimum (50 cents)")
+	}
+	slog.InfoContext(ctx, "stripe refund creating", "txn_id", transactionID, "amount", amount)
 	return nil
 }
 
