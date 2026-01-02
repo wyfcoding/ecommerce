@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -96,23 +97,32 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 		UserId: userID,
 	}
 
-	// 1. 获取零售总支出 (从 Repo 聚合销售指标，使用维度进行用户过滤)
-	retailSales, _, _ := q.repo.ListMetrics(ctx, &domain.MetricQuery{
-		MetricType:   domain.MetricTypeSales,
+	// 1. 获取零售支出 (真实化执行：按结算状态分层聚合)
+	retailMetrics, _, _ := q.repo.ListMetrics(ctx, &domain.MetricQuery{
 		Dimension:    "user",
 		DimensionVal: fmt.Sprintf("%d", userID),
 	})
-	var totalRetail float64
-	for _, m := range retailSales {
-		totalRetail += m.Value
-	}
-	resp.TotalRetailSpending = totalRetail
 
-	// 2. 获取交易数据 (如果客户端已注入)
+	var (
+		totalSpending     float64
+		pendingSettlement float64
+	)
+
+	for _, m := range retailMetrics {
+		switch m.MetricType {
+		case domain.MetricTypeSales:
+			totalSpending += m.Value
+		case "PENDING_SETTLEMENT":
+			pendingSettlement += m.Value
+		}
+	}
+	resp.TotalRetailSpending = totalSpending
+
+	// 2. 获取交易侧资产 (如果是混合账户)
 	if q.accountCli != nil && q.positionCli != nil {
 		userIDStr := fmt.Sprintf("%d", userID)
 
-		// 2.1 获取盈亏统计
+		// 2.1 获取盈亏统计 (gRPC)
 		posSummary, err := q.positionCli.GetPositionSummary(ctx, &positionv1.GetPositionSummaryRequest{
 			UserId: userIDStr,
 		})
@@ -122,7 +132,7 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 			resp.TotalTradingPnl, _ = unrealized.Add(realized).Float64()
 		}
 
-		// 2.2 获取现金余额
+		// 2.2 获取现金余额 (gRPC)
 		balance, err := q.accountCli.GetBalance(ctx, &accountv1.GetBalanceRequest{
 			UserId: userIDStr,
 		})
@@ -133,23 +143,24 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 	}
 
 	// 3. 计算总资产 (真实净值计算)
-	// 公式: TotalEquity = CashBalance + TotalTradingPnl - PendingRetailSettlements (假设零售支出已从现金中预扣)
-	// 此处实现完整的动态净值聚合
+	// 公式: TotalEquity = (CashBalance + TotalTradingPnl) - (TotalSpending + PendingSettlement)
+	totalDebt := totalSpending + pendingSettlement
 	equityDec := decimal.NewFromFloat(resp.CashBalance).
 		Add(decimal.NewFromFloat(resp.TotalTradingPnl)).
-		Sub(decimal.NewFromFloat(resp.TotalRetailSpending)) // 假设零售支出作为负债抵扣
+		Sub(decimal.NewFromFloat(totalDebt))
 
 	resp.TotalEquity, _ = equityDec.Float64()
 
 	// 4. 计算多维资产分布 (真实权重占比)
-	if resp.TotalEquity > 0 {
-		total := decimal.NewFromFloat(resp.TotalEquity)
+	if resp.TotalEquity != 0 {
+		total := decimal.NewFromFloat(math.Abs(resp.TotalEquity))
 
 		addAsset := func(assetType string, amount float64) {
 			if amount == 0 {
 				return
 			}
-			pct, _ := decimal.NewFromFloat(amount).Div(total).Mul(decimal.NewFromInt(100)).Float64()
+			// 计算绝对值占比以展示分布
+			pct, _ := decimal.NewFromFloat(math.Abs(amount)).Div(total).Mul(decimal.NewFromInt(100)).Float64()
 			resp.AssetDistribution = append(resp.AssetDistribution, &analyticsv1.AssetDistribution{
 				AssetType:  assetType,
 				Amount:     amount,
@@ -159,7 +170,7 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 
 		addAsset("TRADING_CASH", resp.CashBalance)
 		addAsset("TRADING_PNL", resp.TotalTradingPnl)
-		addAsset("RETAIL_LIABILITY", -resp.TotalRetailSpending)
+		addAsset("RETAIL_DEBT", -totalDebt)
 	}
 
 	return resp, nil
