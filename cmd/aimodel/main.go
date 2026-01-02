@@ -173,9 +173,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	aimodelRepo := persistence.NewAIModelRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	query := application.NewAIModelQuery(aimodelRepo)
-	manager := application.NewAIModelManager(aimodelRepo, idGenerator, logger.Logger)
-	aimodelService := application.NewAIModelService(manager, query)
+	aimodelService := application.NewAIModelService(aimodelRepo, idGenerator, logger.Logger)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := aimodelhttp.NewHandler(aimodelService, logger.Logger)

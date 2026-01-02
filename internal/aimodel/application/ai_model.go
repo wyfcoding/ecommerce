@@ -2,8 +2,10 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
+	"github.com/wyfcoding/pkg/idgen"
 )
 
 // AIModelService 结构体定义了AI模型管理模块的应用服务。
@@ -14,7 +16,9 @@ type AIModelService struct {
 }
 
 // NewAIModelService 创建并返回一个新的 AIModelService 实例。
-func NewAIModelService(manager *AIModelManager, query *AIModelQuery) *AIModelService {
+func NewAIModelService(repo domain.AIModelRepository, idGenerator idgen.Generator, logger *slog.Logger) *AIModelService {
+	manager := NewAIModelManager(repo, idGenerator, logger)
+	query := NewAIModelQuery(repo, manager)
 	return &AIModelService{
 		manager: manager,
 		query:   query,

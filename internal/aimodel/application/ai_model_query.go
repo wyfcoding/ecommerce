@@ -9,12 +9,16 @@ import (
 
 // AIModelQuery 负责AI模型模块的查询操作。
 type AIModelQuery struct {
-	repo domain.AIModelRepository
+	repo    domain.AIModelRepository
+	manager *AIModelManager // 引入 Manager 以调用真实的 Predict
 }
 
 // NewAIModelQuery 创建一个新的 AIModelQuery 实例。
-func NewAIModelQuery(repo domain.AIModelRepository) *AIModelQuery {
-	return &AIModelQuery{repo: repo}
+func NewAIModelQuery(repo domain.AIModelRepository, manager *AIModelManager) *AIModelQuery {
+	return &AIModelQuery{
+		repo:    repo,
+		manager: manager,
+	}
 }
 
 // GetModel 获取指定ID的AI模型详细信息。
