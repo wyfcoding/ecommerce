@@ -3,63 +3,71 @@ package risk
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/redis/go-redis/v9"
+	riskv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 
-// RiskServiceImpl 风控服务实现
+// RiskServiceImpl 风控服务实现 (gRPC Adapter)
 type RiskServiceImpl struct {
-	redisClient *redis.Client
+	client riskv1.RiskSecurityServiceClient
 }
 
 // NewRiskService 创建风控服务实例。
-func NewRiskService(redisClient *redis.Client) *RiskServiceImpl {
+func NewRiskService(client riskv1.RiskSecurityServiceClient) *RiskServiceImpl {
 	return &RiskServiceImpl{
-		redisClient: redisClient,
+		client: client,
 	}
 }
 
 // CheckPrePayment 支付前回风控检查
 func (s *RiskServiceImpl) CheckPrePayment(ctx context.Context, riskCtx *domain.RiskContext) (*domain.RiskResult, error) {
-	// 规则 1: 大额检查 (> 50000 CNY)
-	if riskCtx.Amount > 5000000 { // 50000.00 分
-		return &domain.RiskResult{
-			Action:      domain.RiskActionChallenge,
-			Reason:      "Large Amount",
-			RuleID:      "RULE_LARGE_AMOUNT",
-			Description: "Transaction amount exceeds limit",
-		}, nil
+	// 调用远程风控服务
+	resp, err := s.client.EvaluateRisk(ctx, &riskv1.EvaluateRiskRequest{
+		UserId:        riskCtx.UserID,
+		Ip:            riskCtx.IP,
+		DeviceId:      riskCtx.DeviceID,
+		Amount:        riskCtx.Amount,
+		PaymentMethod: riskCtx.PaymentMethod,
+		OrderId:       riskCtx.OrderID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("remote risk check failed: %w", err)
 	}
 
-	// 规则 2: 频控 (User ID 维度)
-	key := fmt.Sprintf("payment:risk:user_velocity:%d", riskCtx.UserID)
-	val, err := s.redisClient.Get(ctx, key).Int()
-	if err != nil && err != redis.Nil {
-		return nil, fmt.Errorf("failed to get risk counter: %w", err)
+	if resp.Result == nil {
+		return nil, fmt.Errorf("remote risk check returned empty result")
 	}
 
-	if val > 5 {
-		return &domain.RiskResult{
-			Action:      domain.RiskActionBlock,
-			Reason:      "Velocity Limit",
-			RuleID:      "RULE_USER_VELOCITY",
-			Description: "Too many transactions in short period",
-		}, nil
+	// 映射结果
+	result := &domain.RiskResult{
+		RuleID:      "REMOTE_RISK",
+		Description: fmt.Sprintf("Score: %d", resp.Result.RiskScore),
 	}
 
-	return &domain.RiskResult{
-		Action: domain.RiskActionPass,
-	}, nil
+	// 假设 3=High, 4=Critical (对应 domain.RiskLevel 定义)
+	switch resp.Result.RiskLevel {
+	case 4: // Critical
+		result.Action = domain.RiskActionBlock
+		result.Reason = "Critical Risk"
+	case 3: // High
+		result.Action = domain.RiskActionChallenge
+		result.Reason = "High Risk"
+	default:
+		result.Action = domain.RiskActionPass
+		result.Reason = "Risk check passed"
+	}
+
+	return result, nil
 }
 
-// RecordTransaction 记录交易数据，增加 Redis 计数器
+// RecordTransaction 记录交易数据
 func (s *RiskServiceImpl) RecordTransaction(ctx context.Context, riskCtx *domain.RiskContext) error {
-	key := fmt.Sprintf("payment:risk:user_velocity:%d", riskCtx.UserID)
-	pipe := s.redisClient.Pipeline()
-	pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, 1*time.Hour)
-	_, err := pipe.Exec(ctx)
+	// 调用远程风控服务记录行为
+	_, err := s.client.RecordUserBehavior(ctx, &riskv1.RecordUserBehaviorRequest{
+		UserId:   riskCtx.UserID,
+		Ip:       riskCtx.IP,
+		DeviceId: riskCtx.DeviceID,
+	})
 	return err
 }

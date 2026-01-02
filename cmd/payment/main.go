@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	settlementv1 "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
@@ -60,11 +61,13 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	SettlementConn *grpc.ClientConn `service:"settlement"`
-	OrderConn      *grpc.ClientConn `service:"order"`
+	SettlementConn   *grpc.ClientConn `service:"settlement"`
+	OrderConn        *grpc.ClientConn `service:"order"`
+	RiskSecurityConn *grpc.ClientConn `service:"risksecurity"`
 
 	// 具体的客户端接口 (由 Conn 转化)
-	Settlement settlementv1.SettlementServiceClient
+	Settlement   settlementv1.SettlementServiceClient
+	RiskSecurity risksecurityv1.RiskSecurityServiceClient
 }
 
 func main() {
@@ -209,6 +212,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if clients.SettlementConn != nil {
 		clients.Settlement = settlementv1.NewSettlementServiceClient(clients.SettlementConn)
 	}
+	if clients.RiskSecurityConn != nil {
+		clients.RiskSecurity = risksecurityv1.NewRiskSecurityServiceClient(clients.RiskSecurityConn)
+	}
 
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -218,7 +224,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	channelRepo := persistence.NewChannelRepository(shardingManager)
 	refundRepo := persistence.NewRefundRepository(shardingManager)
 
-	riskSvc := risk.NewRiskService(redisCache.GetClient())
+	riskSvc := risk.NewRiskService(clients.RiskSecurity)
 
 	gateways := map[domain.GatewayType]domain.PaymentGateway{
 		domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),

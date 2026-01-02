@@ -27,6 +27,17 @@ type RiskRepository interface {
 
 	// --- 规则 (RiskRule methods) ---
 	ListEnabledRules(ctx context.Context) ([]*RiskRule, error)
+
+	// --- 速度/频次统计 (Velocity Metrics) ---
+	GetVelocityMetrics(ctx context.Context, userID uint64) (*VelocityMetrics, error)
+}
+
+// VelocityMetrics 用户的交易速度/频次统计指标
+type VelocityMetrics struct {
+	TxCount1h       int   `json:"tx_count_1h"`
+	TxAmount1h      int64 `json:"tx_amount_1h"`
+	TxCount24h      int   `json:"tx_count_24h"`
+	FailedTxCount1h int   `json:"failed_tx_count_1h"`
 }
 
 // FrequencyRepository 定义频率统计的接口

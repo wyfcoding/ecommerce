@@ -3,20 +3,23 @@ package persistence
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
 
 	"gorm.io/gorm"
 )
 
 type riskRepository struct {
-	db *gorm.DB
+	db    *gorm.DB
+	redis *redis.Client
 }
 
 // NewRiskRepository 创建并返回一个新的 riskRepository 实例。
-func NewRiskRepository(db *gorm.DB) domain.RiskRepository {
-	return &riskRepository{db: db}
+func NewRiskRepository(db *gorm.DB, rdb *redis.Client) domain.RiskRepository {
+	return &riskRepository{db: db, redis: rdb}
 }
 
 // --- 风险分析记录 (RiskAnalysisResult methods) ---
@@ -119,4 +122,52 @@ func (r *riskRepository) ListEnabledRules(ctx context.Context) ([]*domain.RiskRu
 		return nil, err
 	}
 	return list, nil
+}
+
+// --- 速度/频次统计 (Velocity Metrics) ---
+
+func (r *riskRepository) GetVelocityMetrics(ctx context.Context, userID uint64) (*domain.VelocityMetrics, error) {
+	// 使用 Pipeline 批量获取 Redis 中的统计数据
+	// 假设我们在其他地方（如 RecordTransaction）维护了这些 Key：
+	// risk:velocity:{userID}:count:1h
+	// risk:velocity:{userID}:amount:1h
+	// risk:velocity:{userID}:count:24h
+	// risk:velocity:{userID}:fail:1h
+
+	keys := []string{
+		fmt.Sprintf("risk:velocity:%d:count:1h", userID),
+		fmt.Sprintf("risk:velocity:%d:amount:1h", userID),
+		fmt.Sprintf("risk:velocity:%d:count:24h", userID),
+		fmt.Sprintf("risk:velocity:%d:fail:1h", userID),
+	}
+
+	pipe := r.redis.Pipeline()
+	cmds := make([]*redis.StringCmd, len(keys))
+	for i, key := range keys {
+		cmds[i] = pipe.Get(ctx, key)
+	}
+	_, _ = pipe.Exec(ctx) // 忽略 pipeline error，单独处理每个 cmd
+
+	// 解析结果，如果 Key 不存在 (redis.Nil) 则默认为 0
+	getInt := func(cmd *redis.StringCmd) int {
+		val, err := cmd.Int()
+		if err != nil {
+			return 0
+		}
+		return val
+	}
+	getInt64 := func(cmd *redis.StringCmd) int64 {
+		val, err := cmd.Int64()
+		if err != nil {
+			return 0
+		}
+		return val
+	}
+
+	return &domain.VelocityMetrics{
+		TxCount1h:       getInt(cmds[0]),
+		TxAmount1h:      getInt64(cmds[1]),
+		TxCount24h:      getInt(cmds[2]),
+		FailedTxCount1h: getInt(cmds[3]),
+	}, nil
 }

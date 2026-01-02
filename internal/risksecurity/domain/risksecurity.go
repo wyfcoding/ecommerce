@@ -116,6 +116,16 @@ type UserBehavior struct {
 	PurchasedCategory StringMap `gorm:"type:json;comment:已购类目" json:"purchased_category"`
 }
 
+// RiskContext 定义了风险评估的上下文信息。
+type RiskContext struct {
+	UserID        uint64 `json:"user_id"`
+	IP            string `json:"ip"`
+	DeviceID      string `json:"device_id"`
+	Amount        int64  `json:"amount"`
+	PaymentMethod string `json:"payment_method"`
+	OrderID       uint64 `json:"order_id"`
+}
+
 // RiskRule 实体定义了一条风险评估规则配置。
 type RiskRule struct {
 	gorm.Model

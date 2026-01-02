@@ -5,7 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
+	"github.com/wyfcoding/pkg/utils/ctxutil"
 )
 
 // ChannelMetrics 实时通道指标
@@ -19,6 +21,7 @@ type ChannelMetrics struct {
 // RoutingEngine 智能路由引擎
 type RoutingEngine struct {
 	channelRepo domain.ChannelRepository
+	smartRouter *domain.SmartRouter
 	metrics     map[string]*ChannelMetrics // key: channel_code
 	mu          sync.RWMutex
 }
@@ -26,6 +29,7 @@ type RoutingEngine struct {
 func NewRoutingEngine(repo domain.ChannelRepository) *RoutingEngine {
 	return &RoutingEngine{
 		channelRepo: repo,
+		smartRouter: domain.NewSmartRouter(),
 		metrics:     make(map[string]*ChannelMetrics),
 	}
 }
@@ -33,47 +37,40 @@ func NewRoutingEngine(repo domain.ChannelRepository) *RoutingEngine {
 // SelectBestChannel 根据实时健康度和费率选择最优网关
 func (e *RoutingEngine) SelectBestChannel(ctx context.Context, amount int64, method string) (domain.GatewayType, *domain.ChannelConfig) {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	// 1. 获取所有可用渠道
 	var channelType domain.ChannelType
 	switch method {
-	case "alipay": channelType = domain.ChannelTypeAlipay
-	case "wechat": channelType = domain.ChannelTypeWechat
-	default: channelType = domain.ChannelTypeStripe
+	case "alipay":
+		channelType = domain.ChannelTypeAlipay
+	case "wechat":
+		channelType = domain.ChannelTypeWechat
+	default:
+		channelType = domain.ChannelTypeStripe
 	}
+	e.mu.RUnlock()
 
 	channels, err := e.channelRepo.ListEnabledByType(ctx, channelType)
 	if err != nil || len(channels) == 0 {
 		return domain.GatewayTypeMock, nil
 	}
 
-	// 2. 智能评估得分 (Score = Weight_Priority * 0.4 + Weight_SuccessRate * 0.6)
-	var bestChan *domain.ChannelConfig
-	maxScore := -1.0
-
-	for _, ch := range channels {
-		metrics, ok := e.metrics[ch.Code]
-		successRate := 1.0 // 默认新渠道 100%
-		if ok && (metrics.SuccessCount + metrics.FailureCount) > 0 {
-			successRate = float64(metrics.SuccessCount) / float64(metrics.SuccessCount + metrics.FailureCount)
-		}
-
-		// 如果延迟过高 (> 5s)，大幅降分
-		latencyPenalty := 1.0
-		if ok && metrics.LastLatency > 5*time.Second {
-			latencyPenalty = 0.5
-		}
-
-		score := (float64(ch.Priority) / 100.0 * 0.4) + (successRate * 0.6 * latencyPenalty)
-		
-		if score > maxScore {
-			maxScore = score
-			bestChan = ch
-		}
+	// 2. 构造路由上下文
+	routeCtx := &domain.RouteContext{
+		Amount:        decimal.NewFromInt(amount),
+		Currency:      "CNY",
+		PaymentMethod: method,
+		ClientIP:      ctxutil.GetIP(ctx),
 	}
 
-	if bestChan == nil {
+	// 3. 使用 SmartRouter 进行决策
+	// 策略选择：默认使用成本优先 (COST_BASED)，如果失败则降级到可用性优先
+	bestChan, err := e.smartRouter.Route(ctx, routeCtx, channels, "COST_BASED")
+	if err != nil {
+		// 降级策略
+		bestChan, err = e.smartRouter.Route(ctx, routeCtx, channels, "AVAILABILITY_FIRST")
+	}
+
+	if err != nil || bestChan == nil {
 		return domain.GatewayTypeMock, nil
 	}
 

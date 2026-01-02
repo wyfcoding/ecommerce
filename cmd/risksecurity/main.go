@@ -165,7 +165,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	riskRepo := persistence.NewRiskRepository(db.RawDB())
+	riskRepo := persistence.NewRiskRepository(db.RawDB(), redisCache.GetClient())
 
 	// 5.2 Application (Service)
 	query := application.NewRiskQuery(riskRepo)

@@ -41,8 +41,12 @@ message EvaluateRiskRequest {
   string ip = 2;
   // 硬件设备 ID。
   string device_id = 3;
-  // 涉及的交易金额。
-  int64 amount = 4;
+  	// 涉及的交易金额。
+  	int64 amount = 4;
+  	// 支付方式 (e.g., ALIPAY, WECHAT)。
+  	string payment_method = 5;
+  	// 关联订单 ID。
+  	uint64 order_id = 6;
 }
 
 // 风险评估响应。
