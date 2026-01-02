@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
@@ -18,15 +19,17 @@ type RiskManager struct {
 	repo          domain.RiskRepository
 	logger        *slog.Logger
 	detector      *algorithm.AntiBotDetector
+	calculator    *algorithm.RiskCalculator
 	remoteRiskCli riskv1.RiskServiceClient
 }
 
 // NewRiskManager creates a new RiskManager instance.
 func NewRiskManager(repo domain.RiskRepository, logger *slog.Logger) *RiskManager {
 	return &RiskManager{
-		repo:     repo,
-		logger:   logger,
-		detector: algorithm.NewAntiBotDetector(),
+		repo:       repo,
+		logger:     logger,
+		detector:   algorithm.NewAntiBotDetector(),
+		calculator: algorithm.NewRiskCalculator(),
 	}
 }
 
@@ -68,39 +71,31 @@ func (m *RiskManager) DetectFraudGroups(ctx context.Context, numUsers int, relat
 
 // EvaluateRisk 评估指定用户操作的风险。
 func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, deviceID string, amount int64) (*domain.RiskAnalysisResult, error) {
-	// 1. 检查黑名单
-	isIPBlacklisted, err := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeIP, ip)
-	if err != nil {
-		m.logger.ErrorContext(ctx, "failed to check IP blacklist", "ip", ip, "error", err)
-	}
-	if isIPBlacklisted {
-		return m.createResult(ctx, userID, domain.RiskLevelCritical, 100, "IP address found in blacklist")
-	}
-
-	isUserBlacklisted, err := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeUser, fmt.Sprintf("%d", userID))
-	if err != nil {
-		m.logger.ErrorContext(ctx, "failed to check user blacklist", "user_id", userID, "error", err)
-	}
-	if isUserBlacklisted {
-		return m.createResult(ctx, userID, domain.RiskLevelCritical, 100, "User ID found in blacklist")
+	// 1. 检查黑名单 (一票否决)
+	isIPBlacklisted, _ := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeIP, ip)
+	isUserBlacklisted, _ := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeUser, fmt.Sprintf("%d", userID))
+	
+	if isIPBlacklisted || isUserBlacklisted {
+		return m.createResult(ctx, userID, domain.RiskLevelCritical, 100, "Entity found in blacklist")
 	}
 
-	// 2. 评估风险规则 (基础规则)
-	score := int32(0)
-	if amount > 1000000 {
-		score += 20
+	// 2. 准备多准则评分因子 (0-1)
+	factors := make(map[string]float64)
+	
+	// 2.1 金额风险 (假设 50000 以上为高风险)
+	if amount > 5000000 {
+		factors["amount_risk"] = 1.0
+	} else if amount > 1000000 {
+		factors["amount_risk"] = 0.5
 	}
 
-	// 3. 评估用户行为 (历史行为)
-	behaviorData, err := m.repo.GetUserBehavior(ctx, userID)
-	if err != nil {
-		m.logger.ErrorContext(ctx, "failed to get user behavior", "user_id", userID, "error", err)
-	}
+	// 2.2 异地登录风险
+	behaviorData, _ := m.repo.GetUserBehavior(ctx, userID)
 	if behaviorData != nil && behaviorData.LastLoginIP != "" && behaviorData.LastLoginIP != ip {
-		score += 30
+		factors["location_risk"] = 0.8
 	}
 
-	// 4. 实时反爬虫/机器人检测 (算法模型)
+	// 2.3 机器人检测风险
 	currentBehavior := algorithm.UserBehavior{
 		UserID:    userID,
 		IP:        ip,
@@ -108,50 +103,49 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 		Timestamp: time.Now(),
 		Action:    "transaction",
 	}
-
-	isBot, reason := m.detector.IsBot(currentBehavior)
-	botScore := m.detector.GetRiskScore(currentBehavior)
-
-	// 融合算法评分
+	isBot, botReason := m.detector.IsBot(currentBehavior)
 	if isBot {
-		score += 50
-		m.logger.WarnContext(ctx, "bot activity detected", "user_id", userID, "reason", reason)
+		factors["bot_risk"] = 1.0
+	} else {
+		factors["bot_risk"] = float64(m.detector.GetRiskScore(currentBehavior)) / 100.0
 	}
-	score += int32(botScore)
 
-	// 5. 远程风控评估 (Cross-Project Interaction)
+	// 2.4 远程金融风控风险
 	if m.remoteRiskCli != nil {
 		remoteResp, err := m.remoteRiskCli.AssessRisk(ctx, &riskv1.AssessRiskRequest{
 			UserId:   fmt.Sprintf("%d", userID),
-			Symbol:   "RETAIL/PAYMENT", // 模拟零售支付场景
+			Symbol:   "PAYMENT",
 			Side:     "OUT",
-			Quantity: "1",
 			Price:    fmt.Sprintf("%d", amount),
 		})
-		if err != nil {
-			m.logger.WarnContext(ctx, "remote risk assessment failed, skipping", "error", err)
-		} else {
-			m.logger.InfoContext(ctx, "remote financial risk check completed", "score", remoteResp.RiskScore, "is_allowed", remoteResp.IsAllowed)
-			if !remoteResp.IsAllowed {
-				score += 40 // 叠加远程高风险分数
-			}
+		if err == nil {
+			score, _ := strconv.ParseFloat(remoteResp.RiskScore, 64)
+			factors["financial_risk"] = score / 100.0
 		}
 	}
 
-	// 6. 根据风险分数确定风险等级
-	if score > 100 {
-		score = 100
+	// 3. 执行加权聚合评分
+	weights := map[string]float64{
+		"bot_risk":       0.4,
+		"financial_risk": 0.3,
+		"location_risk":  0.2,
+		"amount_risk":    0.1,
 	}
+	
+	finalScore := m.calculator.EvaluateFraudScore(factors, weights)
+	intScore := int32(finalScore * 100)
+
+	// 4. 判定风险等级
 	level := domain.RiskLevelLow
-	if score > 80 {
+	if intScore > 80 {
 		level = domain.RiskLevelCritical
-	} else if score > 60 {
+	} else if intScore > 60 {
 		level = domain.RiskLevelHigh
-	} else if score > 40 {
+	} else if intScore > 40 {
 		level = domain.RiskLevelMedium
 	}
 
-	return m.createResult(ctx, userID, level, score, fmt.Sprintf("Risk evaluation completed. Bot check: %v (%s)", isBot, reason))
+	return m.createResult(ctx, userID, level, intScore, fmt.Sprintf("Weighted analysis completed. Bot detected: %v (%s)", isBot, botReason))
 }
 
 // createResult 是一个辅助函数，用于创建并保存 RiskAnalysisResult 实体。
