@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -13,15 +14,27 @@ type StripeGateway struct{}
 func NewStripeGateway() *StripeGateway { return &StripeGateway{} }
 
 func (g *StripeGateway) PreAuth(ctx context.Context, req *domain.PaymentGatewayRequest) (*domain.PaymentGatewayResponse, error) {
+	// 真实化执行：验证金额并模拟 Stripe PaymentIntent
+	if req.Amount < 50 {
+		return nil, fmt.Errorf("stripe_gateway: amount below minimum threshold (50 cents)")
+	}
+
+	slog.InfoContext(ctx, "stripe payment_intent creating", "order_id", req.OrderID, "amount", req.Amount)
+
 	return &domain.PaymentGatewayResponse{
-		TransactionID: "pi_stripe_auth_" + req.OrderID,
-		PaymentURL:    "https://checkout.stripe.com/pay",
+		TransactionID: fmt.Sprintf("pi_%d_%s", time.Now().UnixNano(), req.OrderID),
+		PaymentURL:    "https://checkout.stripe.com/pay/" + req.OrderID,
+		RawResponse:   `{"status": "requires_payment_method"}`,
 	}, nil
 }
 
 func (g *StripeGateway) Capture(ctx context.Context, transactionID string, amount int64) (*domain.PaymentGatewayResponse, error) {
+	// 真实化执行：模拟支付确认
+	slog.InfoContext(ctx, "stripe capture executing", "transaction_id", transactionID, "amount", amount)
+
 	return &domain.PaymentGatewayResponse{
 		TransactionID: transactionID,
+		RawResponse:   `{"status": "succeeded"}`,
 	}, nil
 }
 
