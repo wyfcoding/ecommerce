@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain" // 导入支付领域的领域层接口和实体。
 	"github.com/wyfcoding/pkg/databases/sharding"            // 导入分库分表管理器。
@@ -130,6 +131,35 @@ func (r *paymentRepository) FindLogsByPaymentID(ctx context.Context, userID uint
 		return nil, err
 	}
 	return logs, nil
+}
+
+// FindSuccessPaymentsByDate 跨分片聚合指定日期的成功支付记录。
+func (r *paymentRepository) FindSuccessPaymentsByDate(ctx context.Context, date time.Time) ([]*domain.Payment, error) {
+	dbs := r.sharding.GetAllDBs()
+	var allPayments []*domain.Payment
+
+	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
+	end := start.Add(24 * time.Hour)
+
+	for _, db := range dbs {
+		var list []*domain.Payment
+		// 查找该分片内 PaidAt 在目标日期的记录
+		err := db.WithContext(ctx).
+			Where("status = ? AND paid_at >= ? AND paid_at < ?", domain.PaymentSuccess, start, end).
+			Find(&list).Error
+		if err != nil {
+			return nil, err
+		}
+		allPayments = append(allPayments, list...)
+	}
+
+	return allPayments, nil
+}
+
+// SaveReconciliationRecord 保存对账结果到配置分片。
+func (r *paymentRepository) SaveReconciliationRecord(ctx context.Context, record *domain.ReconciliationRecord) error {
+	db := r.sharding.GetDB(0)
+	return db.WithContext(ctx).Save(record).Error
 }
 
 func (r *paymentRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {

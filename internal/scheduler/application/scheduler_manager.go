@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,19 +11,21 @@ import (
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
+// JobHandler 定义了任务处理函数的原型
+type JobHandler func(ctx context.Context, params string) (string, error)
+
 // SchedulerManager 处理调度任务和日志的写操作。
-// 引入时间轮（TimingWheel）用于管理海量的延迟任务（如订单超时取消）。
 type SchedulerManager struct {
 	repo       domain.SchedulerRepository
 	logger     *slog.Logger
 	timerWheel *algorithm.TimingWheel
+	handlers   map[string]JobHandler
 }
 
 // NewSchedulerManager creates a new SchedulerManager instance.
 func NewSchedulerManager(repo domain.SchedulerRepository, logger *slog.Logger) *SchedulerManager {
 	tw, err := algorithm.NewTimingWheel(time.Second, 3600)
 	if err != nil {
-		// 初始化失败属于严重配置错误
 		logger.Error("failed to create timing wheel", "error", err)
 		return nil
 	}
@@ -30,11 +33,16 @@ func NewSchedulerManager(repo domain.SchedulerRepository, logger *slog.Logger) *
 	manager := &SchedulerManager{
 		repo:       repo,
 		logger:     logger,
-		timerWheel: tw, // 1s 刻度，一小时周期
+		timerWheel: tw,
+		handlers:   make(map[string]JobHandler),
 	}
-	// 启动时间轮
 	manager.timerWheel.Start()
 	return manager
+}
+
+// RegisterHandler 注册任务处理器
+func (m *SchedulerManager) RegisterHandler(name string, handler JobHandler) {
+	m.handlers[name] = handler
 }
 
 // ScheduleDelayJob 调度一个延迟任务。
@@ -165,14 +173,34 @@ func (m *SchedulerManager) RunJob(ctx context.Context, id uint64) error {
 	m.logger.InfoContext(ctx, "job started execution", "job_id", id)
 
 	go func() {
-		// 模拟实际任务执行逻辑
-		time.Sleep(100 * time.Millisecond)
+		// 真实化执行：根据 Handler 名称查找并运行业务逻辑
+		var (
+			result string
+			err    error
+			status = "SUCCESS"
+		)
+
+		handler, ok := m.handlers[job.Handler]
+		if !ok {
+			err = fmt.Errorf("handler %s not found", job.Handler)
+			status = "FAILED"
+		} else {
+			// 执行真实逻辑
+			result, err = handler(context.Background(), job.Params)
+			if err != nil {
+				status = "FAILED"
+			}
+		}
 
 		endTime := time.Now()
 		log.EndTime = &endTime
 		log.Duration = endTime.Sub(log.StartTime).Milliseconds()
-		log.Status = "SUCCESS"
-		log.Result = "Executed successfully"
+		log.Status = status
+		if err != nil {
+			log.Result = err.Error()
+		} else {
+			log.Result = result
+		}
 
 		if err := m.repo.SaveJobLog(context.Background(), log); err != nil {
 			m.logger.Error("failed to save job log after execution", "job_id", id, "error", err)

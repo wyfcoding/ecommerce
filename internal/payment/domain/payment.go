@@ -227,6 +227,16 @@ type PaymentGateway interface {
 	Capture(ctx context.Context, transactionID string, amount int64) (*PaymentGatewayResponse, error)
 	Void(ctx context.Context, transactionID string) error
 	Refund(ctx context.Context, transactionID string, amount int64) error
+	// DownloadBill 下载指定日期的对账单数据
+	DownloadBill(ctx context.Context, date time.Time) ([]*GatewayBillItem, error)
+}
+
+type GatewayBillItem struct {
+	TransactionID string
+	PaymentNo     string
+	Amount        int64
+	Status        string
+	PaidAt        time.Time
 }
 
 // --- Repositories ---
@@ -241,6 +251,10 @@ type PaymentRepository interface {
 	FindLogsByPaymentID(ctx context.Context, userID uint64, paymentID uint64) ([]*PaymentLog, error)
 	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	WithTx(tx any) PaymentRepository
+
+	// 对账相关
+	FindSuccessPaymentsByDate(ctx context.Context, date time.Time) ([]*Payment, error)
+	SaveReconciliationRecord(ctx context.Context, record *ReconciliationRecord) error
 }
 
 type RefundRepository interface {

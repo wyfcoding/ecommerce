@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
@@ -29,4 +30,17 @@ func (g *MockGateway) Void(ctx context.Context, transactionID string) error {
 
 func (g *MockGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
 	return nil
+}
+
+func (g *MockGateway) DownloadBill(ctx context.Context, date time.Time) ([]*domain.GatewayBillItem, error) {
+	// 返回一个模拟的账单项
+	return []*domain.GatewayBillItem{
+		{
+			TransactionID: "MOCK_TXN_123",
+			PaymentNo:     "PAY_MOCK_123",
+			Amount:        1000,
+			Status:        "SUCCESS",
+			PaidAt:        date,
+		},
+	}, nil
 }

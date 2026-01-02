@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
@@ -29,4 +30,9 @@ func (g *WechatGateway) Void(ctx context.Context, transactionID string) error {
 
 func (g *WechatGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
 	return nil
+}
+
+func (g *WechatGateway) DownloadBill(ctx context.Context, date time.Time) ([]*domain.GatewayBillItem, error) {
+	// TODO: 对接微信支付账单下载 API
+	return []*domain.GatewayBillItem{}, nil
 }

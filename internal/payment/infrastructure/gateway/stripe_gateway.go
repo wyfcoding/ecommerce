@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
@@ -29,4 +30,9 @@ func (g *StripeGateway) Void(ctx context.Context, transactionID string) error {
 
 func (g *StripeGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
 	return nil
+}
+
+func (g *StripeGateway) DownloadBill(ctx context.Context, date time.Time) ([]*domain.GatewayBillItem, error) {
+	// TODO: 对接 Stripe 报表/对账单 API
+	return []*domain.GatewayBillItem{}, nil
 }

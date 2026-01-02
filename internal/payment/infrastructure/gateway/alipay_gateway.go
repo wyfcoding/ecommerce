@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
@@ -29,4 +30,9 @@ func (g *AlipayGateway) Void(ctx context.Context, transactionID string) error {
 
 func (g *AlipayGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
 	return nil
+}
+
+func (g *AlipayGateway) DownloadBill(ctx context.Context, date time.Time) ([]*domain.GatewayBillItem, error) {
+	// TODO: 对接支付宝对账单拉取 API (如 alipay.data.bill.balance.query)
+	return []*domain.GatewayBillItem{}, nil
 }
