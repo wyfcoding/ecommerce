@@ -11,14 +11,15 @@ option go_package = "github.com/wyfcoding/ecommerce/goapi/order/v1;orderv1";
 enum OrderStatus {
   ORDER_STATUS_UNSPECIFIED = 0;
   PENDING_PAYMENT = 1; // 待支付
-  PAID = 2; // 已支付，待发货
-  SHIPPED = 3; // 已发货，运输中
-  DELIVERED = 4; // 包裹已签收
-  COMPLETED = 5; // 用户确认收货，流程完成
-  CANCELLED = 6; // 订单已取消
-  REFUND_REQUESTED = 7; // 退款审核中
-  REFUNDED = 8; // 退款已到账
-  CLOSED = 9; // 异常或超时关闭
+  ALLOCATING = 2; // 分配中 (分布式事务处理中)
+  PAID = 3; // 已支付，待发货
+  SHIPPED = 4; // 已发货，运输中
+  DELIVERED = 5; // 包裹已签收
+  COMPLETED = 6; // 用户确认收货，流程完成
+  CANCELLED = 7; // 订单已取消
+  REFUND_REQUESTED = 8; // 退款审核中
+  REFUNDED = 9; // 退款已到账
+  CLOSED = 10; // 异常或超时关闭
 }
 
 // 订单支付环节状态。

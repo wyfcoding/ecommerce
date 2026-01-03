@@ -220,12 +220,17 @@ func (m *InventoryManager) HandleOrderTimeout(ctx context.Context, event map[str
 			return fmt.Errorf("failed to check order status for ID %d: %w", orderID, err)
 		}
 
-		// 只有处于 PENDING_PAYMENT 或类似初始状态的订单才需要自动释放
-		// 如果订单已经是 PAID, SHIPPED, COMPLETED 等，绝对不能释放库存
-		if resp.Status != orderv1.OrderStatus_PENDING_PAYMENT {
-			m.logger.InfoContext(ctx, "order already processed or paid, skipping stock release", "order_id", orderID, "status", resp.Status)
+		// 只有当确定支付成功（PAID 及之后状态）时，才跳过释放。
+		// 如果订单还在 ALLOCATING (正在分配) 或 PENDING_PAYMENT (待支付)，则超时释放。
+		if resp.Status == orderv1.OrderStatus_PAID || 
+		   resp.Status == orderv1.OrderStatus_SHIPPED || 
+		   resp.Status == orderv1.OrderStatus_DELIVERED || 
+		   resp.Status == orderv1.OrderStatus_COMPLETED {
+			m.logger.InfoContext(ctx, "order already paid or processed, skipping stock release", "order_id", orderID, "status", resp.Status)
 			return nil
 		}
+		
+		m.logger.WarnContext(ctx, "order unpaid or stuck, proceeding with stock release", "order_id", orderID, "status", resp.Status)
 	}
 
 	// 2. 逐项释放库存 (补偿 LockStock)
