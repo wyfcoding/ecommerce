@@ -9,7 +9,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/shopspring/decimal v1.4.0
 	github.com/wyfcoding/financialtrading v0.0.0-20260102112645-403804c4e2d3
-	github.com/wyfcoding/pkg v0.0.0-20260103032405-9ef6949fd7cb
+	github.com/wyfcoding/pkg v0.0.0-20260103055146-09453ad29c6d
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	gorm.io/gorm v1.31.1

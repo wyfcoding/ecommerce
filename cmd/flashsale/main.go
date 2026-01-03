@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -51,6 +53,7 @@ type AppContext struct {
 	Metrics     *metrics.Metrics
 	Limiter     limiter.Limiter
 	Idempotency idempotency.Manager
+	Outbox      *outbox.Processor
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -151,11 +154,22 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("initializing kafka producer...")
 	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 
-	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
+	// 4. 初始化 Outbox 管理器与处理器
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		if producer == nil {
+			return fmt.Errorf("kafka producer not initialized")
+		}
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 2*time.Second)
+	outboxProcessor.Start()
+
+	// 5. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
+		outboxProcessor.Stop()
 		if err := producer.Close(); err != nil {
 			bootLog.Error("failed to close kafka producer", "error", err)
 		}
@@ -170,10 +184,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("id generator init error: %w", err)
 	}
 
-	// 5. 初始化下游微服务客户端
+	// 6. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
 		if err := producer.Close(); err != nil {
 			bootLog.Error("failed to close kafka producer", "error", err)
 		}
@@ -188,14 +203,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 6. DDD 分层装配
+	// 7. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 6.1 Infrastructure (Persistence & Cache)
+	// 7.1 Infrastructure (Persistence & Cache)
 	flashsaleRepo := persistence.NewFlashSaleRepository(db.RawDB())
 	flashsaleCache := cache.NewRedisFlashSaleCache(redisCache.GetClient())
 
-	// 6.2 Application (Service)
+	// 7.2 Application (Service)
 	riskClient := risksecurityv1.NewRiskSecurityServiceClient(clients.Risk)
 
 	query := application.NewFlashsaleQuery(flashsaleRepo)
@@ -203,18 +218,21 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		flashsaleRepo,
 		flashsaleCache,
 		producer,
+		outboxMgr,
+		db.RawDB(),
 		idGenerator,
 		logger.Logger,
 		riskClient,
 	)
 	flashsaleService := application.NewFlashsaleService(manager, query)
 
-	// 6.3 Interface (HTTP Handlers)
+	// 7.3 Interface (HTTP Handlers)
 	handler := flashsalehttp.NewHandler(flashsaleService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if producer != nil {
 			if err := producer.Close(); err != nil {
@@ -242,5 +260,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Metrics:     m,
 		Limiter:     rateLimiter,
 		Idempotency: idempotency.Manager(idemManager),
+		Outbox:      outboxProcessor,
 	}, cleanup, nil
 }

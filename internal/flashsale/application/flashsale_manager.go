@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,8 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
+	"gorm.io/gorm"
 )
 
 type cachedFlashsale struct {
@@ -25,6 +26,8 @@ type FlashsaleManager struct {
 	repo       domain.FlashSaleRepository
 	cache      domain.FlashSaleCache
 	producer   *kafka.Producer
+	outbox     *outbox.Manager
+	db         *gorm.DB
 	idGen      idgen.Generator
 	logger     *slog.Logger
 	riskClient risksecurityv1.RiskSecurityServiceClient
@@ -36,6 +39,8 @@ func NewFlashsaleManager(
 	repo domain.FlashSaleRepository,
 	cache domain.FlashSaleCache,
 	producer *kafka.Producer,
+	outboxMgr *outbox.Manager,
+	db *gorm.DB,
 	idGen idgen.Generator,
 	logger *slog.Logger,
 	riskClient risksecurityv1.RiskSecurityServiceClient,
@@ -44,6 +49,8 @@ func NewFlashsaleManager(
 		repo:       repo,
 		cache:      cache,
 		producer:   producer,
+		outbox:     outboxMgr,
+		db:         db,
 		idGen:      idGen,
 		logger:     logger,
 		riskClient: riskClient,
@@ -111,10 +118,8 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 
 	// 2. 风控检查 (Risk Control)
 	riskResp, err := m.riskClient.EvaluateRisk(ctx, &risksecurityv1.EvaluateRiskRequest{
-		UserId:   userID,
-		Ip:       "", // Context might not have IP, usually extracted from metadata
-		DeviceId: "",
-		Amount:   int64(flashsale.FlashPrice) * int64(quantity),
+		UserId: userID,
+		Amount: int64(flashsale.FlashPrice) * int64(quantity),
 	})
 	if err != nil {
 		// 风控调用失败，为了安全起见，可以选择拒绝或降级 (此处选择 Log & Continue 或 Reject)
@@ -125,7 +130,7 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 		return nil, errors.New("risk check rejected")
 	}
 
-	// 3. 扣减库存 (Redis Lua)
+	// 3. 核心步骤 A: Redis 预扣减 (高性能屏障)
 	success, err := m.cache.DeductStock(ctx, flashsaleID, userID, quantity, flashsale.LimitPerUser)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to deduct stock in cache", "flashsale_id", flashsaleID, "user_id", userID, "error", err)
@@ -135,39 +140,43 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 		return nil, domain.ErrFlashsaleSoldOut
 	}
 
-	// 4. 生成订单并异步处理
+	// 4. 核心步骤 B: 本地事务落库 + Outbox (可靠性保证)
 	orderID := m.idGen.Generate()
 	order := domain.NewFlashsaleOrder(flashsaleID, userID, flashsale.ProductID, flashsale.SkuID, quantity, flashsale.FlashPrice)
 	order.ID = uint(orderID)
 	order.Status = domain.FlashsaleOrderStatusPending
 
-	event := map[string]any{
-		"order_id":     orderID,
-		"flashsale_id": flashsaleID,
-		"user_id":      userID,
-		"product_id":   flashsale.ProductID,
-		"sku_id":       flashsale.SkuID,
-		"quantity":     quantity,
-		"price":        flashsale.FlashPrice,
-		"created_at":   order.CreatedAt,
-	}
-	payload, err := json.Marshal(event)
+	err = m.db.Transaction(func(tx *gorm.DB) error {
+		// 4.1 保存订单占位符 (状态为 PENDING)
+		if err := m.repo.SaveOrder(ctx, order); err != nil {
+			return err
+		}
+
+		// 4.2 写入 Outbox 事件
+		event := map[string]any{
+			"order_id":     orderID,
+			"flashsale_id": flashsaleID,
+			"user_id":      userID,
+			"product_id":   flashsale.ProductID,
+			"sku_id":       flashsale.SkuID,
+			"quantity":     quantity,
+			"price":        flashsale.FlashPrice,
+			"created_at":   order.CreatedAt,
+		}
+
+		return m.outbox.PublishInTx(tx, "flashsale.order.created", fmt.Sprintf("%d", orderID), event)
+	})
+
 	if err != nil {
-		m.logger.ErrorContext(ctx, "failed to marshal order event", "order_id", orderID, "error", err)
+		m.logger.ErrorContext(ctx, "failed to commit flashsale transaction", "order_id", orderID, "error", err)
+		// 容错：DB 失败必须回滚 Redis
 		if revertErr := m.cache.RevertStock(ctx, flashsaleID, userID, quantity); revertErr != nil {
-			m.logger.ErrorContext(ctx, "failed to revert stock after marshal failure", "flashsale_id", flashsaleID, "user_id", userID, "error", revertErr)
+			m.logger.ErrorContext(ctx, "CRITICAL: failed to revert redis stock after DB failure", "flashsale_id", flashsaleID, "error", revertErr)
 		}
-		return nil, fmt.Errorf("failed to marshal order: %w", err)
+		return nil, fmt.Errorf("system error during order creation: %w", err)
 	}
 
-	if err := m.producer.Publish(ctx, fmt.Appendf(nil, "%d", orderID), payload); err != nil {
-		m.logger.ErrorContext(ctx, "failed to publish order event", "order_id", orderID, "error", err)
-		if revertErr := m.cache.RevertStock(ctx, flashsaleID, userID, quantity); revertErr != nil {
-			m.logger.ErrorContext(ctx, "failed to revert stock after publish failure", "flashsale_id", flashsaleID, "user_id", userID, "error", revertErr)
-		}
-		return nil, fmt.Errorf("failed to publish order: %w", err)
-	}
-
+	m.logger.InfoContext(ctx, "flashsale order accepted", "order_id", orderID, "user_id", userID)
 	return order, nil
 }
 
