@@ -161,7 +161,7 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, gin.H{
 		"items":       subs,
 		"total_count": total,
 	})

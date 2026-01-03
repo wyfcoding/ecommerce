@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
@@ -76,22 +75,6 @@ func registerGin(e *gin.Engine, srv any) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 1. 系统路由组
-	sys := e.Group("/sys")
-	{
-		sys.GET("/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"status":    "UP",
-				"service":   BootstrapName,
-				"timestamp": time.Now().Unix(),
-			})
-		})
-	}
-
-	if ctx.Config.Metrics.Enabled {
-		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
-	}
-
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
 	// 3. 业务路由注册
@@ -142,7 +125,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if err != nil {
 			slog.Error("failed to create dynamic k8s client", "error", err)
 		} else {
-			// 修正 logger 传递：logger.Logger 是 *slog.Logger
 			controller := k8s.NewRouteController(dynamicClient, service, logger.Logger)
 			go func() {
 				slog.Info("Starting k8s route controller...")

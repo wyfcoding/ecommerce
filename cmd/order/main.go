@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/pkg/response"
-
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
@@ -97,27 +95,7 @@ func registerGin(e *gin.Engine, svc any) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 系统检查接口
-	sys := e.Group("/sys")
-	{
-		sys.GET("/health", func(c *gin.Context) {
-			response.SuccessWithRawData(c, gin.H{
-				"status":    "UP",
-				"service":   BootstrapName,
-				"timestamp": time.Now().Unix(),
-			})
-		})
-		sys.GET("/ready", func(c *gin.Context) {
-			response.SuccessWithRawData(c, gin.H{"status": "READY"})
-		})
-	}
-
-	// 指标暴露
-	if ctx.Config.Metrics.Enabled {
-		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
-	}
-
-	// 全局限流中间件
+	// 全局限流中间件 (使用从 AppContext 获取的 Redis 限流器)
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
 	// 业务 API 路由 v1
