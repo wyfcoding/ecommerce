@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	orderv1 "github.com/wyfcoding/financialtrading/goapi/order/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 

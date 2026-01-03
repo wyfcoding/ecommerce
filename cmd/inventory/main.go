@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -8,14 +10,15 @@ import (
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
 	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"
 	inventoryhttp "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/http"
-	orderv1 "github.com/wyfcoding/financialtrading/goapi/order/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -24,6 +27,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -48,6 +52,7 @@ type AppContext struct {
 	Metrics     *metrics.Metrics
 	Limiter     limiter.Limiter
 	Idempotency idempotency.Manager
+	Consumer    *kafka.Consumer
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -161,7 +166,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		shardingMgr.Close()
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
-	// 显式转换 gRPC 客户端 (Cross-Project Bridge)
+	// 显式转换 gRPC 客户端
 	if clients.OrderConn != nil {
 		clients.Order = orderv1.NewOrderServiceClient(clients.OrderConn)
 	}
@@ -172,21 +177,34 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 5.1 Infrastructure (Persistence)
 	inventoryRepo := persistence.NewInventoryRepository(shardingMgr)
 	warehouseRepo := persistence.NewWarehouseRepository(shardingMgr.GetDB(0))
-
-	// 5.2 Application (Service)
-	query := application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger)
 	manager := application.NewInventoryManager(inventoryRepo, warehouseRepo, logger.Logger)
 	if clients.Order != nil {
 		manager.SetRemoteOrderClient(clients.Order)
 	}
-	inventoryService := application.NewInventory(manager, query)
+	inventoryService := application.NewInventory(manager, application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger))
 
-	// 5.3 Interface (HTTP Handlers)
+	// 5. 启动可靠库存自动释放消费者
+	consumer := kafka.NewConsumer(c.MessageQueue.Kafka, logger, m)
+	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
+		if msg.Topic != "order.payment.timeout" {
+			return nil
+		}
+		var event map[string]any
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			return err
+		}
+		return manager.HandleOrderTimeout(ctx, event)
+	})
+
+	// 6. 接口层
 	handler := inventoryhttp.NewHandler(inventoryService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		if consumer != nil {
+			consumer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -208,6 +226,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Handler:     handler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
-		Idempotency: idemManager,
+		Idempotency: idempotency.Manager(idemManager),
+		Consumer:    consumer,
 	}, cleanup, nil
 }

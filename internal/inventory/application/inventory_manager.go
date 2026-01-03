@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	orderv1 "github.com/wyfcoding/financialtrading/goapi/order/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
@@ -164,13 +164,17 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 				replenishCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 
-				// 调用跨项目订单服务发起补货申请
+				// 调用电商自身的订单服务发起补货申请
 				_, err := m.remoteOrderCli.CreateOrder(replenishCtx, &orderv1.CreateOrderRequest{
-					UserId:    "INVENTORY_BOT", // 使用专用的补货机器人账户
-					Symbol:    fmt.Sprintf("SKU-%d", skuID),
-					Side:      "BUY",
-					OrderType: "MARKET",
-					Quantity:  fmt.Sprintf("%d", replenishQty),
+					UserId: 999999, // 系统补货账户 ID (uint64)
+					Items: []*orderv1.OrderItemCreate{
+						{
+							ProductId: inv.ProductID, // 使用当前库存对象的 SPU ID
+							SkuId:     inv.SkuID,
+							Quantity:  replenishQty,
+						},
+					},
+					Remark: fmt.Sprintf("Auto-replenishment for low stock SKU %d", inv.SkuID),
 				})
 				if err != nil {
 					m.logger.Error("failed to place replenishment order", "sku_id", skuID, "error", err)
@@ -196,6 +200,47 @@ func (m *InventoryManager) UnlockStock(ctx context.Context, skuID uint64, quanti
 	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
 		return inv.Unlock(quantity, reason)
 	})
+}
+
+// HandleOrderTimeout 处理订单支付超时，自动释放库存。
+func (m *InventoryManager) HandleOrderTimeout(ctx context.Context, event map[string]any) error {
+	orderID := uint64(event["order_id"].(float64))
+	userID := uint64(event["user_id"].(float64))
+	items := event["items"].([]any)
+
+	m.logger.InfoContext(ctx, "checking order timeout for stock release", "order_id", orderID)
+
+	// 1. 调用 Order Service 检查当前状态
+	if m.remoteOrderCli != nil {
+		resp, err := m.remoteOrderCli.GetOrderByID(ctx, &orderv1.GetOrderByIDRequest{
+			Id:     orderID,
+			UserId: userID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to check order status for ID %d: %w", orderID, err)
+		}
+
+		// 只有处于 PENDING_PAYMENT 或类似初始状态的订单才需要自动释放
+		// 如果订单已经是 PAID, SHIPPED, COMPLETED 等，绝对不能释放库存
+		if resp.Status != orderv1.OrderStatus_PENDING_PAYMENT {
+			m.logger.InfoContext(ctx, "order already processed or paid, skipping stock release", "order_id", orderID, "status", resp.Status)
+			return nil
+		}
+	}
+
+	// 2. 逐项释放库存 (补偿 LockStock)
+	for _, it := range items {
+		itemMap := it.(map[string]any)
+		skuID := uint64(itemMap["sku_id"].(float64))
+		qty := int32(itemMap["quantity"].(float64))
+
+		m.logger.InfoContext(ctx, "auto-unlocking stock for timeout", "order_id", orderID, "sku_id", skuID, "qty", qty)
+		if err := m.UnlockStock(ctx, skuID, qty, fmt.Sprintf("Auto-release for timeout order %d", orderID)); err != nil {
+			m.logger.ErrorContext(ctx, "failed to auto-unlock stock", "sku_id", skuID, "error", err)
+		}
+	}
+
+	return nil
 }
 
 // ConfirmDeduction 确认扣减。

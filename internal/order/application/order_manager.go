@@ -145,7 +145,22 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		}
 
 		gormTx := tx.(*gorm.DB)
-		return s.outboxMgr.PublishInTx(gormTx, "order.created", orderNo, event)
+		
+		// 1.1 发布订单创建事件
+		if err := s.outboxMgr.PublishInTx(gormTx, "order.created", orderNo, event); err != nil {
+			return err
+		}
+
+		// 1.2 发布超时自动取消/释放库存任务 (延迟任务占位)
+		// 在实际生产中，Outbox Processor 或 Kafka 延迟队列会处理此消息。
+		timeoutEvent := map[string]any{
+			"order_id":   order.ID,
+			"order_no":   order.OrderNo,
+			"user_id":    order.UserID,
+			"items":      items, // 包含 SKU 和数量用于释放
+			"expires_at": time.Now().Add(15 * time.Minute).Unix(),
+		}
+		return s.outboxMgr.PublishInTx(gormTx, "order.payment.timeout", orderNo, timeoutEvent)
 	})
 	if err != nil {
 		return nil, err
