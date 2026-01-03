@@ -69,7 +69,7 @@ func (m *ProductManager) CreateProduct(ctx context.Context, req *CreateProductRe
 			"stock":      product.Stock,
 		}
 		gormTx := tx.(*gorm.DB)
-		return m.outbox.PublishInTx(gormTx, "product.index.sync", fmt.Sprintf("%d", product.ID), event)
+		return m.outbox.PublishInTx(ctx, gormTx, "product.index.sync", fmt.Sprintf("%d", product.ID), event)
 	})
 
 	if err != nil {
@@ -120,7 +120,7 @@ func (m *ProductManager) UpdateProduct(ctx context.Context, id uint64, req *Upda
 			"status":     product.Status,
 		}
 		gormTx := tx.(*gorm.DB)
-		return m.outbox.PublishInTx(gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
+		return m.outbox.PublishInTx(ctx, gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
 	})
 
 	if err != nil {
@@ -148,7 +148,7 @@ func (m *ProductManager) DeleteProduct(ctx context.Context, id uint64) error {
 			"product_id": id,
 		}
 		gormTx := tx.(*gorm.DB)
-		return m.outbox.PublishInTx(gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
+		return m.outbox.PublishInTx(ctx, gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
 	})
 
 	if err != nil {

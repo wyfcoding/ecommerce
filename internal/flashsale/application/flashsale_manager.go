@@ -164,9 +164,8 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 			"created_at":   order.CreatedAt,
 		}
 
-		return m.outbox.PublishInTx(tx, "flashsale.order.created", fmt.Sprintf("%d", orderID), event)
+		return m.outbox.PublishInTx(ctx, tx, "flashsale.order.created", fmt.Sprintf("%d", orderID), event)
 	})
-
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to commit flashsale transaction", "order_id", orderID, "error", err)
 		// 容错：DB 失败必须回滚 Redis

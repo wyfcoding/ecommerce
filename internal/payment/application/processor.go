@@ -160,6 +160,6 @@ func (s *PaymentProcessor) CapturePayment(ctx context.Context, userID uint64, pa
 			"timestamp":  time.Now().Unix(),
 		}
 		gormTx := tx.(*gorm.DB)
-		return s.outboxMgr.PublishInTx(gormTx, "payment.captured", payment.PaymentNo, event)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "payment.captured", payment.PaymentNo, event)
 	})
 }

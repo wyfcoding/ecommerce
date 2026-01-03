@@ -147,7 +147,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		gormTx := tx.(*gorm.DB)
 		
 		// 1.1 发布订单创建事件
-		if err := s.outboxMgr.PublishInTx(gormTx, "order.created", orderNo, event); err != nil {
+		if err := s.outboxMgr.PublishInTx(ctx, gormTx, "order.created", orderNo, event); err != nil {
 			return err
 		}
 
@@ -160,7 +160,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 			"items":      items, // 包含 SKU 和数量用于释放
 			"expires_at": time.Now().Add(15 * time.Minute).Unix(),
 		}
-		return s.outboxMgr.PublishInTx(gormTx, "order.payment.timeout", orderNo, timeoutEvent)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.payment.timeout", orderNo, timeoutEvent)
 	})
 	if err != nil {
 		return nil, err
