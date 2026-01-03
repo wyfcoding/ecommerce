@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
+	kafkago "github.com/segmentio/kafka-go"
 	pb "github.com/wyfcoding/ecommerce/goapi/search/v1"
 	"github.com/wyfcoding/ecommerce/internal/search/application"
 	"github.com/wyfcoding/ecommerce/internal/search/infrastructure/persistence"
@@ -23,8 +26,10 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	pkgsearch "github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -47,6 +52,7 @@ type AppContext struct {
 	Metrics     *metrics.Metrics
 	Limiter     limiter.Limiter
 	Idempotency idempotency.Manager
+	Consumer    *kafka.Consumer
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -140,11 +146,25 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 3. 初始化治理组件 (限流器、幂等管理器)
+	// 3. 初始化 Elasticsearch 客户端
+	esClient, err := pkgsearch.NewClient(pkgsearch.Config{
+		Addresses:     c.Data.Elasticsearch.Addresses,
+		Username:      c.Data.Elasticsearch.Username,
+		Password:      c.Data.Elasticsearch.Password,
+		SlowThreshold: 500 * time.Millisecond,
+		MaxRetries:    3,
+		ServiceName:   BootstrapName,
+		BreakerConfig: c.CircuitBreaker,
+	}, logger, m)
+	if err != nil {
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
+	// 4. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
-	// 4. 初始化下游微服务客户端
+	// 5. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
@@ -155,23 +175,39 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. DDD 分层装配
+	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence)
+	// 6.1 Infrastructure (Persistence)
 	searchRepo := persistence.NewSearchRepository(db.RawDB())
 
-	// 5.2 Application (Service)
+	// 6.2 Application (Service)
 	query := application.NewSearchQuery(searchRepo)
-	manager := application.NewSearchManager(searchRepo, logger.Logger)
+	manager := application.NewSearchManager(searchRepo, esClient, logger.Logger)
 	searchService := application.NewSearch(manager, query, logger.Logger)
 
-	// 5.3 Interface (HTTP Handlers)
+	// 7. 启动 Kafka 消费者进行可靠索引同步
+	consumer := kafka.NewConsumer(c.MessageQueue.Kafka, logger, m)
+	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
+		if msg.Topic != "product.index.sync" {
+			return nil
+		}
+		var event map[string]any
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			return err
+		}
+		return manager.SyncProductIndex(ctx, event)
+	})
+
+	// 6.3 Interface (HTTP Handlers)
 	handler := searchhttp.NewHandler(searchService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		if consumer != nil {
+			consumer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -194,5 +230,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Metrics:     m,
 		Limiter:     rateLimiter,
 		Idempotency: idemManager,
+		Consumer:    consumer,
 	}, cleanup, nil
 }

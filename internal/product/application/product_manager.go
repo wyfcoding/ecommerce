@@ -8,6 +8,8 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	"github.com/wyfcoding/pkg/cache"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
+	"gorm.io/gorm"
 )
 
 type ProductManager struct {
@@ -16,6 +18,8 @@ type ProductManager struct {
 	brandRepo    domain.BrandRepository
 	categoryRepo domain.CategoryRepository
 	cache        cache.Cache
+	outbox       *outbox.Manager
+	db           *gorm.DB
 	logger       *slog.Logger
 }
 
@@ -25,6 +29,8 @@ func NewProductManager(
 	brandRepo domain.BrandRepository,
 	categoryRepo domain.CategoryRepository,
 	cache cache.Cache,
+	outboxMgr *outbox.Manager,
+	db *gorm.DB,
 	logger *slog.Logger,
 ) *ProductManager {
 	return &ProductManager{
@@ -33,6 +39,8 @@ func NewProductManager(
 		brandRepo:    brandRepo,
 		categoryRepo: categoryRepo,
 		cache:        cache,
+		outbox:       outboxMgr,
+		db:           db,
 		logger:       logger,
 	}
 }
@@ -46,12 +54,29 @@ func (m *ProductManager) CreateProduct(ctx context.Context, req *CreateProductRe
 		return nil, err
 	}
 
-	if err := m.repo.Save(ctx, product); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save product", "error", err)
+	err = m.repo.Transaction(ctx, func(tx any) error {
+		txRepo := m.repo.WithTx(tx)
+		if err := txRepo.Save(ctx, product); err != nil {
+			return err
+		}
+
+		// 发布“商品创建”事件用于同步搜索索引
+		event := map[string]any{
+			"action":     "create",
+			"product_id": product.ID,
+			"name":       product.Name,
+			"price":      product.Price,
+			"stock":      product.Stock,
+		}
+		gormTx := tx.(*gorm.DB)
+		return m.outbox.PublishInTx(gormTx, "product.index.sync", fmt.Sprintf("%d", product.ID), event)
+	})
+
+	if err != nil {
 		return nil, err
 	}
-	m.logger.InfoContext(ctx, "product created successfully", "product_id", product.ID)
 
+	m.logger.InfoContext(ctx, "product created successfully", "product_id", product.ID)
 	return product, nil
 }
 
@@ -80,24 +105,56 @@ func (m *ProductManager) UpdateProduct(ctx context.Context, id uint64, req *Upda
 		product.Status = *req.Status
 	}
 
-	if err := m.repo.Update(ctx, product); err != nil {
-		m.logger.ErrorContext(ctx, "failed to update product", "product_id", id, "error", err)
+	err = m.repo.Transaction(ctx, func(tx any) error {
+		txRepo := m.repo.WithTx(tx)
+		if err := txRepo.Update(ctx, product); err != nil {
+			return err
+		}
+
+		// 发布“商品更新”事件
+		event := map[string]any{
+			"action":     "update",
+			"product_id": id,
+			"name":       product.Name,
+			"price":      product.Price,
+			"status":     product.Status,
+		}
+		gormTx := tx.(*gorm.DB)
+		return m.outbox.PublishInTx(gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
+	})
+
+	if err != nil {
 		return nil, err
 	}
-	m.logger.InfoContext(ctx, "product updated successfully", "product_id", id)
 
-	if err := m.cache.Delete(ctx, fmt.Sprintf("product:%d", id)); err != nil {
-		m.logger.ErrorContext(ctx, "failed to delete product cache", "product_id", id, "error", err)
-	}
+	m.logger.InfoContext(ctx, "product updated and sync event recorded", "product_id", id)
+
+	// 异步清理缓存
+	_ = m.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
 
 	return product, nil
 }
 
 func (m *ProductManager) DeleteProduct(ctx context.Context, id uint64) error {
-	if err := m.repo.Delete(ctx, uint(id)); err != nil {
-		m.logger.ErrorContext(ctx, "failed to delete product", "product_id", id, "error", err)
+	err := m.repo.Transaction(ctx, func(tx any) error {
+		txRepo := m.repo.WithTx(tx)
+		if err := txRepo.Delete(ctx, uint(id)); err != nil {
+			return err
+		}
+
+		// 发布“商品删除”事件
+		event := map[string]any{
+			"action":     "delete",
+			"product_id": id,
+		}
+		gormTx := tx.(*gorm.DB)
+		return m.outbox.PublishInTx(gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
+	})
+
+	if err != nil {
 		return err
 	}
+
 	m.logger.InfoContext(ctx, "product deleted successfully", "product_id", id)
 	return m.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
 }

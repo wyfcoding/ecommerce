@@ -25,6 +25,11 @@ type ProductRepository interface {
 	ListByCategory(ctx context.Context, categoryID uint, offset, limit int) ([]*Product, int64, error)
 	// ListByBrand 列出指定品牌ID下的商品实体，支持分页。
 	ListByBrand(ctx context.Context, brandID uint, offset, limit int) ([]*Product, int64, error)
+
+	// Transaction 在事务中执行操作。
+	Transaction(ctx context.Context, fn func(tx any) error) error
+	// WithTx 返回一个带事务的仓储副本。
+	WithTx(tx any) ProductRepository
 }
 
 // SKURepository 是商品SKU模块的仓储接口。

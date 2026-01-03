@@ -18,20 +18,34 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
+// Transaction 实现事务包装
+func (r *ProductRepository) Transaction(ctx context.Context, fn func(tx any) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(tx)
+	})
+}
+
+// WithTx 返回带事务的副本
+func (r *ProductRepository) WithTx(tx any) domain.ProductRepository {
+	if tx == nil {
+		return r
+	}
+	return &ProductRepository{db: tx.(*gorm.DB)}
+}
+
 // Save 将商品实体保存到数据库。
 func (r *ProductRepository) Save(ctx context.Context, product *domain.Product) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(product).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	if err := db.Create(product).Error; err != nil {
+		return err
+	}
+	for _, sku := range product.SKUs {
+		sku.ProductID = product.ID
+		if err := db.Create(sku).Error; err != nil {
 			return err
 		}
-		for _, sku := range product.SKUs {
-			sku.ProductID = product.ID
-			if err := tx.Create(sku).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // FindByID 根据ID从数据库获取商品记录，并预加载其关联的SKU列表。
@@ -60,12 +74,7 @@ func (r *ProductRepository) FindByName(ctx context.Context, name string) (*domai
 
 // Update 更新商品实体。
 func (r *ProductRepository) Update(ctx context.Context, product *domain.Product) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(product).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	return r.db.WithContext(ctx).Save(product).Error
 }
 
 // Delete 根据ID从数据库删除商品记录。

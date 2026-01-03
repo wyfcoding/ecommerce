@@ -5,7 +5,9 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	"github.com/wyfcoding/pkg/cache"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
+	"gorm.io/gorm"
 )
 
 // ProductService 商品服务门面
@@ -17,21 +19,17 @@ type ProductService struct {
 
 func NewProductService(
 	repo domain.ProductRepository,
-	skuRepo domain.SKURepository, // Note: Consolidated into ProductRepository struct, but interface might be separate?
-	// Actually in my consolidated product_repository.go, I kept separate NewXXXRepository functions but they are in the same file.
-	// Wait, I should check if I need to update main.go to inject the same instance or different instances.
-	// For simplicity in Application layer, I will inject the repositories as interfaces.
-	// I Consolidated the IMPLEMENTATION, but interfaces in `domain/product_repository.go` are still separate.
-	// So I still need to pass them separately or aggregate them.
-	// Let's pass them separately as defined in domain.
+	skuRepo domain.SKURepository,
 	brandRepo domain.BrandRepository,
 	categoryRepo domain.CategoryRepository,
 	cache cache.Cache,
+	outboxMgr *outbox.Manager,
+	db *gorm.DB,
 	logger *slog.Logger,
 	m *metrics.Metrics,
 ) *ProductService {
 	return &ProductService{
-		Manager: NewProductManager(repo, skuRepo, brandRepo, categoryRepo, cache, logger),
+		Manager: NewProductManager(repo, skuRepo, brandRepo, categoryRepo, cache, outboxMgr, db, logger),
 		Query:   NewProductQuery(repo, skuRepo, brandRepo, categoryRepo, cache, logger, m),
 		logger:  logger,
 	}
