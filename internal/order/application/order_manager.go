@@ -13,8 +13,8 @@ import (
 	warehousev1 "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 
-	"github.com/dtm-labs/client/dtmgrpc"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/wyfcoding/pkg/dtm"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
@@ -149,8 +149,8 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
 
 	// --- 2. 启动 DTM Saga 分布式事务 ---
-	s.logger.InfoContext(ctx, "submitting saga transaction to DTM", "gid", orderNo)
-	saga := dtmgrpc.NewSagaGrpc(s.dtmServer, orderNo)
+	s.logger.InfoContext(ctx, "submitting saga transaction via pkg/dtm", "gid", orderNo)
+	saga := dtm.NewSaga(ctx, s.dtmServer, orderNo)
 
 	// 2.1 为每个商品添加库存扣减步骤
 	for _, item := range items {
@@ -166,13 +166,12 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		)
 	}
 
-	// 2.2 如果使用了优惠券，添加核销步骤 (假设 AdvancedCoupon 服务的 gRPC 地址)
+	// 2.2 如果使用了优惠券，添加核销步骤
 	if couponCode != "" {
-		// 注意：此处需要 AdvancedCoupon 的 gRPC 地址，这里假设一个或通过配置注入
-		couponSvcAddr := "advancedcoupon:50051" // 示例
+		couponSvcAddr := "advancedcoupon:50051"
 		saga.Add(
 			couponSvcAddr+"/api.advancedcoupon.v1.AdvancedCouponService/UseCoupon",
-			"", // 假设 UseCoupon 是幂等的或不需要显式补偿（或者由内部逻辑处理）
+			"", // 假设 UseCoupon 是幂等的
 			&advancedcouponv1.UseCouponRequest{
 				UserId:  userID,
 				Code:    couponCode,
@@ -181,13 +180,12 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		)
 	}
 
-	// 提交 Saga
+	// 提交 Saga (使用 pkg/dtm 的 Submit，已内置日志和错误包装)
 	if err := saga.Submit(); err != nil {
-		s.logger.ErrorContext(ctx, "failed to submit saga to DTM", "gid", orderNo, "error", err)
 		// 容错处理：本地标记为取消
 		order.Status = domain.Cancelled
 		_ = s.repo.Save(ctx, order)
-		return nil, fmt.Errorf("distributed transaction failed: %w", err)
+		return nil, err
 	}
 
 	s.logger.InfoContext(ctx, "order created and saga submitted", "order_no", orderNo)
