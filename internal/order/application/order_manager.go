@@ -245,114 +245,211 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 
 // PayOrder 支付订单。
 func (s *OrderManager) PayOrder(ctx context.Context, userID, id uint64, paymentMethod string) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(id))
-	if err != nil {
-		return err
-	}
-	if order == nil {
-		return errors.New("order not found")
-	}
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(id))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
 
-	if err := order.Pay(ctx, paymentMethod, "User"); err != nil {
-		return err
-	}
+		if err := order.Pay(ctx, paymentMethod, "User"); err != nil {
+			return err
+		}
 
-	return s.repo.Save(ctx, order)
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布支付成功事件
+		event := map[string]any{
+			"order_id": order.ID,
+			"order_no": order.OrderNo,
+			"user_id":  userID,
+			"amount":   order.ActualAmount,
+			"paid_at":  time.Now().Unix(),
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.paid", order.OrderNo, event)
+	})
 }
 
 // ShipOrder 发货订单。
 func (s *OrderManager) ShipOrder(ctx context.Context, userID, id uint64, operator string) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(id))
-	if err != nil {
-		return err
-	}
-	if order == nil {
-		return errors.New("order not found")
-	}
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(id))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
 
-	if err := order.Ship(ctx, operator); err != nil {
-		return err
-	}
+		if err := order.Ship(ctx, operator); err != nil {
+			return err
+		}
 
-	return s.repo.Save(ctx, order)
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布发货事件，触发物流系统
+		event := map[string]any{
+			"order_id":   order.ID,
+			"order_no":   order.OrderNo,
+			"operator":   operator,
+			"shipped_at": time.Now().Unix(),
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.shipped", order.OrderNo, event)
+	})
 }
 
 // DeliverOrder 送达订单。
 func (s *OrderManager) DeliverOrder(ctx context.Context, userID, id uint64, operator string) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(id))
-	if err != nil {
-		return err
-	}
-	if order == nil {
-		return errors.New("order not found")
-	}
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(id))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
 
-	if err := order.Deliver(ctx, operator); err != nil {
-		return err
-	}
+		if err := order.Deliver(ctx, operator); err != nil {
+			return err
+		}
 
-	return s.repo.Save(ctx, order)
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布送达事件
+		event := map[string]any{
+			"order_id":     order.ID,
+			"order_no":     order.OrderNo,
+			"delivered_at": time.Now().Unix(),
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.delivered", order.OrderNo, event)
+	})
 }
 
 // CompleteOrder 完成订单。
 func (s *OrderManager) CompleteOrder(ctx context.Context, userID, id uint64, operator string) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(id))
-	if err != nil {
-		return err
-	}
-	if order == nil {
-		return errors.New("order not found")
-	}
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(id))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
 
-	if err := order.Complete(ctx, operator); err != nil {
-		return err
-	}
+		if err := order.Complete(ctx, operator); err != nil {
+			return err
+		}
 
-	return s.repo.Save(ctx, order)
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布完成事件，用于赠送积分、分账、大数据分析等
+		event := map[string]any{
+			"order_id":      order.ID,
+			"order_no":      order.OrderNo,
+			"user_id":       order.UserID,
+			"amount":        order.ActualAmount,
+			"completed_at":  time.Now().Unix(),
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.completed", order.OrderNo, event)
+	})
 }
 
 // SagaConfirmOrder Saga 正向: 确认订单 (Allocating -> PendingPayment)
 func (s *OrderManager) SagaConfirmOrder(ctx context.Context, userID, orderID uint64) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
-	if err != nil || order == nil {
-		return fmt.Errorf("order not found: %d", orderID)
-	}
-	if order.Status != domain.Allocating {
-		return nil // 幂等
-	}
-	order.Status = domain.PendingPayment
-	order.AddLog("System", "Saga Confirmed", domain.Allocating.String(), domain.PendingPayment.String(), "Inventory and logic verified")
-	return s.repo.Save(ctx, order)
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(orderID))
+		if err != nil || order == nil {
+			return fmt.Errorf("order not found: %d", orderID)
+		}
+		if order.Status != domain.Allocating {
+			return nil // 幂等
+		}
+		order.Status = domain.PendingPayment
+		order.AddLog("System", "Saga Confirmed", domain.Allocating.String(), domain.PendingPayment.String(), "Inventory and logic verified")
+		
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布订单正式创建事件 (此时库存已锁定，真正进入待支付)
+		event := map[string]any{
+			"order_id": order.ID,
+			"order_no": order.OrderNo,
+			"user_id":  order.UserID,
+			"status":   "PENDING_PAYMENT",
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.confirmed", order.OrderNo, event)
+	})
 }
 
 // SagaCancelOrder Saga 补偿: 取消订单 (Allocating -> Cancelled)
 func (s *OrderManager) SagaCancelOrder(ctx context.Context, userID, orderID uint64, reason string) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
-	if err != nil || order == nil {
-		return fmt.Errorf("order not found: %d", orderID)
-	}
-	if order.Status == domain.Cancelled {
-		return nil // 幂等
-	}
-	return order.Cancel(ctx, "System", reason)
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(orderID))
+		if err != nil || order == nil {
+			return fmt.Errorf("order not found: %d", orderID)
+		}
+		if order.Status == domain.Cancelled {
+			return nil // 幂等
+		}
+		
+		if err := order.Cancel(ctx, "System", reason); err != nil {
+			return err
+		}
+
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布取消事件
+		event := map[string]any{
+			"order_id": order.ID,
+			"order_no": order.OrderNo,
+			"reason":   reason,
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.cancelled", order.OrderNo, event)
+	})
 }
 
 // CancelOrder 取消订单。
 func (s *OrderManager) CancelOrder(ctx context.Context, userID, id uint64, operator, reason string) error {
-	order, err := s.repo.FindByID(ctx, userID, uint(id))
-	if err != nil {
-		return err
-	}
-	if order == nil {
-		return errors.New("order not found")
-	}
+	return s.repo.Transaction(ctx, userID, func(tx any) error {
+		txRepo := s.repo.WithTx(tx)
+		order, err := txRepo.FindByID(ctx, userID, uint(id))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
 
-	if err := order.Cancel(ctx, operator, reason); err != nil {
-		return err
-	}
+		if err := order.Cancel(ctx, operator, reason); err != nil {
+			return err
+		}
 
-	return s.repo.Save(ctx, order)
+		if err := txRepo.Save(ctx, order); err != nil {
+			return err
+		}
+
+		// 发布手动取消事件
+		event := map[string]any{
+			"order_id": order.ID,
+			"order_no": order.OrderNo,
+			"user_id":  userID,
+			"reason":   reason,
+		}
+		gormTx := tx.(*gorm.DB)
+		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.cancelled", order.OrderNo, event)
+	})
 }
+
 
 // HandleInventoryReserved 处理库存已预留事件。
 func (s *OrderManager) HandleInventoryReserved(ctx context.Context, userID, orderID uint64) error {
