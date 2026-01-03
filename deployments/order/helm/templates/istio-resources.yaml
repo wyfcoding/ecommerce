@@ -151,8 +151,38 @@ spec:
   - hosts:
     - "istio-system/*"
     - "./*"
+    # 显式声明依赖，减少 Envoy 内存占用并提高拓扑扫描效率
     - "default/payment.default.svc.cluster.local"
     - "default/inventory.default.svc.cluster.local"
+    - "default/warehouse.default.svc.cluster.local"
+    - "default/advancedcoupon.default.svc.cluster.local"
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: {{ include "order.fullname" . }}-telemetry
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "order.name" . }}
+  tracing:
+  - providers:
+    - name: {{ .Values.observability.tracing.provider }}
+    randomSamplingPercentage: {{ .Values.observability.tracing.samplingRate }}
+    customTags:
+      environment:
+        literal:
+          value: {{ .Values.env.APP_ENVIRONMENT | default "prod" }}
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - tagOverrides:
+        # 增加业务维度标签，方便 Grafana 聚合
+        order_type:
+          literal:
+            value: "general"
 ---
 apiVersion: security.istio.io/v1beta1
 kind: RequestAuthentication

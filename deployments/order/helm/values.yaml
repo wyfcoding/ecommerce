@@ -72,6 +72,21 @@ tolerations: []
 
 affinity: {}
 
+# 可观测性预设 (Observability Presets)
+observability:
+  tracing:
+    enabled: true
+    samplingRate: 100 # 采样率百分比
+    provider: "otel" # 默认使用 OpenTelemetry
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true # 适配 Prometheus Operator
+      interval: 15s
+  logging:
+    level: "info"
+    format: "json"
+
 env:
   - name: ECOMMERCE_SERVER_HTTP_PORT
     value: "8080"
