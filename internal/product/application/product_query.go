@@ -14,6 +14,7 @@ import (
 	"github.com/wyfcoding/pkg/cache"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/utils"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +27,7 @@ type ProductQuery struct {
 	logger       *slog.Logger
 	cacheHits    *prometheus.CounterVec
 	cacheMisses  *prometheus.CounterVec
+	sf           singleflight.Group // [新增] 并发去重器
 }
 
 func NewProductQuery(
@@ -56,15 +58,17 @@ func NewProductQuery(
 		logger:       logger,
 		cacheHits:    cacheHits,
 		cacheMisses:  cacheMisses,
+		sf:           singleflight.Group{},
 	}
 }
 
-// GetProductByID 获取商品详情（集成了缓存、数据库和终极降级逻辑）
+// GetProductByID 获取商品详情（集成了 SingleFlight 并发去重、缓存、数据库和终极降级逻辑）
 func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.Product, error) {
-	// 定义主逻辑：缓存 -> DB
+	cacheKey := fmt.Sprintf("product:%d", id)
+
+	// 定义主逻辑：缓存 -> SingleFlight(DB)
 	mainFunc := func(c context.Context) (*domain.Product, error) {
 		var product domain.Product
-		cacheKey := fmt.Sprintf("product:%d", id)
 
 		// 1. 尝试从缓存读取
 		if err := q.cache.Get(c, cacheKey, &product); err == nil {
@@ -73,23 +77,37 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 		}
 		q.cacheMisses.WithLabelValues().Inc()
 
-		// 2. 缓存未命中，查询 DB
-		p, err := q.repo.FindByID(c, uint(id))
+		// 2. 缓存未命中，使用 SingleFlight 进行并发去重读库
+		// 同一时刻、同一个 ID，只会有一个 goroutine 真正执行读库逻辑
+		val, err, shared := q.sf.Do(cacheKey, func() (interface{}, error) {
+			p, err := q.repo.FindByID(c, uint(id))
+			if err != nil {
+				return nil, err
+			}
+			if p == nil {
+				return nil, nil
+			}
+
+			// 3. 读库成功，回填缓存 (由于在 SingleFlight 内部，只需回填一次)
+			if err := q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute); err != nil {
+				q.logger.ErrorContext(context.Background(), "failed to backfill product cache", "product_id", id, "error", err)
+			}
+			return p, nil
+		})
+
 		if err != nil {
 			return nil, err
 		}
-		if p == nil {
-			return nil, nil // 注意：未找到不属于降级场景
+
+		if shared {
+			q.logger.DebugContext(c, "query result was shared via singleflight", "product_id", id)
 		}
 
-		// 3. 写回缓存 (异步)
-		go func() {
-			if err := q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute); err != nil {
-				q.logger.ErrorContext(context.Background(), "failed to backfill product cache in background", "product_id", id, "error", err)
-			}
-		}()
+		if val == nil {
+			return nil, nil
+		}
 
-		return p, nil
+		return val.(*domain.Product), nil
 	}
 
 	// 定义终极降级逻辑：DB 宕机或网络中断时的兜底
@@ -155,9 +173,20 @@ func (q *ProductQuery) CalculateProductPrice(ctx context.Context, productID uint
 	return result.FinalPrice, nil
 }
 
-// GetSKUByID 获取SKU
+// GetSKUByID 获取SKU (带 SingleFlight 保护)
 func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, error) {
-	return q.skuRepo.FindByID(ctx, uint(id))
+	cacheKey := fmt.Sprintf("sku:%d", id)
+	
+	val, err, _ := q.sf.Do(cacheKey, func() (interface{}, error) {
+		return q.skuRepo.FindByID(ctx, uint(id))
+	})
+	if err != nil {
+		return nil, err
+	}
+	if val == nil {
+		return nil, nil
+	}
+	return val.(*domain.SKU), nil
 }
 
 // GetBrandByID 获取品牌
