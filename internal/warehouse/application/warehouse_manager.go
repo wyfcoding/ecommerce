@@ -9,21 +9,21 @@ import (
 
 // WarehouseManager 处理仓库模块的写操作和业务逻辑。
 type WarehouseManager struct {
-	repo   domain.WarehouseRepository
+	Repo   domain.WarehouseRepository
 	logger *slog.Logger
 }
 
 // NewWarehouseManager 创建并返回一个新的 WarehouseManager 实例。
 func NewWarehouseManager(repo domain.WarehouseRepository, logger *slog.Logger) *WarehouseManager {
 	return &WarehouseManager{
-		repo:   repo,
+		Repo:   repo,
 		logger: logger,
 	}
 }
 
 // CreateWarehouse 创建仓库。
 func (m *WarehouseManager) CreateWarehouse(ctx context.Context, warehouse *domain.Warehouse) error {
-	if err := m.repo.SaveWarehouse(ctx, warehouse); err != nil {
+	if err := m.Repo.SaveWarehouse(ctx, warehouse); err != nil {
 		m.logger.Error("failed to create warehouse", "error", err, "code", warehouse.Code)
 		return err
 	}
@@ -32,7 +32,7 @@ func (m *WarehouseManager) CreateWarehouse(ctx context.Context, warehouse *domai
 
 // UpdateWarehouse 更新仓库。
 func (m *WarehouseManager) UpdateWarehouse(ctx context.Context, warehouse *domain.Warehouse) error {
-	if err := m.repo.SaveWarehouse(ctx, warehouse); err != nil {
+	if err := m.Repo.SaveWarehouse(ctx, warehouse); err != nil {
 		m.logger.Error("failed to update warehouse", "error", err, "id", warehouse.ID)
 		return err
 	}
@@ -41,7 +41,7 @@ func (m *WarehouseManager) UpdateWarehouse(ctx context.Context, warehouse *domai
 
 // AdjustStock 调整库存。
 func (m *WarehouseManager) AdjustStock(ctx context.Context, stock *domain.WarehouseStock) error {
-	if err := m.repo.SaveStock(ctx, stock); err != nil {
+	if err := m.Repo.SaveStock(ctx, stock); err != nil {
 		m.logger.Error("failed to adjust stock", "error", err, "warehouse_id", stock.WarehouseID, "sku_id", stock.SkuID)
 		return err
 	}
@@ -50,7 +50,7 @@ func (m *WarehouseManager) AdjustStock(ctx context.Context, stock *domain.Wareho
 
 // CreateTransfer 创建调拨单。
 func (m *WarehouseManager) CreateTransfer(ctx context.Context, transfer *domain.StockTransfer) error {
-	if err := m.repo.SaveTransfer(ctx, transfer); err != nil {
+	if err := m.Repo.SaveTransfer(ctx, transfer); err != nil {
 		m.logger.Error("failed to create transfer", "error", err, "transfer_no", transfer.TransferNo)
 		return err
 	}
@@ -59,7 +59,7 @@ func (m *WarehouseManager) CreateTransfer(ctx context.Context, transfer *domain.
 
 // UpdateTransferStatus 更新调拨单状态。
 func (m *WarehouseManager) UpdateTransferStatus(ctx context.Context, transfer *domain.StockTransfer) error {
-	if err := m.repo.SaveTransfer(ctx, transfer); err != nil {
+	if err := m.Repo.SaveTransfer(ctx, transfer); err != nil {
 		m.logger.Error("failed to update transfer status", "error", err, "id", transfer.ID)
 		return err
 	}

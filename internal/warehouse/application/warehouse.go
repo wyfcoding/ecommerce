@@ -173,42 +173,51 @@ func (s *WarehouseService) GetStock(ctx context.Context, warehouseID, skuID uint
 	return s.query.GetStock(ctx, warehouseID, skuID)
 }
 
-// DeductStock 核心交易接口：扣减库存 (支持 Saga 分布式事务的正向操作)。
-func (s *WarehouseService) DeductStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
-	stock, err := s.query.GetStock(ctx, warehouseID, skuID)
-	if err != nil {
-		return err
-	}
-	if stock == nil {
-		return errors.New("stock not found for deduction")
-	}
-	if stock.Stock < quantity {
-		return errors.New("insufficient stock for deduction")
-	}
-
-	stock.Stock -= quantity
-	return s.manager.AdjustStock(ctx, stock)
-}
-
-// RevertStock 核心交易接口：回滚库存 (支持 Saga 分布式事务的逆向补偿操作)。
-func (s *WarehouseService) RevertStock(ctx context.Context, warehouseID, skuID uint64, quantity int32) error {
-	stock, err := s.query.GetStock(ctx, warehouseID, skuID)
-	if err != nil {
-		return err
-	}
-	if stock == nil {
-		stock = &domain.WarehouseStock{
-			WarehouseID: warehouseID,
-			SkuID:       skuID,
-			Stock:       0,
-		}
-	}
-
-	stock.Stock += quantity
-	return s.manager.AdjustStock(ctx, stock)
-}
-
 // GetOptimalWarehouse 返回地理位置最优（距离最近）且库存充足的发货仓库。
 func (s *WarehouseService) GetOptimalWarehouse(ctx context.Context, skuID uint64, qty int32, lat, lon float64) (*domain.Warehouse, float64, int32, error) {
 	return s.query.GetOptimalWarehouse(ctx, skuID, qty, lat, lon)
 }
+
+// --- Saga Facade ---
+
+// DeductStock 核心交易接口：扣减库存 (支持 Saga 分布式事务的正向操作)。
+func (s *WarehouseService) DeductStock(ctx context.Context, barrier interface{}, warehouseID, skuID uint64, quantity int32) error {
+	// 使用仓储层的屏障执行器确保幂等性
+	return s.manager.Repo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
+		stock, err := s.query.GetStock(ctx, warehouseID, skuID)
+		if err != nil {
+			return err
+		}
+		if stock == nil {
+			return errors.New("stock not found for deduction")
+		}
+		if stock.Stock < quantity {
+			return errors.New("insufficient stock for deduction")
+		}
+
+		stock.Stock -= quantity
+		return s.manager.AdjustStock(ctx, stock)
+	})
+}
+
+// RevertStock 核心交易接口：回滚库存 (支持 Saga 分布式事务的逆向补偿操作)。
+func (s *WarehouseService) RevertStock(ctx context.Context, barrier interface{}, warehouseID, skuID uint64, quantity int32) error {
+	// 使用仓储层的屏障执行器确保幂等性
+	return s.manager.Repo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
+		stock, err := s.query.GetStock(ctx, warehouseID, skuID)
+		if err != nil {
+			return err
+		}
+		if stock == nil {
+			stock = &domain.WarehouseStock{
+				WarehouseID: warehouseID,
+				SkuID:       skuID,
+				Stock:       0,
+			}
+		}
+
+		stock.Stock += quantity
+		return s.manager.AdjustStock(ctx, stock)
+	})
+}
+

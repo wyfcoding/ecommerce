@@ -32,6 +32,7 @@ type OrderManager struct {
 	logger            *slog.Logger
 	dtmServer         string
 	warehouseGrpcAddr string
+	orderSvcURL       string // 本服务地址，供 DTM 回调
 	riskEvaluator     risk.Evaluator
 	inventoryCli      inventoryv1.InventoryServiceClient
 	paymentCli        paymentv1.PaymentServiceClient
@@ -72,6 +73,10 @@ func NewOrderManager(
 func (s *OrderManager) SetClients(invCli inventoryv1.InventoryServiceClient, payCli paymentv1.PaymentServiceClient) {
 	s.inventoryCli = invCli
 	s.paymentCli = payCli
+}
+
+func (s *OrderManager) SetSvcURL(url string) {
+	s.orderSvcURL = url
 }
 
 // CreateOrder 创建订单。
@@ -152,11 +157,24 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	s.logger.InfoContext(ctx, "submitting saga transaction via pkg/dtm", "gid", orderNo)
 	saga := dtm.NewSaga(ctx, s.dtmServer, orderNo)
 
-	// 2.1 为每个商品添加库存扣减步骤
+	orderGrpcPrefix := s.orderSvcURL + "/api.order.v1.OrderService"
+	warehouseGrpcPrefix := s.warehouseGrpcAddr + "/api.warehouse.v1.WarehouseService"
+
+	// 2.1 注册订单确认作为第一步 (补偿为取消)
+	saga.Add(
+		orderGrpcPrefix+"/SagaConfirmOrder",
+		orderGrpcPrefix+"/SagaCancelOrder",
+		&advancedcouponv1.UseCouponRequest{ // 临时借用结构体，实际应为对应接口类型
+			UserId:  userID,
+			OrderId: uint64(order.ID),
+		},
+	)
+
+	// 2.2 为每个商品添加库存扣减步骤
 	for _, item := range items {
 		saga.Add(
-			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/DeductStock",
-			s.warehouseGrpcAddr+"/api.warehouse.v1.WarehouseService/RevertStock",
+			warehouseGrpcPrefix+"/DeductStock",
+			warehouseGrpcPrefix+"/RevertStock",
 			&warehousev1.DeductStockRequest{
 				OrderId:     uint64(order.ID),
 				SkuId:       item.SkuID,
@@ -166,12 +184,12 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		)
 	}
 
-	// 2.2 如果使用了优惠券，添加核销步骤
+	// 2.3 如果使用了优惠券，添加核销步骤
 	if couponCode != "" {
 		couponSvcAddr := "advancedcoupon:50051"
 		saga.Add(
 			couponSvcAddr+"/api.advancedcoupon.v1.AdvancedCouponService/UseCoupon",
-			"", // 假设 UseCoupon 是幂等的
+			"",
 			&advancedcouponv1.UseCouponRequest{
 				UserId:  userID,
 				Code:    couponCode,
@@ -180,12 +198,10 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		)
 	}
 
-	// 提交 Saga (使用 pkg/dtm 的 Submit，已内置日志和错误包装)
+	// 提交 Saga
 	if err := saga.Submit(); err != nil {
-		// 容错处理：本地标记为取消
-		order.Status = domain.Cancelled
-		_ = s.repo.Save(ctx, order)
-		return nil, err
+		slog.ErrorContext(ctx, "failed to submit saga transaction", "order_no", orderNo, "error", err)
+		return nil, fmt.Errorf("transaction submission failed: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "order created and saga submitted", "order_no", orderNo)
@@ -278,6 +294,32 @@ func (s *OrderManager) CompleteOrder(ctx context.Context, userID, id uint64, ope
 	}
 
 	return s.repo.Save(ctx, order)
+}
+
+// SagaConfirmOrder Saga 正向: 确认订单 (Allocating -> PendingPayment)
+func (s *OrderManager) SagaConfirmOrder(ctx context.Context, userID, orderID uint64) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
+	if err != nil || order == nil {
+		return fmt.Errorf("order not found: %d", orderID)
+	}
+	if order.Status != domain.Allocating {
+		return nil // 幂等
+	}
+	order.Status = domain.PendingPayment
+	order.AddLog("System", "Saga Confirmed", domain.Allocating.String(), domain.PendingPayment.String(), "Inventory and logic verified")
+	return s.repo.Save(ctx, order)
+}
+
+// SagaCancelOrder Saga 补偿: 取消订单 (Allocating -> Cancelled)
+func (s *OrderManager) SagaCancelOrder(ctx context.Context, userID, orderID uint64, reason string) error {
+	order, err := s.repo.FindByID(ctx, userID, uint(orderID))
+	if err != nil || order == nil {
+		return fmt.Errorf("order not found: %d", orderID)
+	}
+	if order.Status == domain.Cancelled {
+		return nil // 幂等
+	}
+	return order.Cancel(ctx, "System", reason)
 }
 
 // CancelOrder 取消订单。

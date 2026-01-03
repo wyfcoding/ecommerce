@@ -189,9 +189,14 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 6.2 Application (Service)
 	// 注意：NewOrderManager 需要多个依赖项
-	warehouseAddr := ""
-	if w, ok := c.Services["warehouse"]; ok {
-		warehouseAddr = w.GRPCAddr
+	warehouseAddr := c.Services["warehouse"].GRPCAddr
+	dtmAddr := c.Services["dtm"].GRPCAddr
+	if dtmAddr == "" {
+		dtmAddr = "dtm:36789"
+	}
+	orderSvcAddr := c.Services["order"].GRPCAddr
+	if orderSvcAddr == "" {
+		orderSvcAddr = "order:50051"
 	}
 
 	orderManager := application.NewOrderManager(
@@ -200,11 +205,12 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		producer,
 		outboxMgr, // 注入 Outbox Manager
 		logger.Logger,
-		"localhost:36789", // dtm server address
+		dtmAddr,
 		warehouseAddr,
 		m,
 		riskEvaluator,
 	)
+	orderManager.SetSvcURL(orderSvcAddr)
 
 	// 注入 gRPC 客户端 (Internal Service Interaction)
 	if clients.Inventory != nil && clients.Payment != nil {

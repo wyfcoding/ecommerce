@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/dtm-labs/client/dtmgrpc"
 	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"          // 导入仓库模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application" // 导入仓库模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"      // 导入仓库模块的领域。
@@ -135,12 +136,17 @@ func (s *Server) CompleteTransfer(ctx context.Context, req *pb.CompleteTransferR
 	return &emptypb.Empty{}, nil
 }
 
-// DeductStock 扣减库存（Saga正向操作）。
+// DeductStock 扣减库存（Saga正向操作，带 Barrier 保护）。
 func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*emptypb.Empty, error) {
 	start := time.Now()
 	slog.Info("gRPC DeductStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	if err := s.app.DeductStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+	barrier, err := dtmgrpc.BarrierFromGrpc(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get dtm barrier: %v", err))
+	}
+
+	if err := s.app.DeductStock(ctx, barrier, req.WarehouseId, req.SkuId, int32(req.Quantity)); err != nil {
 		slog.Error("gRPC DeductStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("failed to deduct stock for saga: %v", err))
 	}
@@ -149,12 +155,17 @@ func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*
 	return &emptypb.Empty{}, nil
 }
 
-// RevertStock 回滚库存（Saga补偿操作）。
+// RevertStock 回滚库存（Saga补偿操作，带 Barrier 保护）。
 func (s *Server) RevertStock(ctx context.Context, req *pb.RevertStockRequest) (*emptypb.Empty, error) {
 	start := time.Now()
 	slog.Info("gRPC RevertStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	if err := s.app.RevertStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+	barrier, err := dtmgrpc.BarrierFromGrpc(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get dtm barrier: %v", err))
+	}
+
+	if err := s.app.RevertStock(ctx, barrier, req.WarehouseId, req.SkuId, int32(req.Quantity)); err != nil {
 		slog.Error("gRPC RevertStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to revert stock for saga: %v", err))
 	}

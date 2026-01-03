@@ -71,6 +71,24 @@ service OrderService {
 
   // 物流更新：同步修改订单的配送阶段状态。
   rpc UpdateOrderShippingStatus(UpdateOrderShippingStatusRequest) returns (OrderInfo);
+
+  // --- Saga 分布式事务回调接口 ---
+  // 确认订单 (Saga Forward)
+  rpc SagaConfirmOrder(SagaOrderRequest) returns (SagaOrderResponse);
+  // 取消订单 (Saga Compensate)
+  rpc SagaCancelOrder(SagaOrderRequest) returns (SagaOrderResponse);
+}
+
+// Saga 订单回调请求
+message SagaOrderRequest {
+  uint64 order_id = 1;
+  uint64 user_id = 2;
+  string reason = 3;
+}
+
+// Saga 订单回调响应
+message SagaOrderResponse {
+  bool success = 1;
 }
 
 // 订单全量档案。

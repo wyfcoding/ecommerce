@@ -265,6 +265,22 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 	return s.GetOrderByID(ctx, &pb.GetOrderByIDRequest{Id: req.OrderId, UserId: 0})
 }
 
+// SagaConfirmOrder Saga 正向: 确认订单
+func (s *Server) SagaConfirmOrder(ctx context.Context, req *pb.SagaOrderRequest) (*pb.SagaOrderResponse, error) {
+	if err := s.app.SagaConfirmOrder(ctx, req.UserId, req.OrderId); err != nil {
+		return nil, status.Errorf(codes.Internal, "SagaConfirmOrder failed: %v", err)
+	}
+	return &pb.SagaOrderResponse{Success: true}, nil
+}
+
+// SagaCancelOrder Saga 补偿: 取消订单
+func (s *Server) SagaCancelOrder(ctx context.Context, req *pb.SagaOrderRequest) (*pb.SagaOrderResponse, error) {
+	if err := s.app.SagaCancelOrder(ctx, req.UserId, req.OrderId, req.Reason); err != nil {
+		return nil, status.Errorf(codes.Internal, "SagaCancelOrder failed: %v", err)
+	}
+	return &pb.SagaOrderResponse{Success: true}, nil
+}
+
 // toProto 是一个辅助函数，将领域层的 Order 实体转换为 protobuf 的 OrderInfo 消息。
 func (s *Server) toProto(o *domain.Order) *pb.OrderInfo {
 	if o == nil {

@@ -41,4 +41,7 @@ type WarehouseRepository interface {
 	GetTransfer(ctx context.Context, id uint64) (*StockTransfer, error)
 	// ListTransfers 列出指定调出/调入仓库ID和状态的所有库存调拨实体，支持分页。
 	ListTransfers(ctx context.Context, fromWarehouseID, toWarehouseID uint64, status *StockTransferStatus, offset, limit int) ([]*StockTransfer, int64, error)
+
+	// --- 分布式事务支持 ---
+	ExecWithBarrier(ctx context.Context, barrier interface{}, fn func(ctx context.Context) error) error
 }

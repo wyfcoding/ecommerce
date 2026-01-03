@@ -34,6 +34,18 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uint64, items []*
 	return s.Manager.CreateOrder(ctx, userID, items, shippingAddr, couponCode)
 }
 
+func (s *OrderService) SagaConfirmOrder(ctx context.Context, userID, orderID uint64) error {
+	return s.Manager.SagaConfirmOrder(ctx, userID, orderID)
+}
+
+func (s *OrderService) SagaCancelOrder(ctx context.Context, userID, orderID uint64, reason string) error {
+	return s.Manager.SagaCancelOrder(ctx, userID, orderID, reason)
+}
+
+func (s *OrderService) SetSvcURL(url string) {
+	s.Manager.SetSvcURL(url)
+}
+
 // PayOrder 支付订单。
 func (s *OrderService) PayOrder(ctx context.Context, userID, id uint64, paymentMethod string) error {
 	return s.Manager.PayOrder(ctx, userID, id, paymentMethod)
