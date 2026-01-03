@@ -176,9 +176,18 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	aftersalesRepo := persistence.NewAfterSalesRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	// 【关键改动】：注入下游服务的 gRPC Client
 	orderClient := orderv1.NewOrderServiceClient(clients.Order)
 	paymentClient := paymentv1.NewPaymentServiceClient(clients.Payment)
+
+	// 获取服务地址 (用于 Saga 回调)
+	dtmAddr := c.Services["dtm"].GRPCAddr
+	if dtmAddr == "" { dtmAddr = "dtm:36789" }
+	orderSvcURL := c.Services["order"].GRPCAddr
+	if orderSvcURL == "" { orderSvcURL = "order:50051" }
+	paymentSvcURL := c.Services["payment"].GRPCAddr
+	if paymentSvcURL == "" { paymentSvcURL = "payment:50051" }
+	aftersalesURL := c.Services["aftersales"].GRPCAddr
+	if aftersalesURL == "" { aftersalesURL = "aftersales:50051" }
 
 	aftersalesService := application.NewAfterSalesService(
 		aftersalesRepo,
@@ -186,6 +195,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		logger.Logger,
 		orderClient,
 		paymentClient,
+		dtmAddr,
+		orderSvcURL,
+		paymentSvcURL,
+		aftersalesURL,
 	)
 
 	// 5.3 Interface (HTTP Handlers)

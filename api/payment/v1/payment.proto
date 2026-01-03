@@ -53,6 +53,26 @@ service PaymentService {
 
   // 分页列出系统的退款历史记录。
   rpc ListRefundTransactions(ListRefundTransactionsRequest) returns (ListRefundTransactionsResponse);
+
+  // --- Saga 分布式事务接口 ---
+  // 发起退款 (Saga Forward)
+  rpc SagaRefund(SagaRefundRequest) returns (SagaRefundResponse);
+  // 取消/冲正退款 (Saga Compensate)
+  rpc SagaCancelRefund(SagaRefundRequest) returns (SagaRefundResponse);
+}
+
+// Saga 退款请求
+message SagaRefundRequest {
+  uint64 order_id = 1;
+  uint64 user_id = 2;
+  int64 refund_amount = 3;
+  string reason = 4;
+}
+
+// Saga 退款响应
+message SagaRefundResponse {
+  bool success = 1;
+  string refund_no = 2;
 }
 
 // 支付流水明细。

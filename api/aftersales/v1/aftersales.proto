@@ -55,6 +55,23 @@ service AftersalesService {
 
   // 更新售后服务政策或参数配置。
   rpc SetAftersalesConfig(SetAftersalesConfigRequest) returns (AftersalesConfigResponse);
+
+  // --- Saga 分布式事务回调接口 ---
+  // 确认售后退款成功 (Saga Forward)
+  rpc SagaMarkRefundCompleted(SagaAftersalesRequest) returns (SagaAftersalesResponse);
+  // 标记售后退款失败 (Saga Compensate)
+  rpc SagaMarkRefundFailed(SagaAftersalesRequest) returns (SagaAftersalesResponse);
+}
+
+// Saga 售后回调请求
+message SagaAftersalesRequest {
+  uint64 aftersales_id = 1;
+  string reason = 2;
+}
+
+// Saga 售后回调响应
+message SagaAftersalesResponse {
+  bool success = 1;
 }
 
 // 售后申请类型。

@@ -5,10 +5,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/dtm-labs/client/dtmgrpc"
 	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -43,9 +46,44 @@ func (s *Server) InitiatePayment(ctx context.Context, req *pb.InitiatePaymentReq
 	}, nil
 }
 
-// HandlePaymentCallback 处理支付结果异步回调 (这里通常由 REST Handler 调用，但保留接口示例)
+// HandlePaymentCallback 处理支付结果异步回调
 func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymentCallbackRequest) (*emptypb.Empty, error) {
-	// ... 逻辑同之前，但需要调用正确的 App 方法（如果使用了 CallbackHandler）
+	start := time.Now()
+	slog.Info("gRPC HandlePaymentCallback received", "method", req.PaymentMethod)
+
+	// 1. 提取核心参数 (由于各渠道参数名不同，此处演示一种通用提取方式)
+	// 实际开发中，应根据 req.PaymentMethod 选择对应的解析器 (Extractor)
+	paymentNo := req.CallbackData["out_trade_no"]
+	if paymentNo == "" {
+		paymentNo = req.CallbackData["payment_no"]
+	}
+	transactionID := req.CallbackData["trade_no"]
+	if transactionID == "" {
+		transactionID = req.CallbackData["transaction_id"]
+	}
+	statusVal := req.CallbackData["trade_status"]
+	success := (statusVal == "TRADE_SUCCESS" || statusVal == "SUCCESS")
+
+	if paymentNo == "" {
+		slog.Error("gRPC HandlePaymentCallback failed: missing payment_no", "data", req.CallbackData)
+		return nil, status.Error(codes.InvalidArgument, "missing out_trade_no in callback data")
+	}
+
+	// 2. 根据支付号反查用户 ID (用于分片路由)
+	userID, err := s.App.GetUserIDByPaymentNo(ctx, paymentNo)
+	if err != nil {
+		slog.Error("gRPC HandlePaymentCallback failed: user not found", "payment_no", paymentNo, "error", err)
+		return nil, status.Error(codes.NotFound, "payment record not found")
+	}
+
+	// 3. 调用应用层处理状态流转
+	err = s.App.HandlePaymentCallback(ctx, userID, paymentNo, success, transactionID, "", req.CallbackData)
+	if err != nil {
+		slog.Error("gRPC HandlePaymentCallback application error", "payment_no", paymentNo, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	slog.Info("gRPC HandlePaymentCallback processed successfully", "payment_no", paymentNo, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
@@ -80,6 +118,35 @@ func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest
 	return convertRefundToProto(refund), nil
 }
 
+// SagaRefund Saga 正向: 退款
+func (s *Server) SagaRefund(ctx context.Context, req *pb.SagaRefundRequest) (*pb.SagaRefundResponse, error) {
+	barrier, err := dtmgrpc.BarrierFromGrpc(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "barrier error: %v", err)
+	}
+
+	refundNo, err := s.App.SagaRefund(ctx, barrier, req.UserId, req.OrderId, req.RefundAmount, req.Reason)
+	if err != nil {
+		return nil, status.Errorf(codes.Aborted, "SagaRefund failed: %v", err)
+	}
+
+	return &pb.SagaRefundResponse{Success: true, RefundNo: refundNo}, nil
+}
+
+// SagaCancelRefund Saga 补偿: 记录失败
+func (s *Server) SagaCancelRefund(ctx context.Context, req *pb.SagaRefundRequest) (*pb.SagaRefundResponse, error) {
+	barrier, err := dtmgrpc.BarrierFromGrpc(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "barrier error: %v", err)
+	}
+
+	if err := s.App.SagaCancelRefund(ctx, barrier, req.UserId, req.OrderId); err != nil {
+		return nil, status.Errorf(codes.Internal, "SagaCancelRefund failed: %v", err)
+	}
+
+	return &pb.SagaRefundResponse{Success: true}, nil
+}
+
 // 辅助函数：将领域层的 Payment 实体转换为 Proto 消息对象。
 func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	if p == nil {
@@ -91,7 +158,7 @@ func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	}
 
 	return &pb.PaymentTransaction{
-		Id:                   uint64(p.ID), // 显式转换
+		Id:                   uint64(p.ID),
 		TransactionNo:        p.PaymentNo,
 		OrderId:              p.OrderID,
 		UserId:               p.UserID,
@@ -111,7 +178,7 @@ func convertRefundToProto(r *domain.Refund) *pb.RefundTransaction {
 		return nil
 	}
 	return &pb.RefundTransaction{
-		Id:                   uint64(r.ID), // 显式转换
+		Id:                   uint64(r.ID),
 		RefundNo:             r.RefundNo,
 		PaymentTransactionId: r.PaymentID,
 		OrderId:              r.OrderID,

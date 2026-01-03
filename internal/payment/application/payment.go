@@ -49,6 +49,16 @@ func (s *PaymentService) RequestRefund(ctx context.Context, userID, id uint64, a
 	return s.RefundService.RequestRefund(ctx, userID, id, amount, reason)
 }
 
+// --- Saga Facade ---
+
+func (s *PaymentService) SagaRefund(ctx context.Context, barrier interface{}, userID, orderID uint64, amount int64, reason string) (string, error) {
+	return s.RefundService.SagaRefund(ctx, barrier, userID, orderID, amount, reason)
+}
+
+func (s *PaymentService) SagaCancelRefund(ctx context.Context, barrier interface{}, userID, orderID uint64) error {
+	return s.RefundService.SagaCancelRefund(ctx, barrier, userID, orderID)
+}
+
 func (s *PaymentService) CapturePayment(ctx context.Context, userID uint64, paymentNo string, amount int64) error {
 	return s.Processor.CapturePayment(ctx, userID, paymentNo, amount)
 }

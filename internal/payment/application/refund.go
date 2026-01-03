@@ -101,3 +101,55 @@ func (s *RefundService) RequestRefund(ctx context.Context, userID, paymentID uin
 
 	return refund, nil
 }
+
+// --- Saga Distributed Transaction Support ---
+
+// SagaRefund Saga 正向: 执行退款 (原路退回)
+func (s *RefundService) SagaRefund(ctx context.Context, barrier interface{}, userID, orderID uint64, amount int64, reason string) (string, error) {
+	var refundNo string
+	err := s.paymentRepo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
+		// 1. 查找支付单
+		payment, err := s.paymentRepo.FindByOrderID(ctx, userID, orderID)
+		if err != nil || payment == nil {
+			return fmt.Errorf("payment not found for order %d", orderID)
+		}
+
+		// 2. 调用网关退款
+		gateway, ok := s.gateways[payment.GatewayType]
+		if !ok {
+			return fmt.Errorf("gateway not found: %s", payment.GatewayType)
+		}
+
+		if err := gateway.Refund(ctx, payment.TransactionID, amount); err != nil {
+			return fmt.Errorf("gateway refund failed: %w", err)
+		}
+
+		// 3. 记录内部退款流水 (状态：REFUNDED)
+		refundNo = fmt.Sprintf("SAGA-REF-%d", s.idGenerator.Generate())
+		refund := &domain.Refund{
+			RefundNo:     refundNo,
+			PaymentID:    uint64(payment.ID),
+			PaymentNo:    payment.PaymentNo,
+			OrderID:      orderID,
+			OrderNo:      payment.OrderNo,
+			UserID:       userID,
+			RefundAmount: amount,
+			Reason:       reason,
+			Status:       domain.PaymentRefunded,
+		}
+
+		now := time.Now()
+		refund.RefundedAt = &now
+
+		return s.refundRepo.Save(ctx, refund)
+	})
+	return refundNo, err
+}
+
+// SagaCancelRefund Saga 补偿: 记录退款异常 (退款通常不可物理回滚，只能记录失败供人工介入)
+func (s *RefundService) SagaCancelRefund(ctx context.Context, barrier interface{}, userID, orderID uint64) error {
+	return s.paymentRepo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
+		s.logger.WarnContext(ctx, "SagaCancelRefund called! Manual intervention may be needed for order", "order_id", orderID)
+		return nil
+	})
+}

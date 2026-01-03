@@ -243,7 +243,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		outboxMgr,
 		logger.Logger,
 	)
-	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, redisLock, logger.Logger)
+	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, redisLock, outboxMgr, logger.Logger)
 	refundService := application.NewRefundService(paymentRepo, refundRepo, idGenerator, gateways, logger.Logger)
 	paymentQuery := application.NewPaymentQuery(paymentRepo)
 

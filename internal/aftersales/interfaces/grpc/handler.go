@@ -375,6 +375,22 @@ func (s *Server) SetAftersalesConfig(ctx context.Context, req *pb.SetAftersalesC
 	}, nil
 }
 
+// SagaMarkRefundCompleted Saga 正向: 确认退款成功
+func (s *Server) SagaMarkRefundCompleted(ctx context.Context, req *pb.SagaAftersalesRequest) (*pb.SagaAftersalesResponse, error) {
+	if err := s.app.SagaMarkRefundCompleted(ctx, req.AftersalesId); err != nil {
+		return nil, status.Errorf(codes.Internal, "SagaMarkRefundCompleted failed: %v", err)
+	}
+	return &pb.SagaAftersalesResponse{Success: true}, nil
+}
+
+// SagaMarkRefundFailed Saga 补偿: 标记退款失败
+func (s *Server) SagaMarkRefundFailed(ctx context.Context, req *pb.SagaAftersalesRequest) (*pb.SagaAftersalesResponse, error) {
+	if err := s.app.SagaMarkRefundFailed(ctx, req.AftersalesId, req.Reason); err != nil {
+		return nil, status.Errorf(codes.Internal, "SagaMarkRefundFailed failed: %v", err)
+	}
+	return &pb.SagaAftersalesResponse{Success: true}, nil
+}
+
 // --- 模块分段 ---
 
 // toProto 是一个辅助函数，将领域层的 AfterSales 实体转换为 protobuf 的 ReturnRequest 消息。

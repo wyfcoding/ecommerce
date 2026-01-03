@@ -23,14 +23,23 @@ func NewAfterSalesService(
 	logger *slog.Logger,
 	orderClient orderv1.OrderServiceClient,
 	paymentClient paymentv1.PaymentServiceClient,
+	dtmServer, orderSvcURL, paymentSvcURL, aftersalesURL string,
 ) *AfterSalesService {
 	return &AfterSalesService{
-		manager: NewAfterSalesManager(repo, idGenerator, logger, orderClient, paymentClient),
+		manager: NewAfterSalesManager(repo, idGenerator, logger, orderClient, paymentClient, dtmServer, orderSvcURL, paymentSvcURL, aftersalesURL),
 		query:   NewAfterSalesQuery(repo),
 	}
 }
 
 // --- Manager (Writes) ---
+
+func (s *AfterSalesService) SagaMarkRefundCompleted(ctx context.Context, id uint64) error {
+	return s.manager.SagaMarkRefundCompleted(ctx, id)
+}
+
+func (s *AfterSalesService) SagaMarkRefundFailed(ctx context.Context, id uint64, reason string) error {
+	return s.manager.SagaMarkRefundFailed(ctx, id, reason)
+}
 
 func (s *AfterSalesService) CreateAfterSales(ctx context.Context, orderID uint64, orderNo string, userID uint64,
 	asType domain.AfterSalesType, reason, description string, images []string, items []*domain.AfterSalesItem,
