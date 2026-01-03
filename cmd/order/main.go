@@ -121,17 +121,13 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 1. 初始化分片数据库 (MySQL Sharding)
 	bootLog.Info("initializing sharding database manager...")
-	var (
-		shardingManager *sharding.Manager
-		err             error
-	)
-	if len(c.Data.Shards) > 0 {
-		shardingManager, err = sharding.NewManager(c.Data.Shards, c.CircuitBreaker, logger, m)
-	} else {
-		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, c.CircuitBreaker, logger, m)
-	}
+	shardingManager, err := sharding.NewManager(c.Data.Shards, c.CircuitBreaker, logger, m)
 	if err != nil {
-		return nil, nil, fmt.Errorf("sharding database init error: %w", err)
+		// 容错：如果 Shards 为空，退回到单库
+		shardingManager, err = sharding.NewManager([]configpkg.DatabaseConfig{c.Data.Database}, c.CircuitBreaker, logger, m)
+		if err != nil {
+			return nil, nil, fmt.Errorf("sharding database init error: %w", err)
+		}
 	}
 
 	// 2. 初始化缓存 (Redis)
@@ -146,25 +142,28 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("initializing kafka producer...")
 	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 
-	// --- 3.1 初始化 Outbox (顶级架构增强：确保 DB 事务与消息发送一致性) ---
-	// 在分片环境下，通常每个分片都有自己的 outbox 表。为了简单起见，我们先使用分片 0。
-	masterDB := shardingManager.GetDB(0)
-	if err := masterDB.AutoMigrate(&outbox.OutboxMessage{}); err != nil {
-		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
-	}
+	// --- 3.1 分片感知型 Outbox 初始化 (顶级架构增强) ---
+	allDBs := shardingManager.GetAllDBs()
+	outboxProcessors := make([]*outbox.Processor, 0, len(allDBs))
+	defaultOutboxMgr := outbox.NewManager(shardingManager.GetDB(0), logger.Logger)
 
-	outboxMgr := outbox.NewManager(masterDB, logger.Logger)
-	outboxProc := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
-		// 使用已初始化的 producer 发送，避免重复创建资源
-		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
-	}, 100, 5*time.Second)
-	outboxProc.Start()
+	for i, dbNode := range allDBs {
+		bootLog.Info("syncing outbox schema and starting processor for shard", "shard_index", i)
+		if err := dbNode.AutoMigrate(&outbox.OutboxMessage{}); err != nil {
+			return nil, nil, fmt.Errorf("failed to migrate outbox table on shard %d: %w", i, err)
+		}
+		shardMgr := outbox.NewManager(dbNode, logger.Logger)
+		proc := outbox.NewProcessor(shardMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+			return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+		}, 100, 5*time.Second)
+		proc.Start()
+		outboxProcessors = append(outboxProcessors, proc)
+	}
 
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器、风控引擎)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 	riskEvaluator := risk.NewDynamicRiskEngine(logger.Logger)
-
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
 		return nil, nil, fmt.Errorf("idgen init error: %w", err)
@@ -174,7 +173,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
-		outboxProc.Stop()
+		for _, p := range outboxProcessors { p.Stop() }
 		producer.Close()
 		redisCache.Close()
 		shardingManager.Close()
@@ -188,22 +187,17 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	orderRepo := persistence.NewOrderRepository(shardingManager)
 
 	// 6.2 Application (Service)
-	// 注意：NewOrderManager 需要多个依赖项
 	warehouseAddr := c.Services["warehouse"].GRPCAddr
 	dtmAddr := c.Services["dtm"].GRPCAddr
-	if dtmAddr == "" {
-		dtmAddr = "dtm:36789"
-	}
+	if dtmAddr == "" { dtmAddr = "dtm:36789" }
 	orderSvcAddr := c.Services["order"].GRPCAddr
-	if orderSvcAddr == "" {
-		orderSvcAddr = "order:50051"
-	}
+	if orderSvcAddr == "" { orderSvcAddr = "order:50051" }
 
 	orderManager := application.NewOrderManager(
 		orderRepo,
 		idGenerator,
 		producer,
-		outboxMgr, // 注入 Outbox Manager
+		defaultOutboxMgr, 
 		logger.Logger,
 		dtmAddr,
 		warehouseAddr,
@@ -220,44 +214,29 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		)
 	}
 	orderQuery := application.NewOrderQuery(orderRepo)
-
-	orderService := application.NewOrderService(
-		orderManager,
-		orderQuery,
-		logger.Logger,
-	)
+	orderService := application.NewOrderService(orderManager, orderQuery, logger.Logger)
 
 	// --- 6.3 Event Handlers (Kafka Consumer) ---
 	bootLog.Info("initializing kafka consumer for flashsale events...")
 	flashsaleHandler := event.NewFlashsaleHandler(orderManager, logger.Logger)
-
 	flashsaleConsumerCfg := c.MessageQueue.Kafka
 	flashsaleConsumerCfg.Topic = "flashsale.order"
 	flashsaleConsumerCfg.GroupID = BootstrapName + "-flashsale-group"
-
 	flashsaleConsumer := kafka.NewConsumer(flashsaleConsumerCfg, logger, m)
 	flashsaleConsumer.Start(context.Background(), 5, flashsaleHandler.HandleFlashsaleOrder)
 
-	// 6.3 Interface (HTTP Handlers)
+	// 6.4 Interface (HTTP Handlers)
 	handler := orderhttp.NewHandler(orderService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
-		if flashsaleConsumer != nil {
-			flashsaleConsumer.Close()
-		}
-		outboxProc.Stop() // 停止 Outbox 处理器
+		if flashsaleConsumer != nil { flashsaleConsumer.Close() }
+		for _, p := range outboxProcessors { p.Stop() }
 		clientCleanup()
-		if producer != nil {
-			producer.Close()
-		}
-		if redisCache != nil {
-			redisCache.Close()
-		}
-		if shardingManager != nil {
-			shardingManager.Close()
-		}
+		if producer != nil { producer.Close() }
+		if redisCache != nil { redisCache.Close() }
+		if shardingManager != nil { shardingManager.Close() }
 	}
 
 	// 返回应用上下文与清理函数
@@ -268,6 +247,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Handler:     handler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
-		Idempotency: idemManager,
+		Idempotency: idempotency.Manager(idemManager),
 	}, cleanup, nil
 }
