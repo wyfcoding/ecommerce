@@ -193,7 +193,22 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
 			return err
 		}
-		return manager.HandleOrderTimeout(ctx, event)
+
+		orderID := fmt.Sprintf("%v", event["order_id"])
+		// --- 幂等保护：防止库存重复释放 ---
+		idemKey := fmt.Sprintf("inventory:timeout:%s", orderID)
+		isFirst, _, err := idemManager.TryStart(ctx, idemKey, 24*time.Hour)
+		if err != nil || !isFirst {
+			return err
+		}
+
+		if err := manager.HandleOrderTimeout(ctx, event); err != nil {
+			_ = idemManager.Delete(ctx, idemKey)
+			return err
+		}
+
+		_ = idemManager.Finish(ctx, idemKey, &idempotency.Response{Body: "OK"}, 24*time.Hour)
+		return nil
 	})
 
 	// 6. 接口层

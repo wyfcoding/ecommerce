@@ -196,7 +196,23 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
 			return err
 		}
-		return manager.SyncProductIndex(ctx, event)
+
+		productID := fmt.Sprintf("%v", event["product_id"])
+		action := event["action"].(string)
+		// --- 幂等保护：防止索引重复更新 ---
+		idemKey := fmt.Sprintf("search:sync:%s:%s", productID, action)
+		isFirst, _, err := idemManager.TryStart(ctx, idemKey, 1*time.Hour) // 索引同步时效性强，保留 1 小时即可
+		if err != nil || !isFirst {
+			return err
+		}
+
+		if err := manager.SyncProductIndex(ctx, event); err != nil {
+			_ = idemManager.Delete(ctx, idemKey)
+			return err
+		}
+
+		_ = idemManager.Finish(ctx, idemKey, &idempotency.Response{Body: "SYNCED"}, 1*time.Hour)
+		return nil
 	})
 
 	// 6.3 Interface (HTTP Handlers)
