@@ -17,7 +17,7 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/databases"
+	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
@@ -87,7 +87,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	logger := logging.Default()
 
-	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
+	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init failed: %w", err)
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	"github.com/wyfcoding/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/database/sharding"
 
 	"gorm.io/gorm"
 )

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
-	"github.com/wyfcoding/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/database/sharding"
 	"github.com/wyfcoding/pkg/dtm"
 
 	"gorm.io/gorm"
@@ -131,7 +131,9 @@ func (r *paymentRepository) FindSuccessPaymentsByDate(ctx context.Context, date 
 	for _, db := range dbs {
 		var list []*domain.Payment
 		err := db.WithContext(ctx).Where("status = ? AND paid_at >= ? AND paid_at < ?", domain.PaymentSuccess, start, end).Find(&list).Error
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		allPayments = append(allPayments, list...)
 	}
 	return allPayments, nil
@@ -147,9 +149,11 @@ func (r *paymentRepository) SaveReconciliationRecord(ctx context.Context, record
 func (r *paymentRepository) GetUserIDByPaymentNo(ctx context.Context, paymentNo string) (uint64, error) {
 	dbs := r.sharding.GetAllDBs()
 	for _, db := range dbs {
-		var p struct { UserID uint64 }
+		var p struct{ UserID uint64 }
 		err := db.WithContext(ctx).Table("payments").Select("user_id").Where("payment_no = ?", paymentNo).First(&p).Error
-		if err == nil { return p.UserID, nil }
+		if err == nil {
+			return p.UserID, nil
+		}
 	}
 	return 0, errors.New("payment record not found")
 }
@@ -170,7 +174,7 @@ func (r *paymentRepository) WithTx(tx any) domain.PaymentRepository {
 
 // ExecWithBarrier 在分布式事务屏障下执行业务逻辑 (支持分片)
 func (r *paymentRepository) ExecWithBarrier(ctx context.Context, barrier interface{}, fn func(ctx context.Context) error) error {
-	db := r.sharding.GetDB(0) 
+	db := r.sharding.GetDB(0)
 	return dtm.CallWithGorm(ctx, barrier, db, func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, "tx_db", tx)
 		return fn(txCtx)

@@ -22,7 +22,7 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/database/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"

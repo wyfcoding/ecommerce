@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
-	"github.com/wyfcoding/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/database/sharding"
 
 	"gorm.io/gorm"
 )

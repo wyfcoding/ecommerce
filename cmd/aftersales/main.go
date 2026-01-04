@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,6 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/databases"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/idgen"
@@ -130,7 +130,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	configpkg.PrintWithMask(c)
 
 	// 1. 初始化数据库 (MySQL)
-	db, err := databases.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
+	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
@@ -181,13 +181,21 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 获取服务地址 (用于 Saga 回调)
 	dtmAddr := c.Services["dtm"].GRPCAddr
-	if dtmAddr == "" { dtmAddr = "dtm:36789" }
+	if dtmAddr == "" {
+		dtmAddr = "dtm:36789"
+	}
 	orderSvcURL := c.Services["order"].GRPCAddr
-	if orderSvcURL == "" { orderSvcURL = "order:50051" }
+	if orderSvcURL == "" {
+		orderSvcURL = "order:50051"
+	}
 	paymentSvcURL := c.Services["payment"].GRPCAddr
-	if paymentSvcURL == "" { paymentSvcURL = "payment:50051" }
+	if paymentSvcURL == "" {
+		paymentSvcURL = "payment:50051"
+	}
 	aftersalesURL := c.Services["aftersales"].GRPCAddr
-	if aftersalesURL == "" { aftersalesURL = "aftersales:50051" }
+	if aftersalesURL == "" {
+		aftersalesURL = "aftersales:50051"
+	}
 
 	aftersalesService := application.NewAfterSalesService(
 		aftersalesRepo,

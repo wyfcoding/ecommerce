@@ -20,7 +20,7 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/databases/sharding"
+	"github.com/wyfcoding/pkg/database/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/idgen"
@@ -173,7 +173,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
-		for _, p := range outboxProcessors { p.Stop() }
+		for _, p := range outboxProcessors {
+			p.Stop()
+		}
 		producer.Close()
 		redisCache.Close()
 		shardingManager.Close()
@@ -189,15 +191,19 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 6.2 Application (Service)
 	warehouseAddr := c.Services["warehouse"].GRPCAddr
 	dtmAddr := c.Services["dtm"].GRPCAddr
-	if dtmAddr == "" { dtmAddr = "dtm:36789" }
+	if dtmAddr == "" {
+		dtmAddr = "dtm:36789"
+	}
 	orderSvcAddr := c.Services["order"].GRPCAddr
-	if orderSvcAddr == "" { orderSvcAddr = "order:50051" }
+	if orderSvcAddr == "" {
+		orderSvcAddr = "order:50051"
+	}
 
 	orderManager := application.NewOrderManager(
 		orderRepo,
 		idGenerator,
 		producer,
-		defaultOutboxMgr, 
+		defaultOutboxMgr,
 		logger.Logger,
 		dtmAddr,
 		warehouseAddr,
@@ -231,12 +237,22 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
-		if flashsaleConsumer != nil { flashsaleConsumer.Close() }
-		for _, p := range outboxProcessors { p.Stop() }
+		if flashsaleConsumer != nil {
+			flashsaleConsumer.Close()
+		}
+		for _, p := range outboxProcessors {
+			p.Stop()
+		}
 		clientCleanup()
-		if producer != nil { producer.Close() }
-		if redisCache != nil { redisCache.Close() }
-		if shardingManager != nil { shardingManager.Close() }
+		if producer != nil {
+			producer.Close()
+		}
+		if redisCache != nil {
+			redisCache.Close()
+		}
+		if shardingManager != nil {
+			shardingManager.Close()
+		}
 	}
 
 	// 返回应用上下文与清理函数
