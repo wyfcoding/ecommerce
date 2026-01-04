@@ -71,6 +71,25 @@ func (s *CartManager) RemoveItem(ctx context.Context, userID uint64, skuID uint6
 	return nil
 }
 
+// RemoveItems 批量移除商品 (用于下单后的购物车自动清理)
+func (s *CartManager) RemoveItems(ctx context.Context, userID uint64, skuIDs []uint64) error {
+	cart, err := s.query.GetCart(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	for _, skuID := range skuIDs {
+		cart.RemoveItem(skuID)
+	}
+
+	if err := s.repo.Save(ctx, cart); err != nil {
+		s.logger.ErrorContext(ctx, "failed to batch remove items from cart", "user_id", userID, "count", len(skuIDs), "error", err)
+		return err
+	}
+	s.logger.InfoContext(ctx, "cart items removed after checkout", "user_id", userID, "count", len(skuIDs))
+	return nil
+}
+
 // ClearCart 清空购物车。
 func (s *CartManager) ClearCart(ctx context.Context, userID uint64) error {
 	cart, err := s.query.GetCart(ctx, userID)
