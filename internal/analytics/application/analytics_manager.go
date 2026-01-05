@@ -56,7 +56,7 @@ func (m *AnalyticsManager) TrackUserVisit(ctx context.Context, userID uint64) {
 	key := fmt.Sprintf("analytics:uv:%s", today)
 
 	// 使用封装的 PFAdd 统计基数
-	if err := pkgredis.PFAdd(ctx, m.redisClient, key, userID); err != nil {
+	if err := m.redisClient.PFAdd(ctx, key, userID).Err(); err != nil {
 		m.logger.ErrorContext(ctx, "failed to track user visit", "user_id", userID, "error", err)
 	}
 }
@@ -66,7 +66,7 @@ func (m *AnalyticsManager) GetDailyUV(ctx context.Context) (int64, error) {
 	today := time.Now().Format("2006-01-02")
 	key := fmt.Sprintf("analytics:uv:%s", today)
 
-	return pkgredis.PFCount(ctx, m.redisClient, key)
+	return m.redisClient.PFCount(ctx, key).Result()
 }
 
 // TrackRealtimeOrder 实时追踪订单数据。

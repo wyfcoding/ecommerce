@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
@@ -222,14 +222,14 @@ func (m *InventoryManager) HandleOrderTimeout(ctx context.Context, event map[str
 
 		// 只有当确定支付成功（PAID 及之后状态）时，才跳过释放。
 		// 如果订单还在 ALLOCATING (正在分配) 或 PENDING_PAYMENT (待支付)，则超时释放。
-		if resp.Status == orderv1.OrderStatus_PAID || 
-		   resp.Status == orderv1.OrderStatus_SHIPPED || 
-		   resp.Status == orderv1.OrderStatus_DELIVERED || 
-		   resp.Status == orderv1.OrderStatus_COMPLETED {
+		if resp.Status == orderv1.OrderStatus_PAID ||
+			resp.Status == orderv1.OrderStatus_SHIPPED ||
+			resp.Status == orderv1.OrderStatus_DELIVERED ||
+			resp.Status == orderv1.OrderStatus_COMPLETED {
 			m.logger.InfoContext(ctx, "order already paid or processed, skipping stock release", "order_id", orderID, "status", resp.Status)
 			return nil
 		}
-		
+
 		m.logger.WarnContext(ctx, "order unpaid or stuck, proceeding with stock release", "order_id", orderID, "status", resp.Status)
 	}
 

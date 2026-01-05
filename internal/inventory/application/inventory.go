@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 )
 

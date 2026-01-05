@@ -145,7 +145,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		}
 
 		gormTx := tx.(*gorm.DB)
-		
+
 		// 1.1 发布订单创建事件
 		if err := s.outboxMgr.PublishInTx(ctx, gormTx, "order.created", orderNo, event); err != nil {
 			return err
@@ -349,11 +349,11 @@ func (s *OrderManager) CompleteOrder(ctx context.Context, userID, id uint64, ope
 
 		// 发布完成事件，用于赠送积分、分账、大数据分析等
 		event := map[string]any{
-			"order_id":      order.ID,
-			"order_no":      order.OrderNo,
-			"user_id":       order.UserID,
-			"amount":        order.ActualAmount,
-			"completed_at":  time.Now().Unix(),
+			"order_id":     order.ID,
+			"order_no":     order.OrderNo,
+			"user_id":      order.UserID,
+			"amount":       order.ActualAmount,
+			"completed_at": time.Now().Unix(),
 		}
 		gormTx := tx.(*gorm.DB)
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.completed", order.OrderNo, event)
@@ -373,7 +373,7 @@ func (s *OrderManager) SagaConfirmOrder(ctx context.Context, userID, orderID uin
 		}
 		order.Status = domain.PendingPayment
 		order.AddLog("System", "Saga Confirmed", domain.Allocating.String(), domain.PendingPayment.String(), "Inventory and logic verified")
-		
+
 		if err := txRepo.Save(ctx, order); err != nil {
 			return err
 		}
@@ -401,7 +401,7 @@ func (s *OrderManager) SagaCancelOrder(ctx context.Context, userID, orderID uint
 		if order.Status == domain.Cancelled {
 			return nil // 幂等
 		}
-		
+
 		if err := order.Cancel(ctx, "System", reason); err != nil {
 			return err
 		}
@@ -449,7 +449,6 @@ func (s *OrderManager) CancelOrder(ctx context.Context, userID, id uint64, opera
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.cancelled", order.OrderNo, event)
 	})
 }
-
 
 // HandleInventoryReserved 处理库存已预留事件。
 func (s *OrderManager) HandleInventoryReserved(ctx context.Context, userID, orderID uint64) error {

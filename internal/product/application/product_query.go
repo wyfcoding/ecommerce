@@ -176,7 +176,7 @@ func (q *ProductQuery) CalculateProductPrice(ctx context.Context, productID uint
 // GetSKUByID 获取SKU (带 SingleFlight 保护)
 func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, error) {
 	cacheKey := fmt.Sprintf("sku:%d", id)
-	
+
 	val, err, _ := q.sf.Do(cacheKey, func() (interface{}, error) {
 		return q.skuRepo.FindByID(ctx, uint(id))
 	})

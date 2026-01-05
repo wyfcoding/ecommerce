@@ -118,9 +118,13 @@ func (m *AfterSalesManager) Reject(ctx context.Context, id uint64, operator, rea
 // SagaMarkRefundCompleted 正向确认成功
 func (m *AfterSalesManager) SagaMarkRefundCompleted(ctx context.Context, id uint64) error {
 	afterSales, err := m.repo.GetByID(ctx, id)
-	if err != nil || afterSales == nil { return err }
-	if afterSales.Status == domain.AfterSalesStatusCompleted { return nil }
-	
+	if err != nil || afterSales == nil {
+		return err
+	}
+	if afterSales.Status == domain.AfterSalesStatusCompleted {
+		return nil
+	}
+
 	afterSales.Status = domain.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now
@@ -130,8 +134,10 @@ func (m *AfterSalesManager) SagaMarkRefundCompleted(ctx context.Context, id uint
 // SagaMarkRefundFailed 补偿标记失败
 func (m *AfterSalesManager) SagaMarkRefundFailed(ctx context.Context, id uint64, reason string) error {
 	afterSales, err := m.repo.GetByID(ctx, id)
-	if err != nil || afterSales == nil { return err }
-	
+	if err != nil || afterSales == nil {
+		return err
+	}
+
 	afterSales.Status = domain.AfterSalesStatusRejected
 	m.LogOperation(ctx, id, "System", "SagaCompensation", "", "FAILED", reason)
 	return m.repo.Update(ctx, afterSales)

@@ -220,4 +220,3 @@ func (s *WarehouseService) RevertStock(ctx context.Context, barrier interface{},
 		return s.manager.AdjustStock(ctx, stock)
 	})
 }
-

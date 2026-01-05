@@ -70,7 +70,7 @@ func (s *CallbackHandler) HandlePaymentCallback(ctx context.Context, userID uint
 		if err := payment.Trigger(ctx, "PAY_DIRECT", "External callback confirm"); err != nil {
 			return err
 		}
-		
+
 		payment.TransactionID = transactionID
 		payment.ThirdPartyNo = thirdPartyNo
 		now := time.Now()
