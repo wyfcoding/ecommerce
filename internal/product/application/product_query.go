@@ -12,8 +12,8 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	"github.com/wyfcoding/pkg/algorithm"
 	"github.com/wyfcoding/pkg/cache"
+	"github.com/wyfcoding/pkg/fallback"
 	"github.com/wyfcoding/pkg/metrics"
-	"github.com/wyfcoding/pkg/utils"
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
@@ -122,7 +122,7 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 		}, nil
 	}
 	// 使用通用 Fallback 包装器执行
-	return utils.ExecuteWithFallback(ctx, "product", "GetProductByID", mainFunc, fallbackFunc)
+	return fallback.ExecuteWithFallback(ctx, "product", "GetProductByID", mainFunc, fallbackFunc)
 }
 
 // ListProducts 列出商品

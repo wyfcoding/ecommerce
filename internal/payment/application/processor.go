@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
+	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
-	"github.com/wyfcoding/pkg/utils/ctxutil"
 	"gorm.io/gorm"
 )
 
@@ -57,7 +57,7 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 	// 2. 深度风控检查 (Ant Group Level)
 	riskCtx := &domain.RiskContext{
 		UserID: userID, Amount: amount, PaymentMethod: paymentMethodStr,
-		IP: ctxutil.GetIP(ctx), OrderID: orderID, DeviceID: ctxutil.GetUserAgent(ctx),
+		IP: contextx.GetIP(ctx), OrderID: orderID, DeviceID: contextx.GetUserAgent(ctx),
 	}
 	riskResult, err := s.riskService.CheckPrePayment(ctx, riskCtx)
 	if err != nil {

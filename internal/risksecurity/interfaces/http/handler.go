@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/application"
+	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/response"
-	"github.com/wyfcoding/pkg/utils/ctxutil"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,7 +41,7 @@ func (h *Handler) EvaluateRisk(c *gin.Context) {
 		return
 	}
 
-	ctx := ctxutil.WithUserAgent(c.Request.Context(), c.Request.UserAgent())
+	ctx := contextx.WithUserAgent(c.Request.Context(), c.Request.UserAgent())
 	result, err := h.app.EvaluateRisk(ctx, req.UserID, req.IP, req.DeviceID, req.Amount)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "failed to evaluate risk", "error", err)
@@ -110,7 +110,7 @@ func (h *Handler) RecordBehavior(c *gin.Context) {
 		return
 	}
 
-	ctx := ctxutil.WithUserAgent(c.Request.Context(), c.Request.UserAgent())
+	ctx := contextx.WithUserAgent(c.Request.Context(), c.Request.UserAgent())
 	if err := h.app.RecordUserBehavior(ctx, req.UserID, req.IP, req.DeviceID); err != nil {
 		h.logger.ErrorContext(ctx, "failed to record behavior", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to record behavior", err.Error())

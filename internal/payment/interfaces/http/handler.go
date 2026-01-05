@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
+	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/response"
-	"github.com/wyfcoding/pkg/utils/ctxutil"
 )
 
 // Handler 支付HTTP处理器
@@ -51,7 +51,7 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
-	ctx := ctxutil.WithIP(c.Request.Context(), c.ClientIP())
+	ctx := contextx.WithIP(c.Request.Context(), c.ClientIP())
 	payment, gatewayResp, err := h.app.InitiatePayment(ctx, req.OrderID, req.UserID, req.Amount, req.PaymentMethod)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "initiate payment failed", "order_id", req.OrderID, "user_id", req.UserID, "error", err)

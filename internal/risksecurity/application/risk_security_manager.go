@@ -11,7 +11,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
 	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
 	"github.com/wyfcoding/pkg/algorithm"
-	"github.com/wyfcoding/pkg/utils/ctxutil"
+	"github.com/wyfcoding/pkg/contextx"
 )
 
 // RiskManager 处理风控安全的写操作。
@@ -99,7 +99,7 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 	currentBehavior := algorithm.UserBehavior{
 		UserID:    userID,
 		IP:        ip,
-		UserAgent: ctxutil.GetUserAgent(ctx),
+		UserAgent: contextx.GetUserAgent(ctx),
 		Timestamp: time.Now(),
 		Action:    "transaction",
 	}

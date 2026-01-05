@@ -7,7 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
-	"github.com/wyfcoding/pkg/utils/ctxutil"
+	"github.com/wyfcoding/pkg/contextx"
 )
 
 // ChannelMetrics 实时通道指标
@@ -59,7 +59,7 @@ func (e *RoutingEngine) SelectBestChannel(ctx context.Context, amount int64, met
 		Amount:        decimal.NewFromInt(amount),
 		Currency:      "CNY",
 		PaymentMethod: method,
-		ClientIP:      ctxutil.GetIP(ctx),
+		ClientIP:      contextx.GetIP(ctx),
 	}
 
 	// 3. 使用 SmartRouter 进行决策

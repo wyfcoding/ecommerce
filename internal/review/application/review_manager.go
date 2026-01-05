@@ -7,7 +7,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 	"github.com/wyfcoding/pkg/algorithm"
-	"github.com/wyfcoding/pkg/utils/ctxutil"
+	"github.com/wyfcoding/pkg/contextx"
 )
 
 // ReviewManager 处理评论模块的写操作和核心业务流程。
@@ -113,7 +113,7 @@ func (m *ReviewManager) DeleteReview(ctx context.Context, reviewID uint64, userI
 	// 1. 评论所有者可以删除
 	// 2. 管理员 (ADMIN/SUPER_ADMIN) 可以删除
 	if review.UserID != userID {
-		role := ctxutil.GetRole(ctx)
+		role := contextx.GetRole(ctx)
 		if role != "ADMIN" && role != "SUPER_ADMIN" {
 			return fmt.Errorf("permission denied: only owner or admin can delete reviews")
 		}
