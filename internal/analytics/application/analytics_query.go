@@ -127,9 +127,11 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 			UserId: userIDStr,
 		})
 		if err == nil {
-			unrealized, _ := decimal.NewFromString(posSummary.TotalUnrealizedPnl)
-			realized, _ := decimal.NewFromString(posSummary.TotalRealizedPnl)
-			resp.TotalTradingPnl, _ = unrealized.Add(realized).Float64()
+			unrealized, err1 := decimal.NewFromString(posSummary.TotalUnrealizedPnl)
+			realized, err2 := decimal.NewFromString(posSummary.TotalRealizedPnl)
+			if err1 == nil && err2 == nil {
+				resp.TotalTradingPnl, _ = unrealized.Add(realized).Float64()
+			}
 		}
 
 		// 2.2 获取现金余额 (gRPC)
@@ -137,8 +139,10 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 			UserId: userIDStr,
 		})
 		if err == nil {
-			bal, _ := decimal.NewFromString(balance.Balance)
-			resp.CashBalance, _ = bal.Float64()
+			bal, err := decimal.NewFromString(balance.Balance)
+			if err == nil {
+				resp.CashBalance, _ = bal.Float64()
+			}
 		}
 	}
 

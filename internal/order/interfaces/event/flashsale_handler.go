@@ -35,22 +35,23 @@ type FlashsaleOrderEvent struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// HandleFlashsaleOrder 消费秒杀订单事件。
+// HandleFlashsaleOrder 消费来自 Kafka 的秒杀成功事件，执行订单的异步落库操作。
+// 核心逻辑：解析 JSON -> 提取关键字段 -> 调用领域服务处理持久化。
 func (h *FlashsaleHandler) HandleFlashsaleOrder(ctx context.Context, msg kafka.Message) error {
-	h.logger.Info("received flashsale order event", "key", string(msg.Key))
+	h.logger.InfoContext(ctx, "received flashsale order event", "msg_key", string(msg.Key))
 
 	var event FlashsaleOrderEvent
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
-		h.logger.Error("failed to unmarshal flashsale order event", "error", err)
+		h.logger.ErrorContext(ctx, "failed to unmarshal flashsale order event", "error", err)
 		return err
 	}
 
-	// 调用 Application 层处理订单落库
+	// 触发订单管理服务的落库逻辑（幂等性由底层 Repository 保证）
 	if err := h.orderApp.HandleFlashsaleOrder(ctx, event.OrderID, event.UserID, event.ProductID, event.SkuID, event.Quantity, event.Price); err != nil {
-		h.logger.Error("failed to process flashsale order", "order_id", event.OrderID, "error", err)
+		h.logger.ErrorContext(ctx, "failed to process flashsale order persistence", "order_id", event.OrderID, "error", err)
 		return err
 	}
 
-	h.logger.Info("flashsale order processed successfully", "order_id", event.OrderID)
+	h.logger.InfoContext(ctx, "flashsale order event processed successfully", "order_id", event.OrderID)
 	return nil
 }

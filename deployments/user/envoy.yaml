@@ -20,6 +20,7 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
+          codec_type: AUTO
           route_config:
             name: local_route
             virtual_hosts:
@@ -27,25 +28,47 @@ static_resources:
               domains: ["*"]
               routes:
               - match:
-                  prefix: "/api/v1/user"
+                  prefix: "/api.user.v1.UserService" # 支持 gRPC 服务路由
                 route:
-                  cluster: user
+                  cluster: user_grpc
+              - match:
+                  prefix: "/api/v1/user" # 支持 Restful API 路由
+                route:
+                  cluster: user_http
           http_filters:
+          - name: envoy.filters.http.grpc_web # 开启 gRPC-Web 支持
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: user
+  - name: user_http
     connect_timeout: 0.25s
     type: LOGICAL_DNS
     lb_policy: ROUND_ROBIN
     load_assignment:
-      cluster_name: user
+      cluster_name: user_http
       endpoints:
       - lb_endpoints:
         - endpoint:
             address:
               socket_address:
                 address: user
-                port_value: 8080
+                port_value: 8001
+
+  - name: user_grpc
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    http2_protocol_options: {} # 强制使用 HTTP/2
+    load_assignment:
+      cluster_name: user_grpc
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: user
+                port_value: 9001

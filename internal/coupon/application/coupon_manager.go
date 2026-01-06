@@ -25,21 +25,23 @@ func NewCouponManager(repo domain.CouponRepository, logger *slog.Logger) *Coupon
 	}
 }
 
-// CreateCoupon 创建一个新的优惠券模板。
+// CreateCoupon 创建新的优惠券模板。
 func (m *CouponManager) CreateCoupon(ctx context.Context, name, description string, couponType int, discountAmount, minOrderAmount int64) (*domain.Coupon, error) {
 	coupon := domain.NewCoupon(name, description, domain.CouponType(couponType), discountAmount, minOrderAmount)
 	if err := m.repo.SaveCoupon(ctx, coupon); err != nil {
-		m.logger.Error("failed to create coupon", "error", err)
+		m.logger.ErrorContext(ctx, "failed to create coupon", "error", err)
 		return nil, err
 	}
+	m.logger.InfoContext(ctx, "coupon template created", "coupon_id", coupon.ID, "coupon_no", coupon.CouponNo)
 	return coupon, nil
 }
 
-// AcquireCoupon 用户领取优惠券。
+// AcquireCoupon 处理用户领取优惠券的逻辑，包含可用性检查与限领判定。
 func (m *CouponManager) AcquireCoupon(ctx context.Context, userID, couponID uint64) (*domain.UserCoupon, error) {
-	// 1. 获取优惠券模板并检查可用性。
+	// 1. 获取优惠券模板并检查可用性
 	coupon, err := m.repo.GetCoupon(ctx, couponID)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get coupon for acquisition", "coupon_id", couponID, "error", err)
 		return nil, err
 	}
 	if coupon == nil {
@@ -50,7 +52,7 @@ func (m *CouponManager) AcquireCoupon(ctx context.Context, userID, couponID uint
 		return nil, err
 	}
 
-	// 2. 检查用户是否已领超过限额。
+	// 2. 判定每人限领规则
 	userCoupons, total, err := m.repo.ListUserCoupons(ctx, userID, "", 0, 1000)
 	if err != nil {
 		return nil, err
@@ -67,26 +69,28 @@ func (m *CouponManager) AcquireCoupon(ctx context.Context, userID, couponID uint
 		}
 	}
 
-	// 3. 发放优惠券。
+	// 3. 生成并持久化用户优惠券
 	userCoupon := domain.NewUserCoupon(userID, couponID, coupon.CouponNo)
 	if err := m.repo.SaveUserCoupon(ctx, userCoupon); err != nil {
-		m.logger.Error("failed to save user coupon", "error", err)
+		m.logger.ErrorContext(ctx, "failed to save user coupon", "user_id", userID, "error", err)
 		return nil, err
 	}
 
-	// 4. 更新优惠券已发行量。
+	// 4. 原子更新模板的已发行计数
 	coupon.Issue(1)
 	if err := m.repo.UpdateCoupon(ctx, coupon); err != nil {
-		m.logger.Error("failed to update coupon issued count", "error", err)
+		m.logger.ErrorContext(ctx, "failed to update coupon issued count", "coupon_id", couponID, "error", err)
 	}
 
+	m.logger.InfoContext(ctx, "user acquired coupon", "user_id", userID, "coupon_id", couponID, "user_coupon_id", userCoupon.ID)
 	return userCoupon, nil
 }
 
-// UseCoupon 使用优惠券。
+// UseCoupon 标记优惠券为已使用状态并关联订单。
 func (m *CouponManager) UseCoupon(ctx context.Context, userCouponID uint64, userID uint64, orderID string) error {
 	userCoupon, err := m.repo.GetUserCoupon(ctx, userCouponID)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get user coupon for use", "id", userCouponID, "error", err)
 		return err
 	}
 	if userCoupon == nil {
@@ -96,16 +100,16 @@ func (m *CouponManager) UseCoupon(ctx context.Context, userCouponID uint64, user
 		return fmt.Errorf("permission denied")
 	}
 
-	// 转换状态并使用。
 	if err := userCoupon.Use(orderID); err != nil {
 		return err
 	}
 
 	if err := m.repo.UpdateUserCoupon(ctx, userCoupon); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update user coupon state", "id", userCouponID, "error", err)
 		return err
 	}
 
-	// 更新模板的使用统计。
+	// 异步更新模板统计信息，不影响核心使用流程
 	coupon, err := m.repo.GetCoupon(ctx, userCoupon.CouponID)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to get coupon for stats update", "coupon_id", userCoupon.CouponID, "error", err)
@@ -116,17 +120,22 @@ func (m *CouponManager) UseCoupon(ctx context.Context, userCouponID uint64, user
 		}
 	}
 
+	m.logger.InfoContext(ctx, "coupon used successfully", "user_id", userID, "user_coupon_id", userCouponID, "order_id", orderID)
 	return nil
 }
 
-// CreateActivity 创建营销活动。
+// CreateActivity 发布新的优惠券营销活动。
 func (m *CouponManager) CreateActivity(ctx context.Context, activity *domain.CouponActivity) error {
-	return m.repo.SaveActivity(ctx, activity)
+	if err := m.repo.SaveActivity(ctx, activity); err != nil {
+		m.logger.ErrorContext(ctx, "failed to save activity", "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "coupon activity created", "activity_id", activity.ID, "name", activity.Name)
+	return nil
 }
 
-// SuggestBestCoupons 为用户推荐最优的优惠券组合。
+// SuggestBestCoupons 调用优化算法为指定订单金额推荐最优的优惠券组合（支持叠加计算）。
 func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, orderAmount int64) ([]uint64, int64, int64, error) {
-	// 1. 获取用户未使用的优惠券
 	userCoupons, _, err := m.repo.ListUserCoupons(ctx, userID, "unused", 1, 100)
 	if err != nil {
 		return nil, 0, 0, err
@@ -135,9 +144,7 @@ func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, o
 		return []uint64{}, orderAmount, 0, nil
 	}
 
-	// 2. 转换为算法模型
 	algoCoupons := make([]algorithm.Coupon, 0)
-	// 缓存已获取的 Coupon 模板，避免重复查询
 	couponTemplateCache := make(map[uint64]*domain.Coupon)
 
 	for _, uc := range userCoupons {
@@ -155,44 +162,35 @@ func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, o
 			couponTemplateCache[uc.CouponID] = template
 		}
 
-		// 检查基本有效性
 		if err := template.CheckAvailability(); err != nil {
 			continue
 		}
 
-		// 映射类型
 		var algoType algorithm.CouponType
 		var discountRate float64
 		var reductionAmount int64
 
 		switch template.Type {
-		case domain.CouponTypeDiscount: // 1
-			algoType = algorithm.CouponTypeDiscount // 1
-			// 假设 domain 的 DiscountAmount 是百分比整数 (e.g. 80 for 80% or 8.0) or amount?
-			// 注释说是 "优惠金额或折扣比例"。
-			// 这里假设如果是 Discount 类型，DiscountAmount 80 代表 0.8 (8折) ? 或者 80% ?
-			// 通常 discount amount 存的是分，但如果是折扣率，可能存的是整数 80 (8折)。
-			// 这里做一个假设：如果 < 100，当做折扣率 * 100。例如 80 => 0.8。
+		case domain.CouponTypeDiscount:
+			algoType = algorithm.CouponTypeDiscount
 			if template.DiscountAmount < 100 {
 				discountRate = float64(template.DiscountAmount) / 100.0
 			} else {
-				// 可能是错误配置，或者存的是分但类型选错了。这里暂且处理为9折兜底
 				discountRate = 0.9
 			}
-		case domain.CouponTypeCash: // 2
-			// 现金券 (直接抵扣)
+		case domain.CouponTypeCash:
 			if template.MinOrderAmount > 0 {
-				algoType = algorithm.CouponTypeReduction // 2 (满减)
+				algoType = algorithm.CouponTypeReduction
 			} else {
-				algoType = algorithm.CouponTypeCash // 3 (立减)
+				algoType = algorithm.CouponTypeCash
 			}
 			reductionAmount = template.DiscountAmount
 		default:
-			continue // 其他类型暂不支持优化计算
+			continue
 		}
 
 		algoCoupons = append(algoCoupons, algorithm.Coupon{
-			ID:              uint64(uc.ID), // 注意：这里使用 UserCoupon 的 ID，以便返回时知道选了哪张
+			ID:              uint64(uc.ID),
 			Type:            algoType,
 			Threshold:       template.MinOrderAmount,
 			DiscountRate:    discountRate,
@@ -203,8 +201,6 @@ func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, o
 		})
 	}
 
-	// 3. 计算最优组合
-	// 如果优惠券数量少 (< 20)，用最优解；否则用贪心
 	var bestIds []uint64
 	var finalPrice, discount int64
 
@@ -214,5 +210,6 @@ func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, o
 		bestIds, finalPrice, discount = m.optimizer.GreedyOptimization(orderAmount, algoCoupons)
 	}
 
+	m.logger.InfoContext(ctx, "coupon optimization finished", "user_id", userID, "suggested_count", len(bestIds), "total_discount", discount)
 	return bestIds, finalPrice, discount, nil
 }

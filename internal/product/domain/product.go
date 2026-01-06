@@ -17,51 +17,48 @@ const (
 )
 
 // Product 实体是商品模块的聚合根。
-// 它包含了商品的基本信息、分类、品牌、价格、库存、销量和关联的SKU列表。
 type Product struct {
-	gorm.Model                // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	Name        string        `gorm:"column:name;type:varchar(255);not null" json:"name"`     // 商品名称，不允许为空。
-	Description string        `gorm:"column:description;type:text" json:"description"`        // 商品描述。
-	CategoryID  uint          `gorm:"column:category_id;index;not null" json:"category_id"`   // 所属分类ID，索引字段，不允许为空。
-	BrandID     uint          `gorm:"column:brand_id;index;not null" json:"brand_id"`         // 所属品牌ID，索引字段，不允许为空。
-	Status      ProductStatus `gorm:"column:status;type:tinyint;default:1" json:"status"`     // 商品状态，默认为草稿。
-	MainImage   string        `gorm:"column:main_image;type:varchar(1024)" json:"main_image"` // 商品主图URL。
-	Images      []string      `gorm:"type:json;serializer:json" json:"images"`                // 商品图片列表（存储为JSON字符串）。
-	Price       int64         `gorm:"column:price;type:bigint;not null" json:"price"`         // 商品默认价格（单位：分），不允许为空。
-	Stock       int32         `gorm:"column:stock;type:int;default:0" json:"stock"`           // 商品总库存。
-	Sales       int32         `gorm:"column:sales;type:int;default:0" json:"sales"`           // 商品总销量。
-	SKUs        []*SKU        `gorm:"foreignKey:ProductID" json:"skus"`                       // 关联的SKU列表，一对多关系。
+	gorm.Model                // 嵌入 gorm.Model，包含 ID, CreatedAt, UpdatedAt, DeletedAt 等通用字段
+	Name        string        `gorm:"column:name;type:varchar(255);not null;comment:商品名称" json:"name"`
+	Description string        `gorm:"column:description;type:text;comment:商品详细描述" json:"description"`
+	CategoryID  uint          `gorm:"column:category_id;index;not null;comment:所属分类ID" json:"category_id"`
+	BrandID     uint          `gorm:"column:brand_id;index;not null;comment:所属品牌ID" json:"brand_id"`
+	Status      ProductStatus `gorm:"column:status;type:tinyint;default:1;comment:商品状态(1:草稿, 2:已发布, 3:已下架, 4:已删除)" json:"status"`
+	MainImage   string        `gorm:"column:main_image;type:varchar(1024);comment:商品主图URL" json:"main_image"`
+	Images      []string      `gorm:"type:json;serializer:json;comment:商品图集JSON" json:"images"`
+	Price       int64         `gorm:"column:price;type:bigint;not null;comment:默认售价(单位:分)" json:"price"`
+	Stock       int32         `gorm:"column:stock;type:int;default:0;comment:总库存量" json:"stock"`
+	Sales       int32         `gorm:"column:sales;type:int;default:0;comment:历史总销量" json:"sales"`
+	SKUs        []*SKU        `gorm:"foreignKey:ProductID;comment:关联SKU集合" json:"skus"`
 }
 
-// SKU 实体代表商品的库存量单位（Stock Keeping Unit）。
-// 它是商品的具体变体，例如不同颜色、尺寸等，每个SKU有独立的库存和价格。
+// SKU 实体代表商品的最小库存单元。
 type SKU struct {
-	gorm.Model                   // 嵌入gorm.Model。
-	ProductID  uint              `gorm:"column:product_id;index;not null" json:"product_id"` // 所属商品ID，索引字段，不允许为空。
-	Name       string            `gorm:"column:name;type:varchar(255);not null" json:"name"` // SKU名称（例如，“红色，L码”）。
-	Price      int64             `gorm:"column:price;type:bigint;not null" json:"price"`     // SKU价格（单位：分）。
-	Stock      int32             `gorm:"column:stock;type:int;default:0" json:"stock"`       // SKU库存。
-	Sales      int32             `gorm:"column:sales;type:int;default:0" json:"sales"`       // SKU销量。
-	Image      string            `gorm:"column:image;type:varchar(1024)" json:"image"`       // SKU图片URL。
-	Specs      map[string]string `gorm:"type:json;serializer:json" json:"specs"`             // SKU规格参数（例如，{"color": "red", "size": "L"}，存储为JSON字符串）。
+	gorm.Model
+	ProductID  uint              `gorm:"column:product_id;index;not null;comment:关联商品ID" json:"product_id"`
+	Name       string            `gorm:"column:name;type:varchar(255);not null;comment:规格名称" json:"name"`
+	Price      int64             `gorm:"column:price;type:bigint;not null;comment:规格售价(单位:分)" json:"price"`
+	Stock      int32             `gorm:"column:stock;type:int;default:0;comment:规格库存" json:"stock"`
+	Sales      int32             `gorm:"column:sales;type:int;default:0;comment:规格销量" json:"sales"`
+	Image      string            `gorm:"column:image;type:varchar(1024);comment:规格图片URL" json:"image"`
+	Specs      map[string]string `gorm:"type:json;serializer:json;comment:规格参数JSON" json:"specs"`
 }
 
 // Category 实体代表商品分类。
-// 用于组织和管理商品，支持树形结构。
 type Category struct {
-	gorm.Model        // 嵌入gorm.Model。
-	Name       string `gorm:"column:name;type:varchar(255);not null" json:"name"` // 分类名称，不允许为空。
-	ParentID   uint   `gorm:"column:parent_id;index;default:0" json:"parent_id"`  // 父分类ID，0表示顶级分类，索引字段。
-	Sort       int    `gorm:"column:sort;type:int;default:0" json:"sort"`         // 排序值。
-	Status     int    `gorm:"column:status;type:tinyint;default:1" json:"status"` // 状态，1:正常, 2:禁用。
+	gorm.Model
+	Name       string `gorm:"column:name;type:varchar(255);not null;comment:分类名称" json:"name"`
+	ParentID   uint   `gorm:"column:parent_id;index;default:0;comment:父分类ID(0为根节点)" json:"parent_id"`
+	Sort       int    `gorm:"column:sort;type:int;default:0;comment:排序权重" json:"sort"`
+	Status     int    `gorm:"column:status;type:tinyint;default:1;comment:分类状态(1:启用, 2:禁用)" json:"status"`
 }
 
 // Brand 实体代表商品品牌。
 type Brand struct {
-	gorm.Model        // 嵌入gorm.Model。
-	Name       string `gorm:"column:name;type:varchar(255);not null" json:"name"` // 品牌名称，不允许为空。
-	Logo       string `gorm:"column:logo;type:varchar(1024)" json:"logo"`         // 品牌Logo图片URL。
-	Status     int    `gorm:"column:status;type:tinyint;default:1" json:"status"` // 状态，1:正常, 2:禁用。
+	gorm.Model
+	Name   string `gorm:"column:name;type:varchar(255);not null;comment:品牌名称" json:"name"`
+	Logo   string `gorm:"column:logo;type:varchar(1024);comment:品牌Logo地址" json:"logo"`
+	Status int    `gorm:"column:status;type:tinyint;default:1;comment:品牌状态(1:启用, 2:禁用)" json:"status"`
 }
 
 // NewProduct 是一个工厂方法，用于创建并返回一个新的 Product 实体实例。

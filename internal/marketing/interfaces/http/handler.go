@@ -27,7 +27,9 @@ func NewHandler(app *application.Marketing, logger *slog.Logger) *Handler {
 	}
 }
 
+// CreateCampaign 处理创建营销活动的 HTTP 请求。
 func (h *Handler) CreateCampaign(c *gin.Context) {
+	// ... (请求参数定义保持不变) ...
 	var req struct {
 		Name        string         `json:"name" binding:"required"`
 		Type        string         `json:"type" binding:"required"`
@@ -39,37 +41,39 @@ func (h *Handler) CreateCampaign(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	campaign, err := h.app.CreateCampaign(c.Request.Context(), req.Name, domain.CampaignType(req.Type), req.Description, req.StartTime, req.EndTime, req.Budget, req.Rules)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create campaign", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create campaign", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to create campaign", "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Campaign created successfully", campaign)
+	response.SuccessWithStatus(c, http.StatusCreated, "campaign created successfully", campaign)
 }
 
+// GetCampaign 获取营销活动的详细信息。
 func (h *Handler) GetCampaign(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
 		return
 	}
 
 	campaign, err := h.app.GetCampaign(c.Request.Context(), id)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to get campaign", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get campaign", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to get campaign detail", "campaign_id", id, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Campaign retrieved successfully", campaign)
+	response.Success(c, campaign)
 }
 
+// ListCampaigns 分页列出营销活动。
 func (h *Handler) ListCampaigns(c *gin.Context) {
 	status, err := strconv.Atoi(c.DefaultQuery("status", "0"))
 	if err != nil {
@@ -87,19 +91,15 @@ func (h *Handler) ListCampaigns(c *gin.Context) {
 
 	list, total, err := h.app.ListCampaigns(c.Request.Context(), domain.CampaignStatus(status), page, pageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list campaigns", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list campaigns", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to list campaigns", "status", status, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Campaigns listed successfully", gin.H{
-		"data":      list,
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
-	})
+	response.SuccessWithPagination(c, list, total, int32(page), int32(pageSize))
 }
 
+// CreateBanner 处理创建横幅广告的请求。
 func (h *Handler) CreateBanner(c *gin.Context) {
 	var req struct {
 		Title     string    `json:"title" binding:"required"`
@@ -112,48 +112,50 @@ func (h *Handler) CreateBanner(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	banner, err := h.app.CreateBanner(c.Request.Context(), req.Title, req.ImageURL, req.LinkURL, req.Position, req.Priority, req.StartTime, req.EndTime)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create banner", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create banner", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to create banner", "title", req.Title, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Banner created successfully", banner)
+	response.SuccessWithStatus(c, http.StatusCreated, "banner created successfully", banner)
 }
 
+// ListBanners 根据位置获取活跃的横幅列表。
 func (h *Handler) ListBanners(c *gin.Context) {
 	position := c.Query("position")
 	activeOnly := c.Query("active_only") == "true"
 
 	list, err := h.app.ListBanners(c.Request.Context(), position, activeOnly)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list banners", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list banners", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to list banners", "position", position, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Banners listed successfully", list)
+	response.Success(c, list)
 }
 
+// ClickBanner 处理横幅点击统计请求。
 func (h *Handler) ClickBanner(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
 		return
 	}
 
 	if err := h.app.ClickBanner(c.Request.Context(), id); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to record click", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to record click", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to record banner click", "banner_id", id, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Click recorded successfully", nil)
+	response.Success(c, nil)
 }
 
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {

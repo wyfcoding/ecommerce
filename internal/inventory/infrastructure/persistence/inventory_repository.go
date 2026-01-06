@@ -67,19 +67,24 @@ func (r *inventoryRepository) GetBySkuID(ctx context.Context, skuID uint64) (*do
 	return &inventory, nil
 }
 
-// GetBySkuIDs 跨分片查询。
+// GetBySkuIDs 执行跨分片的批量查询。
+// 注意：由于底层分片键不一致，此操作会遍历多个分片执行点查，并汇总结果。
 func (r *inventoryRepository) GetBySkuIDs(ctx context.Context, skuIDs []uint64) ([]*domain.Inventory, error) {
 	var allList []*domain.Inventory
 	for _, id := range skuIDs {
 		inv, err := r.GetBySkuID(ctx, id)
-		if err == nil && inv != nil {
+		if err != nil {
+			return nil, err // 点查失败立即中断并返回错误
+		}
+		if inv != nil {
 			allList = append(allList, inv)
 		}
 	}
 	return allList, nil
 }
 
-// List 扫描所有分片。
+// List 扫描集群中所有的分片数据库，并进行全量统计与分页汇总。
+// 架构警告：此操作属于昂贵的 Full-Scan 操作，高并发场景下应优先使用搜索引擎。
 func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*domain.Inventory, int64, error) {
 	dbs := r.sharding.GetAllDBs()
 	var allList []*domain.Inventory
@@ -89,13 +94,18 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 		var list []*domain.Inventory
 		var count int64
 		query := db.WithContext(ctx).Model(&domain.Inventory{})
-		query.Count(&count)
+		if err := query.Count(&count).Error; err != nil {
+			return nil, 0, err
+		}
 		totalCount += count
 
-		query.Offset(offset).Limit(limit).Order("created_at desc").Find(&list)
+		if err := query.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+			return nil, 0, err
+		}
 		allList = append(allList, list...)
 	}
 
+	// 执行内存聚合后的截断处理
 	if len(allList) > limit {
 		allList = allList[:limit]
 	}

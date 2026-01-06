@@ -111,12 +111,13 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 		return nil, nil, err
 	}
 
+	s.logger.InfoContext(ctx, "payment initiated successfully", "payment_no", payment.PaymentNo, "transaction_id", resp.TransactionID)
 	return payment, resp, nil
 }
 
 // CapturePayment 对标金融级账本一致性
 func (s *PaymentProcessor) CapturePayment(ctx context.Context, userID uint64, paymentNo string, amount int64) error {
-	return s.paymentRepo.Transaction(ctx, userID, func(tx any) error {
+	err := s.paymentRepo.Transaction(ctx, userID, func(tx any) error {
 		txRepo := s.paymentRepo.WithTx(tx)
 		payment, err := txRepo.FindByPaymentNo(ctx, userID, paymentNo)
 		if err != nil || payment == nil {
@@ -162,4 +163,9 @@ func (s *PaymentProcessor) CapturePayment(ctx context.Context, userID uint64, pa
 		gormTx := tx.(*gorm.DB)
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "payment.captured", payment.PaymentNo, event)
 	})
+
+	if err == nil {
+		s.logger.InfoContext(ctx, "payment captured successfully", "payment_no", paymentNo, "amount", amount)
+	}
+	return err
 }

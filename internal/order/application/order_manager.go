@@ -70,11 +70,13 @@ func NewOrderManager(
 	}
 }
 
+// SetClients 注入下游服务客户端依赖。
 func (s *OrderManager) SetClients(invCli inventoryv1.InventoryServiceClient, payCli paymentv1.PaymentServiceClient) {
 	s.inventoryCli = invCli
 	s.paymentCli = payCli
 }
 
+// SetSvcURL 设置当前服务的访问地址，用于 DTM 回调。
 func (s *OrderManager) SetSvcURL(url string) {
 	s.orderSvcURL = url
 }
@@ -245,7 +247,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 
 // PayOrder 支付订单。
 func (s *OrderManager) PayOrder(ctx context.Context, userID, id uint64, paymentMethod string) error {
-	return s.repo.Transaction(ctx, userID, func(tx any) error {
+	err := s.repo.Transaction(ctx, userID, func(tx any) error {
 		txRepo := s.repo.WithTx(tx)
 		order, err := txRepo.FindByID(ctx, userID, uint(id))
 		if err != nil || order == nil {
@@ -271,11 +273,16 @@ func (s *OrderManager) PayOrder(ctx context.Context, userID, id uint64, paymentM
 		gormTx := tx.(*gorm.DB)
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.paid", order.OrderNo, event)
 	})
+
+	if err == nil {
+		s.logger.InfoContext(ctx, "order paid successfully", "order_id", id, "user_id", userID)
+	}
+	return err
 }
 
 // ShipOrder 发货订单。
 func (s *OrderManager) ShipOrder(ctx context.Context, userID, id uint64, operator string) error {
-	return s.repo.Transaction(ctx, userID, func(tx any) error {
+	err := s.repo.Transaction(ctx, userID, func(tx any) error {
 		txRepo := s.repo.WithTx(tx)
 		order, err := txRepo.FindByID(ctx, userID, uint(id))
 		if err != nil || order == nil {
@@ -300,11 +307,16 @@ func (s *OrderManager) ShipOrder(ctx context.Context, userID, id uint64, operato
 		gormTx := tx.(*gorm.DB)
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.shipped", order.OrderNo, event)
 	})
+
+	if err == nil {
+		s.logger.InfoContext(ctx, "order shipped successfully", "order_id", id, "operator", operator)
+	}
+	return err
 }
 
 // DeliverOrder 送达订单。
 func (s *OrderManager) DeliverOrder(ctx context.Context, userID, id uint64, operator string) error {
-	return s.repo.Transaction(ctx, userID, func(tx any) error {
+	err := s.repo.Transaction(ctx, userID, func(tx any) error {
 		txRepo := s.repo.WithTx(tx)
 		order, err := txRepo.FindByID(ctx, userID, uint(id))
 		if err != nil || order == nil {
@@ -328,11 +340,16 @@ func (s *OrderManager) DeliverOrder(ctx context.Context, userID, id uint64, oper
 		gormTx := tx.(*gorm.DB)
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.delivered", order.OrderNo, event)
 	})
+
+	if err == nil {
+		s.logger.InfoContext(ctx, "order delivered successfully", "order_id", id)
+	}
+	return err
 }
 
 // CompleteOrder 完成订单。
 func (s *OrderManager) CompleteOrder(ctx context.Context, userID, id uint64, operator string) error {
-	return s.repo.Transaction(ctx, userID, func(tx any) error {
+	err := s.repo.Transaction(ctx, userID, func(tx any) error {
 		txRepo := s.repo.WithTx(tx)
 		order, err := txRepo.FindByID(ctx, userID, uint(id))
 		if err != nil || order == nil {
@@ -358,6 +375,11 @@ func (s *OrderManager) CompleteOrder(ctx context.Context, userID, id uint64, ope
 		gormTx := tx.(*gorm.DB)
 		return s.outboxMgr.PublishInTx(ctx, gormTx, "order.completed", order.OrderNo, event)
 	})
+
+	if err == nil {
+		s.logger.InfoContext(ctx, "order completed successfully", "order_id", id)
+	}
+	return err
 }
 
 // SagaConfirmOrder Saga 正向: 确认订单 (Allocating -> PendingPayment)
@@ -463,7 +485,12 @@ func (s *OrderManager) HandleInventoryReserved(ctx context.Context, userID, orde
 	order.Status = domain.PendingPayment
 	order.AddLog("System", "Inventory Reserved", domain.Allocating.String(), domain.PendingPayment.String(), "Inventory reserved successfully")
 
-	return s.repo.Save(ctx, order)
+	if err := s.repo.Save(ctx, order); err != nil {
+		return err
+	}
+
+	s.logger.InfoContext(ctx, "inventory reserved, order state updated", "order_id", orderID, "new_status", "PENDING_PAYMENT")
+	return nil
 }
 
 // HandleInventoryReservationFailed 处理库存预留失败事件。

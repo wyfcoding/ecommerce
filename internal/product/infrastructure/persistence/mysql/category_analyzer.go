@@ -1,22 +1,29 @@
+// Package mysql 提供了商品基础设施的持久化逻辑与数据分析辅助工具。
 package mysql
 
 import (
+	"log/slog"
+	"time"
+
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
-// CategoryInfo 类目精简信息
+// CategoryInfo 封装了用于拓扑分析的类目精简层级信息。
 type CategoryInfo struct {
-	ID       int
-	ParentID int
+	ID       int // 类目唯一 ID
+	ParentID int // 父类目 ID
 }
 
-// HierarchyAnalyzer 类目层级分析器
+// HierarchyAnalyzer 提供了针对商品类目树的深度分析能力，支持最近公共祖先 (LCA) 查询及层级距离计算。
+// 核心价值：辅助实现关联推荐、相似品类识别等业务。
 type HierarchyAnalyzer struct {
-	lca *algorithm.TreeLCA
+	lca *algorithm.TreeLCA // 基于离线倍增算法的 LCA 执行器
 }
 
-// Build 预处理类目树
+// Build 构造类目层级索引。
+// 流程：转换节点格式 -> 识别树规模 -> 预处理倍增表。
 func (a *HierarchyAnalyzer) Build(categories []CategoryInfo) {
+	start := time.Now()
 	nodes := make([]algorithm.LCANode, len(categories))
 	maxID := 0
 	for i, c := range categories {
@@ -25,11 +32,17 @@ func (a *HierarchyAnalyzer) Build(categories []CategoryInfo) {
 			maxID = c.ID
 		}
 	}
-	// 简单起见，假设 ID 是连续的且从 0 开始。实际中可能需要映射 map。
+	// 执行预处理，构建 O(N log N) 的查询结构
 	a.lca = algorithm.NewTreeLCA(maxID+1, nodes)
+
+	slog.Info("category hierarchy analyzer index built successfully", 
+		"nodes_count", len(categories), 
+		"max_depth", maxID,
+		"duration", time.Since(start),
+	)
 }
 
-// FindCommonParent 找到两个类目的最近公共祖先
+// FindCommonParent 查找两个类目在树结构上的最近公共祖先 ID。
 func (a *HierarchyAnalyzer) FindCommonParent(id1, id2 int) int {
 	if a.lca == nil {
 		return -1
@@ -37,7 +50,7 @@ func (a *HierarchyAnalyzer) FindCommonParent(id1, id2 int) int {
 	return a.lca.GetLCA(id1, id2)
 }
 
-// GetPathDistance 获取类目间的距离
+// GetPathDistance 计算两个类目节点之间的路径步数距离。
 func (a *HierarchyAnalyzer) GetPathDistance(id1, id2 int) int {
 	if a.lca == nil {
 		return -1

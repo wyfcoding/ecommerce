@@ -28,7 +28,7 @@ func NewHandler(app *application.Coupon, logger *slog.Logger) *Handler {
 	}
 }
 
-// CreateCoupon 处理创建优惠券的HTTP请求。
+// CreateCoupon 处理创建优惠券模板的 HTTP 请求。
 func (h *Handler) CreateCoupon(c *gin.Context) {
 	var req struct {
 		Name           string `json:"name" binding:"required"`
@@ -39,21 +39,21 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	coupon, err := h.app.CreateCoupon(c.Request.Context(), req.Name, req.Description, req.Type, req.DiscountAmount, req.MinOrderAmount)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create coupon", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create coupon", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to create coupon", "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Coupon created successfully", coupon)
+	response.SuccessWithStatus(c, http.StatusCreated, "coupon template created successfully", coupon)
 }
 
-// AcquireCoupon 用户领取优惠券.
+// IssueCoupon 处理用户领取优惠券的 HTTP 请求。
 func (h *Handler) IssueCoupon(c *gin.Context) {
 	var req struct {
 		UserID   uint64 `json:"user_id" binding:"required"`
@@ -61,21 +61,21 @@ func (h *Handler) IssueCoupon(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	userCoupon, err := h.app.AcquireCoupon(c.Request.Context(), req.UserID, req.CouponID)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to issue coupon", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to issue coupon", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to issue coupon", "user_id", req.UserID, "coupon_id", req.CouponID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Coupon issued successfully", userCoupon)
+	response.SuccessWithStatus(c, http.StatusCreated, "coupon issued successfully", userCoupon)
 }
 
-// ListCoupons 处理获取优惠券列表的HTTP请求。
+// ListCoupons 分页获取优惠券模板列表。
 func (h *Handler) ListCoupons(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil || page <= 0 {
@@ -93,12 +93,12 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 
 	list, total, err := h.app.ListCoupons(c.Request.Context(), status, page, pageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list coupons", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list coupons", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to list coupons", "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Coupons listed successfully", gin.H{
+	response.SuccessWithStatus(c, http.StatusOK, "coupons listed successfully", gin.H{
 		"data":      list,
 		"total":     total,
 		"page":      page,
@@ -106,7 +106,7 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 	})
 }
 
-// ListUserCoupons 处理获取用户优惠券列表的HTTP请求。
+// ListUserCoupons 获取特定用户的优惠券持有列表。
 func (h *Handler) ListUserCoupons(c *gin.Context) {
 	var (
 		userID uint64
@@ -115,12 +115,12 @@ func (h *Handler) ListUserCoupons(c *gin.Context) {
 	if val := c.Query("user_id"); val != "" {
 		userID, err = strconv.ParseUint(val, 10, 64)
 		if err != nil {
-			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user_id", err.Error())
+			response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user_id format", "")
 			return
 		}
 	}
 	if userID == 0 {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user ID", "user_id is required")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "user_id is required", "")
 		return
 	}
 	status := c.Query("status")
@@ -135,12 +135,12 @@ func (h *Handler) ListUserCoupons(c *gin.Context) {
 
 	list, total, err := h.app.ListUserCoupons(c.Request.Context(), userID, status, page, pageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list user coupons", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list user coupons", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to list user coupons", "user_id", userID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "User coupons listed successfully", gin.H{
+	response.SuccessWithStatus(c, http.StatusOK, "user coupons listed successfully", gin.H{
 		"data":      list,
 		"total":     total,
 		"page":      page,
@@ -148,7 +148,7 @@ func (h *Handler) ListUserCoupons(c *gin.Context) {
 	})
 }
 
-// CreateActivity 创建活动.
+// CreateActivity 创建优惠券营销活动。
 func (h *Handler) CreateActivity(c *gin.Context) {
 	var req struct {
 		Name        string    `json:"name" binding:"required"`
@@ -159,26 +159,26 @@ func (h *Handler) CreateActivity(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	activity := domain.NewCouponActivity(req.Name, req.Description, req.StartTime, req.EndTime, req.CouponIDs)
 	err := h.app.CreateActivity(c.Request.Context(), activity)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create activity", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create activity", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to create activity", "name", req.Name, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Activity created successfully", activity)
+	response.SuccessWithStatus(c, http.StatusCreated, "activity created successfully", activity)
 }
 
-// UseCoupon 使用优惠券.
+// UseCoupon 提交使用优惠券的请求。
 func (h *Handler) UseCoupon(c *gin.Context) {
 	userCouponID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid user coupon ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user coupon id", "")
 		return
 	}
 	var req struct {
@@ -186,18 +186,18 @@ func (h *Handler) UseCoupon(c *gin.Context) {
 		OrderID string `json:"order_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	err = h.app.UseCoupon(c.Request.Context(), userCouponID, req.UserID, req.OrderID)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to use coupon", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to use coupon", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to use coupon", "id", userCouponID, "user_id", req.UserID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Coupon used successfully", nil)
+	response.SuccessWithStatus(c, http.StatusOK, "coupon used successfully", nil)
 }
 
 // RegisterRoutes 注册路由.

@@ -106,7 +106,7 @@ func (s *CartManager) ClearCart(ctx context.Context, userID uint64) error {
 	return nil
 }
 
-// MergeCarts 合并购物车。
+// MergeCarts 将来源用户的购物车项合并到目标用户的购物车中（常用于登录后的匿名购物车迁移）。
 func (s *CartManager) MergeCarts(ctx context.Context, sourceUserID, targetUserID uint64) error {
 	sourceCart, err := s.repo.GetByUserID(ctx, sourceUserID)
 	if err != nil {
@@ -134,10 +134,11 @@ func (s *CartManager) MergeCarts(ctx context.Context, sourceUserID, targetUserID
 		s.logger.ErrorContext(ctx, "failed to clear source cart after merge", "source_user_id", sourceUserID, "error", err)
 	}
 
+	s.logger.InfoContext(ctx, "carts merged successfully", "source_user_id", sourceUserID, "target_user_id", targetUserID)
 	return nil
 }
 
-// ApplyCoupon 应用优惠券。
+// ApplyCoupon 在购物车中记录要使用的优惠券码。
 func (s *CartManager) ApplyCoupon(ctx context.Context, userID uint64, couponCode string) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
@@ -150,10 +151,11 @@ func (s *CartManager) ApplyCoupon(ctx context.Context, userID uint64, couponCode
 		return err
 	}
 
+	s.logger.InfoContext(ctx, "coupon applied to cart", "user_id", userID, "coupon_code", couponCode)
 	return nil
 }
 
-// RemoveCoupon 移除优惠券。
+// RemoveCoupon 清除购物车中已记录的优惠券码。
 func (s *CartManager) RemoveCoupon(ctx context.Context, userID uint64) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
@@ -166,5 +168,6 @@ func (s *CartManager) RemoveCoupon(ctx context.Context, userID uint64) error {
 		return err
 	}
 
+	s.logger.InfoContext(ctx, "coupon removed from cart", "user_id", userID)
 	return nil
 }

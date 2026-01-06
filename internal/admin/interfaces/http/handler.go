@@ -11,7 +11,6 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
 	"github.com/wyfcoding/pkg/middleware"
 	"github.com/wyfcoding/pkg/response"
-	"github.com/wyfcoding/pkg/xerrors"
 )
 
 // AdminHandler 统一处理管理后台相关的 HTTP 请求。
@@ -52,13 +51,15 @@ func (h *AdminHandler) RegisterRoutes(r *gin.RouterGroup, secret string) {
 
 // --- Auth Handlers ---
 
+// Login 处理管理员登录，签发 JWT 令牌。
 func (h *AdminHandler) Login(c *gin.Context) {
 	var req application.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
+	// 执行登录验证逻辑
 	token, user, err := h.svc.Manager.Login(
 		c.Request.Context(),
 		req.Username,
@@ -68,10 +69,12 @@ func (h *AdminHandler) Login(c *gin.Context) {
 		24*time.Hour,
 	)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusUnauthorized, "login failed: "+err.Error(), "")
+		h.logger.WarnContext(c.Request.Context(), "admin login failed", "username", req.Username, "error", err)
+		response.ErrorWithStatus(c, http.StatusUnauthorized, "invalid username or password", "")
 		return
 	}
 
+	h.logger.InfoContext(c.Request.Context(), "admin logged in", "user_id", user.ID, "username", user.Username)
 	response.Success(c, gin.H{
 		"token": token,
 		"user": application.UserInfo{
@@ -82,38 +85,44 @@ func (h *AdminHandler) Login(c *gin.Context) {
 	})
 }
 
+// Register 处理新管理员账号的注册（通常仅限内部管理）。
 func (h *AdminHandler) Register(c *gin.Context) {
 	var req application.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input: "+err.Error(), "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
-	_, err := h.svc.Manager.RegisterAdmin(c.Request.Context(), &req)
+	user, err := h.svc.Manager.RegisterAdmin(c.Request.Context(), &req)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create admin: "+err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "admin registration failed", "username", req.Username, "error", err)
+		response.Error(c, err)
 		return
 	}
 
+	h.logger.InfoContext(c.Request.Context(), "new admin registered", "user_id", user.ID, "username", user.Username)
 	response.Success(c, gin.H{"message": "admin user registered successfully"})
 }
 
+// Me 返回当前登录管理员的基础个人资料。
 func (h *AdminHandler) Me(c *gin.Context) {
+	// 此处仅为占位实现，实际应从 Context 或 DB 中拉取完整资料
 	response.Success(c, gin.H{"msg": "profile info"})
 }
 
 // --- Workflow Handlers ---
 
+// Apply 提交一个新的高风险操作审批申请。
 func (h *AdminHandler) Apply(c *gin.Context) {
 	var req application.ApprovalCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid approval data", err.Error())
 		return
 	}
 
 	requesterID, ok := middleware.GetUserID(c)
 	if !ok {
-		response.ErrorWithStatus(c, http.StatusUnauthorized, "unauthorized: failed to get user ID", "")
+		response.ErrorWithStatus(c, http.StatusUnauthorized, "unauthorized: missing user_id", "")
 		return
 	}
 
@@ -125,30 +134,33 @@ func (h *AdminHandler) Apply(c *gin.Context) {
 	}
 
 	if err := h.svc.Manager.CreateRequest(c.Request.Context(), domainReq); err != nil {
-		response.Error(c, xerrors.Internal("failed to submit approval request", err))
+		h.logger.ErrorContext(c.Request.Context(), "failed to create approval request", "user_id", requesterID, "type", req.ActionType, "error", err)
+		response.Error(c, err)
 		return
 	}
 
+	h.logger.InfoContext(c.Request.Context(), "approval request submitted", "req_id", domainReq.ID, "user_id", requesterID)
 	response.Success(c, gin.H{"id": domainReq.ID})
 }
 
+// Action 处理对审批申请的“通过”或“拒绝”动作。
 func (h *AdminHandler) Action(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid workflow ID format", "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid workflow id format", "")
 		return
 	}
 
 	var req application.ApprovalActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, err.Error(), "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid action data", err.Error())
 		return
 	}
 
 	approverID, ok := middleware.GetUserID(c)
 	if !ok {
-		response.ErrorWithStatus(c, http.StatusUnauthorized, "unauthorized: failed to get user ID", "")
+		response.ErrorWithStatus(c, http.StatusUnauthorized, "unauthorized: missing user_id", "")
 		return
 	}
 
@@ -159,9 +171,11 @@ func (h *AdminHandler) Action(c *gin.Context) {
 	}
 
 	if err != nil {
-		response.Error(c, xerrors.Internal("workflow action failed", err))
+		h.logger.ErrorContext(c.Request.Context(), "workflow action failed", "req_id", id, "action", req.Action, "error", err)
+		response.Error(c, err)
 		return
 	}
 
+	h.logger.InfoContext(c.Request.Context(), "workflow action processed", "req_id", id, "action", req.Action, "approver", approverID)
 	response.Success(c, gin.H{"status": "processed"})
 }

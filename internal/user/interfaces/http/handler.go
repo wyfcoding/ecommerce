@@ -155,7 +155,8 @@ func (h *Handler) ListAddresses(c *gin.Context) {
 
 	list, err := h.app.Query.ListAddresses(c.Request.Context(), uint(userID))
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to list addresses", "user_id", userID, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to fetch address list", "")
 		return
 	}
 
@@ -177,7 +178,8 @@ func (h *Handler) GetAddress(c *gin.Context) {
 
 	addr, err := h.app.Query.GetAddress(c.Request.Context(), uint(userID), uint(addrID))
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to get address detail", "user_id", userID, "address_id", addrID, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to fetch address detail", "")
 		return
 	}
 	if addr == nil {
@@ -203,13 +205,14 @@ func (h *Handler) UpdateAddress(c *gin.Context) {
 
 	var req application.AddressDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid data", "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid address data format", "")
 		return
 	}
 
 	addr, err := h.app.Manager.UpdateAddress(c.Request.Context(), uint(userID), uint(addrID), &req)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to update address", "user_id", userID, "address_id", addrID, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "address update failed", "")
 		return
 	}
 
@@ -230,7 +233,8 @@ func (h *Handler) DeleteAddress(c *gin.Context) {
 	}
 
 	if err := h.app.Manager.DeleteAddress(c.Request.Context(), uint(userID), uint(addrID)); err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to delete address", "user_id", userID, "address_id", addrID, "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "address deletion failed", "")
 		return
 	}
 

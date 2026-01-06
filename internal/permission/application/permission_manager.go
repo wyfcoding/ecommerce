@@ -43,12 +43,17 @@ func (m *PermissionManager) CreateRole(ctx context.Context, name, description st
 	return role, nil
 }
 
-// DeleteRole 删除指定ID的角色。
+// DeleteRole 物理删除指定角色。
 func (m *PermissionManager) DeleteRole(ctx context.Context, id uint64) error {
-	return m.repo.DeleteRole(ctx, id)
+	if err := m.repo.DeleteRole(ctx, id); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete role", "role_id", id, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "role deleted", "role_id", id)
+	return nil
 }
 
-// CreatePermission 创建一个新权限。
+// CreatePermission 创建一个新的细粒度权限码。
 func (m *PermissionManager) CreatePermission(ctx context.Context, code, description string) (*domain.Permission, error) {
 	permission := &domain.Permission{
 		Code:        code,
@@ -62,12 +67,22 @@ func (m *PermissionManager) CreatePermission(ctx context.Context, code, descript
 	return permission, nil
 }
 
-// AssignRole 为用户分配角色。
+// AssignRole 将特定角色授予指定用户。
 func (m *PermissionManager) AssignRole(ctx context.Context, userID, roleID uint64) error {
-	return m.repo.AssignRole(ctx, userID, roleID)
+	if err := m.repo.AssignRole(ctx, userID, roleID); err != nil {
+		m.logger.ErrorContext(ctx, "failed to assign role to user", "user_id", userID, "role_id", roleID, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "role assigned to user", "user_id", userID, "role_id", roleID)
+	return nil
 }
 
-// RevokeRole 撤销用户 role。
+// RevokeRole 撤销指定用户的特定角色权限。
 func (m *PermissionManager) RevokeRole(ctx context.Context, userID, roleID uint64) error {
-	return m.repo.RevokeRole(ctx, userID, roleID)
+	if err := m.repo.RevokeRole(ctx, userID, roleID); err != nil {
+		m.logger.ErrorContext(ctx, "failed to revoke role from user", "user_id", userID, "role_id", roleID, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "role revoked from user", "user_id", userID, "role_id", roleID)
+	return nil
 }

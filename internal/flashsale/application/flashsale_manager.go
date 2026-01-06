@@ -179,29 +179,49 @@ func (m *FlashsaleManager) PlaceOrder(ctx context.Context, userID, flashsaleID u
 	return order, nil
 }
 
-// CancelOrder 取消一个秒杀订单。
+// CancelOrder 撤销一个秒杀订单（支持库存回滚）。
 func (m *FlashsaleManager) CancelOrder(ctx context.Context, orderID uint64) error {
 	order, err := m.repo.GetOrder(ctx, orderID)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get flashsale order for cancellation", "order_id", orderID, "error", err)
 		return err
 	}
 
 	if order.Status != domain.FlashsaleOrderStatusPending {
-		return nil
+		return nil // 仅允许取消待支付订单
 	}
 
 	order.Cancel()
 	if err := m.repo.SaveOrder(ctx, order); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update order status during cancellation", "order_id", orderID, "error", err)
 		return err
 	}
 
-	return m.cache.RevertStock(ctx, order.FlashsaleID, order.UserID, order.Quantity)
+	// 执行 Redis 库存回滚
+	if err := m.cache.RevertStock(ctx, order.FlashsaleID, order.UserID, order.Quantity); err != nil {
+		m.logger.ErrorContext(ctx, "failed to revert stock during cancellation", "order_id", orderID, "error", err)
+		return err
+	}
+
+	m.logger.InfoContext(ctx, "flashsale order cancelled successfully", "order_id", orderID)
+	return nil
 }
 
+// SaveOrder 持久化保存或更新秒杀订单实体。
 func (m *FlashsaleManager) SaveOrder(ctx context.Context, order *domain.FlashsaleOrder) error {
-	return m.repo.SaveOrder(ctx, order)
+	if err := m.repo.SaveOrder(ctx, order); err != nil {
+		m.logger.ErrorContext(ctx, "failed to save flashsale order", "order_id", order.ID, "error", err)
+		return err
+	}
+	return nil
 }
 
+// UpdateStock 物理更新数据库中的秒杀活动库存数量。
 func (m *FlashsaleManager) UpdateStock(ctx context.Context, id uint64, quantity int32) error {
-	return m.repo.UpdateStock(ctx, id, quantity)
+	if err := m.repo.UpdateStock(ctx, id, quantity); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update flashsale stock", "flashsale_id", id, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "flashsale stock updated in DB", "flashsale_id", id, "quantity", quantity)
+	return nil
 }

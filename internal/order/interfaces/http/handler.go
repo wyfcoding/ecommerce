@@ -26,8 +26,9 @@ func NewHandler(service *application.OrderService, logger *slog.Logger) *Handler
 	}
 }
 
-// CreateOrder 处理创建订单的HTTP请求。
+// CreateOrder 处理创建订单的 HTTP 请求。
 func (h *Handler) CreateOrder(c *gin.Context) {
+	// ... (请求参数定义保持不变) ...
 	var req struct {
 		UserID uint64 `json:"user_id" binding:"required"`
 		Items  []struct {
@@ -52,7 +53,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request: "+err.Error(), "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
@@ -81,29 +82,28 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	order, err := h.service.CreateOrder(c.Request.Context(), req.UserID, items, shippingAddr, req.CouponCode)
 	if err != nil {
-		h.logger.Error("Failed to create order", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to create order: "+err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to create order", "user_id", req.UserID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Order created successfully", order)
+	response.SuccessWithStatus(c, http.StatusCreated, "order created successfully", order)
 }
 
-// GetOrder 获取订单详情
+// GetOrder 获取订单详情。
 func (h *Handler) GetOrder(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid order ID format", "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid order id format", "")
 		return
 	}
 
-	// 尝试从 query 获取 user_id 用于分片定位
 	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
 
 	order, err := h.service.GetOrder(c.Request.Context(), userID, id)
 	if err != nil {
-		h.logger.Error("Failed to get order", "id", id, "user_id", userID, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to get order detail", "order_id", id, "user_id", userID, "error", err)
+		response.Error(c, err)
 		return
 	}
 	if order == nil {
@@ -114,11 +114,11 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	response.Success(c, order)
 }
 
-// UpdateStatus 更新订单状态
+// UpdateStatus 处理订单生命周期的各种状态转移动作。
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid order ID format", "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid order id format", "")
 		return
 	}
 
@@ -130,13 +130,12 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid input: "+err.Error(), "")
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid transition request", err.Error())
 		return
 	}
 
 	operator := "System"
 	if uid, exists := c.Get("user_id"); exists {
-		// 增加稳健的类型检查
 		switch v := uid.(type) {
 		case uint64:
 			operator = strconv.FormatUint(v, 10)
@@ -161,17 +160,16 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	if opErr != nil {
-		h.logger.Error("Failed to update order status", "id", id, "user_id", req.UserID, "action", req.Action, "error", opErr)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, opErr.Error(), "")
+		h.logger.ErrorContext(ctx, "failed to update order status", "order_id", id, "action", req.Action, "error", opErr)
+		response.Error(c, opErr)
 		return
 	}
 
 	response.Success(c, nil)
 }
 
-// ListOrders 处理获取订单列表的HTTP请求。
+// ListOrders 分页获取订单列表，支持按用户 ID 和状态过滤。
 func (h *Handler) ListOrders(c *gin.Context) {
-	// 1. 严格解析用户 ID
 	userIDStr := c.Query("user_id")
 	var userID uint64
 	if userIDStr != "" {
@@ -194,26 +192,21 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	}
 	pageReq := pagination.NewRequest(page, pageSize)
 
-	// 3. 解析状态过滤
 	var status *int
 	if statusStr := c.Query("status"); statusStr != "" {
 		s, err := strconv.Atoi(statusStr)
-		if err != nil {
-			response.ErrorWithStatus(c, http.StatusBadRequest, "invalid status format", "")
-			return
+		if err == nil {
+			status = &s
 		}
-		status = &s
 	}
 
-	// 4. 调用业务逻辑
 	list, total, err := h.service.ListOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
 	if err != nil {
-		h.logger.Error("Failed to list orders", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		h.logger.ErrorContext(c.Request.Context(), "failed to list orders", "user_id", userID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	// 5. 使用泛型分页 Result
 	response.Success(c, pagination.NewResult(total, pageReq, list))
 }
 

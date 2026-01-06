@@ -48,10 +48,11 @@ func (m *MarketingManager) CreateCampaign(ctx context.Context, name string, camp
 	return campaign, nil
 }
 
-// UpdateCampaignStatus 更新指定ID的营销活动状态。
+// UpdateCampaignStatus 修改指定活动的生命周期状态（如启动、结束或取消）。
 func (m *MarketingManager) UpdateCampaignStatus(ctx context.Context, id uint64, status domain.CampaignStatus) error {
 	campaign, err := m.repo.GetCampaign(ctx, id)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get campaign for status update", "campaign_id", id, "error", err)
 		return err
 	}
 
@@ -64,13 +65,20 @@ func (m *MarketingManager) UpdateCampaignStatus(ctx context.Context, id uint64, 
 		campaign.Cancel()
 	}
 
-	return m.repo.SaveCampaign(ctx, campaign)
+	if err := m.repo.SaveCampaign(ctx, campaign); err != nil {
+		m.logger.ErrorContext(ctx, "failed to save campaign status", "campaign_id", id, "new_status", status, "error", err)
+		return err
+	}
+
+	m.logger.InfoContext(ctx, "campaign status updated", "campaign_id", id, "new_status", status)
+	return nil
 }
 
-// RecordParticipation 记录用户参与营销活动。
+// RecordParticipation 记录用户参与营销活动的行为，包含布隆过滤器预检、预算扣减及参与记录落库。
 func (m *MarketingManager) RecordParticipation(ctx context.Context, campaignID, userID, orderID, discount uint64) error {
 	campaign, err := m.repo.GetCampaign(ctx, campaignID)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get campaign for participation", "campaign_id", campaignID, "error", err)
 		return err
 	}
 
@@ -78,15 +86,10 @@ func (m *MarketingManager) RecordParticipation(ctx context.Context, campaignID, 
 		return domain.ErrCampaignEnded
 	}
 
-	// 使用布隆过滤器快速检查用户是否已参与 (针对 "每人限一次" 的规则优化)
+	// 性能优化：使用布隆过滤器在 O(1) 时间内初步阻断重复参与请求
 	// Key: campaignID:userID
 	filterKey := []byte(fmt.Sprintf("%d:%d", campaignID, userID))
 	if m.userFilter.Contains(filterKey) {
-		// 布隆过滤器说存在，可能是误判，也可能真存在。
-		// 这里我们做一个快速拦截，或者也可以继续去DB确认。
-		// 为了演示算法价值，假设这是一个高并发场景，我们倾向于相信布隆过滤器来挡掉绝大多数重复请求。
-		// 如果需要绝对精确，这里应该 fallback 到 DB 查询。
-		// 此处仅做日志记录，不强制阻断，依靠 DB 唯一索引兜底 (如果 DB 有的话)。
 		m.logger.DebugContext(ctx, "user might have already participated (bloom filter hit)", "user_id", userID, "campaign_id", campaignID)
 	} else {
 		// 布隆过滤器说不存在，那就一定不存在
@@ -100,12 +103,18 @@ func (m *MarketingManager) RecordParticipation(ctx context.Context, campaignID, 
 
 	participation := domain.NewCampaignParticipation(campaignID, userID, orderID, discount)
 	if err := m.repo.SaveParticipation(ctx, participation); err != nil {
+		m.logger.ErrorContext(ctx, "failed to save campaign participation", "user_id", userID, "campaign_id", campaignID, "error", err)
 		return err
 	}
 
 	campaign.AddSpent(discount)
-	// campaign.IncrementReachedUsers() // Moved to bloom filter logic above for 'unique' count
-	return m.repo.SaveCampaign(ctx, campaign)
+	if err := m.repo.SaveCampaign(ctx, campaign); err != nil {
+		m.logger.ErrorContext(ctx, "failed to update campaign budget after participation", "campaign_id", campaignID, "error", err)
+		return err
+	}
+
+	m.logger.InfoContext(ctx, "user participation recorded", "user_id", userID, "campaign_id", campaignID, "discount", discount)
+	return nil
 }
 
 // CreateBanner 创建一个Banner。
@@ -119,17 +128,28 @@ func (m *MarketingManager) CreateBanner(ctx context.Context, title, imageURL, li
 	return banner, nil
 }
 
-// DeleteBanner 删除指定ID的Banner。
+// DeleteBanner 物理删除指定的横幅广告位。
 func (m *MarketingManager) DeleteBanner(ctx context.Context, id uint64) error {
-	return m.repo.DeleteBanner(ctx, id)
+	if err := m.repo.DeleteBanner(ctx, id); err != nil {
+		m.logger.ErrorContext(ctx, "failed to delete banner", "banner_id", id, "error", err)
+		return err
+	}
+	m.logger.InfoContext(ctx, "banner deleted", "banner_id", id)
+	return nil
 }
 
-// ClickBanner 记录Banner点击事件。
+// ClickBanner 原子递增横幅的点击计数器。
 func (m *MarketingManager) ClickBanner(ctx context.Context, id uint64) error {
 	banner, err := m.repo.GetBanner(ctx, id)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get banner for click", "banner_id", id, "error", err)
 		return err
 	}
 	banner.IncrementClick()
-	return m.repo.SaveBanner(ctx, banner)
+	if err := m.repo.SaveBanner(ctx, banner); err != nil {
+		m.logger.ErrorContext(ctx, "failed to save banner click count", "banner_id", id, "error", err)
+		return err
+	}
+	m.logger.DebugContext(ctx, "banner click recorded", "banner_id", id)
+	return nil
 }

@@ -342,7 +342,9 @@ func (m *AdminManager) ApproveRequest(ctx context.Context, requestID, approverID
 			// 记录失败状态
 			req.Status = domain.ApprovalStatusFailed
 			req.FailureReason = err.Error()
-			_ = m.approvalRepo.UpdateRequest(bgCtx, req)
+			if err := m.approvalRepo.UpdateRequest(bgCtx, req); err != nil {
+				m.logger.Error("failed to update request status to failed", "reqID", req.ID, "error", err)
+			}
 		}
 	}()
 	return nil
@@ -364,7 +366,9 @@ func (m *AdminManager) RetryFailedRequest(ctx context.Context, requestID uint) e
 	if err := m.executeOperation(ctx, req); err != nil {
 		req.Status = domain.ApprovalStatusFailed
 		req.FailureReason = fmt.Sprintf("Retry %d failed: %s", req.RetryCount, err.Error())
-		_ = m.approvalRepo.UpdateRequest(ctx, req)
+		if err := m.approvalRepo.UpdateRequest(ctx, req); err != nil {
+			m.logger.ErrorContext(ctx, "failed to update request status during retry", "reqID", req.ID, "error", err)
+		}
 		return err
 	}
 

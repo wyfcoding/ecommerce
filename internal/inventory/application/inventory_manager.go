@@ -13,15 +13,15 @@ import (
 	"github.com/wyfcoding/pkg/algorithm"
 )
 
-// InventoryManager 处理库存的写操作（增删改、锁定、分配）。
+// InventoryManager 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及自动补货逻辑。
 type InventoryManager struct {
-	repo           domain.InventoryRepository
-	warehouseRepo  domain.WarehouseRepository
-	allocator      *algorithm.WarehouseAllocator
-	logger         *slog.Logger
-	soldOutFilter  *algorithm.CuckooFilter
-	filterMu       sync.RWMutex
-	remoteOrderCli orderv1.OrderServiceClient
+	repo           domain.InventoryRepository    // 库存仓储
+	warehouseRepo  domain.WarehouseRepository    // 仓库仓储
+	allocator      *algorithm.WarehouseAllocator // 最优库存分配算法引擎
+	logger         *slog.Logger                  // 日志记录器
+	soldOutFilter  *algorithm.CuckooFilter       // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
+	filterMu       sync.RWMutex                  // 保护过滤器的并发安全
+	remoteOrderCli orderv1.OrderServiceClient    // 远程订单服务客户端，用于触发自动补货
 }
 
 // NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
@@ -174,12 +174,12 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 							Quantity:  replenishQty,
 						},
 					},
-					Remark: fmt.Sprintf("Auto-replenishment for low stock SKU %d", inv.SkuID),
+					Remark: fmt.Sprintf("auto-replenishment for low stock SKU %d", inv.SkuID),
 				})
 				if err != nil {
-					m.logger.Error("failed to place replenishment order", "sku_id", skuID, "error", err)
+					m.logger.ErrorContext(replenishCtx, "failed to place replenishment order", "sku_id", skuID, "error", err)
 				} else {
-					m.logger.Info("replenishment order placed successfully", "sku_id", skuID, "quantity", replenishQty)
+					m.logger.InfoContext(replenishCtx, "replenishment order placed successfully", "sku_id", skuID, "quantity", replenishQty)
 				}
 			}()
 		}
@@ -301,5 +301,7 @@ func (m *InventoryManager) AllocateStock(ctx context.Context, userLat, userLon f
 		}
 	}
 
-	return m.allocator.AllocateOptimal(userLat, userLon, items, warehouseMap), nil
+	result := m.allocator.AllocateOptimal(userLat, userLon, items, warehouseMap)
+	m.logger.InfoContext(ctx, "stock allocation optimization completed", "items_count", len(items), "allocations", len(result))
+	return result, nil
 }

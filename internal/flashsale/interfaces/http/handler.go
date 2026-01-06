@@ -27,7 +27,7 @@ func NewHandler(app *application.FlashsaleService, logger *slog.Logger) *Handler
 	}
 }
 
-// CreateFlashsale 处理创建秒杀活动的HTTP请求。
+// CreateFlashsale 处理创建秒杀活动的 HTTP 请求。
 func (h *Handler) CreateFlashsale(c *gin.Context) {
 	var req struct {
 		Name          string    `json:"name" binding:"required"`
@@ -42,39 +42,39 @@ func (h *Handler) CreateFlashsale(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	flashsale, err := h.app.CreateFlashsale(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.FlashPrice, req.TotalStock, req.LimitPerUser, req.StartTime, req.EndTime)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create flashsale", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create flashsale", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to create flashsale", "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Flashsale created successfully", flashsale)
+	response.SuccessWithStatus(c, http.StatusCreated, "flashsale created successfully", flashsale)
 }
 
-// GetFlashsale 处理获取秒杀活动详情的HTTP请求。
+// GetFlashsale 获取特定秒杀活动的详情信息。
 func (h *Handler) GetFlashsale(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
 		return
 	}
 
 	flashsale, err := h.app.GetFlashsale(c.Request.Context(), id)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to get flashsale", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get flashsale", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to get flashsale detail", "flashsale_id", id, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Flashsale retrieved successfully", flashsale)
+	response.Success(c, flashsale)
 }
 
-// ListFlashsales 处理获取秒杀活动列表的HTTP请求。
+// ListFlashsales 分页获取秒杀活动列表，支持按状态过滤。
 func (h *Handler) ListFlashsales(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil || page <= 0 {
@@ -88,30 +88,23 @@ func (h *Handler) ListFlashsales(c *gin.Context) {
 	var status *domain.FlashsaleStatus
 	if s := c.Query("status"); s != "" {
 		val, err := strconv.Atoi(s)
-		if err != nil {
-			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
-			return
+		if err == nil {
+			st := domain.FlashsaleStatus(val)
+			status = &st
 		}
-		st := domain.FlashsaleStatus(val)
-		status = &st
 	}
 
 	list, total, err := h.app.ListFlashsales(c.Request.Context(), status, page, pageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list flashsales", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list flashsales", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to list flashsales", "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Flashsales listed successfully", gin.H{
-		"data":      list,
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
-	})
+	response.SuccessWithPagination(c, list, total, int32(page), int32(pageSize))
 }
 
-// PlaceOrder 处理用户下单参与秒杀活动的HTTP请求。
+// PlaceOrder 处理秒杀抢购下单请求。
 func (h *Handler) PlaceOrder(c *gin.Context) {
 	var req struct {
 		UserID      uint64 `json:"user_id" binding:"required"`
@@ -120,18 +113,18 @@ func (h *Handler) PlaceOrder(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	order, err := h.app.PlaceOrder(c.Request.Context(), req.UserID, req.FlashsaleID, req.Quantity)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to place order", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to place order", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to place flashsale order", "user_id", req.UserID, "flashsale_id", req.FlashsaleID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Order placed successfully", order)
+	response.SuccessWithStatus(c, http.StatusCreated, "order accepted", order)
 }
 
 // RegisterRoutes 在给定的Gin路由组中注册FlashSale模块的HTTP路由。

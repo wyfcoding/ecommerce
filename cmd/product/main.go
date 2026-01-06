@@ -120,35 +120,35 @@ func registerGin(e *gin.Engine, svc any) {
 	}
 }
 
-// initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
+// initService 执行复杂的依赖注入与资源生命周期初始化。
+// 流程：DB -> Redis -> Kafka -> Outbox -> DDD Layers -> Cleanup Closure.
 func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	c := cfg.(*Config)
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default() // 获取全局 Logger
+	logger := logging.Default()
 
-	// 打印脱敏配置
 	configpkg.PrintWithMask(c)
 
-	// 1. 初始化数据库 (MySQL)
+	// 1. 初始化持久化存储
 	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
 
-	// 2. 初始化缓存 (Redis)
+	// 2. 初始化缓存
 	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
+			_ = sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 3. 初始化消息队列 (Kafka Producer)
+	// 3. 初始化消息队列
 	bootLog.Info("initializing kafka producer...")
 	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 
-	// 4. 初始化 Outbox (确保搜索索引同步的一致性)
+	// 4. 初始化 Outbox (分布式事务消息可靠性保障)
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
 		if producer == nil {
@@ -158,35 +158,33 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}, 100, 5*time.Second)
 	outboxProcessor.Start()
 
-	// 5. 初始化治理组件 (限流器、幂等管理器)
+	// 5. 初始化治理组件
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
-	// 6. 初始化下游微服务客户端
+	// 6. 注册微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
 		outboxProcessor.Stop()
 		if producer != nil {
-			producer.Close()
+			_ = producer.Close()
 		}
-		redisCache.Close()
+		_ = redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
+			_ = sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 7. DDD 分层装配
-	bootLog.Info("assembling services with full dependency injection...")
+	// 7. 核心 DDD 层装配
+	bootLog.Info("assembling product microservice with full dependency injection...")
 
-	// 7.1 Infrastructure (Persistence)
 	productRepo := mysql.NewProductRepository(db.RawDB())
 	skuRepo := mysql.NewSKURepository(db.RawDB())
 	brandRepo := mysql.NewBrandRepository(db.RawDB())
 	categoryRepo := mysql.NewCategoryRepository(db.RawDB())
 
-	// 7.2 Application (Service)
 	productService := application.NewProductService(
 		productRepo,
 		skuRepo,
@@ -199,10 +197,9 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		m,
 	)
 
-	// 7.3 Interface (HTTP Handlers)
 	handler := producthttp.NewHandler(productService, logger.Logger)
 
-	// 定义资源清理函数
+	// 定义优雅关停时的资源释放逻辑
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
 		outboxProcessor.Stop()
@@ -224,7 +221,6 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		}
 	}
 
-	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
 		Product:     productService,
@@ -236,3 +232,4 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Outbox:      outboxProcessor,
 	}, cleanup, nil
 }
+

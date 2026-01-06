@@ -124,16 +124,10 @@ func (r *riskRepository) ListEnabledRules(ctx context.Context) ([]*domain.RiskRu
 	return list, nil
 }
 
-// --- 速度/频次统计 (Velocity Metrics) ---
-
+// GetVelocityMetrics 从 Redis 批量获取用户的交易频率与额度指标。
+// 核心逻辑：利用 Pipeline 减少 RTT 损耗，并对不存在的指标项进行零值填充。
 func (r *riskRepository) GetVelocityMetrics(ctx context.Context, userID uint64) (*domain.VelocityMetrics, error) {
-	// 使用 Pipeline 批量获取 Redis 中的统计数据
-	// 假设我们在其他地方（如 RecordTransaction）维护了这些 Key：
-	// risk:velocity:{userID}:count:1h
-	// risk:velocity:{userID}:amount:1h
-	// risk:velocity:{userID}:count:24h
-	// risk:velocity:{userID}:fail:1h
-
+	// 定义待查询的各项风控频次指标 Key
 	keys := []string{
 		fmt.Sprintf("risk:velocity:%d:count:1h", userID),
 		fmt.Sprintf("risk:velocity:%d:amount:1h", userID),
@@ -146,9 +140,13 @@ func (r *riskRepository) GetVelocityMetrics(ctx context.Context, userID uint64) 
 	for i, key := range keys {
 		cmds[i] = pipe.Get(ctx, key)
 	}
-	_, _ = pipe.Exec(ctx) // 忽略 pipeline error，单独处理每个 cmd
 
-	// 解析结果，如果 Key 不存在 (redis.Nil) 则默认为 0
+	// 执行 Pipeline，忽略整体 Error，因为我们会逐个检查 StringCmd 的具体结果
+	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
+		// 注意：如果 pipeline 中所有 key 都不存在，Exec 会返回 redis.Nil，这是正常的
+	}
+
+	// 解析结果助手函数，处理 redis.Nil 场景
 	getInt := func(cmd *redis.StringCmd) int {
 		val, err := cmd.Int()
 		if err != nil {

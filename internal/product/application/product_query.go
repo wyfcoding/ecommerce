@@ -1,3 +1,4 @@
+// Package application 提供了商品模块的业务逻辑处理。
 package application
 
 import (
@@ -18,18 +19,20 @@ import (
 	"gorm.io/gorm"
 )
 
+// ProductQuery 处理商品模块的所有只读查询，集成了高性能缓存、并发防击穿及业务降级机制。
 type ProductQuery struct {
-	repo         domain.ProductRepository
-	skuRepo      domain.SKURepository
-	brandRepo    domain.BrandRepository
-	categoryRepo domain.CategoryRepository
-	cache        cache.Cache
-	logger       *slog.Logger
-	cacheHits    *prometheus.CounterVec
-	cacheMisses  *prometheus.CounterVec
-	sf           singleflight.Group // [新增] 并发去重器
+	repo         domain.ProductRepository  // 商品主仓储
+	skuRepo      domain.SKURepository      // SKU 仓储
+	brandRepo    domain.BrandRepository    // 品牌仓储
+	categoryRepo domain.CategoryRepository // 分类仓储
+	cache        cache.Cache               // 缓存组件
+	logger       *slog.Logger              // 结构化日志记录器
+	cacheHits    *prometheus.CounterVec    // 缓存命中指标统计
+	cacheMisses  *prometheus.CounterVec    // 缓存未命中指标统计
+	sf           singleflight.Group        // SingleFlight 实例，用于合并瞬时高并发下的同 Key 回源请求
 }
 
+// NewProductQuery 初始化并返回一个新的商品查询服务。
 func NewProductQuery(
 	repo domain.ProductRepository,
 	skuRepo domain.SKURepository,
@@ -62,23 +65,22 @@ func NewProductQuery(
 	}
 }
 
-// GetProductByID 获取商品详情（集成了 SingleFlight 并发去重、缓存、数据库和终极降级逻辑）
+// GetProductByID 获取商品及其 SKU 详情。
+// 架构设计亮点：
+// 1. 三级降级：优先读缓存 -> SingleFlight 保护下读数据库 -> 数据库异常时执行业务兜底（Fallback）。
+// 2. 指标采集：实时监控各层级的缓存命中率。
 func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.Product, error) {
 	cacheKey := fmt.Sprintf("product:%d", id)
 
-	// 定义主逻辑：缓存 -> SingleFlight(DB)
 	mainFunc := func(c context.Context) (*domain.Product, error) {
 		var product domain.Product
 
-		// 1. 尝试从缓存读取
 		if err := q.cache.Get(c, cacheKey, &product); err == nil {
 			q.cacheHits.WithLabelValues("L1_L2").Inc()
 			return &product, nil
 		}
 		q.cacheMisses.WithLabelValues().Inc()
 
-		// 2. 缓存未命中，使用 SingleFlight 进行并发去重读库
-		// 同一时刻、同一个 ID，只会有一个 goroutine 真正执行读库逻辑
 		val, err, shared := q.sf.Do(cacheKey, func() (interface{}, error) {
 			p, err := q.repo.FindByID(c, uint(id))
 			if err != nil {
@@ -88,7 +90,6 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 				return nil, nil
 			}
 
-			// 3. 读库成功，回填缓存 (由于在 SingleFlight 内部，只需回填一次)
 			if err := q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute); err != nil {
 				q.logger.ErrorContext(context.Background(), "failed to backfill product cache", "product_id", id, "error", err)
 			}
@@ -110,22 +111,20 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 		return val.(*domain.Product), nil
 	}
 
-	// 定义终极降级逻辑：DB 宕机或网络中断时的兜底
 	fallbackFunc := func(c context.Context) (*domain.Product, error) {
-		// 返回一个只包含 ID 和名称的极简对象，状态设为“维护中”
 		return &domain.Product{
 			Model:       gorm.Model{ID: uint(id)},
-			Name:        "商品信息暂时不可用 (服务降级)",
-			Description: "目前访问量过大，部分详情暂无法显示，请稍后再试。",
+			Name:        "商品详情暂时不可用",
+			Description: "系统繁忙，部分信息展示受限，请稍后再试。",
 			Price:       0,
 			Stock:       0,
 		}, nil
 	}
-	// 使用通用 Fallback 包装器执行
+
 	return fallback.ExecuteWithFallback(ctx, "product", "GetProductByID", mainFunc, fallbackFunc)
 }
 
-// ListProducts 列出商品
+// ListProducts 分页列出商品，支持分类与品牌过滤。
 func (q *ProductQuery) ListProducts(ctx context.Context, page, pageSize int, categoryID, brandID uint64) ([]*domain.Product, int64, error) {
 	offset := (page - 1) * pageSize
 	if categoryID > 0 {
@@ -137,7 +136,7 @@ func (q *ProductQuery) ListProducts(ctx context.Context, page, pageSize int, cat
 	return q.repo.List(ctx, offset, pageSize)
 }
 
-// CalculateProductPrice 计算价格
+// CalculateProductPrice 计算商品动态实时价格。
 func (q *ProductQuery) CalculateProductPrice(ctx context.Context, productID uint64, userID uint64) (int64, error) {
 	product, err := q.repo.FindByID(ctx, uint(productID))
 	if err != nil {
@@ -173,7 +172,7 @@ func (q *ProductQuery) CalculateProductPrice(ctx context.Context, productID uint
 	return result.FinalPrice, nil
 }
 
-// GetSKUByID 获取SKU (带 SingleFlight 保护)
+// GetSKUByID 获取 SKU 详情。
 func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, error) {
 	cacheKey := fmt.Sprintf("sku:%d", id)
 
@@ -189,22 +188,22 @@ func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, 
 	return val.(*domain.SKU), nil
 }
 
-// GetBrandByID 获取品牌
+// GetBrandByID 获取品牌详情。
 func (q *ProductQuery) GetBrandByID(ctx context.Context, id uint64) (*domain.Brand, error) {
 	return q.brandRepo.FindByID(ctx, uint(id))
 }
 
-// ListBrands 列出品牌
+// ListBrands 获取所有品牌。
 func (q *ProductQuery) ListBrands(ctx context.Context) ([]*domain.Brand, error) {
 	return q.brandRepo.List(ctx)
 }
 
-// GetCategoryByID 获取分类
+// GetCategoryByID 获取分类详情。
 func (q *ProductQuery) GetCategoryByID(ctx context.Context, id uint64) (*domain.Category, error) {
 	return q.categoryRepo.FindByID(ctx, uint(id))
 }
 
-// ListCategories 列出分类
+// ListCategories 获取子分类。
 func (q *ProductQuery) ListCategories(ctx context.Context, parentID uint64) ([]*domain.Category, error) {
 	if parentID > 0 {
 		return q.categoryRepo.FindByParentID(ctx, uint(parentID))
