@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	analyticsv1 "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
@@ -234,8 +234,14 @@ func (s *Analytics) GetProductPerformanceReport(ctx context.Context, startTime, 
 		stats = append(stats, productStat{Product: p, Sales: sales})
 	}
 
-	sort.Slice(stats, func(i, j int) bool {
-		return stats[i].Sales > stats[j].Sales
+	slices.SortFunc(stats, func(a, b productStat) int {
+		if a.Sales > b.Sales {
+			return -1
+		}
+		if a.Sales < b.Sales {
+			return 1
+		}
+		return 0
 	})
 
 	topN := 10

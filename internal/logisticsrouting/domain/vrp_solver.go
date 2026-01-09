@@ -2,7 +2,7 @@ package domain
 
 import (
 	"math"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -74,8 +74,14 @@ func (s *VRPSolver) Solve(depot *DeliveryPoint, customers []*DeliveryPoint) ([]*
 	}
 
 	// 按节约值降序排序
-	sort.Slice(savings, func(i, j int) bool {
-		return savings[i].value > savings[j].value
+	slices.SortFunc(savings, func(a, b saving) int {
+		if a.value > b.value {
+			return -1
+		}
+		if a.value < b.value {
+			return 1
+		}
+		return 0
 	})
 
 	// 3. 尝试合并路径

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/shopspring/decimal"
 )
@@ -93,8 +93,14 @@ func (s *AvailabilityFirstStrategy) SelectOptimalChannel(ctx context.Context, ro
 	}
 
 	// 按 Priority 降序排序 (Priority 值越大优先级越高)
-	sort.Slice(active, func(i, j int) bool {
-		return active[i].Priority > active[j].Priority
+	slices.SortFunc(active, func(a, b *ChannelConfig) int {
+		if a.Priority > b.Priority {
+			return -1
+		}
+		if a.Priority < b.Priority {
+			return 1
+		}
+		return 0
 	})
 
 	return active[0], nil

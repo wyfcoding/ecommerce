@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/wyfcoding/ecommerce/internal/logisticsrouting/domain"
 	"github.com/wyfcoding/pkg/algorithm"

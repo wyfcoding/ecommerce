@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/shopspring/decimal"
 )
@@ -40,8 +40,14 @@ func (o *CouponOptimizer) FindBestCombination(items []*CartItem, availableCoupon
 
 	// 1. 预处理：按优惠券编号或默认顺序排序
 	// 注意：在已有定义中没有 Priority 字段，我们可以根据优惠类型进行排序，优先处理折扣高的
-	sort.Slice(availableCoupons, func(i, j int) bool {
-		return availableCoupons[i].DiscountAmount > availableCoupons[j].DiscountAmount
+	slices.SortFunc(availableCoupons, func(a, b *Coupon) int {
+		if a.DiscountAmount > b.DiscountAmount {
+			return -1
+		}
+		if a.DiscountAmount < b.DiscountAmount {
+			return 1
+		}
+		return 0
 	})
 
 	var bestCoupons []*Coupon

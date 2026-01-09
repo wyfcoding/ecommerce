@@ -3,7 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
-	"sort"
+	"slices"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/database/sharding"
@@ -143,8 +143,14 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 	}
 
 	// 全局按时间降序排列
-	sort.Slice(allOrders, func(i, j int) bool {
-		return allOrders[i].CreatedAt.After(allOrders[j].CreatedAt)
+	slices.SortFunc(allOrders, func(a, b *domain.Order) int {
+		if a.CreatedAt.After(b.CreatedAt) {
+			return -1
+		}
+		if b.CreatedAt.After(a.CreatedAt) {
+			return 1
+		}
+		return 0
 	})
 
 	start := offset

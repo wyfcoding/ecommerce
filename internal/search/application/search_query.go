@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/wyfcoding/ecommerce/internal/search/domain"
@@ -46,8 +46,14 @@ func (q *SearchQuery) Suggest(ctx context.Context, keyword string, limit int) ([
 		}
 
 		// 按分数降序排序
-		sort.Slice(suggestions, func(i, j int) bool {
-			return suggestions[i].Score > suggestions[j].Score
+		slices.SortFunc(suggestions, func(a, b *domain.Suggestion) int {
+			if a.Score > b.Score {
+				return -1
+			}
+			if a.Score < b.Score {
+				return 1
+			}
+			return 0
 		})
 
 		if len(suggestions) > limit {

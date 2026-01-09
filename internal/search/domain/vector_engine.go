@@ -2,8 +2,8 @@ package domain
 
 import (
 	"context"
-	"math/rand"
-	"sort"
+	"math/rand/v2"
+	"slices"
 	"time"
 )
 
@@ -63,8 +63,14 @@ func (e *SimulatedVectorEngine) Search(ctx context.Context, queryVector []float3
 	}
 
 	// Sort by score desc
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Score > results[j].Score
+	slices.SortFunc(results, func(a, b *VectorSearchResult) int {
+		if a.Score > b.Score {
+			return -1
+		}
+		if a.Score < b.Score {
+			return 1
+		}
+		return 0
 	})
 
 	if len(results) > topK {
@@ -79,7 +85,7 @@ func (e *SimulatedVectorEngine) MockEmbedding(text string) []float32 {
 	// 真实场景会调用 BERT/CLIP 模型
 	dim := 128
 	vec := make([]float32, dim)
-	r := rand.New(rand.NewSource(int64(len(text)) + time.Now().UnixNano()))
+	r := rand.New(rand.NewPCG(uint64(len(text)), uint64(time.Now().UnixNano())))
 
 	var norm float32
 	for i := 0; i < dim; i++ {
