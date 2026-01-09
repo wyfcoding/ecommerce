@@ -105,7 +105,7 @@ func (s *RefundService) RequestRefund(ctx context.Context, userID, paymentID uin
 // --- Saga Distributed Transaction Support ---
 
 // SagaRefund Saga 正向: 执行退款 (原路退回)
-func (s *RefundService) SagaRefund(ctx context.Context, barrier interface{}, userID, orderID uint64, amount int64, reason string) (string, error) {
+func (s *RefundService) SagaRefund(ctx context.Context, barrier any, userID, orderID uint64, amount int64, reason string) (string, error) {
 	var refundNo string
 	err := s.paymentRepo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
 		// 1. 查找支付单
@@ -147,7 +147,7 @@ func (s *RefundService) SagaRefund(ctx context.Context, barrier interface{}, use
 }
 
 // SagaCancelRefund Saga 补偿: 记录退款异常 (退款通常不可物理回滚，只能记录失败供人工介入)
-func (s *RefundService) SagaCancelRefund(ctx context.Context, barrier interface{}, userID, orderID uint64) error {
+func (s *RefundService) SagaCancelRefund(ctx context.Context, barrier any, userID, orderID uint64) error {
 	return s.paymentRepo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
 		s.logger.WarnContext(ctx, "SagaCancelRefund called! Manual intervention may be needed for order", "order_id", orderID)
 		return nil

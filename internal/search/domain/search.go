@@ -50,7 +50,7 @@ type SearchFilter struct {
 // SearchResult 值对象代表一次搜索操作的结果。
 type SearchResult struct {
 	Total int64 `json:"total"` // 搜索到的总记录数。
-	Items []any `json:"items"` // 搜索到的商品或其他实体列表。使用interface{}表示结果类型可以多样化。
+	Items []any `json:"items"` // 搜索到的商品或其他实体列表。使用any表示结果类型可以多样化。
 }
 
 // Suggestion 值对象代表一个搜索建议。

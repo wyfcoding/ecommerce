@@ -181,7 +181,7 @@ func (s *WarehouseService) GetOptimalWarehouse(ctx context.Context, skuID uint64
 // --- Saga Facade ---
 
 // DeductStock 核心交易接口：扣减库存 (支持 Saga 分布式事务的正向操作)。
-func (s *WarehouseService) DeductStock(ctx context.Context, barrier interface{}, warehouseID, skuID uint64, quantity int32) error {
+func (s *WarehouseService) DeductStock(ctx context.Context, barrier any, warehouseID, skuID uint64, quantity int32) error {
 	// 使用仓储层的屏障执行器确保幂等性
 	return s.manager.Repo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
 		stock, err := s.query.GetStock(ctx, warehouseID, skuID)
@@ -201,7 +201,7 @@ func (s *WarehouseService) DeductStock(ctx context.Context, barrier interface{},
 }
 
 // RevertStock 核心交易接口：回滚库存 (支持 Saga 分布式事务的逆向补偿操作)。
-func (s *WarehouseService) RevertStock(ctx context.Context, barrier interface{}, warehouseID, skuID uint64, quantity int32) error {
+func (s *WarehouseService) RevertStock(ctx context.Context, barrier any, warehouseID, skuID uint64, quantity int32) error {
 	// 使用仓储层的屏障执行器确保幂等性
 	return s.manager.Repo.ExecWithBarrier(ctx, barrier, func(ctx context.Context) error {
 		stock, err := s.query.GetStock(ctx, warehouseID, skuID)

@@ -173,7 +173,7 @@ func (r *paymentRepository) WithTx(tx any) domain.PaymentRepository {
 }
 
 // ExecWithBarrier 在分布式事务屏障下执行业务逻辑 (支持分片)
-func (r *paymentRepository) ExecWithBarrier(ctx context.Context, barrier interface{}, fn func(ctx context.Context) error) error {
+func (r *paymentRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
 	db := r.sharding.GetDB(0)
 	return dtm.CallWithGorm(ctx, barrier, db, func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, "tx_db", tx)

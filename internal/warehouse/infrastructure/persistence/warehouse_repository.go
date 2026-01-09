@@ -179,7 +179,7 @@ func (r *warehouseRepository) ListWarehousesWithStock(ctx context.Context, skuID
 	return warehouses, stocks, nil
 }
 
-func (r *warehouseRepository) ExecWithBarrier(ctx context.Context, barrier interface{}, fn func(ctx context.Context) error) error {
+func (r *warehouseRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
 	return dtm.CallWithGorm(ctx, barrier, r.db, func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, "tx_db", tx)
 		return fn(txCtx)

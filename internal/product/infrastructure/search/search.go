@@ -50,8 +50,8 @@ func (s *MemorySearcher) Build(entries []ProductSearchEntry) {
 	s.entries = entries
 	s.sa = algorithm.NewSuffixArray(rawText)
 
-	slog.Info("memory search index built successfully", 
-		"entries_count", len(entries), 
+	slog.Info("memory search index built successfully",
+		"entries_count", len(entries),
 		"text_size", len(rawText),
 		"duration", time.Since(start),
 	)
@@ -129,8 +129,8 @@ func (s *VectorSearcher) Build(products []ProductVector) {
 	}
 	s.tree = algorithm.NewKDTree(points)
 
-	slog.Info("vector search index built successfully", 
-		"points_count", len(products), 
+	slog.Info("vector search index built successfully",
+		"points_count", len(products),
 		"duration", time.Since(start),
 	)
 }

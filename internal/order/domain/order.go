@@ -163,7 +163,7 @@ func (o *Order) AfterFind(tx *gorm.DB) error {
 }
 
 // Trigger 触发状态变更
-func (o *Order) Trigger(ctx context.Context, event string, operator string, remark string, args ...interface{}) error {
+func (o *Order) Trigger(ctx context.Context, event string, operator string, remark string, args ...any) error {
 	if o.fsm == nil {
 		o.initFSM()
 	}

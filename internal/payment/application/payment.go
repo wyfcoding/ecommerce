@@ -51,11 +51,11 @@ func (s *PaymentService) RequestRefund(ctx context.Context, userID, id uint64, a
 
 // --- Saga Facade ---
 
-func (s *PaymentService) SagaRefund(ctx context.Context, barrier interface{}, userID, orderID uint64, amount int64, reason string) (string, error) {
+func (s *PaymentService) SagaRefund(ctx context.Context, barrier any, userID, orderID uint64, amount int64, reason string) (string, error) {
 	return s.RefundService.SagaRefund(ctx, barrier, userID, orderID, amount, reason)
 }
 
-func (s *PaymentService) SagaCancelRefund(ctx context.Context, barrier interface{}, userID, orderID uint64) error {
+func (s *PaymentService) SagaCancelRefund(ctx context.Context, barrier any, userID, orderID uint64) error {
 	return s.RefundService.SagaCancelRefund(ctx, barrier, userID, orderID)
 }
 

@@ -35,22 +35,22 @@ type Product struct {
 // SKU 实体代表商品的最小库存单元。
 type SKU struct {
 	gorm.Model
-	ProductID  uint              `gorm:"column:product_id;index;not null;comment:关联商品ID" json:"product_id"`
-	Name       string            `gorm:"column:name;type:varchar(255);not null;comment:规格名称" json:"name"`
-	Price      int64             `gorm:"column:price;type:bigint;not null;comment:规格售价(单位:分)" json:"price"`
-	Stock      int32             `gorm:"column:stock;type:int;default:0;comment:规格库存" json:"stock"`
-	Sales      int32             `gorm:"column:sales;type:int;default:0;comment:规格销量" json:"sales"`
-	Image      string            `gorm:"column:image;type:varchar(1024);comment:规格图片URL" json:"image"`
-	Specs      map[string]string `gorm:"type:json;serializer:json;comment:规格参数JSON" json:"specs"`
+	ProductID uint              `gorm:"column:product_id;index;not null;comment:关联商品ID" json:"product_id"`
+	Name      string            `gorm:"column:name;type:varchar(255);not null;comment:规格名称" json:"name"`
+	Price     int64             `gorm:"column:price;type:bigint;not null;comment:规格售价(单位:分)" json:"price"`
+	Stock     int32             `gorm:"column:stock;type:int;default:0;comment:规格库存" json:"stock"`
+	Sales     int32             `gorm:"column:sales;type:int;default:0;comment:规格销量" json:"sales"`
+	Image     string            `gorm:"column:image;type:varchar(1024);comment:规格图片URL" json:"image"`
+	Specs     map[string]string `gorm:"type:json;serializer:json;comment:规格参数JSON" json:"specs"`
 }
 
 // Category 实体代表商品分类。
 type Category struct {
 	gorm.Model
-	Name       string `gorm:"column:name;type:varchar(255);not null;comment:分类名称" json:"name"`
-	ParentID   uint   `gorm:"column:parent_id;index;default:0;comment:父分类ID(0为根节点)" json:"parent_id"`
-	Sort       int    `gorm:"column:sort;type:int;default:0;comment:排序权重" json:"sort"`
-	Status     int    `gorm:"column:status;type:tinyint;default:1;comment:分类状态(1:启用, 2:禁用)" json:"status"`
+	Name     string `gorm:"column:name;type:varchar(255);not null;comment:分类名称" json:"name"`
+	ParentID uint   `gorm:"column:parent_id;index;default:0;comment:父分类ID(0为根节点)" json:"parent_id"`
+	Sort     int    `gorm:"column:sort;type:int;default:0;comment:排序权重" json:"sort"`
+	Status   int    `gorm:"column:status;type:tinyint;default:1;comment:分类状态(1:启用, 2:禁用)" json:"status"`
 }
 
 // Brand 实体代表商品品牌。

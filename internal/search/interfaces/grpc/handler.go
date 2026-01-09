@@ -59,7 +59,7 @@ func (s *Server) SearchProducts(ctx context.Context, req *pb.SearchProductsReque
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to search products: %v", err))
 	}
 
-	// 将搜索结果中的通用项（interface{}）转换为protobuf的Product消息。
+	// 将搜索结果中的通用项（any）转换为protobuf的Product消息。
 	pbProducts := make([]*pb.Product, 0, len(result.Items))
 	for _, item := range result.Items {
 		bytes, err := json.Marshal(item)

@@ -41,13 +41,13 @@ func (c *RouteController) Start(ctx context.Context) error {
 	informer := factory.ForResource(c.resource).Informer()
 
 	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.reconcile(obj.(*unstructured.Unstructured))
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			c.reconcile(newObj.(*unstructured.Unstructured))
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.remove(obj.(*unstructured.Unstructured))
 		},
 	}); err != nil {
@@ -66,7 +66,7 @@ func (c *RouteController) Start(ctx context.Context) error {
 
 // reconcile 核心调和逻辑：将 K8s 的 YAML 状态映射为业务路由
 func (c *RouteController) reconcile(u *unstructured.Unstructured) {
-	spec := u.Object["spec"].(map[string]interface{})
+	spec := u.Object["spec"].(map[string]any)
 
 	path := spec["path"].(string)
 	method := spec["method"].(string)

@@ -35,8 +35,8 @@ func (a *HierarchyAnalyzer) Build(categories []CategoryInfo) {
 	// 执行预处理，构建 O(N log N) 的查询结构
 	a.lca = algorithm.NewTreeLCA(maxID+1, nodes)
 
-	slog.Info("category hierarchy analyzer index built successfully", 
-		"nodes_count", len(categories), 
+	slog.Info("category hierarchy analyzer index built successfully",
+		"nodes_count", len(categories),
 		"max_depth", maxID,
 		"duration", time.Since(start),
 	)

@@ -81,7 +81,7 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 		}
 		q.cacheMisses.WithLabelValues().Inc()
 
-		val, err, shared := q.sf.Do(cacheKey, func() (interface{}, error) {
+		val, err, shared := q.sf.Do(cacheKey, func() (any, error) {
 			p, err := q.repo.FindByID(c, uint(id))
 			if err != nil {
 				return nil, err
@@ -176,7 +176,7 @@ func (q *ProductQuery) CalculateProductPrice(ctx context.Context, productID uint
 func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, error) {
 	cacheKey := fmt.Sprintf("sku:%d", id)
 
-	val, err, _ := q.sf.Do(cacheKey, func() (interface{}, error) {
+	val, err, _ := q.sf.Do(cacheKey, func() (any, error) {
 		return q.skuRepo.FindByID(ctx, uint(id))
 	})
 	if err != nil {

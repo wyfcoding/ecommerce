@@ -45,7 +45,7 @@ const (
 )
 
 // JSONMap 定义了一个map类型，实现了 sql.Scanner 和 driver.Valuer 接口，
-// 允许GORM将Go的map[string]interface{}类型作为JSON字符串存储到数据库，并从数据库读取。
+// 允许GORM将Go的map[string]any类型作为JSON字符串存储到数据库，并从数据库读取。
 type JSONMap map[string]any
 
 // Value 实现 driver.Valuer 接口，将 JSONMap 转换为数据库可以存储的值（JSON字节数组）。

@@ -43,5 +43,5 @@ type WarehouseRepository interface {
 	ListTransfers(ctx context.Context, fromWarehouseID, toWarehouseID uint64, status *StockTransferStatus, offset, limit int) ([]*StockTransfer, int64, error)
 
 	// --- 分布式事务支持 ---
-	ExecWithBarrier(ctx context.Context, barrier interface{}, fn func(ctx context.Context) error) error
+	ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error
 }

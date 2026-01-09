@@ -232,4 +232,3 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 		Outbox:      outboxProcessor,
 	}, cleanup, nil
 }
-
