@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
+	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/dtm"
 
 	"gorm.io/gorm"
@@ -21,7 +22,7 @@ func NewWarehouseRepository(db *gorm.DB) domain.WarehouseRepository {
 
 // getDB 尝试从 Context 获取事务 DB，否则返回默认 DB
 func (r *warehouseRepository) getDB(ctx context.Context) *gorm.DB {
-	if tx, ok := ctx.Value("tx_db").(*gorm.DB); ok {
+	if tx, ok := contextx.GetTx(ctx).(*gorm.DB); ok {
 		return tx.WithContext(ctx)
 	}
 	return r.db.WithContext(ctx)
@@ -181,7 +182,7 @@ func (r *warehouseRepository) ListWarehousesWithStock(ctx context.Context, skuID
 
 func (r *warehouseRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
 	return dtm.CallWithGorm(ctx, barrier, r.db, func(tx *gorm.DB) error {
-		txCtx := context.WithValue(ctx, "tx_db", tx)
+		txCtx := contextx.WithTx(ctx, tx)
 		return fn(txCtx)
 	})
 }

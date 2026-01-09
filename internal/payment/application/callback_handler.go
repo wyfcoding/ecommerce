@@ -51,7 +51,11 @@ func (s *CallbackHandler) HandlePaymentCallback(ctx context.Context, userID uint
 		s.logger.WarnContext(ctx, "failed to acquire callback lock, might be processing", "key", lockKey)
 		return err
 	}
-	defer s.lockSvc.Unlock(ctx, lockKey, token)
+	defer func() {
+		if uErr := s.lockSvc.Unlock(ctx, lockKey, token); uErr != nil {
+			s.logger.WarnContext(ctx, "failed to release callback lock", "key", lockKey, "error", uErr)
+		}
+	}()
 
 	// 2. 事务性业务处理
 	err = s.paymentRepo.Transaction(ctx, userID, func(tx any) error {

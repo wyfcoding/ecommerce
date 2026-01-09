@@ -175,7 +175,6 @@ func (r *AddressRepository) SetDefault(ctx context.Context, userID, addressID ui
 		}
 		return nil
 	})
-
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to set default address in db", "user_id", userID, "address_id", addressID, "error", err)
 		return err

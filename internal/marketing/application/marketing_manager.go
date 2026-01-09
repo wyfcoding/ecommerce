@@ -88,7 +88,7 @@ func (m *MarketingManager) RecordParticipation(ctx context.Context, campaignID, 
 
 	// 性能优化：使用布隆过滤器在 O(1) 时间内初步阻断重复参与请求
 	// Key: campaignID:userID
-	filterKey := []byte(fmt.Sprintf("%d:%d", campaignID, userID))
+	filterKey := fmt.Appendf(nil, "%d:%d", campaignID, userID)
 	if m.userFilter.Contains(filterKey) {
 		m.logger.DebugContext(ctx, "user might have already participated (bloom filter hit)", "user_id", userID, "campaign_id", campaignID)
 	} else {

@@ -73,7 +73,6 @@ func (m *ProductManager) CreateProduct(ctx context.Context, req *CreateProductRe
 		gormTx := tx.(*gorm.DB)
 		return m.outbox.PublishInTx(ctx, gormTx, "product.index.sync", fmt.Sprintf("%d", product.ID), event)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +123,6 @@ func (m *ProductManager) UpdateProduct(ctx context.Context, id uint64, req *Upda
 		gormTx := tx.(*gorm.DB)
 		return m.outbox.PublishInTx(ctx, gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +151,6 @@ func (m *ProductManager) DeleteProduct(ctx context.Context, id uint64) error {
 		gormTx := tx.(*gorm.DB)
 		return m.outbox.PublishInTx(ctx, gormTx, "product.index.sync", fmt.Sprintf("%d", id), event)
 	})
-
 	if err != nil {
 		return err
 	}

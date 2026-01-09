@@ -244,10 +244,7 @@ func (s *Analytics) GetProductPerformanceReport(ctx context.Context, startTime, 
 		return 0
 	})
 
-	topN := 10
-	if len(stats) < topN {
-		topN = len(stats)
-	}
+	topN := min(len(stats), 10)
 
 	return map[string]any{
 		"total_sales":  len(metrics),

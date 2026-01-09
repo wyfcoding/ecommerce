@@ -70,10 +70,7 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 	// 2. 构建二分图并求解 (KM算法)
 	nx := len(riders)
 	ny := len(orders)
-	size := nx
-	if ny > size {
-		size = ny
-	}
+	size := max(ny, nx)
 
 	bg := algorithm.NewWeightedBipartiteGraph(size, size)
 

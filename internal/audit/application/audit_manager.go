@@ -46,7 +46,7 @@ func (m *AuditManager) SealLogs(ctx context.Context, limit int) (string, error) 
 	data := make([][]byte, len(logs))
 	for i, l := range logs {
 		// 将关键字段拼接作为节点数据
-		data[i] = []byte(fmt.Sprintf("%s|%d|%s|%s", l.AuditNo, l.UserID, l.Action, l.CreatedAt.Format(time.RFC3339)))
+		data[i] = fmt.Appendf(nil, "%s|%d|%s|%s", l.AuditNo, l.UserID, l.Action, l.CreatedAt.Format(time.RFC3339))
 	}
 
 	// 3. 构建 Merkle Tree 并获取根哈希

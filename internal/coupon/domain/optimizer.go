@@ -176,10 +176,5 @@ func calculateTotalPrice(items []*CartItem) decimal.Decimal {
 }
 
 func contains(slice []uint64, val uint64) bool {
-	for _, s := range slice {
-		if s == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, val)
 }

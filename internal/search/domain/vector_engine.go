@@ -88,7 +88,7 @@ func (e *SimulatedVectorEngine) MockEmbedding(text string) []float32 {
 	r := rand.New(rand.NewPCG(uint64(len(text)), uint64(time.Now().UnixNano())))
 
 	var norm float32
-	for i := 0; i < dim; i++ {
+	for i := range dim {
 		v := r.Float32()
 		vec[i] = v
 		norm += v * v

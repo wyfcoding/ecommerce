@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -141,9 +142,9 @@ func (r *riskRepository) GetVelocityMetrics(ctx context.Context, userID uint64) 
 		cmds[i] = pipe.Get(ctx, key)
 	}
 
-	// 执行 Pipeline，忽略整体 Error，因为我们会逐个检查 StringCmd 的具体结果
+	// 执行 Pipeline，忽略 redis.Nil，记录其他关键错误
 	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
-		// 注意：如果 pipeline 中所有 key 都不存在，Exec 会返回 redis.Nil，这是正常的
+		slog.ErrorContext(ctx, "risk_repository.get_velocity_metrics pipeline error", "error", err, "user_id", userID)
 	}
 
 	// 解析结果助手函数，处理 redis.Nil 场景

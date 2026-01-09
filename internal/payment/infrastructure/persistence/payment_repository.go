@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
+	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/database/sharding"
 	"github.com/wyfcoding/pkg/dtm"
 
@@ -176,7 +177,7 @@ func (r *paymentRepository) WithTx(tx any) domain.PaymentRepository {
 func (r *paymentRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
 	db := r.sharding.GetDB(0)
 	return dtm.CallWithGorm(ctx, barrier, db, func(tx *gorm.DB) error {
-		txCtx := context.WithValue(ctx, "tx_db", tx)
+		txCtx := contextx.WithTx(ctx, tx)
 		return fn(txCtx)
 	})
 }

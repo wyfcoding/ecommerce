@@ -157,10 +157,7 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 	if start > len(allOrders) {
 		return []*domain.Order{}, totalCount, nil
 	}
-	end := offset + limit
-	if end > len(allOrders) {
-		end = len(allOrders)
-	}
+	end := min(offset+limit, len(allOrders))
 
 	return allOrders[start:end], totalCount, nil
 }

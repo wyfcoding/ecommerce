@@ -56,10 +56,7 @@ func (o *FulfillmentOptimizer) Optimize(ctx context.Context, orderItems map[uint
 				break
 			}
 
-			shipQty := cand.ws.Available
-			if shipQty > remaining {
-				shipQty = remaining
-			}
+			shipQty := min(cand.ws.Available, remaining)
 
 			plans = append(plans, FulfillmentPlan{
 				SKUID:       skuID,

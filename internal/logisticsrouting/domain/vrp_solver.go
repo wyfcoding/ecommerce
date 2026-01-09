@@ -61,7 +61,7 @@ func (s *VRPSolver) Solve(depot *DeliveryPoint, customers []*DeliveryPoint) ([]*
 		value float64
 	}
 	savings := make([]saving, 0)
-	for i := 0; i < len(customers); i++ {
+	for i := range customers {
 		for j := i + 1; j < len(customers); j++ {
 			dDi := s.haversine(depot.Lat, depot.Lon, customers[i].Lat, customers[i].Lon)
 			dDj := s.haversine(depot.Lat, depot.Lon, customers[j].Lat, customers[j].Lon)

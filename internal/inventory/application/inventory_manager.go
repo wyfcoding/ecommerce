@@ -43,7 +43,7 @@ func (m *InventoryManager) SetRemoteOrderClient(cli orderv1.OrderServiceClient) 
 func (m *InventoryManager) IsSoldOutQuickCheck(skuID uint64) bool {
 	m.filterMu.RLock()
 	defer m.filterMu.RUnlock()
-	return m.soldOutFilter.Contains([]byte(fmt.Sprintf("%d", skuID)))
+	return m.soldOutFilter.Contains(fmt.Appendf(nil, "%d", skuID))
 }
 
 // CreateInventory 创建一个新的库存记录。
@@ -78,7 +78,7 @@ func (m *InventoryManager) DeleteInventory(ctx context.Context, skuID uint64) er
 // executeWithRetry 执行带乐观锁重试的库存更新逻辑
 func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, fn func(*domain.Inventory) (*domain.InventoryLog, error)) error {
 	maxRetries := 3
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		inventory, err := m.repo.GetBySkuID(ctx, skuID)
 		if err != nil {
 			return err
@@ -127,7 +127,7 @@ func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity 
 		// 如果库存不再为0，从售罄过滤器中移除
 		if inv.AvailableStock > 0 {
 			m.filterMu.Lock()
-			m.soldOutFilter.Delete([]byte(fmt.Sprintf("%d", skuID)))
+			m.soldOutFilter.Delete(fmt.Appendf(nil, "%d", skuID))
 			m.filterMu.Unlock()
 		}
 		return log, nil
@@ -145,7 +145,7 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 		// 如果库存归零，加入售罄过滤器
 		if inv.AvailableStock <= 0 {
 			m.filterMu.Lock()
-			m.soldOutFilter.Add([]byte(fmt.Sprintf("%d", skuID)))
+			m.soldOutFilter.Add(fmt.Appendf(nil, "%d", skuID))
 			m.filterMu.Unlock()
 		}
 

@@ -307,10 +307,7 @@ func (s *Server) DeleteDashboard(ctx context.Context, req *pb.DeleteDashboardReq
 
 // ListDashboards 列出仪表板。
 func (s *Server) ListDashboards(ctx context.Context, req *pb.ListDashboardsRequest) (*pb.ListDashboardsResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
@@ -405,10 +402,7 @@ func (s *Server) DeleteReport(ctx context.Context, req *pb.DeleteReportRequest) 
 
 // ListReports 列出报告。
 func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*pb.ListReportsResponse, error) {
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10

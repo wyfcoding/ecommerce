@@ -35,7 +35,7 @@ func (q *AnalyticsQuery) GetRealtimeVisitors(ctx context.Context) (int64, []stri
 	// 完整版实现：统计过去 5 分钟的去重活跃用户 (UV)
 	now := time.Now()
 	keys := make([]string, 0, 5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		// 生成每一分钟的 Key: analytics:uv:YYYYMMDDHHMM
 		t := now.Add(-time.Duration(i) * time.Minute)
 		keys = append(keys, fmt.Sprintf("analytics:uv:%s", t.Format("200601021504")))
