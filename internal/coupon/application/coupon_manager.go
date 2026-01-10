@@ -201,15 +201,15 @@ func (m *CouponManager) SuggestBestCoupons(ctx context.Context, userID uint64, o
 		})
 	}
 
-	var bestIds []uint64
+	var bestIDs []uint64
 	var finalPrice, discount int64
 
 	if len(algoCoupons) < 20 {
-		bestIds, finalPrice, discount = m.optimizer.OptimalCombination(orderAmount, algoCoupons)
+		bestIDs, finalPrice, discount = m.optimizer.OptimalCombination(orderAmount, algoCoupons)
 	} else {
-		bestIds, finalPrice, discount = m.optimizer.GreedyOptimization(orderAmount, algoCoupons)
+		bestIDs, finalPrice, discount = m.optimizer.GreedyOptimization(orderAmount, algoCoupons)
 	}
 
-	m.logger.InfoContext(ctx, "coupon optimization finished", "user_id", userID, "suggested_count", len(bestIds), "total_discount", discount)
-	return bestIds, finalPrice, discount, nil
+	m.logger.InfoContext(ctx, "coupon optimization finished", "user_id", userID, "suggested_count", len(bestIDs), "total_discount", discount)
+	return bestIDs, finalPrice, discount, nil
 }

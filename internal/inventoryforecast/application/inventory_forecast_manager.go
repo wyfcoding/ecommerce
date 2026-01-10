@@ -58,7 +58,11 @@ func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID u
 
 	// 2. 初始化卡尔曼滤波器和 EWMA (用于计算增长趋势)
 	kf := algorithm.NewKalmanFilter(0.01, 0.1, history[0])
-	ewmaTrend := algorithm.NewEWMA(0.2)
+	ewmaTrend, err := algorithm.NewEWMA(0.2)
+	if err != nil {
+		m.logger.WarnContext(ctx, "failed to initialize EWMA", "error", err)
+		return nil, err
+	}
 
 	var currentLevel float64
 	var lastLevel float64

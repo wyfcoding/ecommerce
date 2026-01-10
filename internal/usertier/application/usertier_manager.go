@@ -57,7 +57,7 @@ func (m *UserTierManager) AddScore(ctx context.Context, userID uint64, score int
 		return err
 	}
 
-	var targetLevel domain.TierLevel = 0
+	var targetLevel domain.TierLevel
 	targetName := "普通会员"
 	targetDiscount := 100.0
 

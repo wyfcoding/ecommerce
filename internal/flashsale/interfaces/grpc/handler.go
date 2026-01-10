@@ -67,7 +67,7 @@ func (s *Server) GetFlashSaleEvent(ctx context.Context, req *pb.GetFlashSaleEven
 }
 
 // ListActiveFlashSaleEvents 处理列出正在进行的秒杀活动的gRPC请求。
-func (s *Server) ListActiveFlashSaleEvents(ctx context.Context, req *pb.ListActiveFlashSaleEventsRequest) (*pb.ListActiveFlashSaleEventsResponse, error) {
+func (s *Server) ListActiveFlashSaleEvents(ctx context.Context, _ *pb.ListActiveFlashSaleEventsRequest) (*pb.ListActiveFlashSaleEventsResponse, error) {
 	statusOngoing := domain.FlashsaleStatusOngoing
 	list, total, err := s.app.ListFlashsales(ctx, &statusOngoing, 1, 100)
 	if err != nil {

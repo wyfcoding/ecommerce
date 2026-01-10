@@ -8,20 +8,20 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 
-// RiskServiceImpl 风控服务实现 (gRPC Adapter)
-type RiskServiceImpl struct {
+// ServiceImpl 风控服务实现 (gRPC Adapter)
+type ServiceImpl struct {
 	client riskv1.RiskSecurityServiceClient
 }
 
 // NewRiskService 创建风控服务实例。
-func NewRiskService(client riskv1.RiskSecurityServiceClient) *RiskServiceImpl {
-	return &RiskServiceImpl{
+func NewRiskService(client riskv1.RiskSecurityServiceClient) *ServiceImpl {
+	return &ServiceImpl{
 		client: client,
 	}
 }
 
 // CheckPrePayment 支付前回风控检查
-func (s *RiskServiceImpl) CheckPrePayment(ctx context.Context, riskCtx *domain.RiskContext) (*domain.RiskResult, error) {
+func (s *ServiceImpl) CheckPrePayment(ctx context.Context, riskCtx *domain.RiskContext) (*domain.RiskResult, error) {
 	// 调用远程风控服务
 	resp, err := s.client.EvaluateRisk(ctx, &riskv1.EvaluateRiskRequest{
 		UserId:        riskCtx.UserID,
@@ -62,7 +62,7 @@ func (s *RiskServiceImpl) CheckPrePayment(ctx context.Context, riskCtx *domain.R
 }
 
 // RecordTransaction 记录交易数据
-func (s *RiskServiceImpl) RecordTransaction(ctx context.Context, riskCtx *domain.RiskContext) error {
+func (s *ServiceImpl) RecordTransaction(ctx context.Context, riskCtx *domain.RiskContext) error {
 	// 调用远程风控服务记录行为
 	_, err := s.client.RecordUserBehavior(ctx, &riskv1.RecordUserBehaviorRequest{
 		UserId:   riskCtx.UserID,

@@ -80,13 +80,13 @@ func (s *Server) UseCoupon(ctx context.Context, req *pb.UseCouponRequest) (*pb.U
 }
 
 func (s *Server) CalculateBestDiscount(ctx context.Context, req *pb.CalculateBestDiscountRequest) (*pb.CalculateBestDiscountResponse, error) {
-	bestIds, finalPrice, discount, err := s.service.CalculateBestDiscount(ctx, req.OrderAmount, req.CouponIds)
+	bestIDs, finalPrice, discount, err := s.service.CalculateBestDiscount(ctx, req.OrderAmount, req.CouponIds)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &pb.CalculateBestDiscountResponse{
-		BestCouponIds:  bestIds,
+		BestCouponIds:  bestIDs,
 		FinalPrice:     finalPrice,
 		DiscountAmount: discount,
 	}, nil

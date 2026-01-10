@@ -163,7 +163,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewSchedulerQuery(schedulerRepo)
-	manager := application.NewSchedulerManager(schedulerRepo, logger.Logger)
+	manager, err := application.NewSchedulerManager(schedulerRepo, logger.Logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create scheduler manager: %w", err)
+	}
 	schedulerService := application.NewSchedulerService(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)

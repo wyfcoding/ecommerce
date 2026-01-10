@@ -31,7 +31,7 @@ type FulfillmentOptimizer struct{}
 
 // Optimize 寻找最优发货仓库组合。
 // 流程：按 SKU 遍历 -> 候选仓库筛选与距离排序 -> 贪心分配库存 -> 生成计划。
-func (o *FulfillmentOptimizer) Optimize(ctx context.Context, orderItems map[uint64]int32, userLat, userLon float64, stocks []*WarehouseStock) ([]FulfillmentPlan, error) {
+func (o *FulfillmentOptimizer) Optimize(_ context.Context, orderItems map[uint64]int32, userLat, userLon float64, stocks []*WarehouseStock) ([]FulfillmentPlan, error) {
 	plans := make([]FulfillmentPlan, 0)
 
 	for skuID, neededQty := range orderItems {

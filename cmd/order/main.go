@@ -149,7 +149,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	for i, dbNode := range allDBs {
 		bootLog.Info("syncing outbox schema and starting processor for shard", "shard_index", i)
-		if err := dbNode.AutoMigrate(&outbox.OutboxMessage{}); err != nil {
+		if err := dbNode.AutoMigrate(&outbox.Message{}); err != nil {
 			return nil, nil, fmt.Errorf("failed to migrate outbox table on shard %d: %w", i, err)
 		}
 		shardMgr := outbox.NewManager(dbNode, logger.Logger)
@@ -163,7 +163,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 4. 初始化治理组件 (限流器、幂等管理器、ID 生成器、风控引擎)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, time.Second)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	riskEvaluator := risk.NewDynamicRiskEngine(logger.Logger)
+	riskEvaluator, err := risk.NewDynamicRiskEngine(logger.Logger)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize risk evaluator: %v", err))
+	}
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
 		return nil, nil, fmt.Errorf("idgen init error: %w", err)

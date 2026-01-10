@@ -177,7 +177,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	// 5.1 Infrastructure (Persistence)
 	inventoryRepo := persistence.NewInventoryRepository(shardingMgr)
 	warehouseRepo := persistence.NewWarehouseRepository(shardingMgr.GetDB(0))
-	manager := application.NewInventoryManager(inventoryRepo, warehouseRepo, logger.Logger)
+	manager, err := application.NewInventoryManager(inventoryRepo, warehouseRepo, logger.Logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create inventory manager: %w", err)
+	}
 	if clients.Order != nil {
 		manager.SetRemoteOrderClient(clients.Order)
 	}

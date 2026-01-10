@@ -33,7 +33,7 @@ func (m *SettlementManager) SetRemoteAccountClient(cli accountv1.AccountServiceC
 }
 
 // RecordPaymentSuccess 记录支付成功事件 (核心清分与记账逻辑)。
-func (m *SettlementManager) RecordPaymentSuccess(ctx context.Context, orderID uint64, orderNo string, merchantID uint64, amount int64, channelCost int64) error {
+func (m *SettlementManager) RecordPaymentSuccess(ctx context.Context, orderID uint64, orderNo string, merchantID uint64, amount int64, _ int64) error {
 	m.logger.InfoContext(ctx, "processing payment success for settlement", "order_no", orderNo, "amount", amount)
 
 	// 1. 获取商户费率配置

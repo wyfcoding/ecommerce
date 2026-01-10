@@ -127,7 +127,13 @@ func (s *VectorSearcher) Build(products []ProductVector) {
 	for i, p := range products {
 		points[i] = algorithm.KDPoint{ID: p.ID, Vector: p.Embedding}
 	}
-	s.tree = algorithm.NewKDTree(points)
+	tree, err := algorithm.NewKDTree(points)
+	if err != nil {
+		slog.Error("failed to build vector search index", "error", err)
+		s.tree = nil
+		return
+	}
+	s.tree = tree
 
 	slog.Info("vector search index built successfully",
 		"points_count", len(products),

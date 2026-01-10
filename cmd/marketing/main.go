@@ -168,7 +168,10 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if clients.CouponConn != nil {
 		couponCli = couponv1.NewCouponServiceClient(clients.CouponConn)
 	}
-	manager := application.NewMarketingManager(marketingRepo, couponCli, logger.Logger)
+	manager, err := application.NewMarketingManager(marketingRepo, couponCli, logger.Logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create marketing manager: %w", err)
+	}
 	marketingService := application.NewMarketing(manager, query)
 
 	// 5.3 Interface (HTTP Handlers)

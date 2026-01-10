@@ -43,7 +43,7 @@ func (s *Server) RegisterChannel(ctx context.Context, req *pb.RegisterChannelReq
 	}, nil
 }
 
-func (s *Server) ListChannels(ctx context.Context, req *pb.ListChannelsRequest) (*pb.ListChannelsResponse, error) {
+func (s *Server) ListChannels(ctx context.Context, _ *pb.ListChannelsRequest) (*pb.ListChannelsResponse, error) {
 	channels, err := s.app.ListChannels(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list channels: %v", err))

@@ -62,7 +62,7 @@ func (s *Server) ProcessData(ctx context.Context, req *pb.ProcessDataRequest) (*
 // GetProcessingStatus 处理获取数据处理任务状态的gRPC请求。
 // req: 包含处理ID的请求体。
 // 返回任务状态响应和可能发生的gRPC错误。
-func (s *Server) GetProcessingStatus(ctx context.Context, req *pb.GetProcessingStatusRequest) (*pb.ProcessingStatusResponse, error) {
+func (s *Server) GetProcessingStatus(_ context.Context, req *pb.GetProcessingStatusRequest) (*pb.ProcessingStatusResponse, error) {
 	// 注意：应用服务层当前未直接暴露根据ID获取单个任务的方法（GetTask）。
 	// ListTasks方法需要workflowID作为过滤条件，不适合直接通过ProcessingId查询。
 	// 理想情况下，应用服务层应该提供一个公共的GetTask方法。

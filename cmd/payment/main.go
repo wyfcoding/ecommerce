@@ -187,7 +187,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	bootLog.Info("initializing kafka producer and outbox...")
 	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
 	masterDB := shardingManager.GetDB(0)
-	if err := masterDB.AutoMigrate(&outbox.OutboxMessage{}); err != nil {
+	if err := masterDB.AutoMigrate(&outbox.Message{}); err != nil {
 		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
 	}
 	outboxMgr := outbox.NewManager(masterDB, logger.Logger)

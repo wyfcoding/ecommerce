@@ -312,12 +312,12 @@ func (s *Analytics) GetConversionFunnelReport(ctx context.Context, startTime, en
 }
 
 // GetCustomReport 获取自定义报告数据。
-func (s *Analytics) GetCustomReport(ctx context.Context, reportID uint64, startTime, endTime time.Time) (map[string]any, error) {
+func (s *Analytics) GetCustomReport(_ context.Context, reportID uint64, startTime, endTime time.Time) (map[string]any, error) {
 	return map[string]any{"custom_data": "data"}, nil
 }
 
 // GetUserBehaviorPath 获取用户的行为路径追踪数据。
-func (s *Analytics) GetUserBehaviorPath(ctx context.Context, userID uint64, startTime, endTime time.Time) (map[string]any, error) {
+func (s *Analytics) GetUserBehaviorPath(_ context.Context, userID uint64, startTime, endTime time.Time) (map[string]any, error) {
 	return map[string]any{"path": []string{}}, nil
 }
 

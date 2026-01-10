@@ -83,7 +83,7 @@ func (m *AnalyticsManager) TrackRealtimeOrder(ctx context.Context, amount int64,
 
 // GetHourlyStats 获取指定小时的聚合统计数据。
 // 利用树状数组的区间查询 O(log N) 特性，快速获取结果。
-func (m *AnalyticsManager) GetHourlyStats(ctx context.Context, hour int) (int64, int64) {
+func (m *AnalyticsManager) GetHourlyStats(_ context.Context, hour int) (int64, int64) {
 	if hour < 0 || hour > 23 {
 		return 0, 0
 	}

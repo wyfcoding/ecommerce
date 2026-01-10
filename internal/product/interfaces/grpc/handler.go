@@ -388,7 +388,7 @@ func (s *Server) DeleteBrand(ctx context.Context, req *pb.DeleteBrandRequest) (*
 	return &emptypb.Empty{}, nil
 }
 
-func (s *Server) ListBrands(ctx context.Context, req *pb.ListBrandsRequest) (*pb.ListBrandsResponse, error) {
+func (s *Server) ListBrands(ctx context.Context, _ *pb.ListBrandsRequest) (*pb.ListBrandsResponse, error) {
 	brands, err := s.app.Query.ListBrands(ctx)
 	if err != nil {
 		slog.Error("gRPC ListBrands failed", "error", err)

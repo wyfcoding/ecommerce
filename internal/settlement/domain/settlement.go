@@ -169,7 +169,7 @@ func NewLedgerService(repo LedgerRepository) *LedgerService {
 	return &LedgerService{repo: repo}
 }
 
-func (s *LedgerService) PostEntry(ctx context.Context, entry *JournalEntry) error {
+func (s *LedgerService) PostEntry(_ context.Context, entry *JournalEntry) error {
 	if err := entry.Validate(); err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (s *LedgerService) PostEntry(ctx context.Context, entry *JournalEntry) erro
 	return s.repo.CreateJournalEntry(entry)
 }
 
-func (s *LedgerService) CreateAccount(ctx context.Context, subjectCode, entityID string) (*Account, error) {
+func (s *LedgerService) CreateAccount(_ context.Context, subjectCode, entityID string) (*Account, error) {
 	acc, err := s.repo.GetAccount(subjectCode, entityID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing account: %w", err)

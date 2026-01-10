@@ -189,9 +189,9 @@ func convertCampaignToProto(c *domain.Campaign) *pb.Campaign {
 	if c == nil {
 		return nil
 	}
-	rulesJson, err := json.Marshal(c.Rules)
+	rulesJSON, err := json.Marshal(c.Rules)
 	if err != nil {
-		rulesJson = []byte("{}")
+		rulesJSON = []byte("{}")
 	}
 	return &pb.Campaign{
 		Id:           uint64(c.ID),
@@ -205,7 +205,7 @@ func convertCampaignToProto(c *domain.Campaign) *pb.Campaign {
 		TargetUsers:  c.TargetUsers,
 		ReachedUsers: c.ReachedUsers,
 		Status:       int32(c.Status),
-		RulesJson:    string(rulesJson),
+		RulesJson:    string(rulesJSON),
 		CreatedAt:    timestamppb.New(c.CreatedAt),
 		UpdatedAt:    timestamppb.New(c.UpdatedAt),
 	}

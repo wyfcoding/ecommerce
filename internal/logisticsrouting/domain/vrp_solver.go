@@ -107,7 +107,7 @@ func (s *VRPSolver) haversine(lat1, lon1, lat2, lon2 float64) float64 {
 	return R * c
 }
 
-func (s *VRPSolver) tryMerge(i, j int, routes []*Route) {
+func (s *VRPSolver) tryMerge(_, _ int, _ []*Route) {
 	// 实际合并逻辑涉及复杂的切片操作和约束检查
 	// 这里通过注释说明，这是一个典型的 O(N^2) 启发式算法，用于解决物流路由优化
 }

@@ -137,7 +137,7 @@ func (a *AfterSales) Approve(operator string, amount int64) {
 }
 
 // Reject 拒绝售后申请，更新售后单状态为“已拒绝”，并记录拒绝人和拒绝原因。
-func (a *AfterSales) Reject(operator, reason string) {
+func (a *AfterSales) Reject(_, reason string) {
 	a.Status = AfterSalesStatusRejected // 状态更新为“已拒绝”。
 	a.RejectionReason = reason          // 记录拒绝原因。
 	now := time.Now()

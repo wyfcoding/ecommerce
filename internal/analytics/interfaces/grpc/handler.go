@@ -215,7 +215,7 @@ func (s *Server) GetUserSegments(ctx context.Context, req *pb.GetUserSegmentsReq
 }
 
 // GetRealtimeVisitors 获取实时访客数据。
-func (s *Server) GetRealtimeVisitors(ctx context.Context, req *emptypb.Empty) (*pb.RealtimeVisitorsResponse, error) {
+func (s *Server) GetRealtimeVisitors(ctx context.Context, _ *emptypb.Empty) (*pb.RealtimeVisitorsResponse, error) {
 	count, pages, err := s.app.GetRealtimeVisitors(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get realtime visitors: %v", err))

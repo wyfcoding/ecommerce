@@ -19,20 +19,24 @@ type nodeWrapper struct {
 	ewma    *algorithm.EWMA
 }
 
-func NewEWMABalancer(alpha float64) *EWMABalancer {
+func NewEWMABalancer(alpha float64) (*EWMABalancer, error) {
+	if alpha <= 0 || alpha >= 1 {
+		return nil, algorithm.ErrInvalidAlpha // Assuming we add this or use errors.New
+	}
 	return &EWMABalancer{
 		nodes: make([]*nodeWrapper, 0),
 		alpha: alpha,
-	}
+	}, nil
 }
 
 // AddNode 添加节点
 func (b *EWMABalancer) AddNode(backend *service.Backend) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	ewma, _ := algorithm.NewEWMA(b.alpha) // alpha is validated in constructor
 	b.nodes = append(b.nodes, &nodeWrapper{
 		backend: backend,
-		ewma:    algorithm.NewEWMA(b.alpha),
+		ewma:    ewma,
 	})
 }
 

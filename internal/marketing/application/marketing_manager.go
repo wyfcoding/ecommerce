@@ -20,13 +20,18 @@ type MarketingManager struct {
 }
 
 // NewMarketingManager creates a new MarketingManager instance.
-func NewMarketingManager(repo domain.MarketingRepository, couponCli couponv1.CouponServiceClient, logger *slog.Logger) *MarketingManager {
+func NewMarketingManager(repo domain.MarketingRepository, couponCli couponv1.CouponServiceClient, logger *slog.Logger) (*MarketingManager, error) {
+	filter, err := algorithm.NewBloomFilter(1000000, 0.01)
+	if err != nil {
+		return nil, err
+	}
+
 	return &MarketingManager{
 		repo:           repo,
 		logger:         logger,
-		userFilter:     algorithm.NewBloomFilter(1000000, 0.01),
+		userFilter:     filter,
 		segmentService: NewUserSegmentService(repo, couponCli, logger), // 初始化圈选服务并注入优惠券客户端
-	}
+	}, nil
 }
 
 // DistributeTargetedCoupons 定向优惠券分发：顶级架构实战

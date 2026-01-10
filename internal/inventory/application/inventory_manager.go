@@ -25,14 +25,19 @@ type InventoryManager struct {
 }
 
 // NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
-func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) *InventoryManager {
+func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) (*InventoryManager, error) {
+	filter, err := algorithm.NewCuckooFilter(100000)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InventoryManager{
 		repo:          repo,
 		warehouseRepo: warehouseRepo,
 		allocator:     algorithm.NewWarehouseAllocator(),
 		logger:        logger,
-		soldOutFilter: algorithm.NewCuckooFilter(100000),
-	}
+		soldOutFilter: filter,
+	}, nil
 }
 
 func (m *InventoryManager) SetRemoteOrderClient(cli orderv1.OrderServiceClient) {

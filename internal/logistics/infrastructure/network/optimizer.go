@@ -12,11 +12,11 @@ type TransportLink struct {
 	UnitCost int
 }
 
-// NetworkOptimizer 全链路物流成本优化器
-type NetworkOptimizer struct{}
+// Optimizer 全链路物流成本优化器
+type Optimizer struct{}
 
 // OptimizeFlow 寻找全链路最低成本的发货方案
-func (o *NetworkOptimizer) OptimizeFlow(nodes int, links []TransportLink, source, sink int) (int, int) {
+func (o *Optimizer) OptimizeFlow(nodes int, links []TransportLink, source, sink int) (int, int) {
 	mcmf := algorithm.NewMCMF(nodes)
 	for _, link := range links {
 		mcmf.AddEdge(link.FromID, link.ToID, link.Capacity, link.UnitCost)

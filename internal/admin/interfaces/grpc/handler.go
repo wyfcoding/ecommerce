@@ -207,7 +207,7 @@ func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*em
 // ListRoles 处理列出角色列表的gRPC请求，支持分页。
 // req: 包含分页参数的请求体。
 // 返回角色列表响应和可能发生的gRPC错误。
-func (s *Server) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
+func (s *Server) ListRoles(ctx context.Context, _ *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
 	// 调用应用服务层获取角色列表。
 	roles, total, err := s.app.Query.ListRoles(ctx)
 	if err != nil {
@@ -259,7 +259,7 @@ func (s *Server) GetPermission(ctx context.Context, req *pb.GetPermissionRequest
 // ListPermissions 处理列出权限列表的gRPC请求。
 // req: 空的请求体。
 // 返回权限列表响应和可能发生的gRPC错误。
-func (s *Server) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
+func (s *Server) ListPermissions(ctx context.Context, _ *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
 	perms, err := s.app.Query.ListPermissions(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list permissions: %v", err))

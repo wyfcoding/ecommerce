@@ -80,7 +80,7 @@ func (s *RuleEvaluationService) EvaluateTransaction(ctx context.Context, riskCtx
 
 	// 4. 聚合结果
 	totalScore := int32(0)
-	var maxLevel RiskLevel = RiskLevelVeryLow
+	maxLevel := RiskLevelVeryLow
 	triggeredItems := make([]*RiskItem, 0)
 
 	for _, res := range results {
