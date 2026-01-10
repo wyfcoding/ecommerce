@@ -216,7 +216,7 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 	}
 
 	// 提交 Saga
-	if err := saga.Submit(); err != nil {
+	if err := saga.Submit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to submit saga transaction", "order_no", orderNo, "error", err)
 		return nil, fmt.Errorf("transaction submission failed: %w", err)
 	}

@@ -180,7 +180,7 @@ func (m *AfterSalesManager) ProcessRefund(ctx context.Context, id uint64) error 
 		AftersalesId: uint64(afterSales.ID),
 	})
 
-	if err := saga.Submit(); err != nil {
+	if err := saga.Submit(ctx); err != nil {
 		return fmt.Errorf("failed to submit saga: %w", err)
 	}
 
