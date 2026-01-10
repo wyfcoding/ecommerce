@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/graph"
 )
 
 // CategoryInfo 封装了用于拓扑分析的类目精简层级信息。
@@ -24,16 +24,42 @@ type HierarchyAnalyzer struct {
 // 流程：转换节点格式 -> 识别树规模 -> 预处理倍增表。
 func (a *HierarchyAnalyzer) Build(categories []CategoryInfo) {
 	start := time.Now()
-	nodes := make([]algorithm.LCANode, len(categories))
 	maxID := 0
-	for i, c := range categories {
-		nodes[i] = algorithm.LCANode{ID: c.ID, ParentID: c.ParentID}
+	for _, c := range categories {
 		if c.ID > maxID {
 			maxID = c.ID
 		}
 	}
-	// 执行预处理，构建 O(N log N) 的查询结构
-	a.lca = algorithm.NewTreeLCA(maxID+1, nodes)
+
+	// 构建邻接表 (adj[parent] = [children])
+	adj := make([][]int, maxID+1)
+	root := 0 // 假设 0 为根节点，或者找到实际根节点
+	hasRoot := false
+
+	// 为了处理非连续ID，我们直接使用ID作为索引 (可能会有空洞，但LCA算法能处理)
+	for _, c := range categories {
+		if c.ParentID > 0 { // 假设 0 是顶层根或无效父ID
+			if c.ParentID <= maxID {
+				adj[c.ParentID] = append(adj[c.ParentID], c.ID)
+			}
+		} else {
+			if !hasRoot {
+				root = c.ID
+				hasRoot = true
+			}
+			// 如果有多个根，这里简化处理只取第一个遇到的
+		}
+	}
+
+	// 如果没有显式根节点 (ParentID=0)，默认 0 为根
+	if !hasRoot && maxID > 0 {
+		root = 0 // 虚拟根
+		// 将所有顶级节点挂在 0 下?
+		// 业务逻辑通常保证有一个根。这里简化。
+	}
+
+	// 构造 LCA 查询结构
+	a.lca = algorithm.NewTreeLCA(root, adj)
 
 	slog.Info("category hierarchy analyzer index built successfully",
 		"nodes_count", len(categories),

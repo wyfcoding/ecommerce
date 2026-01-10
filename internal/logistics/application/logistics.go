@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 )
 
 // Logistics 是物流应用服务的门面。

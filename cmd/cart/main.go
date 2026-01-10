@@ -155,7 +155,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	cartService := application.NewCartService(cartManager, cartQuery)
 
 	// 5. [关键优化]：启动订单确认事件消费者，自动清空购物车
-	consumer := kafka.NewConsumer(c.MessageQueue.Kafka, logger, m)
+	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
 	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
 		if msg.Topic != "order.confirmed" {
 			return nil

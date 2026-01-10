@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // GatewayManager 处理所有 API 网关相关的写入操作（Commands）。

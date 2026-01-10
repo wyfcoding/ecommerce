@@ -147,7 +147,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	}
 
 	// 3. 初始化 Elasticsearch 客户端
-	esClient, err := pkgsearch.NewClient(pkgsearch.Config{
+	esClient, err := pkgsearch.NewClient(&pkgsearch.Config{
 		Addresses:     c.Data.Elasticsearch.Addresses,
 		Username:      c.Data.Elasticsearch.Username,
 		Password:      c.Data.Elasticsearch.Password,
@@ -187,7 +187,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	searchService := application.NewSearch(manager, query, logger.Logger)
 
 	// 7. 启动 Kafka 消费者进行可靠索引同步
-	consumer := kafka.NewConsumer(c.MessageQueue.Kafka, logger, m)
+	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
 	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
 		if msg.Topic != "product.index.sync" {
 			return nil

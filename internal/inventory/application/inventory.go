@@ -5,7 +5,7 @@ import (
 
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 )
 
 // Inventory 是库存应用服务的门面。

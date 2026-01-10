@@ -185,7 +185,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 4. 初始化消息队列与 Outbox (架构增强)
 	bootLog.Info("initializing kafka producer and outbox...")
-	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
 	masterDB := shardingManager.GetDB(0)
 	if err := masterDB.AutoMigrate(&outbox.Message{}); err != nil {
 		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)

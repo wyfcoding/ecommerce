@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // GatewayService API 网关门面服务，整合 Manager 和 Query。

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
 	"github.com/wyfcoding/pkg/idgen"
 )
 

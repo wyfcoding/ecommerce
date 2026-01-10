@@ -17,13 +17,13 @@ import (
 // AnalyticsQuery 处理分析模块的查询操作。
 type AnalyticsQuery struct {
 	repo        domain.AnalyticsRepository
-	redis       *redis.Client
+	redis       redis.UniversalClient
 	accountCli  accountv1.AccountServiceClient
 	positionCli positionv1.PositionServiceClient
 }
 
 // NewAnalyticsQuery 创建并返回一个新的 AnalyticsQuery 实例。
-func NewAnalyticsQuery(repo domain.AnalyticsRepository, redis *redis.Client) *AnalyticsQuery {
+func NewAnalyticsQuery(repo domain.AnalyticsRepository, redis redis.UniversalClient) *AnalyticsQuery {
 	return &AnalyticsQuery{
 		repo:  repo,
 		redis: redis,

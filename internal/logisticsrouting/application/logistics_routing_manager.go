@@ -7,7 +7,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/wyfcoding/ecommerce/internal/logisticsrouting/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 )
 
 // LogisticsRoutingManager 处理物流路由的写操作。

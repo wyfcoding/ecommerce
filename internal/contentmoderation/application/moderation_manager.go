@@ -8,7 +8,7 @@ import (
 
 	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 )
 
 // ModerationManager 处理内容审核的写操作。

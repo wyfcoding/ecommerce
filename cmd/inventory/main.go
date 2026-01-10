@@ -187,7 +187,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	inventoryService := application.NewInventory(manager, application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger))
 
 	// 5. 启动可靠库存自动释放消费者
-	consumer := kafka.NewConsumer(c.MessageQueue.Kafka, logger, m)
+	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
 	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
 		if msg.Topic != "order.payment.timeout" {
 			return nil

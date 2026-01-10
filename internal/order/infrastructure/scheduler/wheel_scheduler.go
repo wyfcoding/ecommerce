@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // WheelScheduler 实现了 domain.TimeoutScheduler 接口，利用分层时间轮（Timing Wheel）算法高效处理海量延时任务。

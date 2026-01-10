@@ -152,7 +152,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 初始化消息队列 (Kafka Producer)
 	bootLog.Info("initializing kafka producer...")
-	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
 
 	// 4. 初始化 Outbox 管理器与处理器
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)

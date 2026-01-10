@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/advancedcoupon/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 )
 
 // AdvancedCouponQuery 处理所有高级优惠券相关的查询操作（Queries）。

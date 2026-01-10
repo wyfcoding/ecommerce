@@ -7,7 +7,7 @@ import (
 
 	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 )
 
 // UserSegmentService 提供了基于 Roaring Bitmap（高效位图算法）的海量用户标签筛选与定向营销服务。

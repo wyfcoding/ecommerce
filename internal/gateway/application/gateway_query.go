@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // GatewayQuery 处理所有 API 网关相关的查询操作（Queries）。

@@ -52,7 +52,7 @@ func NewOrderManager(
 	m *metrics.Metrics,
 	riskEvaluator risk.Evaluator,
 ) *OrderManager {
-	orderCreatedCounter := m.NewCounterVec(prometheus.CounterOpts{
+	orderCreatedCounter := m.NewCounterVec(&prometheus.CounterOpts{
 		Name: "order_created_total",
 		Help: "订单创建总数",
 	}, []string{"status"})

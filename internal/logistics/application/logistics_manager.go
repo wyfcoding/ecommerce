@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	"github.com/wyfcoding/pkg/algorithm/graph"
+	"github.com/wyfcoding/pkg/algorithm/math"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 )
 
 // LogisticsManager 处理物流的写操作（创建、状态更新、轨迹追踪、路线优化）。
@@ -72,18 +74,18 @@ func (m *LogisticsManager) AssignRidersToOrders(ctx context.Context, riders []Ri
 	ny := len(orders)
 	size := max(ny, nx)
 
-	bg := algorithm.NewWeightedBipartiteGraph(size, size)
+	bg := graph.NewWeightedBipartiteGraph(size, size)
 
 	for i, rider := range riders {
 		for j, order := range orders {
 			// 真实化执行：使用 Haversine 球面距离
-			dist := algorithm.HaversineDistance(rider.Lat, rider.Lon, order.Lat, order.Lon)
-			bg.SetWeight(i, j, -dist) // 负权重求最大匹配 = 最小距离
+			dist := math.HaversineDistance(rider.Lat, rider.Lon, order.Lat, order.Lon)
+			bg.AddEdge(i, j, int(-dist)) // 负权重求最大匹配 = 最小距离
 		}
 	}
 
-	bg.Solve()
-	match := bg.GetMatch()
+	bg.MaxWeightMatch()
+	match := bg.GetMatches()
 
 	// 3. 应用分配结果
 	result := make(map[string]uint64)

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/customer/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
 )
 
 // CustomerManager 处理客户服务的写操作。
@@ -37,23 +37,23 @@ func (m *CustomerManager) SegmentUsers(ctx context.Context, k int) (map[uint64]i
 		return nil, fmt.Errorf("not enough data points for k=%d (found %d)", k, len(userStats))
 	}
 
-	// 2. 构造 KMeans 输入点
-	points := make([]*algorithm.KMeansPoint, len(userStats))
+	// 2. 构造 KMeans 输入数据
+	data := make([][]float64, len(userStats))
+	userIDs := make([]uint64, len(userStats))
 	for i, stat := range userStats {
-		points[i] = &algorithm.KMeansPoint{
-			ID:   stat.UserID,
-			Data: []float64{stat.TicketCount, stat.AvgPriority},
-		}
+		data[i] = []float64{float64(stat.TicketCount), float64(stat.AvgPriority)}
+		userIDs[i] = stat.UserID
 	}
 
 	// 3. 执行 K-Means 聚类
-	kmeans := algorithm.NewKMeans(k, 100, 0.01)
-	kmeans.Fit(points)
+	kmeans := algorithm.NewKMeans(k, data)
+	kmeans.Fit(100) // maxIter = 100
 
 	// 4. 收集结果
+	assignments := kmeans.GetAssignments()
 	results := make(map[uint64]int)
-	for _, p := range points {
-		results[p.ID] = p.Label
+	for i, clusterID := range assignments {
+		results[userIDs[i]] = clusterID
 	}
 
 	m.logger.InfoContext(ctx, "user segmentation completed", "k", k, "user_count", len(userStats))

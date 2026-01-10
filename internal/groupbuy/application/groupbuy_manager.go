@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/idgen"
 )
 

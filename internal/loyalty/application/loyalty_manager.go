@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/loyalty/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 )
 
 // LoyaltyManager 负责处理 Loyalty 相关的写操作和业务逻辑。

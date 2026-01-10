@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/recommendation/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
 )
 
 // RecommendationManager 处理推荐模块的写操作和业务逻辑。

@@ -10,7 +10,9 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
 	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
-	"github.com/wyfcoding/pkg/algorithm"
+	finance "github.com/wyfcoding/pkg/algorithm/finance"
+	graph "github.com/wyfcoding/pkg/algorithm/graph"
+	"github.com/wyfcoding/pkg/algorithm/infra"
 	"github.com/wyfcoding/pkg/contextx"
 )
 
@@ -18,8 +20,8 @@ import (
 type RiskManager struct {
 	repo          domain.RiskRepository
 	logger        *slog.Logger
-	detector      *algorithm.AntiBotDetector
-	calculator    *algorithm.RiskCalculator
+	detector      *infra.AntiBotDetector
+	calculator    *finance.RiskCalculator
 	remoteRiskCli riskv1.RiskServiceClient
 }
 
@@ -28,8 +30,8 @@ func NewRiskManager(repo domain.RiskRepository, logger *slog.Logger) *RiskManage
 	return &RiskManager{
 		repo:       repo,
 		logger:     logger,
-		detector:   algorithm.NewAntiBotDetector(),
-		calculator: algorithm.NewRiskCalculator(),
+		detector:   infra.NewAntiBotDetector(),
+		calculator: finance.NewRiskCalculator(),
 	}
 }
 
@@ -48,13 +50,13 @@ func (m *RiskManager) DetectFraudGroups(ctx context.Context, numUsers int, relat
 	m.logger.InfoContext(ctx, "starting fraud group detection", "nodes", numUsers, "relations", len(relations))
 
 	// 1. 构建图
-	g := algorithm.NewGraph(numUsers)
+	g := graph.NewGraph(numUsers)
 	for _, rel := range relations {
 		g.AddEdge(rel.FromUserID, rel.ToUserID)
 	}
 
 	// 2. 运行 Tarjan 算法
-	scc := algorithm.NewTarjanSCC(g)
+	scc := graph.NewTarjanSCC(g)
 	groups := scc.Run()
 
 	// 3. 过滤出规模大于 1 的团伙
@@ -96,7 +98,7 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 	}
 
 	// 2.3 机器人检测风险
-	currentBehavior := algorithm.UserBehavior{
+	currentBehavior := &infra.UserBehavior{
 		UserID:    userID,
 		IP:        ip,
 		UserAgent: contextx.GetUserAgent(ctx),

@@ -11,7 +11,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
 	"github.com/wyfcoding/pkg/cache"
 	"github.com/wyfcoding/pkg/fallback"
 	"github.com/wyfcoding/pkg/metrics"
@@ -42,12 +42,12 @@ func NewProductQuery(
 	logger *slog.Logger,
 	m *metrics.Metrics,
 ) *ProductQuery {
-	cacheHits := m.NewCounterVec(prometheus.CounterOpts{
+	cacheHits := m.NewCounterVec(&prometheus.CounterOpts{
 		Name: "product_cache_hits_total",
 		Help: "商品缓存命中总数",
 	}, []string{"layer"})
 
-	cacheMisses := m.NewCounterVec(prometheus.CounterOpts{
+	cacheMisses := m.NewCounterVec(&prometheus.CounterOpts{
 		Name: "product_cache_misses_total",
 		Help: "商品缓存未命中总数",
 	}, []string{})

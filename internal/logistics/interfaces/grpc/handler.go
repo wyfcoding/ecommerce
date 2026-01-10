@@ -7,7 +7,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/logistics/v1"          // 导入物流模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域层。
-	"github.com/wyfcoding/pkg/algorithm"                            // 导入算法包，用于路线优化。
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"     // 导入算法包，用于路线优化。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。

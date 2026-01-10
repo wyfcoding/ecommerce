@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 )
 
 // CouponManager 处理优惠券模块的写操作和核心业务流程。

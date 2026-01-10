@@ -9,7 +9,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"          // 导入库存模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"      // 导入库存模块的领域层。
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。

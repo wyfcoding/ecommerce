@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	"github.com/wyfcoding/pkg/algorithm/graph"
+	"github.com/wyfcoding/pkg/algorithm/sim"
 	pkgredis "github.com/wyfcoding/pkg/redis"
 )
 
@@ -17,22 +18,22 @@ import (
 type AnalyticsManager struct {
 	repo        domain.AnalyticsRepository
 	logger      *slog.Logger
-	redisClient *pkgredis.Client
-	gmvStats    *algorithm.FenwickTree              // 用于统计 24 小时内每一分钟的 GMV
-	orderStats  *algorithm.FenwickTree              // 用于统计 24 小时内每一分钟的订单数
-	sampler     *algorithm.ReservoirSampler[string] // 用于对原始事件流进行抽样
+	redisClient pkgredis.Client
+	gmvStats    *graph.FenwickTree            // 用于统计 24 小时内每一分钟的 GMV
+	orderStats  *graph.FenwickTree            // 用于统计 24 小时内每一分钟的订单数
+	sampler     *sim.ReservoirSampler[string] // 用于对原始事件流进行抽样
 	samplerMu   sync.Mutex
 }
 
 // NewAnalyticsManager 创建并返回一个新的 AnalyticsManager 实例。
-func NewAnalyticsManager(repo domain.AnalyticsRepository, redisClient *pkgredis.Client, logger *slog.Logger) *AnalyticsManager {
+func NewAnalyticsManager(repo domain.AnalyticsRepository, redisClient pkgredis.Client, logger *slog.Logger) *AnalyticsManager {
 	return &AnalyticsManager{
 		repo:        repo,
 		logger:      logger,
 		redisClient: redisClient,
-		gmvStats:    algorithm.NewFenwickTree(1440), // 一天 1440 分钟
-		orderStats:  algorithm.NewFenwickTree(1440),
-		sampler:     algorithm.NewReservoirSampler[string](1000), // 采样 1000 条
+		gmvStats:    graph.NewFenwickTree(1440), // 一天 1440 分钟
+		orderStats:  graph.NewFenwickTree(1440),
+		sampler:     sim.NewReservoirSampler[string](1000), // 采样 1000 条
 	}
 }
 

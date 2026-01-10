@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/graph"
 )
 
 // TransportLink 代表运输路径

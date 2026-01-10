@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	"github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // UserService 用户服务门面
@@ -24,7 +24,7 @@ func NewUserService(
 	logger *slog.Logger,
 ) *UserService {
 	// AntiBot needs instantiation
-	antiBot := algorithm.NewAntiBotDetector()
+	antiBot := infra.NewAntiBotDetector()
 
 	return &UserService{
 		Manager: NewUserManager(userRepo, addressRepo, jwtSecret, jwtIssuer, jwtExpiry, antiBot, logger),

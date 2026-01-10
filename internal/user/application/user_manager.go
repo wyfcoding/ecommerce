@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/wyfcoding/ecommerce/internal/user/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	"github.com/wyfcoding/ecommerce/internal/user/domain" // AntiBotDetector
+	// UserBehavior
+
+	"github.com/wyfcoding/pkg/algorithm/infra"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
 	"github.com/wyfcoding/pkg/security"
@@ -21,7 +23,7 @@ type UserManager struct {
 	jwtSecret   string
 	jwtIssuer   string
 	jwtExpiry   time.Duration
-	antiBot     *algorithm.AntiBotDetector
+	antiBot     *infra.AntiBotDetector
 	logger      *slog.Logger
 }
 
@@ -31,7 +33,7 @@ func NewUserManager(
 	jwtSecret string,
 	jwtIssuer string,
 	jwtExpiry time.Duration,
-	antiBot *algorithm.AntiBotDetector,
+	antiBot *infra.AntiBotDetector,
 	logger *slog.Logger,
 ) *UserManager {
 	return &UserManager{
@@ -87,10 +89,11 @@ func (m *UserManager) Register(ctx context.Context, req *RegisterRequest) (*doma
 // 流程：机器人检测 -> 用户查找 -> 密码校验 -> 签发 JWT 令牌。
 func (m *UserManager) Login(ctx context.Context, username, password, ip string) (string, int64, error) {
 	// 1. 基础安全防护：调用算法库进行机器人识别
-	behavior := algorithm.UserBehavior{
+	behavior := &infra.UserBehavior{
 		IP:        ip,
 		Timestamp: time.Now(),
 		Action:    "login",
+		UserID:    0, // Login stage might not have ID yet or use 0
 	}
 	if isBot, reason := m.antiBot.IsBot(behavior); isBot {
 		m.logger.WarnContext(ctx, "bot detected during login", "ip", ip, "username", username, "reason", reason)

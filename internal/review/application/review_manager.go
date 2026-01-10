@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/contextx"
 )
 

@@ -188,7 +188,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	consumerCfg.Topic = "payment.captured"
 	consumerCfg.GroupID = BootstrapName + "-group"
 
-	consumer := kafka.NewConsumer(consumerCfg, logger, m)
+	consumer := kafka.NewConsumer(&consumerCfg, logger, m)
 	consumer.Start(context.Background(), 3, paymentHandler.HandlePaymentCaptured)
 
 	// 5.4 Interface (HTTP Handlers)

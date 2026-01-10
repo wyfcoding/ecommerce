@@ -140,7 +140,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 初始化消息队列 (Kafka Producer)
 	bootLog.Info("initializing kafka producer...")
-	producer := kafka.NewProducer(c.MessageQueue.Kafka, logger, m)
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
 
 	// --- 3.1 分片感知型 Outbox 初始化 (顶级架构增强) ---
 	allDBs := shardingManager.GetAllDBs()
@@ -231,7 +231,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	flashsaleConsumerCfg := c.MessageQueue.Kafka
 	flashsaleConsumerCfg.Topic = "flashsale.order"
 	flashsaleConsumerCfg.GroupID = BootstrapName + "-flashsale-group"
-	flashsaleConsumer := kafka.NewConsumer(flashsaleConsumerCfg, logger, m)
+	flashsaleConsumer := kafka.NewConsumer(&flashsaleConsumerCfg, logger, m)
 	flashsaleConsumer.Start(context.Background(), 5, flashsaleHandler.HandleFlashsaleOrder)
 
 	// 6.4 Interface (HTTP Handlers)

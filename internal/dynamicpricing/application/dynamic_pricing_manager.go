@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
 	"github.com/wyfcoding/pkg/datetime"
 )
 

@@ -50,11 +50,11 @@ var (
 
 // SeckillEngine 核心秒杀引擎 (Redis + Lua)
 type SeckillEngine struct {
-	redisClient *redis.Client
+	redisClient redis.UniversalClient
 	scriptSha   string
 }
 
-func NewSeckillEngine(rdb *redis.Client) *SeckillEngine {
+func NewSeckillEngine(rdb redis.UniversalClient) *SeckillEngine {
 	// Pre-load script
 	return &SeckillEngine{
 		redisClient: rdb,

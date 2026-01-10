@@ -21,11 +21,11 @@ var revertStockScript string
 
 // RedisFlashSaleCache 结构体实现了 FlashSaleCache 接口，使用 Redis 作为底层缓存存储。
 type RedisFlashSaleCache struct {
-	client *redis.Client
+	client redis.Client
 }
 
 // NewRedisFlashSaleCache 创建并返回一个新的 RedisFlashSaleCache 实例。
-func NewRedisFlashSaleCache(client *redis.Client) *RedisFlashSaleCache {
+func NewRedisFlashSaleCache(client redis.Client) *RedisFlashSaleCache {
 	return &RedisFlashSaleCache{
 		client: client,
 	}

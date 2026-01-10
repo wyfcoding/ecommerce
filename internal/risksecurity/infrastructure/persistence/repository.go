@@ -15,11 +15,11 @@ import (
 
 type riskRepository struct {
 	db    *gorm.DB
-	redis *redis.Client
+	redis redis.UniversalClient
 }
 
 // NewRiskRepository 创建并返回一个新的 riskRepository 实例。
-func NewRiskRepository(db *gorm.DB, rdb *redis.Client) domain.RiskRepository {
+func NewRiskRepository(db *gorm.DB, rdb redis.UniversalClient) domain.RiskRepository {
 	return &riskRepository{db: db, redis: rdb}
 }
 

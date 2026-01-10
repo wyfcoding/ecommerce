@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/wyfcoding/ecommerce/internal/search/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 )
 
 // SearchQuery 处理搜索模块的查询操作。

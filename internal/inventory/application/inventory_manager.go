@@ -10,7 +10,8 @@ import (
 
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	"github.com/wyfcoding/pkg/algorithm/structures"
 )
 
 // InventoryManager 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及自动补货逻辑。
@@ -19,14 +20,14 @@ type InventoryManager struct {
 	warehouseRepo  domain.WarehouseRepository    // 仓库仓储
 	allocator      *algorithm.WarehouseAllocator // 最优库存分配算法引擎
 	logger         *slog.Logger                  // 日志记录器
-	soldOutFilter  *algorithm.CuckooFilter       // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
+	soldOutFilter  *structures.CuckooFilter      // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
 	filterMu       sync.RWMutex                  // 保护过滤器的并发安全
 	remoteOrderCli orderv1.OrderServiceClient    // 远程订单服务客户端，用于触发自动补货
 }
 
 // NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
 func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) (*InventoryManager, error) {
-	filter, err := algorithm.NewCuckooFilter(100000)
+	filter, err := structures.NewCuckooFilter(100000)
 	if err != nil {
 		return nil, err
 	}

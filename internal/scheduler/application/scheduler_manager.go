@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // JobHandler 定义了任务处理函数的原型

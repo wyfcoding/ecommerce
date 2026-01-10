@@ -7,22 +7,22 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
-	"github.com/wyfcoding/pkg/algorithm"
+	"github.com/wyfcoding/pkg/algorithm/infra"
 )
 
 // UserQuery 处理用户模块的所有只读查询操作，集成了安全审计与行为分析逻辑。
 type UserQuery struct {
-	userRepo    domain.UserRepository      // 用户基础信息仓储
-	addressRepo domain.AddressRepository   // 用户地址信息仓储
-	antiBot     *algorithm.AntiBotDetector // 机器人检测引擎
-	logger      *slog.Logger               // 结构化日志记录器
+	userRepo    domain.UserRepository    // 用户基础信息仓储
+	addressRepo domain.AddressRepository // 用户地址信息仓储
+	antiBot     *infra.AntiBotDetector   // 机器人检测引擎
+	logger      *slog.Logger             // 结构化日志记录器
 }
 
 // NewUserQuery 初始化并返回一个新的用户查询服务。
 func NewUserQuery(
 	userRepo domain.UserRepository,
 	addressRepo domain.AddressRepository,
-	antiBot *algorithm.AntiBotDetector,
+	antiBot *infra.AntiBotDetector,
 	logger *slog.Logger,
 ) *UserQuery {
 	return &UserQuery{
@@ -40,7 +40,7 @@ func (q *UserQuery) GetUser(ctx context.Context, userID uint) (*domain.User, err
 
 // CheckBot 基于用户当前行为与 IP 地址执行实时的机器人/爬虫风险判定。
 func (q *UserQuery) CheckBot(ctx context.Context, userID uint64, ip string) bool {
-	behavior := algorithm.UserBehavior{
+	behavior := &infra.UserBehavior{
 		UserID:    userID,
 		IP:        ip,
 		Timestamp: time.Now(),
