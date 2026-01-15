@@ -16,18 +16,18 @@ import (
 
 // InventoryManager 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及自动补货逻辑。
 type InventoryManager struct {
-	repo           domain.InventoryRepository    // 库存仓储
-	warehouseRepo  domain.WarehouseRepository    // 仓库仓储
-	allocator      *algorithm.WarehouseAllocator // 最优库存分配算法引擎
-	logger         *slog.Logger                  // 日志记录器
-	soldOutFilter  *structures.CuckooFilter      // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
-	filterMu       sync.RWMutex                  // 保护过滤器的并发安全
-	remoteOrderCli orderv1.OrderServiceClient    // 远程订单服务客户端，用于触发自动补货
+	repo           domain.InventoryRepository               // 库存仓储
+	warehouseRepo  domain.WarehouseRepository               // 仓库仓储
+	allocator      *algorithm.WarehouseAllocator            // 最优库存分配算法引擎
+	logger         *slog.Logger                             // 日志记录器
+	soldOutFilter  *structures.CuckooFilter[structures.ByteHash] // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
+	filterMu       sync.RWMutex                             // 保护过滤器的并发安全
+	remoteOrderCli orderv1.OrderServiceClient               // 远程订单服务客户端，用于触发自动补货
 }
 
 // NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
 func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) (*InventoryManager, error) {
-	filter, err := structures.NewCuckooFilter(100000)
+	filter, err := structures.NewCuckooFilter[structures.ByteHash](100000)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (m *InventoryManager) SetRemoteOrderClient(cli orderv1.OrderServiceClient) 
 func (m *InventoryManager) IsSoldOutQuickCheck(skuID uint64) bool {
 	m.filterMu.RLock()
 	defer m.filterMu.RUnlock()
-	return m.soldOutFilter.Contains(fmt.Appendf(nil, "%d", skuID))
+	return m.soldOutFilter.Contains(structures.ByteHash(fmt.Appendf(nil, "%d", skuID)))
 }
 
 // CreateInventory 创建一个新的库存记录。
@@ -133,7 +133,7 @@ func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity 
 		// 如果库存不再为0，从售罄过滤器中移除
 		if inv.AvailableStock > 0 {
 			m.filterMu.Lock()
-			m.soldOutFilter.Delete(fmt.Appendf(nil, "%d", skuID))
+			m.soldOutFilter.Delete(structures.ByteHash(fmt.Appendf(nil, "%d", skuID)))
 			m.filterMu.Unlock()
 		}
 		return log, nil
@@ -151,7 +151,7 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 		// 如果库存归零，加入售罄过滤器
 		if inv.AvailableStock <= 0 {
 			m.filterMu.Lock()
-			m.soldOutFilter.Add(fmt.Appendf(nil, "%d", skuID))
+			m.soldOutFilter.Add(structures.ByteHash(fmt.Appendf(nil, "%d", skuID)))
 			m.filterMu.Unlock()
 		}
 

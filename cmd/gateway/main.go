@@ -49,7 +49,7 @@ type AppContext struct {
 type ServiceClients struct{}
 
 func main() {
-	if err := app.NewBuilder(BootstrapName).
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
@@ -63,13 +63,11 @@ func main() {
 	}
 }
 
-func registerGRPC(s *grpc.Server, srv any) {
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
 	slog.Info("gRPC handler registered", "service", BootstrapName)
 }
 
-func registerGin(e *gin.Engine, srv any) {
-	ctx := srv.(*AppContext)
-
+func registerGin(e *gin.Engine, ctx *AppContext) {
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -82,8 +80,8 @@ func registerGin(e *gin.Engine, srv any) {
 	handler.RegisterRoutes(api)
 }
 
-func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
-	c := cfg.(*Config)
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	c := cfg
 	logger := logging.Default()
 
 	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)

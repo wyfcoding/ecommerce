@@ -63,7 +63,7 @@ type Payment struct {
 	CancelledAt    *time.Time
 	RefundedAt     *time.Time
 
-	fsm     *fsm.Machine  `gorm:"-"`
+	fsm     *fsm.Machine[string, string]  `gorm:"-"`
 	Logs    []*PaymentLog `gorm:"foreignKey:PaymentID"`
 	Refunds []*Refund     `gorm:"foreignKey:PaymentID"`
 
@@ -137,24 +137,24 @@ func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, pay
 }
 
 func (p *Payment) initFSM() {
-	m := fsm.NewMachine(fsm.State(p.Status.String()))
+	m := fsm.NewMachine[string, string](p.Status.String())
 
 	// 标准支付流
-	m.AddTransition(fsm.State(PaymentPending.String()), "AUTH", fsm.State(PaymentAuthorized.String()))
-	m.AddTransition(fsm.State(PaymentAuthorized.String()), "CAPTURE", fsm.State(PaymentSuccess.String()))
-	m.AddTransition(fsm.State(PaymentPending.String()), "PAY_DIRECT", fsm.State(PaymentSuccess.String()))
+	m.AddTransition(PaymentPending.String(), "AUTH", PaymentAuthorized.String())
+	m.AddTransition(PaymentAuthorized.String(), "CAPTURE", PaymentSuccess.String())
+	m.AddTransition(PaymentPending.String(), "PAY_DIRECT", PaymentSuccess.String())
 
 	// 逆向流
-	m.AddTransition(fsm.State(PaymentPending.String()), "CANCEL", fsm.State(PaymentCancelled.String()))
-	m.AddTransition(fsm.State(PaymentAuthorized.String()), "VOID", fsm.State(PaymentCancelled.String()))
+	m.AddTransition(PaymentPending.String(), "CANCEL", PaymentCancelled.String())
+	m.AddTransition(PaymentAuthorized.String(), "VOID", PaymentCancelled.String())
 
 	// 退款流
-	m.AddTransition(fsm.State(PaymentSuccess.String()), "REFUND_REQ", fsm.State(PaymentRefunding.String()))
-	m.AddTransition(fsm.State(PaymentRefunding.String()), "REFUND_FINISH", fsm.State(PaymentRefunded.String()))
+	m.AddTransition(PaymentSuccess.String(), "REFUND_REQ", PaymentRefunding.String())
+	m.AddTransition(PaymentRefunding.String(), "REFUND_FINISH", PaymentRefunded.String())
 
 	// 对账流
-	m.AddTransition(fsm.State(PaymentSuccess.String()), "RECONCILE", fsm.State(PaymentReconciled.String()))
-	m.AddTransition(fsm.State(PaymentSuccess.String()), "RECONCILE_FAIL", fsm.State(PaymentReconcileError.String()))
+	m.AddTransition(PaymentSuccess.String(), "RECONCILE", PaymentReconciled.String())
+	m.AddTransition(PaymentSuccess.String(), "RECONCILE_FAIL", PaymentReconcileError.String())
 
 	p.fsm = m
 }
@@ -164,11 +164,11 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 		p.initFSM()
 	}
 	oldStatus := p.Status
-	if err := p.fsm.Trigger(ctx, fsm.Event(event)); err != nil {
+	if err := p.fsm.Trigger(ctx, event); err != nil {
 		return err
 	}
 
-	newStatusStr := string(p.fsm.Current())
+	newStatusStr := p.fsm.Current()
 	for s, name := range statusNamesMap {
 		if name == newStatusStr {
 			p.Status = s

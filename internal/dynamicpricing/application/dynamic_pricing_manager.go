@@ -7,7 +7,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
-	"github.com/wyfcoding/pkg/datetime"
+	"github.com/wyfcoding/pkg/utils"
 )
 
 // DynamicPricingManager 处理动态定价的写操作。
@@ -133,7 +133,7 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 			CompetitorPrice: compPrice,
 			TimeOfDay:       now.Hour(),
 			DayOfWeek:       int(now.Weekday()),
-			IsHoliday:       datetime.IsHoliday(now),
+			IsHoliday:       utils.IsHoliday(now),
 			UserLevel:       userLevel,
 			SeasonFactor:    0.5,
 		}

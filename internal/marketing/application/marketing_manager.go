@@ -15,13 +15,13 @@ import (
 type MarketingManager struct {
 	repo           domain.MarketingRepository
 	logger         *slog.Logger
-	userFilter     *algorithm.BloomFilter
+	userFilter     *algorithm.BloomFilter[algorithm.ByteHash]
 	segmentService *UserSegmentService // 接入基于 Roaring Bitmap 的圈选服务
 }
 
 // NewMarketingManager creates a new MarketingManager instance.
 func NewMarketingManager(repo domain.MarketingRepository, couponCli couponv1.CouponServiceClient, logger *slog.Logger) (*MarketingManager, error) {
-	filter, err := algorithm.NewBloomFilter(1000000, 0.01)
+	filter, err := algorithm.NewBloomFilter[algorithm.ByteHash](1000000, 0.01)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (m *MarketingManager) RecordParticipation(ctx context.Context, campaignID, 
 
 	// 性能优化：使用布隆过滤器在 O(1) 时间内初步阻断重复参与请求
 	// Key: campaignID:userID
-	filterKey := fmt.Appendf(nil, "%d:%d", campaignID, userID)
+	filterKey := algorithm.ByteHash(fmt.Appendf(nil, "%d:%d", campaignID, userID))
 	if m.userFilter.Contains(filterKey) {
 		m.logger.DebugContext(ctx, "user might have already participated (bloom filter hit)", "user_id", userID, "campaign_id", campaignID)
 	} else {

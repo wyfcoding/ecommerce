@@ -12,7 +12,7 @@ import (
 // SearchQuery 处理搜索模块的查询操作。
 type SearchQuery struct {
 	repo           domain.SearchRepository
-	suggestionTrie *algorithm.Trie
+	suggestionTrie *algorithm.Trie[*domain.Suggestion]
 	mu             sync.RWMutex // 保护 suggestionTrie 的原子替换和读取
 }
 
@@ -20,7 +20,7 @@ type SearchQuery struct {
 func NewSearchQuery(repo domain.SearchRepository) *SearchQuery {
 	return &SearchQuery{
 		repo:           repo,
-		suggestionTrie: algorithm.NewTrie(),
+		suggestionTrie: algorithm.NewTrie[*domain.Suggestion](),
 	}
 }
 
@@ -34,17 +34,10 @@ func (q *SearchQuery) Suggest(ctx context.Context, keyword string, limit int) ([
 	// 1. 尝试从内存 Trie 中获取建议 (高性能)
 	q.mu.RLock()
 	trie := q.suggestionTrie
-	trieResults := trie.StartsWith(keyword)
+	suggestions := trie.StartsWith(keyword)
 	q.mu.RUnlock()
 
-	if len(trieResults) > 0 {
-		suggestions := make([]*domain.Suggestion, 0, len(trieResults))
-		for _, res := range trieResults {
-			if s, ok := res.(*domain.Suggestion); ok {
-				suggestions = append(suggestions, s)
-			}
-		}
-
+	if len(suggestions) > 0 {
 		// 按分数降序排序
 		slices.SortFunc(suggestions, func(a, b *domain.Suggestion) int {
 			if a.Score > b.Score {
@@ -79,7 +72,7 @@ func (q *SearchQuery) LoadHotKeywordsToTrie(ctx context.Context) error {
 	}
 
 	// 在内存中构建新索引，不影响当前查询
-	newTrie := algorithm.NewTrie()
+	newTrie := algorithm.NewTrie[*domain.Suggestion]()
 
 	for _, k := range hotKeywords {
 		suggestion := &domain.Suggestion{

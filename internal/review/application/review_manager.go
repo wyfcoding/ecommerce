@@ -42,11 +42,11 @@ func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, ord
 		// 这里选择报错，以保证数据的严谨性。
 		return nil, err
 	}
-	newHash := m.simHash.Calculate(content)
+	newHash := m.simHash.Calculate(content, algorithm.DefaultTokenizer)
 
 	isSpam := false
 	for _, r := range recentReviews {
-		existingHash := m.simHash.Calculate(r.Content)
+		existingHash := m.simHash.Calculate(r.Content, algorithm.DefaultTokenizer)
 		// 海明距离 <= 3 通常认为高度相似
 		if m.simHash.HammingDistance(newHash, existingHash) <= 3 {
 			isSpam = true

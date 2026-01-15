@@ -10,7 +10,7 @@ import (
 
 // TrafficMonitor 流量监控器
 type TrafficMonitor struct {
-	cms    *algorithm.CountMinSketch
+	cms    *algorithm.CountMinSketch[algorithm.StringHash]
 	logger *slog.Logger
 	limit  uint64 // 判定为攻击的频率阈值
 }
@@ -18,7 +18,7 @@ type TrafficMonitor struct {
 // NewTrafficMonitor 创建流量监控器
 func NewTrafficMonitor(threshold uint64, logger *slog.Logger) (*TrafficMonitor, error) {
 	// epsilon=0.001, delta=0.01 (高精度，低内存占用)
-	cms, err := algorithm.NewCountMinSketch(0.001, 0.01)
+	cms, err := algorithm.NewCountMinSketch[algorithm.StringHash](0.001, 0.01)
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +46,8 @@ func (m *TrafficMonitor) startDecayLoop() {
 
 // RecordAndCheck 记录访问并检查是否触发风险
 func (m *TrafficMonitor) RecordAndCheck(key string) bool {
-	m.cms.Add([]byte(key), 1)
-	count := m.cms.Estimate([]byte(key))
+	m.cms.Add(algorithm.StringHash(key), 1)
+	count := m.cms.Estimate(algorithm.StringHash(key))
 
 	if count > m.limit {
 		m.logger.Warn("risk detected: frequency limit exceeded",
@@ -61,5 +61,5 @@ func (m *TrafficMonitor) RecordAndCheck(key string) bool {
 
 // GetEstimation 获取当前的频率估算值
 func (m *TrafficMonitor) GetEstimation(key string) uint64 {
-	return m.cms.Estimate([]byte(key))
+	return m.cms.Estimate(algorithm.StringHash(key))
 }

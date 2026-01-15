@@ -10,14 +10,14 @@ import (
 // ACMatcher 基于 Aho-Corasick 自动机的敏感词匹配器
 // 适用于在一长段文本中高效查找多个模式串
 type ACMatcher struct {
-	ac *algorithm.AhoCorasick
+	ac *algorithm.AhoCorasick[string]
 	mu sync.RWMutex
 }
 
 // NewACMatcher 创建一个新的 ACMatcher
 func NewACMatcher() *ACMatcher {
 	return &ACMatcher{
-		ac: algorithm.NewAhoCorasick(),
+		ac: algorithm.NewStringAhoCorasick(),
 	}
 }
 
@@ -32,7 +32,7 @@ func (am *ACMatcher) Reload(keywords []string) error {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 
-	newAc := algorithm.NewAhoCorasick()
+	newAc := algorithm.NewStringAhoCorasick()
 	newAc.AddPatterns(keywords...)
 	newAc.Build()
 

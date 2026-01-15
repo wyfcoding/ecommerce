@@ -15,7 +15,7 @@ import (
 type ModerationManager struct {
 	repo          domain.ModerationRepository
 	logger        *slog.Logger
-	sensitiveTrie *algorithm.Trie
+	sensitiveTrie *algorithm.Trie[*domain.SensitiveWord]
 	aimodelCli    aimodelv1.AIModelServiceClient
 }
 
@@ -24,7 +24,7 @@ func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger,
 	return &ModerationManager{
 		repo:          repo,
 		logger:        logger,
-		sensitiveTrie: algorithm.NewTrie(),
+		sensitiveTrie: algorithm.NewTrie[*domain.SensitiveWord](),
 		aimodelCli:    aimodelCli,
 	}
 }
@@ -114,7 +114,7 @@ func (m *ModerationManager) LoadSensitiveWords(ctx context.Context) error {
 		return err
 	}
 
-	newTrie := algorithm.NewTrie()
+	newTrie := algorithm.NewTrie[*domain.SensitiveWord]()
 	for _, w := range words {
 		newTrie.Insert(w.Word, w)
 	}

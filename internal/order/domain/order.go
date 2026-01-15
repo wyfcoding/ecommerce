@@ -62,7 +62,7 @@ type Order struct {
 	DeliveredAt     *time.Time       `gorm:"comment:送达时间" json:"delivered_at"`
 	CompletedAt     *time.Time       `gorm:"comment:完成时间" json:"completed_at"`
 	CancelledAt     *time.Time       `gorm:"comment:取消时间" json:"cancelled_at"`
-	fsm             *fsm.Machine     `gorm:"-" json:"-"`
+	fsm             *fsm.Machine[string, string]     `gorm:"-" json:"-"`
 }
 
 // OrderItem 实体代表订单中的一个商品项。
@@ -137,21 +137,21 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 }
 
 func (o *Order) initFSM() {
-	m := fsm.NewMachine(fsm.State(o.Status.String()))
+	m := fsm.NewMachine[string, string](o.Status.String())
 
 	// 定义转换规则
-	m.AddTransition(fsm.State(PendingPayment.String()), "PAY", fsm.State(Paid.String()))
-	m.AddTransition(fsm.State(Paid.String()), "SHIP", fsm.State(Shipped.String()))
-	m.AddTransition(fsm.State(Shipped.String()), "DELIVER", fsm.State(Delivered.String()))
-	m.AddTransition(fsm.State(Delivered.String()), "COMPLETE", fsm.State(Completed.String()))
+	m.AddTransition(PendingPayment.String(), "PAY", Paid.String())
+	m.AddTransition(Paid.String(), "SHIP", Shipped.String())
+	m.AddTransition(Shipped.String(), "DELIVER", Delivered.String())
+	m.AddTransition(Delivered.String(), "COMPLETE", Completed.String())
 
 	// 取消与退款
-	m.AddTransition(fsm.State(PendingPayment.String()), "CANCEL", fsm.State(Cancelled.String()))
-	m.AddTransition(fsm.State(Paid.String()), "CANCEL", fsm.State(Cancelled.String()))
-	m.AddTransition(fsm.State(Paid.String()), "REFUND_REQ", fsm.State(RefundRequested.String()))
-	m.AddTransition(fsm.State(Shipped.String()), "REFUND_REQ", fsm.State(RefundRequested.String()))
-	m.AddTransition(fsm.State(Delivered.String()), "REFUND_REQ", fsm.State(RefundRequested.String()))
-	m.AddTransition(fsm.State(RefundRequested.String()), "REFUND_APPROVE", fsm.State(Refunded.String()))
+	m.AddTransition(PendingPayment.String(), "CANCEL", Cancelled.String())
+	m.AddTransition(Paid.String(), "CANCEL", Cancelled.String())
+	m.AddTransition(Paid.String(), "REFUND_REQ", RefundRequested.String())
+	m.AddTransition(Shipped.String(), "REFUND_REQ", RefundRequested.String())
+	m.AddTransition(Delivered.String(), "REFUND_REQ", RefundRequested.String())
+	m.AddTransition(RefundRequested.String(), "REFUND_APPROVE", Refunded.String())
 
 	o.fsm = m
 }
@@ -169,12 +169,12 @@ func (o *Order) Trigger(ctx context.Context, event string, operator string, rema
 	}
 
 	oldStatus := o.Status
-	err := o.fsm.Trigger(ctx, fsm.Event(event), args...)
+	err := o.fsm.Trigger(ctx, event, args...)
 	if err != nil {
 		return err
 	}
 
-	newStatusStr := string(o.fsm.Current())
+	newStatusStr := o.fsm.Current()
 	for s, name := range statusNames {
 		if name == newStatusStr {
 			o.Status = s

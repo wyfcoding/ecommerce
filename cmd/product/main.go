@@ -60,7 +60,7 @@ type ServiceClients struct {
 
 func main() {
 	// 构建并运行服务
-	if err := app.NewBuilder(BootstrapName).
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
@@ -76,14 +76,12 @@ func main() {
 }
 
 // registerGRPC 注册 gRPC 服务
-func registerGRPC(s *grpc.Server, svc any) {
-	ctx := svc.(*AppContext)
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
 	pb.RegisterProductServiceServer(s, grpcServer.NewServer(ctx.Product))
 }
 
 // registerGin 注册 HTTP 路由
-func registerGin(e *gin.Engine, svc any) {
-	ctx := svc.(*AppContext)
+func registerGin(e *gin.Engine, ctx *AppContext) {
 
 	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
@@ -122,8 +120,8 @@ func registerGin(e *gin.Engine, svc any) {
 
 // initService 执行复杂的依赖注入与资源生命周期初始化。
 // 流程：DB -> Redis -> Kafka -> Outbox -> DDD Layers -> Cleanup Closure.
-func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
-	c := cfg.(*Config)
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	c := cfg
 	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default()
 

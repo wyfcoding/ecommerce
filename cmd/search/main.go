@@ -62,7 +62,7 @@ type ServiceClients struct {
 
 func main() {
 	// 构建并运行服务
-	if err := app.NewBuilder(BootstrapName).
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
@@ -78,14 +78,12 @@ func main() {
 }
 
 // registerGRPC 注册 gRPC 服务
-func registerGRPC(s *grpc.Server, svc any) {
-	ctx := svc.(*AppContext)
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
 	pb.RegisterSearchServiceServer(s, searchgrpc.NewServer(ctx.Search, logging.Default().Logger))
 }
 
 // registerGin 注册 HTTP 路由
-func registerGin(e *gin.Engine, svc any) {
-	ctx := svc.(*AppContext)
+func registerGin(e *gin.Engine, ctx *AppContext) {
 
 	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
@@ -123,8 +121,8 @@ func registerGin(e *gin.Engine, svc any) {
 }
 
 // initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
-func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
-	c := cfg.(*Config)
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	c := cfg
 	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default() // 获取全局 Logger
 
@@ -148,13 +146,11 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 
 	// 3. 初始化 Elasticsearch 客户端
 	esClient, err := pkgsearch.NewClient(&pkgsearch.Config{
-		Addresses:     c.Data.Elasticsearch.Addresses,
-		Username:      c.Data.Elasticsearch.Username,
-		Password:      c.Data.Elasticsearch.Password,
-		SlowThreshold: 500 * time.Millisecond,
-		MaxRetries:    3,
-		ServiceName:   BootstrapName,
-		BreakerConfig: c.CircuitBreaker,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		SlowThreshold:       500 * time.Millisecond,
+		MaxRetries:          3,
+		ServiceName:         BootstrapName,
+		BreakerConfig:       c.CircuitBreaker,
 	}, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)

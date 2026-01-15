@@ -58,7 +58,7 @@ type AppContext struct {
 type ServiceClients struct{}
 
 func main() {
-	if err := app.NewBuilder(BootstrapName).
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
@@ -73,13 +73,11 @@ func main() {
 	}
 }
 
-func registerGRPC(s *grpc.Server, svc any) {
-	ctx := svc.(*AppContext)
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
 	pb.RegisterCartServiceServer(s, cartgrpc.NewServer(ctx.Cart))
 }
 
-func registerGin(e *gin.Engine, svc any) {
-	ctx := svc.(*AppContext)
+func registerGin(e *gin.Engine, ctx *AppContext) {
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -107,8 +105,8 @@ func registerGin(e *gin.Engine, svc any) {
 	}
 }
 
-func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
-	c := cfg.(*Config)
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	c := cfg
 	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default()
 

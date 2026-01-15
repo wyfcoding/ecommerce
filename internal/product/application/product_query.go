@@ -13,7 +13,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
 	"github.com/wyfcoding/pkg/cache"
-	"github.com/wyfcoding/pkg/fallback"
+	"github.com/wyfcoding/pkg/policy"
 	"github.com/wyfcoding/pkg/metrics"
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
@@ -121,7 +121,7 @@ func (q *ProductQuery) GetProductByID(ctx context.Context, id uint64) (*domain.P
 		}, nil
 	}
 
-	return fallback.ExecuteWithFallback(ctx, "product", "GetProductByID", mainFunc, fallbackFunc)
+	return policy.ExecuteWithFallback(ctx, "product", "GetProductByID", mainFunc, fallbackFunc)
 }
 
 // ListProducts 分页列出商品，支持分类与品牌过滤。
