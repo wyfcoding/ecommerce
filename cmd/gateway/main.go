@@ -96,7 +96,7 @@ func initService(cfg any, m *metrics.Metrics) (any, func(), error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("redis init failed: %w", err)
 	}
-	slog.Info("Redis cache initialized", "addr", c.Data.Redis.Addr)
+	slog.Info("Redis cache initialized", "addrs", c.Data.Redis.Addrs)
 
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	clients := &ServiceClients{}
