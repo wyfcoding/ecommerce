@@ -1,6 +1,6 @@
 module github.com/wyfcoding/ecommerce
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/dtm-labs/client v1.18.7
@@ -47,7 +47,7 @@ require (
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
-	github.com/go-ini/ini v1.67.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
@@ -174,5 +174,3 @@ require (
 )
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20251222181119-0a764e51fe1b
-
-replace github.com/wyfcoding/financialtrading => ../financialtrading

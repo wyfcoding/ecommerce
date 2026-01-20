@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
-	marketdatav1 "github.com/wyfcoding/financialtrading/goapi/marketdata/v1"
+	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
 )
 
 // PricingQuery 处理读操作和计算。

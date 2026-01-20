@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
-	marketdatav1 "github.com/wyfcoding/financialtrading/goapi/marketdata/v1"
+	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
 )
 
 // PricingService 作为定价操作的门面。

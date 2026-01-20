@@ -16,7 +16,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/infrastructure/persistence"
 	riskgrpc "github.com/wyfcoding/ecommerce/internal/risksecurity/interfaces/grpc"
 	riskhttp "github.com/wyfcoding/ecommerce/internal/risksecurity/interfaces/http"
-	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
+	riskv1 "github.com/wyfcoding/financialtrading/go-api/risk/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"

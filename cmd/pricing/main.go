@@ -16,7 +16,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence"
 	pricinggrpc "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/grpc"
 	pricinghttp "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/http"
-	marketdatav1 "github.com/wyfcoding/financialtrading/goapi/marketdata/v1"
+	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"

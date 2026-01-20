@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
-	positionv1 "github.com/wyfcoding/financialtrading/goapi/position/v1"
+	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
+	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
 	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/response"
 

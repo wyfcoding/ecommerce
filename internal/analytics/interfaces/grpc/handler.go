@@ -14,6 +14,9 @@ import (
 	"google.golang.org/grpc/status"                  // gRPC状态处理。
 	"google.golang.org/protobuf/types/known/emptypb" // 导入空消息类型。
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/tracing"
 )
 
 // Server 结构体实现了 Analytics 的 gRPC 服务端接口。
@@ -229,12 +232,18 @@ func (s *Server) GetRealtimeVisitors(ctx context.Context, _ *emptypb.Empty) (*pb
 
 // GetUnifiedWealthDashboard 获取统一财富看板。
 func (s *Server) GetUnifiedWealthDashboard(ctx context.Context, req *pb.GetUnifiedWealthDashboardRequest) (*pb.UnifiedWealthDashboardResponse, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "AnalyticsGrpc.GetUnifiedWealthDashboard")
+	defer span.End()
+
 	if req.UserId <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
 
+	logging.Info(ctx, "grpc request: GetUnifiedWealthDashboard", "user_id", req.UserId)
+
 	resp, err := s.app.GetUnifiedWealthDashboard(ctx, req.UserId)
 	if err != nil {
+		logging.Error(ctx, "failed to get wealth dashboard", "user_id", req.UserId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get wealth dashboard: %v", err))
 	}
 

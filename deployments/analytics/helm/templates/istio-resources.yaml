@@ -43,7 +43,7 @@ spec:
         {{ .Values.canary.headerMatch.key }}:
           exact: {{ .Values.canary.headerMatch.value | quote }}
       uri:
-        prefix: /api/v1/analyticss
+        prefix: /api/v1/analytics
     route:
     - destination:
         host: {{ include "analytics.fullname" . }}
@@ -153,6 +153,8 @@ spec:
     - "./*"
     - "default/payment.default.svc.cluster.local"
     - "default/inventory.default.svc.cluster.local"
+    - "default/account-service.default.svc.cluster.local"
+    - "default/position-service.default.svc.cluster.local"
 ---
 ---
 apiVersion: telemetry.istio.io/v1alpha1

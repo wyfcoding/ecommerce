@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
-	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
+	riskv1 "github.com/wyfcoding/financialtrading/go-api/risk/v1"
 )
 
 // RiskService 作为风控安全操作的门面。

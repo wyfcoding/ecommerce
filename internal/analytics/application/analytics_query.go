@@ -10,8 +10,10 @@ import (
 	"github.com/shopspring/decimal"
 	analyticsv1 "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
-	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
-	positionv1 "github.com/wyfcoding/financialtrading/goapi/position/v1"
+	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
+	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/tracing"
 )
 
 // AnalyticsQuery 处理分析模块的查询操作。
@@ -93,15 +95,24 @@ func (q *AnalyticsQuery) ListUserReports(ctx context.Context, userID uint64, off
 
 // GetUnifiedWealthDashboard 整合零售和交易数据。
 func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID uint64) (*analyticsv1.UnifiedWealthDashboardResponse, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "AnalyticsQuery.GetUnifiedWealthDashboard")
+	defer span.End()
+
+	logging.Info(ctx, "fetching unified wealth dashboard", "user_id", userID)
+
 	resp := &analyticsv1.UnifiedWealthDashboardResponse{
 		UserId: userID,
 	}
 
-	// 1. 获取零售支出 (真实化执行：按结算状态分层聚合)
-	retailMetrics, _, _ := q.repo.ListMetrics(ctx, &domain.MetricQuery{
+	// 1. 获取零售支出
+	retailMetrics, _, err := q.repo.ListMetrics(ctx, &domain.MetricQuery{
 		Dimension:    "user",
 		DimensionVal: fmt.Sprintf("%d", userID),
 	})
+	if err != nil {
+		logging.Error(ctx, "failed to list retail metrics", "user_id", userID, "error", err)
+		// 零售指标失败不应阻止显示交易侧数据，默认设为 0
+	}
 
 	var (
 		totalSpending     float64
@@ -118,36 +129,48 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 	}
 	resp.TotalRetailSpending = totalSpending
 
-	// 2. 获取交易侧资产 (如果是混合账户)
+	// 2. 获取交易侧资产 (具备韧性检查)
 	if q.accountCli != nil && q.positionCli != nil {
 		userIDStr := fmt.Sprintf("%d", userID)
 
-		// 2.1 获取盈亏统计 (gRPC)
-		posSummary, err := q.positionCli.GetPositionSummary(ctx, &positionv1.GetPositionSummaryRequest{
-			UserId: userIDStr,
+		// 使用 Context 超时控制跨服务调用
+		rpcCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+
+		// 2.1 获取盈亏统计 (gRPC) - 改用 GetPositions 并手动聚合
+		posResp, err := q.positionCli.GetPositions(rpcCtx, &positionv1.GetPositionsRequest{
+			UserId:   userIDStr,
+			PageSize: 1000,
 		})
-		if err == nil {
-			unrealized, err1 := decimal.NewFromString(posSummary.TotalUnrealizedPnl)
-			realized, err2 := decimal.NewFromString(posSummary.TotalRealizedPnl)
-			if err1 == nil && err2 == nil {
-				resp.TotalTradingPnl, _ = unrealized.Add(realized).Float64()
+		if err != nil {
+			logging.Warn(ctx, "failed to fetch positions for summary", "user_id", userID, "error", err)
+		} else {
+			var totalPnl decimal.Decimal
+			for _, p := range posResp.GetPositions() {
+				unrealized, _ := decimal.NewFromString(p.UnrealizedPnl)
+				realized, _ := decimal.NewFromString(p.RealizedPnl)
+				totalPnl = totalPnl.Add(unrealized).Add(realized)
 			}
+			resp.TotalTradingPnl, _ = totalPnl.Float64()
 		}
 
 		// 2.2 获取现金余额 (gRPC)
-		balance, err := q.accountCli.GetBalance(ctx, &accountv1.GetBalanceRequest{
+		balance, err := q.accountCli.GetBalance(rpcCtx, &accountv1.GetBalanceRequest{
 			UserId: userIDStr,
 		})
-		if err == nil {
+		if err != nil {
+			logging.Warn(ctx, "failed to fetch trading balance", "user_id", userID, "error", err)
+		} else {
 			bal, err := decimal.NewFromString(balance.Balance)
 			if err == nil {
 				resp.CashBalance, _ = bal.Float64()
 			}
 		}
+	} else {
+		logging.Warn(ctx, "financial clients not configured, skipping trading data", "user_id", userID)
 	}
 
-	// 3. 计算总资产 (真实净值计算)
-	// 公式: TotalEquity = (CashBalance + TotalTradingPnl) - (TotalSpending + PendingSettlement)
+	// 3. 计算总资产 (使用 Decimal 确保金融计算准确)
 	totalDebt := totalSpending + pendingSettlement
 	equityDec := decimal.NewFromFloat(resp.CashBalance).
 		Add(decimal.NewFromFloat(resp.TotalTradingPnl)).
@@ -155,7 +178,7 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 
 	resp.TotalEquity, _ = equityDec.Float64()
 
-	// 4. 计算多维资产分布 (真实权重占比)
+	// 4. 计算多维资产分布
 	if resp.TotalEquity != 0 {
 		total := decimal.NewFromFloat(math.Abs(resp.TotalEquity))
 
@@ -163,7 +186,6 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 			if amount == 0 {
 				return
 			}
-			// 计算绝对值占比以展示分布
 			pct, _ := decimal.NewFromFloat(math.Abs(amount)).Div(total).Mul(decimal.NewFromInt(100)).Float64()
 			resp.AssetDistribution = append(resp.AssetDistribution, &analyticsv1.AssetDistribution{
 				AssetType:  assetType,
@@ -177,5 +199,6 @@ func (q *AnalyticsQuery) GetUnifiedWealthDashboard(ctx context.Context, userID u
 		addAsset("RETAIL_DEBT", -totalDebt)
 	}
 
+	logging.Info(ctx, "unified wealth dashboard fetched successfully", "user_id", userID, "total_equity", resp.TotalEquity)
 	return resp, nil
 }

@@ -19,7 +19,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/settlement/interfaces/event"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
 	settlementhttp "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/http"
-	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
+	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"

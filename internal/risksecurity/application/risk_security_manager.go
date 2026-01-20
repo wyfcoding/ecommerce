@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
-	riskv1 "github.com/wyfcoding/financialtrading/goapi/risk/v1"
+	riskv1 "github.com/wyfcoding/financialtrading/go-api/risk/v1"
 	finance "github.com/wyfcoding/pkg/algorithm/finance"
 	graph "github.com/wyfcoding/pkg/algorithm/graph"
 	"github.com/wyfcoding/pkg/algorithm/infra"

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
-	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
+	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 )
 
 // SettlementManager 处理所有结算相关的写入操作（Commands）。

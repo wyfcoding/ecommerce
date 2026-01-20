@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
-	accountv1 "github.com/wyfcoding/financialtrading/goapi/account/v1"
+	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 )
 
 // SettlementService 结算门面服务，整合 Manager 和 Query。
