@@ -44,6 +44,8 @@ func (e *RoutingEngine) SelectBestChannel(ctx context.Context, amount int64, met
 		channelType = domain.ChannelTypeAlipay
 	case "wechat":
 		channelType = domain.ChannelTypeWechat
+	case "trading":
+		channelType = domain.ChannelTypeTrading
 	default:
 		channelType = domain.ChannelTypeStripe
 	}

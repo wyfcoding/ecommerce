@@ -21,6 +21,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/risk"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
 	paymenthttp "github.com/wyfcoding/ecommerce/internal/payment/interfaces/http"
+	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -64,10 +65,12 @@ type ServiceClients struct {
 	SettlementConn   *grpc.ClientConn `service:"settlement"`
 	OrderConn        *grpc.ClientConn `service:"order"`
 	RiskSecurityConn *grpc.ClientConn `service:"risksecurity"`
+	AccountConn      *grpc.ClientConn `service:"account"` // FinancialTrading Account Service
 
 	// 具体的客户端接口 (由 Conn 转化)
 	Settlement   settlementv1.SettlementServiceClient
 	RiskSecurity risksecurityv1.RiskSecurityServiceClient
+	Account      accountv1.AccountServiceClient
 }
 
 func main() {
@@ -160,7 +163,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	}
 
 	// 2. 初始化缓存 (Redis)
-	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
+	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
@@ -213,6 +216,9 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	if clients.RiskSecurityConn != nil {
 		clients.RiskSecurity = risksecurityv1.NewRiskSecurityServiceClient(clients.RiskSecurityConn)
 	}
+	if clients.AccountConn != nil {
+		clients.Account = accountv1.NewAccountServiceClient(clients.AccountConn)
+	}
 
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -225,10 +231,11 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	riskSvc := risk.NewRiskService(clients.RiskSecurity)
 
 	gateways := map[domain.GatewayType]domain.PaymentGateway{
-		domain.GatewayTypeAlipay: gateway.NewAlipayGateway(),
-		domain.GatewayTypeStripe: gateway.NewStripeGateway(),
-		domain.GatewayTypeWechat: gateway.NewWechatGateway(),
-		domain.GatewayTypeMock:   gateway.NewMockGateway(),
+		domain.GatewayTypeAlipay:  gateway.NewAlipayGateway(),
+		domain.GatewayTypeStripe:  gateway.NewStripeGateway(),
+		domain.GatewayTypeWechat:  gateway.NewWechatGateway(),
+		domain.GatewayTypeMock:    gateway.NewMockGateway(),
+		domain.GatewayTypeTrading: gateway.NewTradingAccountGateway(clients.Account),
 	}
 
 	// 5.2 Application (Components)

@@ -90,11 +90,11 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	}
 	slog.Info("Database initialized", "driver", c.Data.Database.Driver)
 
-	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
+	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("redis init failed: %w", err)
 	}
-	slog.Info("Redis cache initialized", "addrs", c.Data.Redis.Addrs)
+	slog.Info("Redis cache initialized", "addrs", &c.Data.Redis.Addrs)
 
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	clients := &ServiceClients{}

@@ -7,11 +7,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/shopspring/decimal"
 	advancedcouponv1 "github.com/wyfcoding/ecommerce/goapi/advancedcoupon/v1"
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	warehousev1 "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
+	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wyfcoding/pkg/dtm"
@@ -36,6 +38,7 @@ type OrderManager struct {
 	riskEvaluator     risk.Evaluator
 	inventoryCli      inventoryv1.InventoryServiceClient
 	paymentCli        paymentv1.PaymentServiceClient
+	positionCli       positionv1.PositionServiceClient
 
 	// 指标统计
 	orderCreatedCounter *prometheus.CounterVec
@@ -71,9 +74,10 @@ func NewOrderManager(
 }
 
 // SetClients 注入下游服务客户端依赖。
-func (s *OrderManager) SetClients(invCli inventoryv1.InventoryServiceClient, payCli paymentv1.PaymentServiceClient) {
+func (s *OrderManager) SetClients(invCli inventoryv1.InventoryServiceClient, payCli paymentv1.PaymentServiceClient, posCli positionv1.PositionServiceClient) {
 	s.inventoryCli = invCli
 	s.paymentCli = payCli
+	s.positionCli = posCli
 }
 
 // SetSvcURL 设置当前服务的访问地址，用于 DTM 回调。
@@ -89,14 +93,33 @@ func (s *OrderManager) CreateOrder(ctx context.Context, userID uint64, items []*
 		totalAmount += it.Price * int64(it.Quantity)
 	}
 
-	riskAssessment, err := s.riskEvaluator.Assess(ctx, "order.create", map[string]any{
+	riskData := map[string]any{
 		"user_id":      userID,
 		"amount":       totalAmount,
 		"item_count":   len(items),
 		"client_ip":    ctx.Value("client_ip"),
 		"device_id":    ctx.Value("device_id"),
 		"is_real_name": true,
-	})
+	}
+
+	// --- 架构增强：引入交易资产价值增强风控精度 ---
+	if s.positionCli != nil {
+		posResp, err := s.positionCli.GetPositions(ctx, &positionv1.GetPositionsRequest{
+			UserId: fmt.Sprintf("%d", userID),
+		})
+		if err == nil {
+			var totalEquity decimal.Decimal
+			for _, p := range posResp.GetPositions() {
+				val, _ := decimal.NewFromString(p.Quantity)
+				price, _ := decimal.NewFromString(p.CurrentPrice)
+				totalEquity = totalEquity.Add(val.Mul(price))
+			}
+			riskData["trading_asset_value"], _ = totalEquity.Float64()
+			s.logger.InfoContext(ctx, "augmented risk assessment with trading assets", "user_id", userID, "asset_value", totalEquity)
+		}
+	}
+
+	riskAssessment, err := s.riskEvaluator.Assess(ctx, "order.create", riskData)
 
 	if err != nil {
 		s.logger.ErrorContext(ctx, "risk assessment failed, fail-open applied", "error", err)

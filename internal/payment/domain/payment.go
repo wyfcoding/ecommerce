@@ -63,9 +63,9 @@ type Payment struct {
 	CancelledAt    *time.Time
 	RefundedAt     *time.Time
 
-	fsm     *fsm.Machine[string, string]  `gorm:"-"`
-	Logs    []*PaymentLog `gorm:"foreignKey:PaymentID"`
-	Refunds []*Refund     `gorm:"foreignKey:PaymentID"`
+	fsm     *fsm.Machine[string, string] `gorm:"-"`
+	Logs    []*PaymentLog                `gorm:"foreignKey:PaymentID"`
+	Refunds []*Refund                    `gorm:"foreignKey:PaymentID"`
 
 	// 世界级特性：分账信息 (用于平台抽佣、多商家结算)
 	Splits []PaymentSplit `gorm:"foreignKey:PaymentID"`
@@ -207,9 +207,10 @@ func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 type ChannelType string
 
 const (
-	ChannelTypeAlipay ChannelType = "alipay"
-	ChannelTypeWechat ChannelType = "wechat"
-	ChannelTypeStripe ChannelType = "stripe"
+	ChannelTypeAlipay  ChannelType = "alipay"
+	ChannelTypeWechat  ChannelType = "wechat"
+	ChannelTypeStripe  ChannelType = "stripe"
+	ChannelTypeTrading ChannelType = "trading"
 )
 
 type ChannelConfig struct {
@@ -227,14 +228,16 @@ type ChannelConfig struct {
 type GatewayType string
 
 const (
-	GatewayTypeAlipay GatewayType = "alipay"
-	GatewayTypeWechat GatewayType = "wechat"
-	GatewayTypeStripe GatewayType = "stripe"
-	GatewayTypeMock   GatewayType = "mock"
+	GatewayTypeAlipay  GatewayType = "alipay"
+	GatewayTypeWechat  GatewayType = "wechat"
+	GatewayTypeStripe  GatewayType = "stripe"
+	GatewayTypeMock    GatewayType = "mock"
+	GatewayTypeTrading GatewayType = "trading" // 证券账户支付
 )
 
 type PaymentGatewayRequest struct {
 	OrderID     string
+	UserID      uint64
 	Amount      int64
 	Currency    string
 	Description string

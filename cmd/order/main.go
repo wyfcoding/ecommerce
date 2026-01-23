@@ -17,6 +17,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order/interfaces/event"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
+	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -61,6 +62,7 @@ type ServiceClients struct {
 	Inventory *grpc.ClientConn `service:"inventory"`
 	Payment   *grpc.ClientConn `service:"payment"`
 	Product   *grpc.ClientConn `service:"product"`
+	Position  *grpc.ClientConn `service:"position"` // FinancialTrading Position Service
 }
 
 func main() {
@@ -130,7 +132,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 2. 初始化缓存 (Redis)
 	bootLog.Info("initializing redis cache...")
-	redisCache, err := cache.NewRedisCache(c.Data.Redis, c.CircuitBreaker, logger, m)
+	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		shardingManager.Close()
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
@@ -214,10 +216,11 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	orderManager.SetSvcURL(orderSvcAddr)
 
 	// 注入 gRPC 客户端 (Internal Service Interaction)
-	if clients.Inventory != nil && clients.Payment != nil {
+	if clients.Inventory != nil && clients.Payment != nil && clients.Position != nil {
 		orderManager.SetClients(
 			inventoryv1.NewInventoryServiceClient(clients.Inventory),
 			paymentv1.NewPaymentServiceClient(clients.Payment),
+			positionv1.NewPositionServiceClient(clients.Position),
 		)
 	}
 	orderQuery := application.NewOrderQuery(orderRepo)

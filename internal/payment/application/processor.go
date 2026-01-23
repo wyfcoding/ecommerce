@@ -81,7 +81,7 @@ func (s *PaymentProcessor) InitiatePayment(ctx context.Context, orderID uint64, 
 	// 4. 执行网关 PreAuth 并记录指标
 	start := time.Now()
 	gatewayReq := &domain.PaymentGatewayRequest{
-		OrderID: payment.PaymentNo, Amount: payment.Amount, Currency: "CNY",
+		OrderID: payment.PaymentNo, UserID: userID, Amount: payment.Amount, Currency: "CNY",
 	}
 	resp, err := gateway.PreAuth(ctx, gatewayReq)
 	s.routing.RecordResult(chCfg.Code, err == nil, time.Since(start))
