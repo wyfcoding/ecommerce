@@ -58,7 +58,7 @@ func (h *Handler) ListWarehouses(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListWarehouses(c.Request.Context(), page, pageSize)
+	list, total, err := h.app.Query.ListWarehouses(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list warehouses", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list warehouses", err.Error())
@@ -81,7 +81,7 @@ func (h *Handler) GetWarehouse(c *gin.Context) {
 		return
 	}
 
-	warehouse, err := h.app.GetWarehouse(c.Request.Context(), id)
+	warehouse, err := h.app.Query.GetWarehouse(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get warehouse", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get warehouse", err.Error())
@@ -108,7 +108,7 @@ func (h *Handler) UpdateStock(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.UpdateStock(c.Request.Context(), req.WarehouseID, req.SkuID, req.Quantity); err != nil {
+	if err := h.app.Command.AdjustStock(c.Request.Context(), req.WarehouseID, req.SkuID, req.Quantity, "HTTP Update"); err != nil {
 		h.logger.Error("Failed to update stock", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update stock", err.Error())
 		return
@@ -130,7 +130,7 @@ func (h *Handler) GetStock(c *gin.Context) {
 		return
 	}
 
-	stock, err := h.app.GetStock(c.Request.Context(), warehouseID, skuID)
+	stock, err := h.app.Query.GetStock(c.Request.Context(), warehouseID, skuID)
 	if err != nil {
 		h.logger.Error("Failed to get stock", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get stock", err.Error())

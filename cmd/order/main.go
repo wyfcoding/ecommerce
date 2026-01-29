@@ -51,7 +51,7 @@ type Config struct {
 type AppContext struct {
 	Config      *Config
 	Cmd         *application.OrderCommandService
-	Query       *application.OrderQuery
+	Query       *application.OrderQueryService
 	Clients     *ServiceClients
 	Handler     *orderhttp.Handler
 	Metrics     *metrics.Metrics
@@ -225,7 +225,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		productv1.NewProductServiceClient(clients.Product),
 	)
 
-	orderQuery := application.NewOrderQuery(orderRepo, redisCache, logger.Logger, m)
+	orderQuery := application.NewOrderQueryService(orderRepo, redisCache, logger.Logger, m)
 
 	// --- 6.3 Event Handlers (Kafka Consumer) ---
 	bootLog.Info("initializing kafka consumer for flashsale events...")

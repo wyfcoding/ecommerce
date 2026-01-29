@@ -7,20 +7,20 @@ import (
 	"time"
 
 	"github.com/dtm-labs/client/dtmgrpc"
-	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"          // 导入仓库模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/warehouse/application" // 导入仓库模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"      // 导入仓库模块的领域。
+	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
+	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
+	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
 
-	"google.golang.org/grpc/codes"                       // gRPC状态码。
-	"google.golang.org/grpc/status"                      // gRPC状态处理。
-	"google.golang.org/protobuf/types/known/emptypb"     // 导入空消息类型。
-	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Server 结构体实现了 WarehouseService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedWarehouseServiceServer                               // 嵌入生成的UnimplementedWarehouseServiceServer。
-	app                                    *application.WarehouseService // 依赖Warehouse应用服务 facade。
+	pb.UnimplementedWarehouseServiceServer
+	app *application.WarehouseService
 }
 
 // NewServer 创建并返回一个新的 Warehouse gRPC 服务端实例。
@@ -56,7 +56,7 @@ func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesReque
 		pageSize = 10
 	}
 
-	warehouses, total, err := s.app.ListWarehouses(ctx, page, pageSize)
+	warehouses, total, err := s.app.Query.ListWarehouses(ctx, page, pageSize)
 	if err != nil {
 		slog.Error("gRPC ListWarehouses failed", "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list warehouses: %v", err))
@@ -79,7 +79,7 @@ func (s *Server) UpdateStock(ctx context.Context, req *pb.UpdateStockRequest) (*
 	start := time.Now()
 	slog.Info("gRPC UpdateStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	if err := s.app.UpdateStock(ctx, req.WarehouseId, req.SkuId, req.Quantity); err != nil {
+	if err := s.app.Command.AdjustStock(ctx, req.WarehouseId, req.SkuId, req.Quantity, "gRPC UpdateStock"); err != nil {
 		slog.Error("gRPC UpdateStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update stock: %v", err))
 	}
@@ -93,7 +93,7 @@ func (s *Server) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.Get
 	start := time.Now()
 	slog.Debug("gRPC GetStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId)
 
-	stock, err := s.app.GetStock(ctx, req.WarehouseId, req.SkuId)
+	stock, err := s.app.Query.GetStock(ctx, req.WarehouseId, req.SkuId)
 	if err != nil {
 		slog.Error("gRPC GetStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get stock: %v", err))
@@ -141,12 +141,9 @@ func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*
 	start := time.Now()
 	slog.Info("gRPC DeductStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	barrier, err := dtmgrpc.BarrierFromGrpc(ctx)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get dtm barrier: %v", err))
-	}
+	barrier, _ := dtmgrpc.BarrierFromGrpc(ctx)
 
-	if err := s.app.DeductStock(ctx, barrier, req.WarehouseId, req.SkuId, int32(req.Quantity)); err != nil {
+	if err := s.app.DeductStock(ctx, barrier, req.OrderId, req.SkuId, req.WarehouseId, int32(req.Quantity)); err != nil {
 		slog.Error("gRPC DeductStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("failed to deduct stock for saga: %v", err))
 	}
@@ -160,12 +157,9 @@ func (s *Server) RevertStock(ctx context.Context, req *pb.RevertStockRequest) (*
 	start := time.Now()
 	slog.Info("gRPC RevertStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	barrier, err := dtmgrpc.BarrierFromGrpc(ctx)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get dtm barrier: %v", err))
-	}
+	barrier, _ := dtmgrpc.BarrierFromGrpc(ctx)
 
-	if err := s.app.RevertStock(ctx, barrier, req.WarehouseId, req.SkuId, int32(req.Quantity)); err != nil {
+	if err := s.app.RevertStock(ctx, barrier, req.OrderId, req.SkuId, req.WarehouseId, int32(req.Quantity)); err != nil {
 		slog.Error("gRPC RevertStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to revert stock for saga: %v", err))
 	}

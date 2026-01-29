@@ -20,11 +20,11 @@ import (
 type Server struct {
 	pb.UnimplementedOrderServiceServer
 	cmdService   *application.OrderCommandService
-	queryService *application.OrderQuery
+	queryService *application.OrderQueryService
 }
 
 // NewServer Creates a new Order gRPC server.
-func NewServer(cmd *application.OrderCommandService, query *application.OrderQuery) *Server {
+func NewServer(cmd *application.OrderCommandService, query *application.OrderQueryService) *Server {
 	return &Server{
 		cmdService:   cmd,
 		queryService: query,
@@ -153,7 +153,7 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 		statusPtr = &st
 	}
 
-	orders, total, err := s.queryService.ListOrders(ctx, req.UserId, statusPtr, page, pageSize)
+	orders, total, err := s.queryService.ListUserOrders(ctx, req.UserId, statusPtr, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list orders: %v", err))
 	}

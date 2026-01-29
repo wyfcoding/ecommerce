@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
+	"github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence"
 	warehousegrpc "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/grpc"
 	warehousehttp "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/http"
@@ -23,6 +25,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -51,19 +54,17 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 Warehouse 服务无下游强依赖
 }
 
 func main() {
-	// 构建并运行服务
 	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.CORS(), // 跨域处理
-			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
+			middleware.CORS(),
+			middleware.TimeoutMiddleware(30*time.Second),
 		).
 		Build().
 		Run(); err != nil {
@@ -71,20 +72,15 @@ func main() {
 	}
 }
 
-// registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
 	pb.RegisterWarehouseServiceServer(s, warehousegrpc.NewServer(ctx.Warehouse))
 }
 
-// registerGin 注册 HTTP 路由
 func registerGin(e *gin.Engine, ctx *AppContext) {
-
-	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 系统检查接口
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
@@ -94,96 +90,78 @@ func registerGin(e *gin.Engine, ctx *AppContext) {
 				"timestamp": time.Now().Unix(),
 			})
 		})
-		sys.GET("/ready", func(c *gin.Context) {
-			response.SuccessWithRawData(c, gin.H{"status": "READY"})
-		})
 	}
 
-	// 指标暴露
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 全局限流中间件
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 业务 API 路由 v1
 	api := e.Group("/api/v1")
 	{
 		ctx.Handler.RegisterRoutes(api)
 	}
 }
 
-// initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
 func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	c := cfg
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default() // 获取全局 Logger
+	logger := logging.Default()
 
-	// 打印脱敏配置
 	configpkg.PrintWithMask(c)
 
-	// 1. 初始化数据库 (MySQL)
 	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
 
-	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
-	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
-		redisCache.Close()
-		if sqlDB, err := db.RawDB().DB(); err == nil {
-			sqlDB.Close()
-		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. DDD 分层装配
-	bootLog.Info("assembling services with full dependency injection...")
+	// Outbox initialization
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
 
-	// 5.1 Infrastructure (Persistence)
+	// 这里通常需要一个 MQ Pusher，暂设空或从配置初始化
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		// 实际应投递到 Kafka
+		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
+		return nil
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
 	warehouseRepo := persistence.NewWarehouseRepository(db.RawDB())
 
-	// 5.2 Application (Service)
-	query := application.NewWarehouseQuery(warehouseRepo)
-	manager := application.NewWarehouseManager(warehouseRepo, logger.Logger)
-	warehouseService := application.NewWarehouseService(manager, query)
+	cmdService := application.NewWarehouseCommandService(warehouseRepo, outboxPublisher, logger.Logger)
+	queryService := application.NewWarehouseQueryService(warehouseRepo)
+	warehouseService := application.NewWarehouseService(cmdService, queryService)
 
-	// 5.3 Interface (HTTP Handlers)
 	handler := warehousehttp.NewHandler(warehouseService, logger.Logger)
 
-	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if redisCache != nil {
-			if err := redisCache.Close(); err != nil {
-				bootLog.Error("failed to close redis cache", "error", err)
-			}
+			redisCache.Close()
 		}
 		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
-			if err := sqlDB.Close(); err != nil {
-				bootLog.Error("failed to close sql database", "error", err)
-			}
+			sqlDB.Close()
 		}
 	}
 
-	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
 		Warehouse:   warehouseService,

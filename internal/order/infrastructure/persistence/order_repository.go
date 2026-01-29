@@ -13,7 +13,6 @@ import (
 
 type orderRepository struct {
 	sharding *sharding.Manager
-	tx       *gorm.DB
 }
 
 // NewOrderRepository 定义了数据持久层接口。
@@ -21,69 +20,64 @@ func NewOrderRepository(sharding *sharding.Manager) domain.OrderRepository {
 	return &orderRepository{sharding: sharding}
 }
 
-// WithTx 实现了 domain.OrderRepository 接口，支持事务嵌套。
-func (r *orderRepository) WithTx(tx any) domain.OrderRepository {
-	if gormTx, ok := tx.(*gorm.DB); ok {
-		return &orderRepository{
-			sharding: r.sharding,
-			tx:       gormTx,
-		}
-	}
-	return r
+// BeginTx 开始事务 (基于 UserID 定位分库)
+func (r *orderRepository) BeginTx(ctx context.Context, userID uint64) any {
+	return r.sharding.GetDB(userID).WithContext(ctx).Begin()
 }
 
-// getDB 内部辅助方法，自动切换事务与普通连接
-func (r *orderRepository) getDB(userID uint64) *gorm.DB {
-	if r.tx != nil {
-		return r.tx
-	}
-	return r.sharding.GetDB(userID)
+// CommitTx 提交事务
+func (r *orderRepository) CommitTx(tx any) error {
+	return tx.(*gorm.DB).Commit().Error
 }
 
-// Save 将订单聚合根保存到对应的分库中。
-func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
-	db := r.getDB(order.UserID)
-
-	execute := func(tx *gorm.DB) error {
-		if err := tx.Save(order).Error; err != nil {
-			return err
-		}
-		for _, item := range order.Items {
-			if item.ID == 0 {
-				item.OrderID = uint64(order.ID)
-			}
-			if err := tx.Save(item).Error; err != nil {
-				return err
-			}
-		}
-		for _, log := range order.Logs {
-			if log.ID == 0 {
-				log.OrderID = uint64(order.ID)
-			}
-			if err := tx.Save(log).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	if r.tx != nil {
-		return execute(r.tx.WithContext(ctx))
-	}
-
-	return db.WithContext(ctx).Transaction(execute)
+// RollbackTx 回滚事务
+func (r *orderRepository) RollbackTx(tx any) error {
+	return tx.(*gorm.DB).Rollback().Error
 }
 
-// Transaction 实现了事务包装逻辑
-func (r *orderRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {
+// WithTx 事务包装器
+func (r *orderRepository) WithTx(ctx context.Context, userID uint64, fn func(tx any) error) error {
 	db := r.sharding.GetDB(userID)
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(tx)
 	})
 }
 
+// Save 将订单聚合根保存到对应的分库中。
+func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
+	db := r.sharding.GetDB(order.UserID).WithContext(ctx)
+	return db.Transaction(func(tx *gorm.DB) error {
+		return r.SaveInTx(ctx, tx, order)
+	})
+}
+
+// SaveInTx 在事务中保存订单聚合根。
+func (r *orderRepository) SaveInTx(ctx context.Context, tx any, order *domain.Order) error {
+	gormTx := tx.(*gorm.DB).WithContext(ctx)
+	if err := gormTx.Save(order).Error; err != nil {
+		return err
+	}
+	for _, item := range order.Items {
+		if item.ID == 0 {
+			item.OrderID = uint64(order.ID)
+		}
+		if err := gormTx.Save(item).Error; err != nil {
+			return err
+		}
+	}
+	for _, log := range order.Logs {
+		if log.ID == 0 {
+			log.OrderID = uint64(order.ID)
+		}
+		if err := gormTx.Save(log).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // FindByID 根据ID从数据库中查询订单。
-func (r *orderRepository) FindByID(ctx context.Context, userID uint64, id uint) (*domain.Order, error) {
+func (r *orderRepository) FindByID(ctx context.Context, userID uint64, id uint64) (*domain.Order, error) {
 	db := r.sharding.GetDB(userID)
 	var order domain.Order
 	if err := db.WithContext(ctx).Preload("Items").Preload("Logs").First(&order, id).Error; err != nil {
@@ -113,8 +107,13 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 	return r.Save(ctx, order)
 }
 
+// UpdateInTx 在事务中更新。
+func (r *orderRepository) UpdateInTx(ctx context.Context, tx any, order *domain.Order) error {
+	return r.SaveInTx(ctx, tx, order)
+}
+
 // Delete 根据ID物理删除订单记录。
-func (r *orderRepository) Delete(ctx context.Context, userID uint64, id uint) error {
+func (r *orderRepository) Delete(ctx context.Context, userID uint64, id uint64) error {
 	db := r.sharding.GetDB(userID)
 	return db.WithContext(ctx).Delete(&domain.Order{}, id).Error
 }
@@ -125,7 +124,6 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 	var allOrders []*domain.Order
 	var totalCount int64
 
-	// 真实化执行：分布式全表聚合与全局排序分页
 	for _, db := range dbs {
 		var list []*domain.Order
 		var count int64
@@ -135,14 +133,14 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 		}
 		totalCount += count
 
-		// 为保证分页准确性，每个分片拉取足够的样本进行合并排序
+		// 获取样本
 		if err := query.Preload("Items").Order("created_at desc").Limit(offset + limit).Find(&list).Error; err != nil {
 			return nil, 0, err
 		}
 		allOrders = append(allOrders, list...)
 	}
 
-	// 全局按时间降序排列
+	// 全局排序
 	slices.SortFunc(allOrders, func(a, b *domain.Order) int {
 		if a.CreatedAt.After(b.CreatedAt) {
 			return -1
@@ -163,13 +161,16 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 }
 
 // ListByUserID 获取指定用户的订单列表。
-func (r *orderRepository) ListByUserID(ctx context.Context, userID uint, offset, limit int) ([]*domain.Order, int64, error) {
-	db := r.sharding.GetDB(uint64(userID)).WithContext(ctx).Model(&domain.Order{})
+func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, status *int, offset, limit int) ([]*domain.Order, int64, error) {
+	db := r.sharding.GetDB(userID).WithContext(ctx).Model(&domain.Order{})
+
+	db = db.Where("user_id = ?", userID)
+	if status != nil {
+		db = db.Where("status = ?", *status)
+	}
 
 	var list []*domain.Order
 	var total int64
-
-	db = db.Where("user_id = ?", userID)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

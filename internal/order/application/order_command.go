@@ -24,6 +24,7 @@ import (
 	"github.com/wyfcoding/pkg/security/risk"
 )
 
+// OrderCommandService 处理所有订单相关的写入操作。
 type OrderCommandService struct {
 	repo              domain.OrderRepository
 	idGen             idgen.Generator
@@ -42,6 +43,7 @@ type OrderCommandService struct {
 	orderCreatedCounter *prometheus.CounterVec
 }
 
+// NewOrderCommandService 构造函数。
 func NewOrderCommandService(
 	repo domain.OrderRepository,
 	idGen idgen.Generator,
@@ -68,7 +70,7 @@ func NewOrderCommandService(
 	}
 }
 
-// SetClients 注入下游服务客户端依赖。
+// SetClients 注入下游依赖。
 func (s *OrderCommandService) SetClients(
 	invCli inventoryv1.InventoryServiceClient,
 	payCli paymentv1.PaymentServiceClient,
@@ -81,24 +83,21 @@ func (s *OrderCommandService) SetClients(
 	s.productCli = prodCli
 }
 
-// SetSvcURL 设置当前服务的访问地址，用于 DTM 回调。
+// SetSvcURL 设置回调地址。
 func (s *OrderCommandService) SetSvcURL(url string) {
 	s.orderSvcURL = url
 }
 
-// CreateOrder 创建订单。
+// CreateOrder 创建订单逻辑。
 func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderCommand) (*domain.Order, error) {
-	// --- 1. 验证并获取商品信息 (Price Safety) ---
+	// 1. 获取最新价格 (Price Safety)
 	var items []*domain.OrderItem
 	var totalAmount int64
 	for _, it := range cmd.Items {
-		// 从商品服务获取最新价格与名称 (防止前端篡改价格)
 		sku, err := s.productCli.GetSKUByID(ctx, &productv1.GetSKUByIDRequest{Id: it.SkuID})
 		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to fetch SKU info", "sku_id", it.SkuID, "error", err)
 			return nil, fmt.Errorf("invalid SKU %d: %w", it.SkuID, err)
 		}
-
 		item := &domain.OrderItem{
 			SkuID:       it.SkuID,
 			ProductID:   it.ProductID,
@@ -112,54 +111,22 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 		totalAmount += item.TotalPrice
 	}
 
-	// --- 2. 深度风控拦截 ---
-	riskData := map[string]any{
-		"user_id":      cmd.UserID,
-		"amount":       totalAmount,
-		"item_count":   len(items),
-		"client_ip":    cmd.ClientIP,
-		"device_id":    cmd.DeviceID,
-		"is_real_name": true,
-	}
-
-	// 引入交易资产价值增强风控精度
-	if s.positionCli != nil {
-		posResp, err := s.positionCli.GetPositions(ctx, &positionv1.GetPositionsRequest{
-			UserId: fmt.Sprintf("%d", cmd.UserID),
-		})
-		if err == nil {
-			var totalEquity decimal.Decimal
-			for _, p := range posResp.GetPositions() {
-				val, _ := decimal.NewFromString(p.Quantity)
-				price, _ := decimal.NewFromString(p.CurrentPrice)
-				totalEquity = totalEquity.Add(val.Mul(price))
-			}
-			riskData["trading_asset_value"], _ = totalEquity.Float64()
-		}
-	}
-
-	riskAssessment, err := s.riskEvaluator.Assess(ctx, "order.create", riskData)
+	// 2. 风控评价 (使用 DTO 转换以避免在业务代码中直接操作 map[string]any)
+	riskAssessment, err := s.assessRisk(ctx, cmd.UserID, totalAmount, cmd.ClientIP, cmd.DeviceID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "risk assessment failed, fail-open applied", "error", err)
-	} else {
-		switch riskAssessment.Level {
-		case risk.Reject:
-			s.logger.WarnContext(ctx, "order rejected by risk control",
-				"user_id", cmd.UserID, "code", riskAssessment.Code, "reason", riskAssessment.Reason)
-			return nil, fmt.Errorf("transaction security risk: %s", riskAssessment.Reason)
-		case risk.Review:
-			s.logger.InfoContext(ctx, "order needs risk review",
-				"user_id", cmd.UserID, "code", riskAssessment.Code)
-		}
+		s.logger.ErrorContext(ctx, "risk assessment error", "error", err)
+		return nil, err
+	}
+	if riskAssessment.Level == risk.Reject {
+		return nil, fmt.Errorf("risk rejected: %s", riskAssessment.Reason)
 	}
 
 	orderID := s.idGen.Generate()
 	orderNo := fmt.Sprintf("%s%d", time.Now().Format("20060102"), orderID)
-
 	order := domain.NewOrder(orderNo, cmd.UserID, items, cmd.ShippingAddress)
 	order.Status = orderv1.OrderStatus_ALLOCATING
 
-	// --- 3. 预同步锁定库存 (Optimistic Lock) ---
+	// 3. 预锁库存 (乐观)
 	for _, item := range items {
 		_, err := s.inventoryCli.LockStock(ctx, &inventoryv1.LockStockRequest{
 			SkuId:    item.SkuID,
@@ -167,46 +134,45 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			Reason:   "Order " + orderNo,
 		})
 		if err != nil {
-			s.logger.ErrorContext(ctx, "stock lock failed", "sku_id", item.SkuID, "error", err)
 			return nil, fmt.Errorf("insufficient stock for SKU %d", item.SkuID)
 		}
 	}
 
-	// --- 4. 本地事务：落地并发布 Outbox (EDA) ---
-	err = s.repo.Transaction(ctx, cmd.UserID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		if err := txRepo.Save(ctx, order); err != nil {
+	// 4. 事务：保存订单并发布事件 (EDA)
+	if err := s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		if err := s.repo.SaveInTx(ctx, tx, order); err != nil {
 			return err
 		}
 
-		// 4.1 发布订单创建事件
-		event := map[string]any{
-			"order_id": order.ID,
-			"order_no": order.OrderNo,
-			"user_id":  order.UserID,
-			"amount":   order.TotalAmount,
-			"status":   order.Status.String(),
+		// 发布领域事件
+		event := &domain.OrderCreatedEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			TotalAmount: order.TotalAmount,
+			Status:      order.Status,
+			Timestamp:   time.Now(),
 		}
-		if err := s.publisher.PublishInTx(ctx, tx, "order.created", orderNo, event); err != nil {
+		if err := s.publisher.PublishInTx(ctx, tx, "order.created", order.OrderNo, event); err != nil {
 			return err
 		}
 
-		// 4.2 发布超时自动取消任务 (EDA + Delay Task)
-		timeoutEvent := map[string]any{
-			"order_id":   order.ID,
-			"order_no":   order.OrderNo,
-			"user_id":    order.UserID,
-			"expires_at": time.Now().Add(15 * time.Minute).Unix(),
+		// 发布超时预警 (延迟任务的基础)
+		timeoutEvent := &domain.OrderPaymentTimeoutEvent{
+			OrderID:   uint64(order.ID),
+			OrderNo:   order.OrderNo,
+			UserID:    order.UserID,
+			ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+			Timestamp: time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "order.payment.timeout", orderNo, timeoutEvent)
-	})
-	if err != nil {
+		return s.publisher.PublishInTx(ctx, tx, "order.payment.timeout", order.OrderNo, timeoutEvent)
+	}); err != nil {
 		return nil, err
 	}
 
 	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
 
-	// --- 5. 提交 DTM Saga 分布式事务 (Final Consistency) ---
+	// 5. 分布式事务 Saga 编排
 	saga := dtm.NewSaga(ctx, s.dtmServer, orderNo)
 	orderGrpcPrefix := s.orderSvcURL + "/api.order.v1.OrderService"
 	warehouseGrpcPrefix := s.warehouseGrpcAddr + "/api.warehouse.v1.WarehouseService"
@@ -215,19 +181,16 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 		UserId:  cmd.UserID,
 		OrderId: uint64(order.ID),
 	})
-
-	for _, item := range items {
+	for _, it := range items {
 		saga.Add(warehouseGrpcPrefix+"/DeductStock", warehouseGrpcPrefix+"/RevertStock", &warehousev1.DeductStockRequest{
 			OrderId:     uint64(order.ID),
-			SkuId:       item.SkuID,
-			Quantity:    item.Quantity,
+			SkuId:       it.SkuID,
+			Quantity:    it.Quantity,
 			WarehouseId: 1,
 		})
 	}
-
 	if cmd.CouponCode != "" {
-		couponSvcAddr := "advancedcoupon:50051"
-		saga.Add(couponSvcAddr+"/api.advancedcoupon.v1.AdvancedCouponService/UseCoupon", "", &advancedcouponv1.UseCouponRequest{
+		saga.Add("advancedcoupon:50051/api.advancedcoupon.v1.AdvancedCouponService/UseCoupon", "", &advancedcouponv1.UseCouponRequest{
 			UserId:  cmd.UserID,
 			Code:    cmd.CouponCode,
 			OrderId: uint64(order.ID),
@@ -239,237 +202,250 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 		return nil, fmt.Errorf("distributed transaction submission failed: %w", err)
 	}
 
-	// --- 6. 同步发起支付请求 (User Experience) ---
+	// 6. 异步发起支付请求 (记录完整异常日志)
 	if s.paymentCli != nil {
-		payResp, err := s.paymentCli.InitiatePayment(ctx, &paymentv1.InitiatePaymentRequest{
-			OrderId:       uint64(order.ID),
-			UserId:        cmd.UserID,
-			PaymentMethod: "WECHAT",
-			Amount:        order.TotalAmount,
-			ClientIp:      cmd.ClientIP,
-		})
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to initiate payment", "order_no", orderNo, "error", err)
-		} else {
-			s.logger.InfoContext(ctx, "payment initiated", "order_no", orderNo, "transaction_no", payResp.TransactionNo)
-		}
+		go func() {
+			reqCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			resp, err := s.paymentCli.InitiatePayment(reqCtx, &paymentv1.InitiatePaymentRequest{
+				OrderId:       uint64(order.ID),
+				UserId:        cmd.UserID,
+				PaymentMethod: "WECHAT",
+				Amount:        order.TotalAmount,
+				ClientIp:      cmd.ClientIP,
+			})
+			if err != nil {
+				s.logger.Error("failed to initiate payment in background", "order_id", order.ID, "error", err)
+				return
+			}
+			s.logger.Info("background payment initiation success", "order_id", order.ID, "transaction_no", resp.TransactionNo)
+		}()
 	}
 
 	return order, nil
 }
 
-// PayOrder 支付订单 (EDA).
+// PayOrder 支付。
 func (s *OrderCommandService) PayOrder(ctx context.Context, cmd *PayOrderCommand) error {
-	return s.repo.Transaction(ctx, cmd.UserID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, cmd.UserID, uint(cmd.OrderID))
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
-
 		if err := order.Pay(ctx, cmd.PaymentMethod, "User"); err != nil {
 			return err
 		}
-
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		// 发布支付成功事件 (EDA)
-		event := map[string]any{
-			"order_id": order.ID,
-			"order_no": order.OrderNo,
-			"user_id":  cmd.UserID,
-			"amount":   order.ActualAmount,
-			"paid_at":  time.Now().Unix(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.paid", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.paid", order.OrderNo, &domain.OrderPaidEvent{
+			OrderID:       uint64(order.ID),
+			OrderNo:       order.OrderNo,
+			UserID:        order.UserID,
+			ActualAmount:  order.ActualAmount,
+			PaymentMethod: order.PaymentMethod,
+			PaidAt:        *order.PaidAt,
+			Timestamp:     time.Now(),
+		})
 	})
 }
 
-// ShipOrder 发货订单 (EDA).
+// ShipOrder 发货。
 func (s *OrderCommandService) ShipOrder(ctx context.Context, cmd *ShipOrderCommand) error {
-	return s.repo.Transaction(ctx, cmd.UserID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, cmd.UserID, uint(cmd.OrderID))
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
 		if err := order.Ship(ctx, cmd.Operator); err != nil {
 			return err
 		}
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		event := map[string]any{
-			"order_id":   order.ID,
-			"order_no":   order.OrderNo,
-			"user_id":    order.UserID,
-			"shipped_at": time.Now().Unix(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.shipped", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.shipped", order.OrderNo, &domain.OrderShippedEvent{
+			OrderID:   uint64(order.ID),
+			OrderNo:   order.OrderNo,
+			UserID:    order.UserID,
+			ShippedAt: *order.ShippedAt,
+			Timestamp: time.Now(),
+		})
 	})
 }
 
-// DeliverOrder 送达订单 (EDA).
+// DeliverOrder 送达。
 func (s *OrderCommandService) DeliverOrder(ctx context.Context, cmd *DeliverOrderCommand) error {
-	return s.repo.Transaction(ctx, cmd.UserID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, cmd.UserID, uint(cmd.OrderID))
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
 		if err := order.Deliver(ctx, cmd.Operator); err != nil {
 			return err
 		}
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		event := map[string]any{
-			"order_id":     order.ID,
-			"order_no":     order.OrderNo,
-			"user_id":      order.UserID,
-			"delivered_at": time.Now().Unix(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.delivered", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.delivered", order.OrderNo, &domain.OrderDeliveredEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			DeliveredAt: *order.DeliveredAt,
+			Timestamp:   time.Now(),
+		})
 	})
 }
 
-// CompleteOrder 完成订单 (EDA).
+// CompleteOrder 完成。
 func (s *OrderCommandService) CompleteOrder(ctx context.Context, cmd *CompleteOrderCommand) error {
-	return s.repo.Transaction(ctx, cmd.UserID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, cmd.UserID, uint(cmd.OrderID))
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
 		if err := order.Complete(ctx, cmd.Operator); err != nil {
 			return err
 		}
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		event := map[string]any{
-			"order_id":     order.ID,
-			"order_no":     order.OrderNo,
-			"user_id":      order.UserID,
-			"completed_at": time.Now().Unix(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.completed", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.completed", order.OrderNo, &domain.OrderCompletedEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			CompletedAt: *order.CompletedAt,
+			Timestamp:   time.Now(),
+		})
 	})
 }
 
-// CancelOrder 取消订单 (EDA).
+// CancelOrder 取消。
 func (s *OrderCommandService) CancelOrder(ctx context.Context, cmd *CancelOrderCommand) error {
-	return s.repo.Transaction(ctx, cmd.UserID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, cmd.UserID, uint(cmd.OrderID))
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
 		if err := order.Cancel(ctx, cmd.Operator, cmd.Reason); err != nil {
 			return err
 		}
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		event := map[string]any{
-			"order_id":     order.ID,
-			"order_no":     order.OrderNo,
-			"user_id":      order.UserID,
-			"reason":       cmd.Reason,
-			"cancelled_at": time.Now().Unix(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, &domain.OrderCancelledEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			Reason:      cmd.Reason,
+			CancelledAt: *order.CancelledAt,
+			Timestamp:   time.Now(),
+		})
 	})
 }
 
+// SagaConfirmOrder Saga 确认。
 func (s *OrderCommandService) SagaConfirmOrder(ctx context.Context, userID, orderID uint64) error {
-	return s.repo.Transaction(ctx, userID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, userID, uint(orderID))
+	return s.repo.WithTx(ctx, userID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, userID, orderID)
 		if err != nil || order == nil {
 			return fmt.Errorf("order not found: %d", orderID)
 		}
 		if order.Status != orderv1.OrderStatus_ALLOCATING {
 			return nil
 		}
-
-		if err := order.Trigger(ctx, "CONFIRM", "System", "Saga verification success"); err != nil {
+		if err := order.Trigger(ctx, "CONFIRM", "System", "Saga success"); err != nil {
 			return err
 		}
-
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		// 发布确认事件 (EDA)
-		event := map[string]any{
-			"order_id": order.ID,
-			"order_no": order.OrderNo,
-			"user_id":  order.UserID,
-			"status":   "PENDING_PAYMENT",
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.confirmed", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.confirmed", order.OrderNo, &domain.OrderConfirmedEvent{
+			OrderID:   uint64(order.ID),
+			OrderNo:   order.OrderNo,
+			UserID:    order.UserID,
+			Timestamp: time.Now(),
+		})
 	})
 }
 
+// SagaCancelOrder Saga 取消。
 func (s *OrderCommandService) SagaCancelOrder(ctx context.Context, userID, orderID uint64, reason string) error {
-	return s.repo.Transaction(ctx, userID, func(tx any) error {
-		txRepo := s.repo.WithTx(tx)
-		order, err := txRepo.FindByID(ctx, userID, uint(orderID))
+	return s.repo.WithTx(ctx, userID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, userID, orderID)
 		if err != nil || order == nil {
-			return fmt.Errorf("order not found: %d", orderID)
+			return nil
 		}
 		if order.Status == orderv1.OrderStatus_CANCELLED {
 			return nil
 		}
-
 		if err := order.Cancel(ctx, "System", reason); err != nil {
 			return err
 		}
-
-		if err := txRepo.Save(ctx, order); err != nil {
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		event := map[string]any{
-			"order_id": order.ID,
-			"order_no": order.OrderNo,
-			"reason":   reason,
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, event)
+		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, &domain.OrderCancelledEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			Reason:      reason,
+			CancelledAt: *order.CancelledAt,
+			Timestamp:   time.Now(),
+		})
 	})
 }
 
-func (s *OrderCommandService) HandleFlashsaleOrder(ctx context.Context, orderID, userID, productID, skuID uint64, quantity int32, price int64) error {
-	s.logger.InfoContext(ctx, "Flashsale persistence", "order_id", orderID, "user_id", userID)
-
-	orderNo := fmt.Sprintf("FS%d", orderID)
-	items := []*domain.OrderItem{
-		{
-			SkuID:       skuID,
-			ProductID:   productID,
-			Quantity:    quantity,
-			Price:       price,
-			ProductName: "Flashsale Product",
-			SkuName:     "Flashsale SKU",
-			TotalPrice:  price * int64(quantity),
-		},
+// assessRisk 封装风控逻辑，集中处理 map[string]any 转换并严格处理错误。
+func (s *OrderCommandService) assessRisk(ctx context.Context, userID uint64, amount int64, ip, deviceID string) (*risk.Assessment, error) {
+	data := map[string]any{
+		"user_id":   userID,
+		"amount":    amount,
+		"client_ip": ip,
+		"device_id": deviceID,
 	}
 
+	if s.positionCli != nil {
+		posResp, err := s.positionCli.GetPositions(ctx, &positionv1.GetPositionsRequest{UserId: fmt.Sprintf("%d", userID)})
+		if err != nil {
+			s.logger.WarnContext(ctx, "failed to get positions for risk assessment", "error", err)
+			// 不作为致命错误，继续评估
+		} else {
+			var totalEquity decimal.Decimal
+			for _, p := range posResp.GetPositions() {
+				q, err := decimal.NewFromString(p.Quantity)
+				if err != nil {
+					continue
+				}
+				pr, err := decimal.NewFromString(p.CurrentPrice)
+				if err != nil {
+					continue
+				}
+				totalEquity = totalEquity.Add(q.Mul(pr))
+			}
+			val, ok := totalEquity.Float64()
+			if !ok {
+				s.logger.WarnContext(ctx, "equity float conversion is not exact", "total_equity", totalEquity.String())
+			}
+			data["trading_asset_value"] = val
+		}
+	}
+
+	assessment, err := s.riskEvaluator.Assess(ctx, "order.create", data)
+	if err != nil {
+		return nil, fmt.Errorf("risk assessment call fail: %w", err)
+	}
+	return assessment, nil
+}
+
+// HandleFlashsaleOrder 秒杀持久化 (EDA).
+func (s *OrderCommandService) HandleFlashsaleOrder(ctx context.Context, orderID, userID, productID, skuID uint64, quantity int32, price int64) error {
+	orderNo := fmt.Sprintf("FS%d", orderID)
+	items := []*domain.OrderItem{{
+		SkuID: skuID, ProductID: productID, Quantity: quantity, Price: price, TotalPrice: price * int64(quantity),
+		ProductName: "Flashsale", SkuName: "Flashsale",
+	}}
 	order := domain.NewOrder(orderNo, userID, items, nil)
 	order.ID = uint(orderID)
 	order.Status = orderv1.OrderStatus_PENDING_PAYMENT
-
-	if err := s.repo.Save(ctx, order); err != nil {
-		return err
-	}
-
-	s.orderCreatedCounter.WithLabelValues(order.Status.String()).Inc()
-	return nil
+	return s.repo.Save(ctx, order)
 }

@@ -15,12 +15,12 @@ import (
 // Handler 结构体定义了Order模块的HTTP处理层。
 type Handler struct {
 	cmdService   *application.OrderCommandService
-	queryService *application.OrderQuery
+	queryService *application.OrderQueryService
 	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Order HTTP Handler 实例。
-func NewHandler(cmd *application.OrderCommandService, query *application.OrderQuery, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.OrderCommandService, query *application.OrderQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
 		cmdService:   cmd,
 		queryService: query,
@@ -206,7 +206,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		}
 	}
 
-	list, total, err := h.queryService.ListOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
+	list, total, err := h.queryService.ListUserOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list orders", "user_id", userID, "error", err)
 		response.Error(c, err)
