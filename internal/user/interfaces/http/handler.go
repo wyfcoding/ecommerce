@@ -10,233 +10,238 @@ import (
 	"github.com/wyfcoding/pkg/response"
 )
 
-type Handler struct {
-	app    *application.UserService
-	logger *slog.Logger
+type UserHandler struct {
+	commandService *application.UserCommandService
+	queryService   *application.UserQuery
+	logger         *slog.Logger
 }
 
-func NewHandler(app *application.UserService, logger *slog.Logger) *Handler {
-	return &Handler{
-		app:    app,
-		logger: logger,
+func NewUserHandler(
+	commandService *application.UserCommandService,
+	queryService *application.UserQuery,
+) *UserHandler {
+	return &UserHandler{
+		commandService: commandService,
+		queryService:   queryService,
+		logger:         slog.Default(),
 	}
 }
 
-// RegisterRoutes 注册路由
-func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
-	v1 := r.Group("/user")
+// RegisterHandlers 注册路由
+func (h *UserHandler) RegisterHandlers(router *gin.Engine) {
+	v1 := router.Group("/api/v1/users")
 	{
 		v1.POST("/register", h.Register)
 		v1.POST("/login", h.Login)
-
-		v1.GET("/:id", h.GetUser)
+		v1.GET("/:id", h.GetProfile)
 		v1.PUT("/:id", h.UpdateProfile)
 
-		addressGroup := v1.Group("/:id/addresses")
-		{
-			addressGroup.POST("", h.AddAddress)
-			addressGroup.GET("", h.ListAddresses)
-			addressGroup.GET("/:addressId", h.GetAddress)
-			addressGroup.PUT("/:addressId", h.UpdateAddress)
-			addressGroup.DELETE("/:addressId", h.DeleteAddress)
-		}
+		// Address routes
+		v1.POST("/:id/addresses", h.AddAddress)
+		v1.GET("/:id/addresses", h.ListAddresses)
+		v1.GET("/:id/addresses/:address_id", h.GetAddress)
+		v1.PUT("/:id/addresses/:address_id", h.UpdateAddress)
+		v1.DELETE("/:id/addresses/:address_id", h.DeleteAddress)
 	}
 }
 
-func (h *Handler) Register(c *gin.Context) {
-	var req application.RegisterRequest
+func (h *UserHandler) Register(c *gin.Context) {
+	var req application.CreateUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request body: "+err.Error(), "")
+		response.Error(c, err)
 		return
 	}
 
-	user, err := h.app.Manager.Register(c.Request.Context(), &req)
+	user, err := h.commandService.Register(c, &req)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "user registration failed", "username", req.Username, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, gin.H{"user_id": user.ID})
+	response.Success(c, user)
 }
 
-func (h *Handler) Login(c *gin.Context) {
-	var req application.LoginRequest
+func (h *UserHandler) Login(c *gin.Context) {
+	var req application.LoginCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid credentials format", "")
+		response.Error(c, err)
 		return
 	}
 
-	token, expiresAt, err := h.app.Manager.Login(c.Request.Context(), req.Username, req.Password, c.ClientIP())
+	ip := c.ClientIP()
+	resp, err := h.commandService.Login(c, &req, ip)
 	if err != nil {
-		h.logger.WarnContext(c.Request.Context(), "login attempt failed", "username", req.Username, "ip", c.ClientIP(), "error", err)
-		response.ErrorWithStatus(c, http.StatusUnauthorized, "invalid username or password", "")
+		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, gin.H{
-		"token":      token,
-		"expires_at": expiresAt,
-	})
+	response.Success(c, resp)
 }
 
-func (h *Handler) GetUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID format", "")
+		response.Error(c, err)
 		return
 	}
 
-	user, err := h.app.Query.GetUser(c.Request.Context(), uint(id))
+	user, err := h.queryService.GetUser(c, uint(id))
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to get user info", "id", id, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
+		response.Error(c, err)
 		return
 	}
 	if user == nil {
-		response.ErrorWithStatus(c, http.StatusNotFound, "user not found", "")
+		// response.Error(c, errors.New("not found"))
+		c.Status(http.StatusNotFound)
 		return
 	}
 
 	response.Success(c, user)
 }
 
-func (h *Handler) UpdateProfile(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID format", "")
+		response.Error(c, err)
 		return
 	}
 
-	var req application.UpdateProfileRequest
+	var req application.UpdateUserCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid update data: "+err.Error(), "")
+		response.Error(c, err)
+		return
+	}
+	req.ID = uint(id)
+
+	if err := h.commandService.UpdateProfile(c, &req); err != nil {
+		response.Error(c, err)
 		return
 	}
 
-	user, err := h.app.Manager.UpdateProfile(c.Request.Context(), uint(id), &req)
-	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to update user profile", "id", id, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
-		return
-	}
-
-	response.Success(c, user)
+	response.Success(c, nil)
 }
 
-func (h *Handler) AddAddress(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) AddAddress(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	var req application.AddressDTO
+	var req application.AddAddressCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid address data", "")
+		response.Error(c, err)
 		return
 	}
+	req.UserID = uint(userID)
 
-	addr, err := h.app.Manager.AddAddress(c.Request.Context(), uint(userID), &req)
+	addr, err := h.commandService.AddAddress(c, &req)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to add address: "+err.Error(), "")
+		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, addr)
 }
 
-func (h *Handler) ListAddresses(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) ListAddresses(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	list, err := h.app.Query.ListAddresses(c.Request.Context(), uint(userID))
+	addrs, err := h.queryService.ListAddresses(c, uint(userID))
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to list addresses", "user_id", userID, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to fetch address list", "")
+		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, list)
+	response.Success(c, addrs)
 }
 
-func (h *Handler) GetAddress(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) GetAddress(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	addrID, err := strconv.ParseUint(c.Param("addressId"), 10, 64)
+	addrIDStr := c.Param("address_id")
+	addrID, err := strconv.ParseUint(addrIDStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid address ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	addr, err := h.app.Query.GetAddress(c.Request.Context(), uint(userID), uint(addrID))
+	addr, err := h.queryService.GetAddress(c, uint(userID), uint(addrID))
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to get address detail", "user_id", userID, "address_id", addrID, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to fetch address detail", "")
+		response.Error(c, err)
 		return
 	}
 	if addr == nil {
-		response.ErrorWithStatus(c, http.StatusNotFound, "address not found", "")
+		c.Status(http.StatusNotFound)
 		return
 	}
 
 	response.Success(c, addr)
 }
 
-func (h *Handler) UpdateAddress(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) UpdateAddress(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	addrID, err := strconv.ParseUint(c.Param("addressId"), 10, 64)
+	addrIDStr := c.Param("address_id")
+	addrID, err := strconv.ParseUint(addrIDStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid address ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	var req application.AddressDTO
+	var req application.UpdateAddressCommand
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid address data format", "")
+		response.Error(c, err)
+		return
+	}
+	req.UserID = uint(userID)
+	req.ID = uint(addrID)
+
+	if err := h.commandService.UpdateAddress(c, &req); err != nil {
+		response.Error(c, err)
 		return
 	}
 
-	addr, err := h.app.Manager.UpdateAddress(c.Request.Context(), uint(userID), uint(addrID), &req)
-	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to update address", "user_id", userID, "address_id", addrID, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "address update failed", "")
-		return
-	}
-
-	response.Success(c, addr)
+	response.Success(c, nil)
 }
 
-func (h *Handler) DeleteAddress(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+func (h *UserHandler) DeleteAddress(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid user ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	addrID, err := strconv.ParseUint(c.Param("addressId"), 10, 64)
+	addrIDStr := c.Param("address_id")
+	addrID, err := strconv.ParseUint(addrIDStr, 10, 32)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid address ID", "")
+		response.Error(c, err)
 		return
 	}
 
-	if err := h.app.Manager.DeleteAddress(c.Request.Context(), uint(userID), uint(addrID)); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "failed to delete address", "user_id", userID, "address_id", addrID, "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "address deletion failed", "")
+	if err := h.commandService.DeleteAddress(c, uint(userID), uint(addrID)); err != nil {
+		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, gin.H{"status": "deleted"})
+	response.Success(c, nil)
 }

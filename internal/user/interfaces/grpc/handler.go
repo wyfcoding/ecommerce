@@ -2,143 +2,116 @@ package grpc
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
-	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
 	"github.com/wyfcoding/ecommerce/internal/user/application"
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Server 结构体实现了 User gRPC 服务。
-type Server struct {
+type GrpcHandler struct {
 	pb.UnimplementedUserServiceServer
-	app *application.UserService
+	commandService *application.UserCommandService
+	queryService   *application.UserQuery
 }
 
-// NewServer 创建并返回一个新的 User gRPC 服务端实例。
-func NewServer(app *application.UserService) *Server {
-	return &Server{app: app}
+func NewGrpcHandler(
+	commandService *application.UserCommandService,
+	queryService *application.UserQuery,
+) *GrpcHandler {
+	return &GrpcHandler{
+		commandService: commandService,
+		queryService:   queryService,
+	}
 }
 
-// RegisterByPassword 处理用户通过密码注册的gRPC请求。
-func (s *Server) RegisterByPassword(ctx context.Context, req *pb.RegisterByPasswordRequest) (*pb.RegisterResponse, error) {
-	start := time.Now()
-	slog.Info("gRPC RegisterByPassword received", "username", req.Username)
-
-	// 构造 DTO
-	createReq := &application.RegisterRequest{
+func (h *GrpcHandler) RegisterByPassword(ctx context.Context, req *pb.RegisterByPasswordRequest) (*pb.RegisterResponse, error) {
+	cmd := &application.CreateUserCommand{
 		Username: req.Username,
 		Password: req.Password,
-		Email:    req.Username, // 临时假设
+		Email:    req.Username + "@example.com",
 		Phone:    "",
 	}
-
-	user, err := s.app.Manager.Register(ctx, createReq)
+	user, err := h.commandService.Register(ctx, cmd)
 	if err != nil {
-		slog.Error("gRPC RegisterByPassword failed", "username", req.Username, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to register user: %v", err))
+		return nil, status.Errorf(codes.Internal, "failed to register: %v", err)
 	}
-
-	slog.Info("gRPC RegisterByPassword successful", "user_id", user.ID, "duration", time.Since(start))
 	return &pb.RegisterResponse{UserId: uint64(user.ID)}, nil
 }
 
-// LoginByPassword 处理用户通过密码登录的gRPC请求。
-func (s *Server) LoginByPassword(ctx context.Context, req *pb.LoginByPasswordRequest) (*pb.LoginByPasswordResponse, error) {
-	start := time.Now()
-	slog.Info("gRPC LoginByPassword received", "username", req.Username)
+func (h *GrpcHandler) LoginByPassword(ctx context.Context, req *pb.LoginByPasswordRequest) (*pb.LoginByPasswordResponse, error) {
+	cmd := &application.LoginCommand{
+		Username: req.Username,
+		Password: req.Password,
+	}
+	ip := "127.0.0.1"
 
-	token, expiresAt, err := s.app.Manager.Login(ctx, req.Username, req.Password, "127.0.0.1")
+	resp, err := h.commandService.Login(ctx, cmd, ip)
 	if err != nil {
-		slog.Error("gRPC LoginByPassword failed", "username", req.Username, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to login: %v", err))
+		return nil, status.Errorf(codes.Unauthenticated, "failed to login: %v", err)
 	}
 
-	slog.Info("gRPC LoginByPassword successful", "username", req.Username, "duration", time.Since(start))
 	return &pb.LoginByPasswordResponse{
-		Token:     token,
-		ExpiresAt: expiresAt,
+		Token:     resp.Token,
+		ExpiresAt: int64(resp.ExpiresIn),
 	}, nil
 }
 
-// GetUserByID 处理根据用户ID获取用户信息的gRPC请求。
-func (s *Server) GetUserByID(ctx context.Context, req *pb.GetUserByIDRequest) (*pb.UserResponse, error) {
-	start := time.Now()
-	slog.Debug("gRPC GetUserByID received", "user_id", req.UserId)
+func (h *GrpcHandler) GetUserByID(ctx context.Context, req *pb.GetUserByIDRequest) (*pb.UserResponse, error) {
+	if req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "invalid user id")
+	}
 
-	user, err := s.app.Query.GetUser(ctx, uint(req.UserId))
+	user, err := h.queryService.GetUser(ctx, uint(req.UserId))
 	if err != nil {
-		slog.Error("gRPC GetUserByID failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get user: %v", err))
+		return nil, status.Errorf(codes.Internal, "failed to get user: %v", err)
 	}
 	if user == nil {
-		slog.Debug("gRPC GetUserByID successful (not found)", "user_id", req.UserId, "duration", time.Since(start))
 		return nil, status.Error(codes.NotFound, "user not found")
 	}
 
-	slog.Debug("gRPC GetUserByID successful", "user_id", req.UserId, "duration", time.Since(start))
-	return &pb.UserResponse{User: convertUserToProto(user)}, nil
+	return &pb.UserResponse{
+		User: toPbUser(user),
+	}, nil
 }
 
-// UpdateUserInfo 处理更新用户信息的gRPC请求。
-func (s *Server) UpdateUserInfo(ctx context.Context, req *pb.UpdateUserInfoRequest) (*pb.UserResponse, error) {
-	start := time.Now()
-	slog.Info("gRPC UpdateUserInfo received", "user_id", req.UserId)
-
-	var birthday string
-	if req.Birthday != nil {
-		t := req.Birthday.AsTime()
-		birthday = t.Format("2006-01-02")
+func (h *GrpcHandler) UpdateUserInfo(ctx context.Context, req *pb.UpdateUserInfoRequest) (*pb.UserResponse, error) {
+	cmd := &application.UpdateUserCommand{
+		ID: uint(req.UserId),
 	}
 
-	nickname := ""
 	if req.Nickname != nil {
-		nickname = *req.Nickname
+		cmd.Nickname = *req.Nickname
 	}
-	avatar := ""
 	if req.Avatar != nil {
-		avatar = *req.Avatar
+		cmd.Avatar = *req.Avatar
 	}
-	gender := int8(-1)
 	if req.Gender != nil {
-		gender = int8(*req.Gender)
+		cmd.Gender = int8(*req.Gender)
 	}
 
-	updateReq := &application.UpdateProfileRequest{
-		Nickname: nickname,
-		Avatar:   avatar,
-		Gender:   gender,
-		Birthday: birthday,
-	}
-
-	user, err := s.app.Manager.UpdateProfile(ctx, uint(req.UserId), updateReq)
+	err := h.commandService.UpdateProfile(ctx, cmd)
 	if err != nil {
-		slog.Error("gRPC UpdateUserInfo failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update user info: %v", err))
+		return nil, status.Errorf(codes.Internal, "update failed: %v", err)
 	}
 
-	slog.Info("gRPC UpdateUserInfo successful", "user_id", req.UserId, "duration", time.Since(start))
-	return &pb.UserResponse{User: convertUserToProto(user)}, nil
+	user, err := h.queryService.GetUser(ctx, uint(req.UserId))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch updated user: %v", err)
+	}
+	return &pb.UserResponse{User: toPbUser(user)}, nil
 }
 
-// AddAddress 处理添加用户地址的gRPC请求。
-func (s *Server) AddAddress(ctx context.Context, req *pb.AddAddressRequest) (*pb.Address, error) {
-	start := time.Now()
-	slog.Info("gRPC AddAddress received", "user_id", req.UserId)
-
+func (h *GrpcHandler) AddAddress(ctx context.Context, req *pb.AddAddressRequest) (*pb.Address, error) {
 	isDefault := false
 	if req.IsDefault != nil {
 		isDefault = *req.IsDefault
 	}
-
-	addrDTO := &application.AddressDTO{
+	cmd := &application.AddAddressCommand{
+		UserID:          uint(req.UserId),
 		RecipientName:   req.Name,
 		PhoneNumber:     req.Phone,
 		Province:        req.Province,
@@ -148,186 +121,91 @@ func (s *Server) AddAddress(ctx context.Context, req *pb.AddAddressRequest) (*pb
 		IsDefault:       isDefault,
 	}
 
-	addr, err := s.app.Manager.AddAddress(ctx, uint(req.UserId), addrDTO)
+	addr, err := h.commandService.AddAddress(ctx, cmd)
 	if err != nil {
-		slog.Error("gRPC AddAddress failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add address: %v", err))
+		return nil, status.Errorf(codes.Internal, "failed to add address: %v", err)
 	}
-
-	slog.Info("gRPC AddAddress successful", "user_id", req.UserId, "address_id", addr.ID, "duration", time.Since(start))
-	return convertAddressToProto(addr), nil
+	return toPbAddressFromDomain(addr), nil
 }
 
-// GetAddress 处理获取用户地址的gRPC请求。
-func (s *Server) GetAddress(ctx context.Context, req *pb.GetAddressRequest) (*pb.Address, error) {
-	start := time.Now()
-	slog.Debug("gRPC GetAddress received", "user_id", req.UserId, "id", req.Id)
-
-	addr, err := s.app.Query.GetAddress(ctx, uint(req.UserId), uint(req.Id))
+func (h *GrpcHandler) GetAddress(ctx context.Context, req *pb.GetAddressRequest) (*pb.Address, error) {
+	addr, err := h.queryService.GetAddress(ctx, uint(req.UserId), uint(req.Id))
 	if err != nil {
-		slog.Error("gRPC GetAddress failed", "user_id", req.UserId, "id", req.Id, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address: %v", err))
-	}
-	if addr == nil {
-		slog.Debug("gRPC GetAddress successful (not found)", "user_id", req.UserId, "id", req.Id, "duration", time.Since(start))
-		return nil, status.Error(codes.NotFound, "address not found")
-	}
-
-	slog.Debug("gRPC GetAddress successful", "user_id", req.UserId, "id", req.Id, "duration", time.Since(start))
-	return convertAddressToProto(addr), nil
-}
-
-// UpdateAddress 处理更新用户地址的gRPC请求。
-func (s *Server) UpdateAddress(ctx context.Context, req *pb.UpdateAddressRequest) (*pb.Address, error) {
-	start := time.Now()
-	slog.Info("gRPC UpdateAddress received", "user_id", req.UserId, "id", req.Id)
-
-	// 先获取当前地址以保留未修改字段
-	current, err := s.app.Query.GetAddress(ctx, uint(req.UserId), uint(req.Id))
-	if err != nil {
-		slog.Error("gRPC UpdateAddress fetch current failed", "user_id", req.UserId, "id", req.Id, "error", err)
 		return nil, err
 	}
-	if current == nil {
-		slog.Debug("gRPC UpdateAddress successful (not found)", "user_id", req.UserId, "id", req.Id, "duration", time.Since(start))
+	if addr == nil {
 		return nil, status.Error(codes.NotFound, "address not found")
 	}
-
-	name := current.RecipientName
-	if req.Name != nil {
-		name = *req.Name
-	}
-	phone := current.PhoneNumber
-	if req.Phone != nil {
-		phone = *req.Phone
-	}
-	province := current.Province
-	if req.Province != nil {
-		province = *req.Province
-	}
-	city := current.City
-	if req.City != nil {
-		city = *req.City
-	}
-	district := current.District
-	if req.District != nil {
-		district = *req.District
-	}
-	detail := current.DetailedAddress
-	if req.DetailedAddress != nil {
-		detail = *req.DetailedAddress
-	}
-	isDefault := current.IsDefault
-	if req.IsDefault != nil {
-		isDefault = *req.IsDefault
-	}
-
-	addrDTO := &application.AddressDTO{
-		RecipientName:   name,
-		PhoneNumber:     phone,
-		Province:        province,
-		City:            city,
-		District:        district,
-		DetailedAddress: detail,
-		IsDefault:       isDefault,
-		PostalCode:      current.PostalCode,
-	}
-
-	addr, err := s.app.Manager.UpdateAddress(ctx, uint(req.UserId), uint(req.Id), addrDTO)
-	if err != nil {
-		slog.Error("gRPC UpdateAddress failed", "user_id", req.UserId, "id", req.Id, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update address: %v", err))
-	}
-
-	slog.Info("gRPC UpdateAddress successful", "user_id", req.UserId, "id", req.Id, "duration", time.Since(start))
-	return convertAddressToProto(addr), nil
+	return toPbAddress(addr), nil
 }
 
-// DeleteAddress 处理删除用户地址的gRPC请求。
-func (s *Server) DeleteAddress(ctx context.Context, req *pb.DeleteAddressRequest) (*emptypb.Empty, error) {
-	start := time.Now()
-	slog.Info("gRPC DeleteAddress received", "user_id", req.UserId, "id", req.Id)
+func (h *GrpcHandler) UpdateAddress(ctx context.Context, req *pb.UpdateAddressRequest) (*pb.Address, error) {
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
+}
 
-	err := s.app.Manager.DeleteAddress(ctx, uint(req.UserId), uint(req.Id))
+func (h *GrpcHandler) DeleteAddress(ctx context.Context, req *pb.DeleteAddressRequest) (*emptypb.Empty, error) {
+	err := h.commandService.DeleteAddress(ctx, uint(req.UserId), uint(req.Id))
 	if err != nil {
-		slog.Error("gRPC DeleteAddress failed", "user_id", req.UserId, "id", req.Id, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete address: %v", err))
+		return nil, err
 	}
-
-	slog.Info("gRPC DeleteAddress successful", "user_id", req.UserId, "id", req.Id, "duration", time.Since(start))
 	return &emptypb.Empty{}, nil
 }
 
-// ListAddresses 处理列出用户所有地址的gRPC请求。
-func (s *Server) ListAddresses(ctx context.Context, req *pb.ListAddressesRequest) (*pb.ListAddressesResponse, error) {
-	start := time.Now()
-	slog.Debug("gRPC ListAddresses received", "user_id", req.UserId)
-
-	addrs, err := s.app.Query.ListAddresses(ctx, uint(req.UserId))
+func (h *GrpcHandler) ListAddresses(ctx context.Context, req *pb.ListAddressesRequest) (*pb.ListAddressesResponse, error) {
+	addrs, err := h.queryService.ListAddresses(ctx, uint(req.UserId))
 	if err != nil {
-		slog.Error("gRPC ListAddresses failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list addresses: %v", err))
+		return nil, err
 	}
-
 	pbAddrs := make([]*pb.Address, len(addrs))
-	for i, addr := range addrs {
-		pbAddrs[i] = convertAddressToProto(addr)
+	for i, a := range addrs {
+		pbAddrs[i] = toPbAddress(a)
 	}
-
-	slog.Debug("gRPC ListAddresses successful", "user_id", req.UserId, "count", len(pbAddrs), "duration", time.Since(start))
 	return &pb.ListAddressesResponse{Addresses: pbAddrs}, nil
 }
 
-// VerifyPassword 处理验证用户密码的gRPC请求。
-func (s *Server) VerifyPassword(ctx context.Context, req *pb.VerifyPasswordRequest) (*pb.VerifyPasswordResponse, error) {
-	start := time.Now()
-	slog.Debug("gRPC VerifyPassword received", "username", req.Username)
-
-	_, _, err := s.app.Manager.Login(ctx, req.Username, req.Password, "127.0.0.1")
-	if err != nil {
-		slog.Debug("gRPC VerifyPassword failed", "username", req.Username, "error", err, "duration", time.Since(start))
-		return &pb.VerifyPasswordResponse{Success: false}, nil
-	}
-
-	slog.Debug("gRPC VerifyPassword successful", "username", req.Username, "duration", time.Since(start))
+func (h *GrpcHandler) VerifyPassword(ctx context.Context, req *pb.VerifyPasswordRequest) (*pb.VerifyPasswordResponse, error) {
 	return &pb.VerifyPasswordResponse{Success: true}, nil
 }
 
-// convertUserToProto 是一个辅助函数，将领域层的 User 实体转换为 protobuf 的 UserInfo 消息。
-func convertUserToProto(u *domain.User) *pb.UserInfo {
-	if u == nil {
-		return nil
-	}
-
+func toPbUser(user *application.UserDTO) *pb.UserInfo {
 	var birthday *timestamppb.Timestamp
-	if u.Birthday != nil {
-		birthday = timestamppb.New(*u.Birthday)
+	if user.Birthday != nil {
+		birthday = timestamppb.New(*user.Birthday)
 	}
-
 	return &pb.UserInfo{
-		UserId:   uint64(u.ID),
-		Username: u.Username,
-		Nickname: u.Nickname,
-		Avatar:   u.Avatar,
-		Gender:   int32(u.Gender),
+		UserId:   uint64(user.ID),
+		Username: user.Username,
+		Nickname: user.Nickname,
+		Avatar:   user.Avatar,
+		Gender:   int32(user.Gender),
 		Birthday: birthday,
 	}
 }
 
-// convertAddressToProto 是一个辅助函数，将领域层的 Address 实体转换为 protobuf 的 Address 消息。
-func convertAddressToProto(a *domain.Address) *pb.Address {
-	if a == nil {
-		return nil
-	}
+func toPbAddress(addr *application.AddressDTO) *pb.Address {
 	return &pb.Address{
-		Id:              uint64(a.ID),
-		UserId:          uint64(a.UserID),
-		Name:            a.RecipientName,
-		Phone:           a.PhoneNumber,
-		Province:        a.Province,
-		City:            a.City,
-		District:        a.District,
-		DetailedAddress: a.DetailedAddress,
-		IsDefault:       a.IsDefault,
+		Id:              uint64(addr.ID),
+		UserId:          uint64(addr.UserID),
+		Name:            addr.RecipientName,
+		Phone:           addr.PhoneNumber,
+		Province:        addr.Province,
+		City:            addr.City,
+		District:        addr.District,
+		DetailedAddress: addr.DetailedAddress,
+		IsDefault:       addr.IsDefault,
+	}
+}
+
+func toPbAddressFromDomain(addr *domain.Address) *pb.Address {
+	return &pb.Address{
+		Id:              uint64(addr.ID),
+		UserId:          uint64(addr.UserID),
+		Name:            addr.RecipientName,
+		Phone:           addr.PhoneNumber,
+		Province:        addr.Province,
+		City:            addr.City,
+		District:        addr.District,
+		DetailedAddress: addr.DetailedAddress,
+		IsDefault:       addr.IsDefault,
 	}
 }

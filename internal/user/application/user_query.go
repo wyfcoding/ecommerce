@@ -34,8 +34,15 @@ func NewUserQuery(
 }
 
 // GetUser 获取指定 ID 用户的完整资料（含关联地址列表）。
-func (q *UserQuery) GetUser(ctx context.Context, userID uint) (*domain.User, error) {
-	return q.userRepo.FindByID(ctx, userID)
+func (q *UserQuery) GetUser(ctx context.Context, userID uint) (*UserDTO, error) {
+	user, err := q.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, nil
+	}
+	return toUserDTO(user), nil
 }
 
 // CheckBot 基于用户当前行为与 IP 地址执行实时的机器人/爬虫风险判定。
@@ -54,12 +61,20 @@ func (q *UserQuery) CheckBot(ctx context.Context, userID uint64, ip string) bool
 }
 
 // ListAddresses 获取指定用户的所有有效收货地址。
-func (q *UserQuery) ListAddresses(ctx context.Context, userID uint) ([]*domain.Address, error) {
-	return q.addressRepo.FindByUserID(ctx, userID)
+func (q *UserQuery) ListAddresses(ctx context.Context, userID uint) ([]*AddressDTO, error) {
+	addrs, err := q.addressRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	dtos := make([]*AddressDTO, len(addrs))
+	for i, addr := range addrs {
+		dtos[i] = toAddressDTO(addr)
+	}
+	return dtos, nil
 }
 
 // GetAddress 安全获取特定的收货地址详情。
-func (q *UserQuery) GetAddress(ctx context.Context, userID, addressID uint) (*domain.Address, error) {
+func (q *UserQuery) GetAddress(ctx context.Context, userID, addressID uint) (*AddressDTO, error) {
 	addr, err := q.addressRepo.FindByID(ctx, addressID)
 	if err != nil {
 		return nil, err
@@ -68,5 +83,25 @@ func (q *UserQuery) GetAddress(ctx context.Context, userID, addressID uint) (*do
 		q.logger.WarnContext(ctx, "unauthorized address access attempt", "user_id", userID, "target_address_id", addressID)
 		return nil, nil
 	}
-	return addr, nil
+	if addr == nil {
+		return nil, nil
+	}
+	return toAddressDTO(addr), nil
+}
+
+func toAddressDTO(addr *domain.Address) *AddressDTO {
+	return &AddressDTO{
+		ID:              addr.ID,
+		UserID:          addr.UserID,
+		RecipientName:   addr.RecipientName,
+		PhoneNumber:     addr.PhoneNumber,
+		Province:        addr.Province,
+		City:            addr.City,
+		District:        addr.District,
+		DetailedAddress: addr.DetailedAddress,
+		PostalCode:      addr.PostalCode,
+		IsDefault:       addr.IsDefault,
+		CreatedAt:       addr.CreatedAt,
+		UpdatedAt:       addr.UpdatedAt,
+	}
 }
