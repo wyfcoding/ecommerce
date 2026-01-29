@@ -85,13 +85,8 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 	if err != nil || pageSize <= 0 {
 		pageSize = 10
 	}
-	status, err := strconv.Atoi(c.DefaultQuery("status", "0"))
-	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
-		return
-	}
 
-	list, total, err := h.app.ListCoupons(c.Request.Context(), status, page, pageSize)
+	list, total, err := h.app.ListCoupons(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list coupons", "error", err)
 		response.Error(c, err)

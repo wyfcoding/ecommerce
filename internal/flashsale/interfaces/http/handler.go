@@ -15,12 +15,12 @@ import (
 
 // Handler 结构体定义了FlashSale模块的HTTP处理层。
 type Handler struct {
-	app    *application.FlashsaleService
+	app    *application.FlashSale
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 FlashSale HTTP Handler 实例。
-func NewHandler(app *application.FlashsaleService, logger *slog.Logger) *Handler {
+func NewHandler(app *application.FlashSale, logger *slog.Logger) *Handler {
 	return &Handler{
 		app:    app,
 		logger: logger,

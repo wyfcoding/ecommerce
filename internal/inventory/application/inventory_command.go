@@ -14,46 +14,46 @@ import (
 	"github.com/wyfcoding/pkg/algorithm/structures"
 )
 
-// InventoryManager 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及自动补货逻辑。
-type InventoryManager struct {
-	repo           domain.InventoryRepository               // 库存仓储
-	warehouseRepo  domain.WarehouseRepository               // 仓库仓储
-	allocator      *algorithm.WarehouseAllocator            // 最优库存分配算法引擎
-	logger         *slog.Logger                             // 日志记录器
+// InventoryCommandService 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及领域事件发布。
+type InventoryCommandService struct {
+	repo           domain.InventoryRepository                    // 库存仓储
+	warehouseRepo  domain.WarehouseRepository                    // 仓库仓储
+	publisher      domain.EventPublisher                         // 事件发布者
+	allocator      *algorithm.WarehouseAllocator                 // 最优库存分配算法引擎
+	logger         *slog.Logger                                  // 日志记录器
 	soldOutFilter  *structures.CuckooFilter[structures.ByteHash] // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
-	filterMu       sync.RWMutex                             // 保护过滤器的并发安全
-	remoteOrderCli orderv1.OrderServiceClient               // 远程订单服务客户端，用于触发自动补货
+	filterMu       sync.RWMutex                                  // 保护过滤器的并发安全
+	remoteOrderCli orderv1.OrderServiceClient                    // 远程订单服务客户端，用于触发自动补货
 }
 
-// NewInventoryManager 负责处理 NewInventory 相关的写操作和业务逻辑。
-func NewInventoryManager(repo domain.InventoryRepository, warehouseRepo domain.WarehouseRepository, logger *slog.Logger) (*InventoryManager, error) {
+// NewInventoryCommandService 构造函数。
+func NewInventoryCommandService(
+	repo domain.InventoryRepository,
+	warehouseRepo domain.WarehouseRepository,
+	publisher domain.EventPublisher,
+	logger *slog.Logger,
+) (*InventoryCommandService, error) {
 	filter, err := structures.NewCuckooFilter[structures.ByteHash](100000)
 	if err != nil {
 		return nil, err
 	}
 
-	return &InventoryManager{
+	return &InventoryCommandService{
 		repo:          repo,
 		warehouseRepo: warehouseRepo,
+		publisher:     publisher,
 		allocator:     algorithm.NewWarehouseAllocator(),
 		logger:        logger,
 		soldOutFilter: filter,
 	}, nil
 }
 
-func (m *InventoryManager) SetRemoteOrderClient(cli orderv1.OrderServiceClient) {
+func (m *InventoryCommandService) SetRemoteOrderClient(cli orderv1.OrderServiceClient) {
 	m.remoteOrderCli = cli
 }
 
-// IsSoldOutQuickCheck 本地快速检查是否售罄
-func (m *InventoryManager) IsSoldOutQuickCheck(skuID uint64) bool {
-	m.filterMu.RLock()
-	defer m.filterMu.RUnlock()
-	return m.soldOutFilter.Contains(structures.ByteHash(fmt.Appendf(nil, "%d", skuID)))
-}
-
 // CreateInventory 创建一个新的库存记录。
-func (m *InventoryManager) CreateInventory(ctx context.Context, skuID, productID, warehouseID uint64, totalStock, warningThreshold int32) (*domain.Inventory, error) {
+func (m *InventoryCommandService) CreateInventory(ctx context.Context, skuID, productID, warehouseID uint64, totalStock, warningThreshold int32) (*domain.Inventory, error) {
 	existing, err := m.repo.GetBySkuID(ctx, skuID)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (m *InventoryManager) CreateInventory(ctx context.Context, skuID, productID
 }
 
 // DeleteInventory 删除库存记录。
-func (m *InventoryManager) DeleteInventory(ctx context.Context, skuID uint64) error {
+func (m *InventoryCommandService) DeleteInventory(ctx context.Context, skuID uint64) error {
 	if err := m.repo.Delete(ctx, skuID); err != nil {
 		m.logger.ErrorContext(ctx, "failed to delete inventory", "sku_id", skuID, "error", err)
 		return err
@@ -82,9 +82,9 @@ func (m *InventoryManager) DeleteInventory(ctx context.Context, skuID uint64) er
 }
 
 // executeWithRetry 执行带乐观锁重试的库存更新逻辑
-func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, fn func(*domain.Inventory) (*domain.InventoryLog, error)) error {
+func (m *InventoryCommandService) executeWithRetry(ctx context.Context, skuID uint64, fn func(*domain.Inventory) (*domain.InventoryLog, any, error)) error {
 	maxRetries := 3
-	for i := range maxRetries {
+	for i := 0; i < maxRetries; i++ {
 		inventory, err := m.repo.GetBySkuID(ctx, skuID)
 		if err != nil {
 			return err
@@ -94,7 +94,7 @@ func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, f
 		}
 
 		// 执行业务逻辑
-		log, err := fn(inventory)
+		log, event, err := fn(inventory)
 		if err != nil {
 			return err
 		}
@@ -106,6 +106,13 @@ func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, f
 			if log != nil {
 				if logErr := m.repo.SaveLog(ctx, log); logErr != nil {
 					m.logger.WarnContext(ctx, "failed to save inventory log", "log", log, "error", logErr)
+				}
+			}
+			// 发布事件
+			if event != nil {
+				topic := m.getTopicForEvent(event)
+				if topic != "" {
+					_ = m.publisher.Publish(ctx, topic, event)
 				}
 			}
 			return nil
@@ -122,12 +129,28 @@ func (m *InventoryManager) executeWithRetry(ctx context.Context, skuID uint64, f
 	return errors.New("concurrent update failed after retries")
 }
 
+func (m *InventoryCommandService) getTopicForEvent(event any) string {
+	switch event.(type) {
+	case *domain.StockLockedEvent:
+		return "inventory.stock.locked"
+	case *domain.StockUnlockedEvent:
+		return "inventory.stock.unlocked"
+	case *domain.StockDeductedEvent:
+		return "inventory.stock.deducted"
+	case *domain.StockAddedEvent:
+		return "inventory.stock.added"
+	case *domain.StockWarningEvent:
+		return "inventory.stock.warning"
+	}
+	return ""
+}
+
 // AddStock 增加库存。
-func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+func (m *InventoryCommandService) AddStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, any, error) {
 		log, err := inv.Add(quantity, reason)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// 如果库存不再为0，从售罄过滤器中移除
@@ -136,16 +159,24 @@ func (m *InventoryManager) AddStock(ctx context.Context, skuID uint64, quantity 
 			m.soldOutFilter.Delete(structures.ByteHash(fmt.Appendf(nil, "%d", skuID)))
 			m.filterMu.Unlock()
 		}
-		return log, nil
+
+		event := &domain.StockAddedEvent{
+			SkuID:     skuID,
+			Quantity:  quantity,
+			Reason:    reason,
+			Timestamp: time.Now(),
+		}
+
+		return log, event, nil
 	})
 }
 
 // DeductStock 扣减库存。
-func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
+func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, any, error) {
 		log, err := inv.Deduct(quantity, reason)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// 如果库存归零，加入售罄过滤器
@@ -155,61 +186,64 @@ func (m *InventoryManager) DeductStock(ctx context.Context, skuID uint64, quanti
 			m.filterMu.Unlock()
 		}
 
-		// --- 架构增强：自动补货触发 (Cross-Project Interaction) ---
-		if inv.AvailableStock < inv.WarningThreshold && m.remoteOrderCli != nil {
-			m.logger.InfoContext(ctx, "low stock detected, triggering institutional replenishment", "sku_id", skuID, "stock", inv.AvailableStock)
-
-			// 真实化逻辑：根据预警阈值动态计算补货量
-			replenishQty := int32(inv.WarningThreshold * 2)
-			if replenishQty == 0 {
-				replenishQty = 100 // 默认保底
-			}
-
-			go func() {
-				// 异步下单，不阻塞主流程
-				replenishCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-
-				// 调用电商自身的订单服务发起补货申请
-				_, err := m.remoteOrderCli.CreateOrder(replenishCtx, &orderv1.CreateOrderRequest{
-					UserId: 999999, // 系统补货账户 ID (uint64)
-					Items: []*orderv1.OrderItemCreate{
-						{
-							ProductId: inv.ProductID, // 使用当前库存对象的 SPU ID
-							SkuId:     inv.SkuID,
-							Quantity:  replenishQty,
-						},
-					},
-					Remark: fmt.Sprintf("auto-replenishment for low stock SKU %d", inv.SkuID),
-				})
-				if err != nil {
-					m.logger.ErrorContext(replenishCtx, "failed to place replenishment order", "sku_id", skuID, "error", err)
-				} else {
-					m.logger.InfoContext(replenishCtx, "replenishment order placed successfully", "sku_id", skuID, "quantity", replenishQty)
-				}
-			}()
+		event := &domain.StockDeductedEvent{
+			SkuID:     skuID,
+			Quantity:  quantity,
+			Reason:    reason,
+			Timestamp: time.Now(),
 		}
 
-		return log, nil
+		// 检查预警
+		if inv.AvailableStock < inv.WarningThreshold {
+			warningEvent := &domain.StockWarningEvent{
+				SkuID:          skuID,
+				AvailableStock: inv.AvailableStock,
+				Threshold:      inv.WarningThreshold,
+				Timestamp:      time.Now(),
+			}
+			_ = m.publisher.Publish(ctx, "inventory.stock.warning", warningEvent)
+		}
+
+		return log, event, nil
 	})
 }
 
 // LockStock 锁定库存。
-func (m *InventoryManager) LockStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
-		return inv.Lock(quantity, reason)
+func (m *InventoryCommandService) LockStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, any, error) {
+		log, err := inv.Lock(quantity, reason)
+		if err != nil {
+			return nil, nil, err
+		}
+		event := &domain.StockLockedEvent{
+			SkuID:     skuID,
+			Quantity:  quantity,
+			Reason:    reason,
+			Timestamp: time.Now(),
+		}
+		return log, event, nil
 	})
 }
 
 // UnlockStock 解锁库存。
-func (m *InventoryManager) UnlockStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
-		return inv.Unlock(quantity, reason)
+func (m *InventoryCommandService) UnlockStock(ctx context.Context, skuID uint64, quantity int32, reason string) error {
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, any, error) {
+		log, err := inv.Unlock(quantity, reason)
+		if err != nil {
+			return nil, nil, err
+		}
+		event := &domain.StockUnlockedEvent{
+			SkuID:     skuID,
+			Quantity:  quantity,
+			Reason:    reason,
+			Timestamp: time.Now(),
+		}
+		return log, event, nil
 	})
 }
 
 // HandleOrderTimeout 处理订单支付超时，自动释放库存。
-func (m *InventoryManager) HandleOrderTimeout(ctx context.Context, event map[string]any) error {
+func (m *InventoryCommandService) HandleOrderTimeout(ctx context.Context, event map[string]any) error {
 	orderID := uint64(event["order_id"].(float64))
 	userID := uint64(event["user_id"].(float64))
 	items := event["items"].([]any)
@@ -226,8 +260,6 @@ func (m *InventoryManager) HandleOrderTimeout(ctx context.Context, event map[str
 			return fmt.Errorf("failed to check order status for ID %d: %w", orderID, err)
 		}
 
-		// 只有当确定支付成功（PAID 及之后状态）时，才跳过释放。
-		// 如果订单还在 ALLOCATING (正在分配) 或 PENDING_PAYMENT (待支付)，则超时释放。
 		if resp.Status == orderv1.OrderStatus_PAID ||
 			resp.Status == orderv1.OrderStatus_SHIPPED ||
 			resp.Status == orderv1.OrderStatus_DELIVERED ||
@@ -255,14 +287,24 @@ func (m *InventoryManager) HandleOrderTimeout(ctx context.Context, event map[str
 }
 
 // ConfirmDeduction 确认扣减。
-func (m *InventoryManager) ConfirmDeduction(ctx context.Context, skuID uint64, quantity int32, reason string) error {
-	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, error) {
-		return inv.ConfirmDeduction(quantity, reason)
+func (m *InventoryCommandService) ConfirmDeduction(ctx context.Context, skuID uint64, quantity int32, reason string) error {
+	return m.executeWithRetry(ctx, skuID, func(inv *domain.Inventory) (*domain.InventoryLog, any, error) {
+		log, err := inv.ConfirmDeduction(quantity, reason)
+		if err != nil {
+			return nil, nil, err
+		}
+		event := &domain.StockDeductedEvent{
+			SkuID:     skuID,
+			Quantity:  quantity,
+			Reason:    reason,
+			Timestamp: time.Now(),
+		}
+		return log, event, nil
 	})
 }
 
 // AllocateStock 分配库存。
-func (m *InventoryManager) AllocateStock(ctx context.Context, userLat, userLon float64, items []algorithm.OrderItem) ([]algorithm.AllocationResult, error) {
+func (m *InventoryCommandService) AllocateStock(ctx context.Context, userLat, userLon float64, items []algorithm.OrderItem) ([]algorithm.AllocationResult, error) {
 	warehouses, err := m.warehouseRepo.ListAll(ctx)
 	if err != nil {
 		return nil, err

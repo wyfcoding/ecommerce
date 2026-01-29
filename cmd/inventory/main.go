@@ -16,6 +16,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
+	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"
 	inventoryhttp "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/http"
@@ -28,6 +29,7 @@ import (
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -172,17 +174,28 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence)
+	// 5.1 Infrastructure (Persistence & Messaging)
 	inventoryRepo := persistence.NewInventoryRepository(shardingMgr)
 	warehouseRepo := persistence.NewWarehouseRepository(shardingMgr.GetDB(0))
-	manager, err := application.NewInventoryManager(inventoryRepo, warehouseRepo, logger.Logger)
+
+	// 初始化可靠消息发布者 (Outbox) - 注意：分片场景下 Outbox Manager 通常绑定主库或第一个分片库
+	// 这里使用第一个分片库作为消息基座
+	outboxMgr := outbox.NewManager(shardingMgr.GetDB(0), logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 5.2 Application (Service)
+	cmdService, err := application.NewInventoryCommandService(inventoryRepo, warehouseRepo, publisher, logger.Logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create inventory manager: %w", err)
+		return nil, nil, fmt.Errorf("failed to create inventory command service: %w", err)
 	}
 	if clients.Order != nil {
-		manager.SetRemoteOrderClient(clients.Order)
+		cmdService.SetRemoteOrderClient(clients.Order)
 	}
-	inventoryService := application.NewInventory(manager, application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger))
+
+	queryService := application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger)
+
+	// 门面服务组装
+	inventoryService := application.NewInventory(cmdService, queryService)
 
 	// 5. 启动可靠库存自动释放消费者
 	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
@@ -203,7 +216,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 			return err
 		}
 
-		if err := manager.HandleOrderTimeout(ctx, event); err != nil {
+		if err := cmdService.HandleOrderTimeout(ctx, event); err != nil {
 			_ = idemManager.Delete(ctx, idemKey)
 			return err
 		}

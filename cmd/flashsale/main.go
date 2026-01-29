@@ -16,6 +16,7 @@ import (
 	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
+	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"
 	flashsalegrpc "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/grpc"
 	flashsalehttp "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/http"
@@ -47,7 +48,7 @@ type Config struct {
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Flashsale   *application.FlashsaleService
+	Flashsale   *application.FlashSale
 	Clients     *ServiceClients
 	Handler     *flashsalehttp.Handler
 	Metrics     *metrics.Metrics
@@ -165,6 +166,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
 		outboxProcessor.Stop()
@@ -211,18 +213,17 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 7.2 Application (Service)
 	riskClient := risksecurityv1.NewRiskSecurityServiceClient(clients.Risk)
 
-	query := application.NewFlashsaleQuery(flashsaleRepo)
-	manager := application.NewFlashsaleManager(
+	query := application.NewFlashSaleQuery(flashsaleRepo)
+	command := application.NewFlashSaleCommandService(
 		flashsaleRepo,
 		flashsaleCache,
-		producer,
-		outboxMgr,
+		publisher,
 		db.RawDB(),
 		idGenerator,
 		logger.Logger,
 		riskClient,
 	)
-	flashsaleService := application.NewFlashsaleService(manager, query)
+	flashsaleService := application.NewFlashSale(command, query)
 
 	// 7.3 Interface (HTTP Handlers)
 	handler := flashsalehttp.NewHandler(flashsaleService, logger.Logger)

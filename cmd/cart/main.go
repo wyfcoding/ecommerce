@@ -16,6 +16,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"
 	"github.com/wyfcoding/ecommerce/internal/cart/application"
+	"github.com/wyfcoding/ecommerce/internal/cart/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/cart/infrastructure/persistence"
 	cartgrpc "github.com/wyfcoding/ecommerce/internal/cart/interfaces/grpc"
 	carthttp "github.com/wyfcoding/ecommerce/internal/cart/interfaces/http"
@@ -27,6 +28,7 @@ import (
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -146,11 +148,15 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence)
+	// 5.1 Infrastructure (Persistence & Messaging)
 	cartRepo := persistence.NewCartRepository(db.RawDB())
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 5.2 Application (Service)
 	cartQuery := application.NewCartQuery(cartRepo, logger.Logger)
-	cartManager := application.NewCartManager(cartRepo, logger.Logger, cartQuery)
-	cartService := application.NewCartService(cartManager, cartQuery)
+	cartCommand := application.NewCartCommandService(cartRepo, publisher, logger.Logger, cartQuery)
+	cartService := application.NewCartService(cartCommand, cartQuery)
 
 	// 5. [关键优化]：启动订单确认事件消费者，自动清空购物车
 	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
@@ -181,7 +187,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 			skuIDs[i] = it.SkuID
 		}
 
-		if err := cartManager.RemoveItems(ctx, event.UserID, skuIDs); err != nil {
+		if err := cartCommand.RemoveItems(ctx, event.UserID, skuIDs); err != nil {
 			_ = idemManager.Delete(ctx, idemKey)
 			return err
 		}

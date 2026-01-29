@@ -2,55 +2,53 @@ package application
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 )
 
-// SettlementService 结算门面服务，整合 Manager 和 Query。
+// SettlementService 结算门面服务，整合 CommandService 和 Query。
 type SettlementService struct {
-	manager *SettlementManager
+	command *SettlementCommandService
 	query   *SettlementQuery
 }
 
 // NewSettlementService 构造函数。
 func NewSettlementService(
-	repo domain.SettlementRepository,
-	ledgerService *domain.LedgerService,
-	logger *slog.Logger,
+	command *SettlementCommandService,
+	query *SettlementQuery,
 ) *SettlementService {
 	return &SettlementService{
-		manager: NewSettlementManager(repo, ledgerService, logger),
-		query:   NewSettlementQuery(repo),
+		command: command,
+		query:   query,
 	}
 }
 
 func (s *SettlementService) SetRemoteAccountClient(cli accountv1.AccountServiceClient) {
-	s.manager.SetRemoteAccountClient(cli)
+	s.command.SetRemoteAccountClient(cli)
 }
 
-// --- Manager (Writes) ---
+// --- Commands (Writes) ---
 
 func (s *SettlementService) RecordPaymentSuccess(ctx context.Context, orderID uint64, orderNo string, merchantID uint64, amount int64, channelCost int64) error {
-	return s.manager.RecordPaymentSuccess(ctx, orderID, orderNo, merchantID, amount, channelCost)
+	return s.command.RecordPaymentSuccess(ctx, orderID, orderNo, merchantID, amount, channelCost)
 }
 
 func (s *SettlementService) CreateSettlement(ctx context.Context, merchantID uint64, cycle string, startDate, endDate time.Time) (*domain.Settlement, error) {
-	return s.manager.CreateSettlement(ctx, merchantID, cycle, startDate, endDate)
+	return s.command.CreateSettlement(ctx, merchantID, cycle, startDate, endDate)
 }
 
 func (s *SettlementService) AddOrderToSettlement(ctx context.Context, settlementID uint64, orderID uint64, orderNo string, amount uint64) error {
-	return s.manager.AddOrderToSettlement(ctx, settlementID, orderID, orderNo, amount)
+	return s.command.AddOrderToSettlement(ctx, settlementID, orderID, orderNo, amount)
 }
 
 func (s *SettlementService) ProcessSettlement(ctx context.Context, id uint64) error {
-	return s.manager.ProcessSettlement(ctx, id)
+	return s.command.ProcessSettlement(ctx, id)
 }
 
 func (s *SettlementService) CompleteSettlement(ctx context.Context, id uint64) error {
-	return s.manager.CompleteSettlement(ctx, id)
+	return s.command.CompleteSettlement(ctx, id)
 }
 
 // --- Query (Reads) ---

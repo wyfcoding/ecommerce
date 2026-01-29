@@ -18,11 +18,11 @@ import (
 // Server 结构体实现了 FlashSaleService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedFlashSaleServiceServer
-	app *application.FlashsaleService
+	app *application.FlashSale // 依赖FlashSale应用服务，处理核心业务逻辑。
 }
 
 // NewServer 创建并返回一个新的 FlashSale gRPC 服务端实例。
-func NewServer(app *application.FlashsaleService) *Server {
+func NewServer(app *application.FlashSale) *Server {
 	return &Server{app: app}
 }
 

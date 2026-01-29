@@ -20,6 +20,7 @@ import (
 	configpkg "github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -89,11 +90,9 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("failed to init redis: %w", err)
 	}
 
-	// 3. 消息队列
-	var publisher domain.EventPublisher
-	if len(cfg.MessageQueue.Kafka.Brokers) > 0 {
-		publisher = messaging.NewKafkaPublisher(cfg.MessageQueue.Kafka.Brokers, logger.Logger)
-	}
+	// 3. Reliable Messaging (Outbox)
+	outboxMgr := outbox.NewManager(db, logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
 
 	// 4. Repositories
 	productRepo := persistence.NewProductRepository(db)
@@ -126,9 +125,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	cleanup := func() {
 		bootLog.Info("shutting down...")
-		if closer, ok := publisher.(interface{ Close() error }); ok {
-			closer.Close()
-		}
+		// Outbox manager doesn't need explicit close if DB is closed
 		redisCache.Close()
 	}
 

@@ -15,6 +15,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
+	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"
 	"github.com/wyfcoding/ecommerce/internal/settlement/interfaces/event"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
@@ -28,6 +29,7 @@ import (
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -166,16 +168,24 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence & Domain Services)
+	// 5.1 Infrastructure (Persistence & Messaging)
 	settlementRepo := persistence.NewSettlementRepository(db.RawDB())
 	ledgerRepo := persistence.NewLedgerRepository(db.RawDB())
 	ledgerService := domain.NewLedgerService(ledgerRepo)
 
+	// 初始化可靠消息发布者 (Outbox)
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
 	// 5.2 Application (Service)
-	settlementService := application.NewSettlementService(settlementRepo, ledgerService, logger.Logger)
+	cmdService := application.NewSettlementCommandService(settlementRepo, ledgerService, publisher, logger.Logger)
 	if clients.Account != nil {
-		settlementService.SetRemoteAccountClient(clients.Account)
+		cmdService.SetRemoteAccountClient(clients.Account)
 	}
+	queryService := application.NewSettlementQuery(settlementRepo)
+
+	// 门面服务组装
+	settlementService := application.NewSettlementService(cmdService, queryService)
 
 	// 5.3 Event Handlers (Kafka Consumer)
 	bootLog.Info("initializing kafka consumer for payment events...")

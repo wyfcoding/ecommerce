@@ -9,7 +9,6 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	"github.com/wyfcoding/pkg/cache"
-	"github.com/wyfcoding/pkg/idgen"
 )
 
 type ProductCommandService struct {
@@ -57,11 +56,15 @@ func (s *ProductCommandService) CreateProduct(ctx context.Context, cmd *CreatePr
 		return nil, err
 	}
 
-	s.publishEvent(ctx, product.ID, "create", map[string]any{
-		"name":  product.Name,
-		"price": product.Price,
-		"stock": product.Stock,
-	})
+	// 发布领域事件
+	event := &domain.ProductCreatedEvent{
+		ID:        product.ID,
+		Name:      product.Name,
+		Price:     product.Price,
+		Stock:     product.Stock,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, s.topic, event)
 
 	return product, nil
 }
@@ -88,7 +91,7 @@ func (s *ProductCommandService) UpdateProduct(ctx context.Context, cmd *UpdatePr
 		product.BrandID = *cmd.BrandID
 	}
 	if cmd.Status != nil {
-		product.Status = *cmd.Status
+		product.Status = domain.ProductStatus(*cmd.Status)
 	}
 
 	if err := s.repo.Update(ctx, product); err != nil {
@@ -97,9 +100,13 @@ func (s *ProductCommandService) UpdateProduct(ctx context.Context, cmd *UpdatePr
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", cmd.ID))
 
-	s.publishEvent(ctx, product.ID, "update", map[string]any{
-		"status": product.Status,
-	})
+	// 发布领域事件
+	event := &domain.ProductUpdatedEvent{
+		ID:        product.ID,
+		Status:    int(product.Status),
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, s.topic, event)
 
 	return product, nil
 }
@@ -110,7 +117,13 @@ func (s *ProductCommandService) DeleteProduct(ctx context.Context, id uint64) er
 	}
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
-	s.publishEvent(ctx, uint(id), "delete", nil)
+
+	// 发布领域事件
+	event := &domain.ProductDeletedEvent{
+		ID:        uint(id),
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, s.topic, event)
 
 	return nil
 }
@@ -136,7 +149,14 @@ func (s *ProductCommandService) AddSKU(ctx context.Context, cmd *AddSKUCommand) 
 	}
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", cmd.ProductID))
-	s.publishEvent(ctx, uint(cmd.ProductID), "sku_added", map[string]any{"sku_id": sku.ID})
+
+	// 发布领域事件
+	event := &domain.SKUAddedEvent{
+		ProductID: cmd.ProductID,
+		SKUID:     sku.ID,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, s.topic, event)
 
 	return sku, nil
 }
@@ -165,7 +185,14 @@ func (s *ProductCommandService) UpdateSKU(ctx context.Context, cmd *UpdateSKUCom
 	}
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
-	s.publishEvent(ctx, sku.ProductID, "sku_updated", map[string]any{"sku_id": sku.ID})
+
+	// 发布领域事件
+	event := &domain.SKUUpdatedEvent{
+		ProductID: sku.ProductID,
+		SKUID:     sku.ID,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, s.topic, event)
 
 	return sku, nil
 }
@@ -184,14 +211,19 @@ func (s *ProductCommandService) DeleteSKU(ctx context.Context, id uint64) error 
 	}
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
-	s.publishEvent(ctx, sku.ProductID, "sku_deleted", map[string]any{"sku_id": id})
+
+	// 发布领域事件
+	event := &domain.SKUDeletedEvent{
+		ProductID: sku.ProductID,
+		SKUID:     sku.ID,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, s.topic, event)
 
 	return nil
 }
 
 // ---------------- Brand ----------------
-
-// --- Brand Commands ---
 
 func (s *ProductCommandService) CreateBrand(ctx context.Context, cmd *CreateBrandCommand) (*domain.Brand, error) {
 	brand, err := domain.NewBrand(cmd.Name, cmd.Logo)
@@ -203,8 +235,6 @@ func (s *ProductCommandService) CreateBrand(ctx context.Context, cmd *CreateBran
 	}
 	return brand, nil
 }
-
-// --- Update Brand ---
 
 func (s *ProductCommandService) UpdateBrand(ctx context.Context, cmd *UpdateBrandCommand) (*domain.Brand, error) {
 	brand, err := s.brandRepo.FindByID(ctx, cmd.ID)
@@ -232,8 +262,6 @@ func (s *ProductCommandService) DeleteBrand(ctx context.Context, id uint64) erro
 
 // ---------------- Category ----------------
 
-// --- Category Commands ---
-
 func (s *ProductCommandService) CreateCategory(ctx context.Context, cmd *CreateCategoryCommand) (*domain.Category, error) {
 	category, err := domain.NewCategory(cmd.Name, cmd.ParentID)
 	if err != nil {
@@ -244,8 +272,6 @@ func (s *ProductCommandService) CreateCategory(ctx context.Context, cmd *CreateC
 	}
 	return category, nil
 }
-
-// --- Update Category ---
 
 func (s *ProductCommandService) UpdateCategory(ctx context.Context, cmd *UpdateCategoryCommand) (*domain.Category, error) {
 	category, err := s.categoryRepo.FindByID(ctx, cmd.ID)
@@ -272,25 +298,4 @@ func (s *ProductCommandService) UpdateCategory(ctx context.Context, cmd *UpdateC
 
 func (s *ProductCommandService) DeleteCategory(ctx context.Context, id uint64) error {
 	return s.categoryRepo.Delete(ctx, uint(id))
-}
-
-// ---------------- Helper ----------------
-
-func (s *ProductCommandService) publishEvent(ctx context.Context, productID uint, action string, data map[string]any) {
-	if s.publisher == nil {
-		return
-	}
-	event := map[string]any{
-		"header": map[string]any{
-			"id":         fmt.Sprintf("%d", idgen.GenID()),
-			"source":     "product.service",
-			"created_at": time.Now(),
-		},
-		"id":         productID,
-		"action":     action,
-		"attributes": data,
-	}
-	if err := s.publisher.Publish(ctx, s.topic, event); err != nil {
-		s.logger.ErrorContext(ctx, "failed to publish event", "error", err, "action", action)
-	}
 }

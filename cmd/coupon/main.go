@@ -13,6 +13,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/coupon/application"
+	"github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence"
 	coupongrpc "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/grpc"
 	couponhttp "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -138,7 +140,11 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 3. 初始化治理组件 (限流器、幂等管理器)
+	// 3. Reliable Messaging (Outbox)
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 4. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
@@ -161,8 +167,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5.2 Application (Service)
 	query := application.NewCouponQuery(couponRepo)
-	manager := application.NewCouponManager(couponRepo, logger.Logger)
-	couponService := application.NewCoupon(manager, query)
+	command := application.NewCouponCommandService(couponRepo, publisher, logger.Logger)
+	couponService := application.NewCoupon(command, query)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := couponhttp.NewHandler(couponService, logger.Logger)

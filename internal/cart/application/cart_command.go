@@ -3,28 +3,31 @@ package application
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/cart/domain"
 )
 
-// CartManager 处理购物车的写操作（增删改）。
-type CartManager struct {
-	repo   domain.CartRepository
-	logger *slog.Logger
-	query  *CartQuery // 用于获取购物车实体进行内部操作
+// CartCommandService 处理购物车的写操作（增删改）。
+type CartCommandService struct {
+	repo      domain.CartRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
+	query     *CartQuery // 用于获取购物车实体进行内部操作
 }
 
-// NewCartManager 负责处理 NewCart 相关的写操作和业务逻辑。
-func NewCartManager(repo domain.CartRepository, logger *slog.Logger, query *CartQuery) *CartManager {
-	return &CartManager{
-		repo:   repo,
-		logger: logger,
-		query:  query,
+// NewCartCommandService 负责处理 NewCart 相关的写操作和业务逻辑。
+func NewCartCommandService(repo domain.CartRepository, publisher domain.EventPublisher, logger *slog.Logger, query *CartQuery) *CartCommandService {
+	return &CartCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
+		query:     query,
 	}
 }
 
 // AddItem 添加商品到购物车。
-func (s *CartManager) AddItem(ctx context.Context, userID uint64, productID, skuID uint64, productName, skuName string, price float64, quantity int32, imageURL string) error {
+func (s *CartCommandService) AddItem(ctx context.Context, userID uint64, productID, skuID uint64, productName, skuName string, price float64, quantity int32, imageURL string) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -35,12 +38,23 @@ func (s *CartManager) AddItem(ctx context.Context, userID uint64, productID, sku
 		s.logger.ErrorContext(ctx, "failed to add item to cart", "user_id", userID, "sku_id", skuID, "error", err)
 		return err
 	}
+
+	// 发布领域事件
+	event := &domain.CartItemAddedEvent{
+		UserID:    userID,
+		ProductID: productID,
+		SkuID:     skuID,
+		Quantity:  quantity,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.item.added", event)
+
 	s.logger.InfoContext(ctx, "item added to cart successfully", "user_id", userID, "sku_id", skuID, "quantity", quantity)
 	return nil
 }
 
 // UpdateItemQuantity 更新商品数量。
-func (s *CartManager) UpdateItemQuantity(ctx context.Context, userID uint64, skuID uint64, quantity int32) error {
+func (s *CartCommandService) UpdateItemQuantity(ctx context.Context, userID uint64, skuID uint64, quantity int32) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -51,12 +65,22 @@ func (s *CartManager) UpdateItemQuantity(ctx context.Context, userID uint64, sku
 		s.logger.ErrorContext(ctx, "failed to update item quantity", "user_id", userID, "sku_id", skuID, "error", err)
 		return err
 	}
+
+	// 发布领域事件
+	event := &domain.CartItemUpdatedEvent{
+		UserID:    userID,
+		SkuID:     skuID,
+		Quantity:  quantity,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.item.updated", event)
+
 	s.logger.InfoContext(ctx, "item quantity updated successfully", "user_id", userID, "sku_id", skuID, "quantity", quantity)
 	return nil
 }
 
 // RemoveItem 移除商品。
-func (s *CartManager) RemoveItem(ctx context.Context, userID uint64, skuID uint64) error {
+func (s *CartCommandService) RemoveItem(ctx context.Context, userID uint64, skuID uint64) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -67,12 +91,21 @@ func (s *CartManager) RemoveItem(ctx context.Context, userID uint64, skuID uint6
 		s.logger.ErrorContext(ctx, "failed to remove item from cart", "user_id", userID, "sku_id", skuID, "error", err)
 		return err
 	}
+
+	// 发布领域事件
+	event := &domain.CartItemRemovedEvent{
+		UserID:    userID,
+		SkuIDs:    []uint64{skuID},
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.item.removed", event)
+
 	s.logger.InfoContext(ctx, "item removed from cart successfully", "user_id", userID, "sku_id", skuID)
 	return nil
 }
 
 // RemoveItems 批量移除商品 (用于下单后的购物车自动清理)
-func (s *CartManager) RemoveItems(ctx context.Context, userID uint64, skuIDs []uint64) error {
+func (s *CartCommandService) RemoveItems(ctx context.Context, userID uint64, skuIDs []uint64) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -86,12 +119,21 @@ func (s *CartManager) RemoveItems(ctx context.Context, userID uint64, skuIDs []u
 		s.logger.ErrorContext(ctx, "failed to batch remove items from cart", "user_id", userID, "count", len(skuIDs), "error", err)
 		return err
 	}
+
+	// 发布领域事件
+	event := &domain.CartItemRemovedEvent{
+		UserID:    userID,
+		SkuIDs:    skuIDs,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.item.removed", event)
+
 	s.logger.InfoContext(ctx, "cart items removed after checkout", "user_id", userID, "count", len(skuIDs))
 	return nil
 }
 
 // ClearCart 清空购物车。
-func (s *CartManager) ClearCart(ctx context.Context, userID uint64) error {
+func (s *CartCommandService) ClearCart(ctx context.Context, userID uint64) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -102,12 +144,20 @@ func (s *CartManager) ClearCart(ctx context.Context, userID uint64) error {
 		s.logger.ErrorContext(ctx, "failed to clear cart", "user_id", userID, "cart_id", cart.ID, "error", err)
 		return err
 	}
+
+	// 发布领域事件
+	event := &domain.CartClearedEvent{
+		UserID:    userID,
+		Timestamp: time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.cleared", event)
+
 	s.logger.InfoContext(ctx, "cart cleared successfully", "user_id", userID, "cart_id", cart.ID)
 	return nil
 }
 
 // MergeCarts 将来源用户的购物车项合并到目标用户的购物车中（常用于登录后的匿名购物车迁移）。
-func (s *CartManager) MergeCarts(ctx context.Context, sourceUserID, targetUserID uint64) error {
+func (s *CartCommandService) MergeCarts(ctx context.Context, sourceUserID, targetUserID uint64) error {
 	sourceCart, err := s.repo.GetByUserID(ctx, sourceUserID)
 	if err != nil {
 		return err
@@ -134,12 +184,20 @@ func (s *CartManager) MergeCarts(ctx context.Context, sourceUserID, targetUserID
 		s.logger.ErrorContext(ctx, "failed to clear source cart after merge", "source_user_id", sourceUserID, "error", err)
 	}
 
+	// 发布领域事件
+	event := &domain.CartsMergedEvent{
+		SourceUserID: sourceUserID,
+		TargetUserID: targetUserID,
+		Timestamp:    time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.merged", event)
+
 	s.logger.InfoContext(ctx, "carts merged successfully", "source_user_id", sourceUserID, "target_user_id", targetUserID)
 	return nil
 }
 
 // ApplyCoupon 在购物车中记录要使用的优惠券码。
-func (s *CartManager) ApplyCoupon(ctx context.Context, userID uint64, couponCode string) error {
+func (s *CartCommandService) ApplyCoupon(ctx context.Context, userID uint64, couponCode string) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -151,12 +209,20 @@ func (s *CartManager) ApplyCoupon(ctx context.Context, userID uint64, couponCode
 		return err
 	}
 
+	// 发布领域事件
+	event := &domain.CouponAppliedEvent{
+		UserID:     userID,
+		CouponCode: couponCode,
+		Timestamp:  time.Now(),
+	}
+	_ = s.publisher.Publish(ctx, "cart.coupon.applied", event)
+
 	s.logger.InfoContext(ctx, "coupon applied to cart", "user_id", userID, "coupon_code", couponCode)
 	return nil
 }
 
 // RemoveCoupon 清除购物车中已记录的优惠券码。
-func (s *CartManager) RemoveCoupon(ctx context.Context, userID uint64) error {
+func (s *CartCommandService) RemoveCoupon(ctx context.Context, userID uint64) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
