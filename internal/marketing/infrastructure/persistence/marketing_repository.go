@@ -19,10 +19,36 @@ func NewMarketingRepository(db *gorm.DB) domain.MarketingRepository {
 	return &marketingRepository{db: db}
 }
 
+// BeginTx 开始事务
+func (r *marketingRepository) BeginTx(ctx context.Context) any {
+	return r.db.WithContext(ctx).Begin()
+}
+
+// CommitTx 提交事务
+func (r *marketingRepository) CommitTx(tx any) error {
+	return tx.(*gorm.DB).Commit().Error
+}
+
+// RollbackTx 回滚事务
+func (r *marketingRepository) RollbackTx(tx any) error {
+	return tx.(*gorm.DB).Rollback().Error
+}
+
+// WithTx 事务包装器
+func (r *marketingRepository) WithTx(ctx context.Context, fn func(tx any) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(tx)
+	})
+}
+
 // --- 营销活动 (Campaign methods) ---
 
 func (r *marketingRepository) SaveCampaign(ctx context.Context, campaign *domain.Campaign) error {
 	return r.db.WithContext(ctx).Save(campaign).Error
+}
+
+func (r *marketingRepository) SaveCampaignInTx(ctx context.Context, tx any, campaign *domain.Campaign) error {
+	return tx.(*gorm.DB).WithContext(ctx).Save(campaign).Error
 }
 
 func (r *marketingRepository) GetCampaign(ctx context.Context, id uint64) (*domain.Campaign, error) {
@@ -60,6 +86,10 @@ func (r *marketingRepository) SaveParticipation(ctx context.Context, participati
 	return r.db.WithContext(ctx).Save(participation).Error
 }
 
+func (r *marketingRepository) SaveParticipationInTx(ctx context.Context, tx any, participation *domain.CampaignParticipation) error {
+	return tx.(*gorm.DB).WithContext(ctx).Save(participation).Error
+}
+
 func (r *marketingRepository) ListParticipations(ctx context.Context, campaignID uint64, offset, limit int) ([]*domain.CampaignParticipation, int64, error) {
 	var list []*domain.CampaignParticipation
 	var total int64
@@ -81,6 +111,10 @@ func (r *marketingRepository) ListParticipations(ctx context.Context, campaignID
 
 func (r *marketingRepository) SaveBanner(ctx context.Context, banner *domain.Banner) error {
 	return r.db.WithContext(ctx).Save(banner).Error
+}
+
+func (r *marketingRepository) SaveBannerInTx(ctx context.Context, tx any, banner *domain.Banner) error {
+	return tx.(*gorm.DB).WithContext(ctx).Save(banner).Error
 }
 
 func (r *marketingRepository) GetBanner(ctx context.Context, id uint64) (*domain.Banner, error) {
@@ -117,7 +151,6 @@ func (r *marketingRepository) DeleteBanner(ctx context.Context, id uint64) error
 // GetUserIDsByTag 从数据库获取具有特定标签的所有用户ID。
 func (r *marketingRepository) GetUserIDsByTag(ctx context.Context, tagName string) ([]uint32, error) {
 	var userIDs []uint32
-	// 假设存在 user_tags 表，存储 user_id 和 tag_name 的映射
 	err := r.db.WithContext(ctx).Table("user_tags").
 		Where("tag_name = ?", tagName).
 		Pluck("user_id", &userIDs).Error

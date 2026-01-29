@@ -14,6 +14,7 @@ import (
 	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/marketing/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"
+	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/persistence"
 	marketinggrpc "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/grpc"
 	marketinghttp "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -161,16 +163,19 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	marketingRepo := persistence.NewMarketingRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	query := application.NewMarketingQuery(marketingRepo)
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	query := application.NewMarketingQueryService(marketingRepo)
 	var couponCli couponv1.CouponServiceClient
 	if clients.CouponConn != nil {
 		couponCli = couponv1.NewCouponServiceClient(clients.CouponConn)
 	}
-	manager, err := application.NewMarketingManager(marketingRepo, couponCli, logger.Logger)
+	command, err := application.NewMarketingCommandService(marketingRepo, publisher, couponCli, logger.Logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create marketing manager: %w", err)
+		return nil, nil, fmt.Errorf("failed to create marketing command service: %w", err)
 	}
-	marketingService := application.NewMarketing(manager, query)
+	marketingService := application.NewMarketing(command, query)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := marketinghttp.NewHandler(marketingService, logger.Logger)
