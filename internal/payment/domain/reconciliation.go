@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
+	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 )
 
 // ReconcileStatus 对账结果状态
@@ -133,7 +134,7 @@ func (e *ReconciliationEngine) compareTransaction(sys *SystemTransaction, ch *Ch
 	// 2. 校验状态
 	// 这里需要一个状态映射逻辑，将 Channel 状态映射为 System 状态
 	// 简化假设：只要渠道是 Success，系统也应该是 Success
-	if sys.Status != PaymentSuccess {
+	if sys.Status != pb.PaymentStatus_SUCCESS {
 		// 这是一个复杂点：如果渠道成功扣款，但系统状态不是 Success (可能是 Pending 或 Failed)
 		// 这属于 "掉单" (Status Mismatch)
 		res.Status = ReconcileMismatchStatus

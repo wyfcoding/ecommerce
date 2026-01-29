@@ -17,6 +17,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"
+	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/risk"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
@@ -52,7 +53,8 @@ type Config struct {
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Payment     *application.PaymentService
+	Cmd         *application.PaymentCommandService
+	Query       *application.PaymentQuery
 	Clients     *ServiceClients
 	Handler     *paymenthttp.Handler
 	Metrics     *metrics.Metrics
@@ -92,7 +94,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterPaymentServiceServer(s, grpcServer.NewServer(ctx.Payment))
+	pb.RegisterPaymentServiceServer(s, grpcServer.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -163,6 +165,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	}
 
 	// 2. 初始化缓存 (Redis)
+	bootLog.Info("initializing redis cache...")
 	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		shardingManager.Close()
@@ -238,31 +241,24 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		domain.GatewayTypeTrading: gateway.NewTradingAccountGateway(clients.Account),
 	}
 
-	// 5.2 Application (Components)
-	processor := application.NewPaymentProcessor(
+	// 5.2 Application
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	paymentCmdService := application.NewPaymentCommandService(
 		paymentRepo,
+		refundRepo,
 		channelRepo,
 		riskSvc,
 		idGenerator,
 		gateways,
-		outboxMgr,
+		publisher,
+		redisLock,
 		logger.Logger,
 	)
-	callbackHandler := application.NewCallbackHandler(paymentRepo, gateways, redisLock, outboxMgr, logger.Logger)
-	refundService := application.NewRefundService(paymentRepo, refundRepo, idGenerator, gateways, logger.Logger)
-	paymentQuery := application.NewPaymentQuery(paymentRepo)
-
-	paymentService := application.NewPaymentService(
-		processor,
-		callbackHandler,
-		refundService,
-		paymentQuery,
-		clients.Settlement,
-		logger.Logger,
-	)
+	paymentQuery := application.NewPaymentQuery(paymentRepo, redisCache, logger.Logger, m)
 
 	// 5.3 Interface (HTTP Handlers)
-	handler := paymenthttp.NewHandler(paymentService, logger.Logger)
+	httpHandler := paymenthttp.NewHandler(paymentCmdService, paymentQuery, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
@@ -287,9 +283,10 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Payment:     paymentService,
+		Cmd:         paymentCmdService,
+		Query:       paymentQuery,
 		Clients:     clients,
-		Handler:     handler,
+		Handler:     httpHandler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
 		Idempotency: idemManager,

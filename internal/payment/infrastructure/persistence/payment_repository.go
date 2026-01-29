@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/database/sharding"
@@ -131,7 +132,7 @@ func (r *paymentRepository) FindSuccessPaymentsByDate(ctx context.Context, date 
 	end := start.Add(24 * time.Hour)
 	for _, db := range dbs {
 		var list []*domain.Payment
-		err := db.WithContext(ctx).Where("status = ? AND paid_at >= ? AND paid_at < ?", domain.PaymentSuccess, start, end).Find(&list).Error
+		err := db.WithContext(ctx).Where("status = ? AND paid_at >= ? AND paid_at < ?", pb.PaymentStatus_SUCCESS, start, end).Find(&list).Error
 		if err != nil {
 			return nil, err
 		}

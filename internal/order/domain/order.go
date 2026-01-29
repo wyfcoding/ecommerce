@@ -5,64 +5,39 @@ import (
 	"fmt"
 	"time"
 
+	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/pkg/fsm"
 	"gorm.io/gorm"
 )
 
-// OrderStatus 定义了订单的生命周期状态。
-type OrderStatus int
-
-const (
-	PendingPayment  OrderStatus = 1  // 待支付：订单已创建，等待用户支付。
-	Allocating      OrderStatus = 10 // 分配中：新增状态，表示正在进行库存分配（Saga事务中）。
-	Paid            OrderStatus = 2  // 已支付：订单已完成支付。
-	Shipped         OrderStatus = 3  // 已发货：商品已从仓库发出。
-	Delivered       OrderStatus = 4  // 已送达：商品已送达买家。
-	Completed       OrderStatus = 5  // 已完成：订单已签收，交易完成。
-	Cancelled       OrderStatus = 6  // 已取消：订单被取消。
-	RefundRequested OrderStatus = 7  // 退款中：买家已申请退款，等待处理。
-	Refunded        OrderStatus = 8  // 已退款：退款已处理完成。
-	Closed          OrderStatus = 9  // 已关闭：订单最终关闭（可能因超时未支付或取消）。
-)
-
-// String 返回 OrderStatus 的字符串表示。
-func (s OrderStatus) String() string {
-	names := map[OrderStatus]string{
-		PendingPayment:  "PendingPayment",
-		Allocating:      "Allocating",
-		Paid:            "Paid",
-		Shipped:         "Shipped",
-		Delivered:       "Delivered",
-		Completed:       "Completed",
-		Cancelled:       "Cancelled",
-		RefundRequested: "RefundRequested",
-		Refunded:        "Refunded",
-		Closed:          "Closed",
-	}
-	return names[s] // 根据状态值返回对应的字符串。
+// TimeoutScheduler 定义了超时调度的接口，用于处理订单超时取消等逻辑。
+type TimeoutScheduler interface {
+	ScheduleTimeout(orderID string, timeout time.Duration, callback func(orderID string)) error
+	Start()
+	Stop()
 }
 
 // Order 实体是订单模块的聚合根。
 type Order struct {
 	gorm.Model
-	OrderNo         string           `gorm:"type:varchar(64);uniqueIndex;not null;comment:订单编号" json:"order_no"`
-	UserID          uint64           `gorm:"index;not null;comment:用户ID" json:"user_id"`
-	Status          OrderStatus      `gorm:"type:tinyint;not null;default:1;comment:订单状态" json:"status"`
-	TotalAmount     int64            `gorm:"not null;comment:订单总金额(分)" json:"total_amount"`
-	ActualAmount    int64            `gorm:"not null;comment:实际支付金额(分)" json:"actual_amount"`
-	ShippingFee     int64            `gorm:"not null;default:0;comment:运费(分)" json:"shipping_fee"`
-	DiscountAmount  int64            `gorm:"not null;default:0;comment:优惠金额(分)" json:"discount_amount"`
-	PaymentMethod   string           `gorm:"type:varchar(32);comment:支付方式" json:"payment_method"`
-	Remark          string           `gorm:"type:varchar(255);comment:订单备注" json:"remark"`
-	ShippingAddress *ShippingAddress `gorm:"embedded;embeddedPrefix:shipping_" json:"shipping_address"`
-	Items           []*OrderItem     `gorm:"foreignKey:OrderID" json:"items"`
-	Logs            []*OrderLog      `gorm:"foreignKey:OrderID" json:"logs"`
-	PaidAt          *time.Time       `gorm:"comment:支付时间" json:"paid_at"`
-	ShippedAt       *time.Time       `gorm:"comment:发货时间" json:"shipped_at"`
-	DeliveredAt     *time.Time       `gorm:"comment:送达时间" json:"delivered_at"`
-	CompletedAt     *time.Time       `gorm:"comment:完成时间" json:"completed_at"`
-	CancelledAt     *time.Time       `gorm:"comment:取消时间" json:"cancelled_at"`
-	fsm             *fsm.Machine[string, string]     `gorm:"-" json:"-"`
+	OrderNo         string                       `gorm:"type:varchar(64);uniqueIndex;not null;comment:订单编号" json:"order_no"`
+	UserID          uint64                       `gorm:"index;not null;comment:用户ID" json:"user_id"`
+	Status          pb.OrderStatus               `gorm:"type:tinyint;not null;default:1;comment:订单状态" json:"status"`
+	TotalAmount     int64                        `gorm:"not null;comment:订单总金额(分)" json:"total_amount"`
+	ActualAmount    int64                        `gorm:"not null;comment:实际支付金额(分)" json:"actual_amount"`
+	ShippingFee     int64                        `gorm:"not null;default:0;comment:运费(分)" json:"shipping_fee"`
+	DiscountAmount  int64                        `gorm:"not null;default:0;comment:优惠金额(分)" json:"discount_amount"`
+	PaymentMethod   string                       `gorm:"type:varchar(32);comment:支付方式" json:"payment_method"`
+	Remark          string                       `gorm:"type:varchar(255);comment:订单备注" json:"remark"`
+	ShippingAddress *ShippingAddress             `gorm:"embedded;embeddedPrefix:shipping_" json:"shipping_address"`
+	Items           []*OrderItem                 `gorm:"foreignKey:OrderID" json:"items"`
+	Logs            []*OrderLog                  `gorm:"foreignKey:OrderID" json:"logs"`
+	PaidAt          *time.Time                   `gorm:"comment:支付时间" json:"paid_at"`
+	ShippedAt       *time.Time                   `gorm:"comment:发货时间" json:"shipped_at"`
+	DeliveredAt     *time.Time                   `gorm:"comment:送达时间" json:"delivered_at"`
+	CompletedAt     *time.Time                   `gorm:"comment:完成时间" json:"completed_at"`
+	CancelledAt     *time.Time                   `gorm:"comment:取消时间" json:"cancelled_at"`
+	fsm             *fsm.Machine[string, string] `gorm:"-" json:"-"`
 }
 
 // OrderItem 实体代表订单中的一个商品项。
@@ -103,13 +78,6 @@ type OrderLog struct {
 	Remark    string `gorm:"type:varchar(255);comment:备注" json:"remark"`
 }
 
-// TimeoutScheduler 定义了超时调度的接口，用于处理订单超时取消等逻辑。
-type TimeoutScheduler interface {
-	ScheduleTimeout(orderID string, timeout time.Duration, callback func(orderID string)) error
-	Start()
-	Stop()
-}
-
 // NewOrder 创建并返回一个新的 Order 实体实例。
 func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *ShippingAddress) *Order {
 	var totalAmount int64
@@ -121,7 +89,7 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 	order := &Order{
 		OrderNo:         orderNo,
 		UserID:          userID,
-		Status:          PendingPayment,
+		Status:          pb.OrderStatus_PENDING_PAYMENT,
 		TotalAmount:     totalAmount,
 		ActualAmount:    totalAmount,
 		ShippingFee:     0,
@@ -131,7 +99,7 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 		Logs:            []*OrderLog{},
 	}
 
-	order.AddLog("System", "Order Created", "", PendingPayment.String(), "Initial order creation")
+	order.AddLog("System", "Order Created", "", pb.OrderStatus_PENDING_PAYMENT.String(), "Initial order creation")
 	order.initFSM()
 	return order
 }
@@ -139,19 +107,21 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 func (o *Order) initFSM() {
 	m := fsm.NewMachine[string, string](o.Status.String())
 
-	// 定义转换规则
-	m.AddTransition(PendingPayment.String(), "PAY", Paid.String())
-	m.AddTransition(Paid.String(), "SHIP", Shipped.String())
-	m.AddTransition(Shipped.String(), "DELIVER", Delivered.String())
-	m.AddTransition(Delivered.String(), "COMPLETE", Completed.String())
+	// 定义转换规则 (使用 Proto String 表示)
+	m.AddTransition(pb.OrderStatus_PENDING_PAYMENT.String(), "PAY", pb.OrderStatus_PAID.String())
+	m.AddTransition(pb.OrderStatus_ALLOCATING.String(), "CONFIRM", pb.OrderStatus_PENDING_PAYMENT.String())
+	m.AddTransition(pb.OrderStatus_PAID.String(), "SHIP", pb.OrderStatus_SHIPPED.String())
+	m.AddTransition(pb.OrderStatus_SHIPPED.String(), "DELIVER", pb.OrderStatus_DELIVERED.String())
+	m.AddTransition(pb.OrderStatus_DELIVERED.String(), "COMPLETE", pb.OrderStatus_COMPLETED.String())
 
 	// 取消与退款
-	m.AddTransition(PendingPayment.String(), "CANCEL", Cancelled.String())
-	m.AddTransition(Paid.String(), "CANCEL", Cancelled.String())
-	m.AddTransition(Paid.String(), "REFUND_REQ", RefundRequested.String())
-	m.AddTransition(Shipped.String(), "REFUND_REQ", RefundRequested.String())
-	m.AddTransition(Delivered.String(), "REFUND_REQ", RefundRequested.String())
-	m.AddTransition(RefundRequested.String(), "REFUND_APPROVE", Refunded.String())
+	m.AddTransition(pb.OrderStatus_PENDING_PAYMENT.String(), "CANCEL", pb.OrderStatus_CANCELLED.String())
+	m.AddTransition(pb.OrderStatus_ALLOCATING.String(), "CANCEL", pb.OrderStatus_CANCELLED.String())
+	m.AddTransition(pb.OrderStatus_PAID.String(), "CANCEL", pb.OrderStatus_CANCELLED.String())
+	m.AddTransition(pb.OrderStatus_PAID.String(), "REFUND_REQ", pb.OrderStatus_REFUND_REQUESTED.String())
+	m.AddTransition(pb.OrderStatus_SHIPPED.String(), "REFUND_REQ", pb.OrderStatus_REFUND_REQUESTED.String())
+	m.AddTransition(pb.OrderStatus_DELIVERED.String(), "REFUND_REQ", pb.OrderStatus_REFUND_REQUESTED.String())
+	m.AddTransition(pb.OrderStatus_REFUND_REQUESTED.String(), "REFUND_APPROVE", pb.OrderStatus_REFUNDED.String())
 
 	o.fsm = m
 }
@@ -175,28 +145,17 @@ func (o *Order) Trigger(ctx context.Context, event string, operator string, rema
 	}
 
 	newStatusStr := o.fsm.Current()
-	for s, name := range statusNames {
-		if name == newStatusStr {
-			o.Status = s
+	// Reverse lookup proto enum from string
+	for i := 0; i < len(pb.OrderStatus_name); i++ {
+		st := pb.OrderStatus(i)
+		if st.String() == newStatusStr {
+			o.Status = st
 			break
 		}
 	}
 
 	o.AddLog(operator, event, oldStatus.String(), o.Status.String(), remark)
 	return nil
-}
-
-var statusNames = map[OrderStatus]string{
-	PendingPayment:  "PendingPayment",
-	Allocating:      "Allocating",
-	Paid:            "Paid",
-	Shipped:         "Shipped",
-	Delivered:       "Delivered",
-	Completed:       "Completed",
-	Cancelled:       "Cancelled",
-	RefundRequested: "RefundRequested",
-	Refunded:        "Refunded",
-	Closed:          "Closed",
 }
 
 // Pay 支付订单。

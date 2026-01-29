@@ -242,6 +242,8 @@ message OrderItemCreate {
   uint64 sku_id = 2;
   // 数量。
   int32 quantity = 3;
+  // 预期单价 (分) - 用于服务端验价。
+  int64 price = 4;
 }
 
 // ID 查询请求。
@@ -335,6 +337,8 @@ message RequestRefundRequest {
 message GetOrderItemsByOrderIDRequest {
   // 订单 ID。
   uint64 order_id = 1;
+  // 用户 ID (用于分片)。
+  uint64 user_id = 2;
 }
 
 // 项明细响应。
@@ -347,12 +351,14 @@ message GetOrderItemsByOrderIDResponse {
 message UpdateOrderShippingStatusRequest {
   // 关联订单。
   uint64 order_id = 1;
+  // 用户 ID (用于分片)。
+  uint64 user_id = 2;
   // 新的履约状态。
-  ShippingStatus new_shipping_status = 2;
+  ShippingStatus new_shipping_status = 3;
   // 快递单号。
-  string tracking_number = 3;
+  string tracking_number = 4;
   // 物流商名称。
-  string logistics_company = 4;
+  string logistics_company = 5;
   // 录入人。
-  string operator = 5;
+  string operator = 6;
 }

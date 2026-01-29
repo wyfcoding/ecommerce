@@ -16,7 +16,10 @@ enum PaymentStatus {
   FAILED = 3; // 支付失败
   REFUNDING = 4; // 退款中
   REFUNDED = 5; // 已全额退款
-  CLOSED = 6; // 支付已关闭
+  CLOSED = 6; // 支付已关闭（含取消、超时、授权撤销）
+  AUTHORIZED = 7; // 已授权
+  RECONCILED = 8; // 已对账
+  RECONCILE_ERROR = 9; // 对账异常
 }
 
 // 退款申请状态。

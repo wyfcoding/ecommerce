@@ -1,4 +1,4 @@
-package event
+package consumer
 
 import (
 	"context"
@@ -10,15 +10,16 @@ import (
 )
 
 // FlashsaleHandler 处理来自秒杀服务的异步订单事件。
+// 属于接口层（Inbound Adapter），负责外部协议解析。
 type FlashsaleHandler struct {
-	orderApp *application.OrderManager
+	orderCmd *application.OrderCommandService
 	logger   *slog.Logger
 }
 
 // NewFlashsaleHandler 构造函数。
-func NewFlashsaleHandler(orderApp *application.OrderManager, logger *slog.Logger) *FlashsaleHandler {
+func NewFlashsaleHandler(orderCmd *application.OrderCommandService, logger *slog.Logger) *FlashsaleHandler {
 	return &FlashsaleHandler{
-		orderApp: orderApp,
+		orderCmd: orderCmd,
 		logger:   logger,
 	}
 }
@@ -46,8 +47,8 @@ func (h *FlashsaleHandler) HandleFlashsaleOrder(ctx context.Context, msg kafka.M
 		return err
 	}
 
-	// 触发订单管理服务的落库逻辑（幂等性由底层 Repository 保证）
-	if err := h.orderApp.HandleFlashsaleOrder(ctx, event.OrderID, event.UserID, event.ProductID, event.SkuID, event.Quantity, event.Price); err != nil {
+	// 仅作为转换器调用应用服务，逻辑在 Application 层
+	if err := h.orderCmd.HandleFlashsaleOrder(ctx, event.OrderID, event.UserID, event.ProductID, event.SkuID, event.Quantity, event.Price); err != nil {
 		h.logger.ErrorContext(ctx, "failed to process flashsale order persistence", "order_id", event.OrderID, "error", err)
 		return err
 	}

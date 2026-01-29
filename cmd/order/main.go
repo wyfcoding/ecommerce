@@ -12,9 +12,11 @@ import (
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	productv1 "github.com/wyfcoding/ecommerce/goapi/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
+	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence"
-	"github.com/wyfcoding/ecommerce/internal/order/interfaces/event"
+	"github.com/wyfcoding/ecommerce/internal/order/interfaces/consumer"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
 	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
@@ -48,7 +50,8 @@ type Config struct {
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Order       *application.OrderService
+	Cmd         *application.OrderCommandService
+	Query       *application.OrderQuery
 	Clients     *ServiceClients
 	Handler     *orderhttp.Handler
 	Metrics     *metrics.Metrics
@@ -84,7 +87,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterOrderServiceServer(s, ordergrpc.NewServer(ctx.Order))
+	pb.RegisterOrderServiceServer(s, ordergrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -202,33 +205,31 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		orderSvcAddr = "order:50051"
 	}
 
-	orderManager := application.NewOrderManager(
+	orderCommandService := application.NewOrderCommandService(
 		orderRepo,
 		idGenerator,
-		producer,
-		defaultOutboxMgr,
+		messaging.NewOutboxPublisher(defaultOutboxMgr),
 		logger.Logger,
 		dtmAddr,
 		warehouseAddr,
 		m,
 		riskEvaluator,
 	)
-	orderManager.SetSvcURL(orderSvcAddr)
+	orderCommandService.SetSvcURL(orderSvcAddr)
 
 	// 注入 gRPC 客户端 (Internal Service Interaction)
-	if clients.Inventory != nil && clients.Payment != nil && clients.Position != nil {
-		orderManager.SetClients(
-			inventoryv1.NewInventoryServiceClient(clients.Inventory),
-			paymentv1.NewPaymentServiceClient(clients.Payment),
-			positionv1.NewPositionServiceClient(clients.Position),
-		)
-	}
-	orderQuery := application.NewOrderQuery(orderRepo)
-	orderService := application.NewOrderService(orderManager, orderQuery, logger.Logger)
+	orderCommandService.SetClients(
+		inventoryv1.NewInventoryServiceClient(clients.Inventory),
+		paymentv1.NewPaymentServiceClient(clients.Payment),
+		positionv1.NewPositionServiceClient(clients.Position),
+		productv1.NewProductServiceClient(clients.Product),
+	)
+
+	orderQuery := application.NewOrderQuery(orderRepo, redisCache, logger.Logger, m)
 
 	// --- 6.3 Event Handlers (Kafka Consumer) ---
 	bootLog.Info("initializing kafka consumer for flashsale events...")
-	flashsaleHandler := event.NewFlashsaleHandler(orderManager, logger.Logger)
+	flashsaleHandler := consumer.NewFlashsaleHandler(orderCommandService, logger.Logger)
 	flashsaleConsumerCfg := c.MessageQueue.Kafka
 	flashsaleConsumerCfg.Topic = "flashsale.order"
 	flashsaleConsumerCfg.GroupID = BootstrapName + "-flashsale-group"
@@ -236,7 +237,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	flashsaleConsumer.Start(context.Background(), 5, flashsaleHandler.HandleFlashsaleOrder)
 
 	// 6.4 Interface (HTTP Handlers)
-	handler := orderhttp.NewHandler(orderService, logger.Logger)
+	httpHandler := orderhttp.NewHandler(orderCommandService, orderQuery, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
@@ -262,9 +263,10 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Order:       orderService,
+		Cmd:         orderCommandService,
+		Query:       orderQuery,
 		Clients:     clients,
-		Handler:     handler,
+		Handler:     httpHandler,
 		Metrics:     m,
 		Limiter:     rateLimiter,
 		Idempotency: idempotency.Manager(idemManager),

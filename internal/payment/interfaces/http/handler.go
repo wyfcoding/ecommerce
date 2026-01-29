@@ -7,21 +7,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
-	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/response"
 )
 
 // Handler 支付HTTP处理器
 type Handler struct {
-	app    *application.PaymentService
-	logger *slog.Logger
+	cmdService   *application.PaymentCommandService
+	queryService *application.PaymentQuery
+	logger       *slog.Logger
 }
 
 // NewHandler 创建HTTP处理器
-func NewHandler(app *application.PaymentService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.PaymentCommandService, query *application.PaymentQuery, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -51,10 +52,18 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
-	ctx := contextx.WithIP(c.Request.Context(), c.ClientIP())
-	payment, gatewayResp, err := h.app.InitiatePayment(ctx, req.OrderID, req.UserID, req.Amount, req.PaymentMethod)
+	cmd := &application.InitiatePaymentCommand{
+		OrderID:       req.OrderID,
+		UserID:        req.UserID,
+		Amount:        req.Amount,
+		PaymentMethod: req.PaymentMethod,
+		ClientIP:      c.ClientIP(),
+		DeviceID:      c.Request.Header.Get("X-Device-ID"),
+	}
+
+	payment, gatewayResp, err := h.cmdService.InitiatePayment(c.Request.Context(), cmd)
 	if err != nil {
-		h.logger.ErrorContext(ctx, "initiate payment failed", "order_id", req.OrderID, "user_id", req.UserID, "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "initiate payment failed", "order_id", req.OrderID, "user_id", req.UserID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "initiate payment failed: "+err.Error(), "")
 		return
 	}
@@ -81,7 +90,7 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 	}
 
 	// 真实化执行：通过支付单号反查用户ID，用于分片路由
-	userID, err := h.app.GetUserIDByPaymentNo(c.Request.Context(), req.PaymentNo)
+	userID, err := h.queryService.GetUserIDByPaymentNo(c.Request.Context(), req.PaymentNo)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to lookup user_id for callback", "payment_no", req.PaymentNo, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "payment record context not found", "")
@@ -95,7 +104,7 @@ func (h *Handler) HandlePaymentCallback(c *gin.Context) {
 		"third_party_no": req.ThirdPartyNo,
 	}
 
-	if err := h.app.HandlePaymentCallback(c.Request.Context(), userID, req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
+	if err := h.cmdService.HandlePaymentCallback(c.Request.Context(), userID, req.PaymentNo, req.Success, req.TransactionID, req.ThirdPartyNo, callbackData); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "payment callback processing failed", "payment_no", req.PaymentNo, "user_id", userID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "callback processing error", "")
 		return
@@ -115,7 +124,7 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	// 尝试从 query 获取 user_id 用于分片定位
 	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
 
-	payment, err := h.app.GetPaymentStatus(c.Request.Context(), userID, id)
+	payment, err := h.queryService.GetPaymentStatus(c.Request.Context(), userID, id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to query payment status", "id", id, "user_id", userID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to get status", "")
@@ -149,7 +158,14 @@ func (h *Handler) RequestRefund(c *gin.Context) {
 		return
 	}
 
-	refund, err := h.app.RequestRefund(c.Request.Context(), req.UserID, id, req.Amount, req.Reason)
+	cmd := &application.RefundPaymentCommand{
+		UserID:    req.UserID,
+		PaymentID: id,
+		Amount:    req.Amount,
+		Reason:    req.Reason,
+	}
+
+	refund, err := h.cmdService.RequestRefund(c.Request.Context(), cmd)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "refund initiation failed", "id", id, "user_id", req.UserID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "refund failed: "+err.Error(), "")

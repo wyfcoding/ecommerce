@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/pkg/fsm"
 	"github.com/wyfcoding/pkg/idgen"
 	"gorm.io/gorm"
@@ -12,34 +13,7 @@ import (
 
 // --- Payment Basic Types ---
 
-type PaymentStatus int
-
-const (
-	PaymentPending        PaymentStatus = 1  // 待支付
-	PaymentAuthorized     PaymentStatus = 10 // 已授权 (Pre-auth)
-	PaymentSuccess        PaymentStatus = 2  // 支付成功 (Captured)
-	PaymentFailed         PaymentStatus = 3  // 支付失败
-	PaymentCancelled      PaymentStatus = 4  // 已取消 (Voided)
-	PaymentRefunding      PaymentStatus = 5  // 退款中
-	PaymentRefunded       PaymentStatus = 6  // 已退款
-	PaymentReconciled     PaymentStatus = 20 // 已对账
-	PaymentReconcileError PaymentStatus = 21 // 对账异常
-)
-
-func (s PaymentStatus) String() string {
-	names := map[PaymentStatus]string{
-		PaymentPending:        "Pending",
-		PaymentAuthorized:     "Authorized",
-		PaymentSuccess:        "Success",
-		PaymentFailed:         "Failed",
-		PaymentCancelled:      "Cancelled",
-		PaymentRefunding:      "Refunding",
-		PaymentRefunded:       "Refunded",
-		PaymentReconciled:     "Reconciled",
-		PaymentReconcileError: "ReconcileError",
-	}
-	return names[s]
-}
+type PaymentStatus = pb.PaymentStatus
 
 // --- Payment Aggregates ---
 
@@ -129,10 +103,10 @@ func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, pay
 		Amount:        amount,
 		PaymentMethod: paymentMethod,
 		GatewayType:   gatewayType,
-		Status:        PaymentPending,
+		Status:        pb.PaymentStatus_PENDING,
 	}
 	p.initFSM()
-	p.AddLog("INIT", "", PaymentPending.String(), "Payment created")
+	p.AddLog("INIT", "", pb.PaymentStatus_PENDING.String(), "Payment created")
 	return p
 }
 
@@ -140,21 +114,21 @@ func (p *Payment) initFSM() {
 	m := fsm.NewMachine[string, string](p.Status.String())
 
 	// 标准支付流
-	m.AddTransition(PaymentPending.String(), "AUTH", PaymentAuthorized.String())
-	m.AddTransition(PaymentAuthorized.String(), "CAPTURE", PaymentSuccess.String())
-	m.AddTransition(PaymentPending.String(), "PAY_DIRECT", PaymentSuccess.String())
+	m.AddTransition(pb.PaymentStatus_PENDING.String(), "AUTH", pb.PaymentStatus_AUTHORIZED.String())
+	m.AddTransition(pb.PaymentStatus_AUTHORIZED.String(), "CAPTURE", pb.PaymentStatus_SUCCESS.String())
+	m.AddTransition(pb.PaymentStatus_PENDING.String(), "PAY_DIRECT", pb.PaymentStatus_SUCCESS.String())
 
 	// 逆向流
-	m.AddTransition(PaymentPending.String(), "CANCEL", PaymentCancelled.String())
-	m.AddTransition(PaymentAuthorized.String(), "VOID", PaymentCancelled.String())
+	m.AddTransition(pb.PaymentStatus_PENDING.String(), "CANCEL", pb.PaymentStatus_CLOSED.String())
+	m.AddTransition(pb.PaymentStatus_AUTHORIZED.String(), "VOID", pb.PaymentStatus_CLOSED.String())
 
 	// 退款流
-	m.AddTransition(PaymentSuccess.String(), "REFUND_REQ", PaymentRefunding.String())
-	m.AddTransition(PaymentRefunding.String(), "REFUND_FINISH", PaymentRefunded.String())
+	m.AddTransition(pb.PaymentStatus_SUCCESS.String(), "REFUND_REQ", pb.PaymentStatus_REFUNDING.String())
+	m.AddTransition(pb.PaymentStatus_REFUNDING.String(), "REFUND_FINISH", pb.PaymentStatus_REFUNDED.String())
 
 	// 对账流
-	m.AddTransition(PaymentSuccess.String(), "RECONCILE", PaymentReconciled.String())
-	m.AddTransition(PaymentSuccess.String(), "RECONCILE_FAIL", PaymentReconcileError.String())
+	m.AddTransition(pb.PaymentStatus_SUCCESS.String(), "RECONCILE", pb.PaymentStatus_RECONCILED.String())
+	m.AddTransition(pb.PaymentStatus_SUCCESS.String(), "RECONCILE_FAIL", pb.PaymentStatus_RECONCILE_ERROR.String())
 
 	p.fsm = m
 }
@@ -169,27 +143,16 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 	}
 
 	newStatusStr := p.fsm.Current()
-	for s, name := range statusNamesMap {
-		if name == newStatusStr {
-			p.Status = s
-			break
-		}
+	v, ok := pb.PaymentStatus_value[newStatusStr]
+	if ok {
+		p.Status = pb.PaymentStatus(v)
 	}
+
 	p.AddLog(event, oldStatus.String(), p.Status.String(), remark)
 	return nil
 }
 
-var statusNamesMap = map[PaymentStatus]string{
-	PaymentPending:        "Pending",
-	PaymentAuthorized:     "Authorized",
-	PaymentSuccess:        "Success",
-	PaymentFailed:         "Failed",
-	PaymentCancelled:      "Cancelled",
-	PaymentRefunding:      "Refunding",
-	PaymentRefunded:       "Refunded",
-	PaymentReconciled:     "Reconciled",
-	PaymentReconcileError: "ReconcileError",
-}
+// Status names map is deprecated in favor of proto generated names.
 
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 	p.Logs = append(p.Logs, &PaymentLog{

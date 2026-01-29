@@ -14,21 +14,22 @@ import (
 
 // Handler 结构体定义了Order模块的HTTP处理层。
 type Handler struct {
-	service *application.OrderService
-	logger  *slog.Logger
+	cmdService   *application.OrderCommandService
+	queryService *application.OrderQuery
+	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Order HTTP Handler 实例。
-func NewHandler(service *application.OrderService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.OrderCommandService, query *application.OrderQuery, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
 // CreateOrder 处理创建订单的 HTTP 请求。
 func (h *Handler) CreateOrder(c *gin.Context) {
-	// ... (请求参数定义保持不变) ...
 	var req struct {
 		UserID uint64 `json:"user_id" binding:"required"`
 		Items  []struct {
@@ -57,16 +58,13 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	var items []*domain.OrderItem
+	var items []*application.CreateOrderItemCommand
 	for _, item := range req.Items {
-		items = append(items, &domain.OrderItem{
-			ProductID:       item.ProductID,
-			SkuID:           item.SkuID,
-			ProductName:     item.ProductName,
-			SkuName:         item.SkuName,
-			ProductImageURL: item.ProductImageURL,
-			Price:           item.Price,
-			Quantity:        item.Quantity,
+		items = append(items, &application.CreateOrderItemCommand{
+			ProductID: item.ProductID,
+			SkuID:     item.SkuID,
+			Quantity:  item.Quantity,
+			Price:     item.Price,
 		})
 	}
 
@@ -80,7 +78,16 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		PostalCode:      req.ShippingAddress.PostalCode,
 	}
 
-	order, err := h.service.CreateOrder(c.Request.Context(), req.UserID, items, shippingAddr, req.CouponCode)
+	cmd := &application.CreateOrderCommand{
+		UserID:          req.UserID,
+		Items:           items,
+		ShippingAddress: shippingAddr,
+		CouponCode:      req.CouponCode,
+		ClientIP:        c.ClientIP(),
+		DeviceID:        c.Request.Header.Get("X-Device-ID"),
+	}
+
+	order, err := h.cmdService.CreateOrder(c.Request.Context(), cmd)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create order", "user_id", req.UserID, "error", err)
 		response.Error(c, err)
@@ -100,7 +107,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 
 	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
 
-	order, err := h.service.GetOrder(c.Request.Context(), userID, id)
+	order, err := h.queryService.GetOrder(c.Request.Context(), userID, id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get order detail", "order_id", id, "user_id", userID, "error", err)
 		response.Error(c, err)
@@ -148,15 +155,15 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 	switch req.Action {
 	case "pay":
-		opErr = h.service.PayOrder(ctx, req.UserID, id, req.PaymentMethod)
+		opErr = h.cmdService.PayOrder(ctx, &application.PayOrderCommand{UserID: req.UserID, OrderID: id, PaymentMethod: req.PaymentMethod})
 	case "ship":
-		opErr = h.service.ShipOrder(ctx, req.UserID, id, operator)
+		opErr = h.cmdService.ShipOrder(ctx, &application.ShipOrderCommand{UserID: req.UserID, OrderID: id, Operator: operator})
 	case "deliver":
-		opErr = h.service.DeliverOrder(ctx, req.UserID, id, operator)
+		opErr = h.cmdService.DeliverOrder(ctx, &application.DeliverOrderCommand{UserID: req.UserID, OrderID: id, Operator: operator})
 	case "complete":
-		opErr = h.service.CompleteOrder(ctx, req.UserID, id, operator)
+		opErr = h.cmdService.CompleteOrder(ctx, &application.CompleteOrderCommand{UserID: req.UserID, OrderID: id, Operator: operator})
 	case "cancel":
-		opErr = h.service.CancelOrder(ctx, req.UserID, id, operator, req.Reason)
+		opErr = h.cmdService.CancelOrder(ctx, &application.CancelOrderCommand{UserID: req.UserID, OrderID: id, Operator: operator, Reason: req.Reason})
 	}
 
 	if opErr != nil {
@@ -181,7 +188,6 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		userID = uid
 	}
 
-	// 2. 使用标准分页 Request
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil || page <= 0 {
 		page = 1
@@ -200,7 +206,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		}
 	}
 
-	list, total, err := h.service.ListOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
+	list, total, err := h.queryService.ListOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list orders", "user_id", userID, "error", err)
 		response.Error(c, err)

@@ -19,12 +19,16 @@ import (
 // Server gRPC 服务实现。
 type Server struct {
 	pb.UnimplementedPaymentServiceServer
-	App *application.PaymentService
+	cmdService   *application.PaymentCommandService
+	queryService *application.PaymentQuery
 }
 
 // NewServer 创建一个新的支付 gRPC 服务端实例。
-func NewServer(app *application.PaymentService) *Server {
-	return &Server{App: app}
+func NewServer(cmd *application.PaymentCommandService, query *application.PaymentQuery) *Server {
+	return &Server{
+		cmdService:   cmd,
+		queryService: query,
+	}
 }
 
 // InitiatePayment 处理发起支付的 gRPC 请求。
@@ -32,10 +36,19 @@ func (s *Server) InitiatePayment(ctx context.Context, req *pb.InitiatePaymentReq
 	start := time.Now()
 	slog.Info("gRPC InitiatePayment received", "order_id", req.OrderId, "user_id", req.UserId, "amount", req.Amount, "method", req.PaymentMethod)
 
-	payment, gatewayResp, err := s.App.InitiatePayment(ctx, req.OrderId, req.UserId, req.Amount, req.PaymentMethod)
+	cmd := &application.InitiatePaymentCommand{
+		OrderID:       req.OrderId,
+		UserID:        req.UserId,
+		Amount:        req.Amount,
+		PaymentMethod: req.PaymentMethod,
+		ClientIP:      req.ClientIp,
+		DeviceID:      "unknown", // Header extraction usually happens at gateway or middleware
+	}
+
+	payment, gatewayResp, err := s.cmdService.InitiatePayment(ctx, cmd)
 	if err != nil {
 		slog.Error("gRPC InitiatePayment failed", "order_id", req.OrderId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	slog.Info("gRPC InitiatePayment successful", "order_id", req.OrderId, "payment_no", payment.PaymentNo, "duration", time.Since(start))
@@ -51,8 +64,7 @@ func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymen
 	start := time.Now()
 	slog.Info("gRPC HandlePaymentCallback received", "method", req.PaymentMethod)
 
-	// 1. 提取核心参数 (由于各渠道参数名不同，此处演示一种通用提取方式)
-	// 实际开发中，应根据 req.PaymentMethod 选择对应的解析器 (Extractor)
+	// 1. 提取核心参数
 	paymentNo := req.CallbackData["out_trade_no"]
 	if paymentNo == "" {
 		paymentNo = req.CallbackData["payment_no"]
@@ -70,14 +82,19 @@ func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymen
 	}
 
 	// 2. 根据支付号反查用户 ID (用于分片路由)
-	userID, err := s.App.GetUserIDByPaymentNo(ctx, paymentNo)
+	// We might need a global lookup or consistent hashing if sharded.
+	// Assuming queryService handle this or we have a mapping.
+	// For now, using a mock/temp userID if not provided, or querying via Repo.
+	// The original code used App.GetUserIDByPaymentNo.
+	// I'll add this to PaymentQuery.
+	userID, err := s.queryService.GetUserIDByPaymentNo(ctx, paymentNo)
 	if err != nil {
 		slog.Error("gRPC HandlePaymentCallback failed: user not found", "payment_no", paymentNo, "error", err)
 		return nil, status.Error(codes.NotFound, "payment record not found")
 	}
 
 	// 3. 调用应用层处理状态流转
-	err = s.App.HandlePaymentCallback(ctx, userID, paymentNo, success, transactionID, "", req.CallbackData)
+	err = s.cmdService.HandlePaymentCallback(ctx, userID, paymentNo, success, transactionID, "", req.CallbackData)
 	if err != nil {
 		slog.Error("gRPC HandlePaymentCallback application error", "payment_no", paymentNo, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, err.Error())
@@ -90,13 +107,14 @@ func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymen
 // GetPaymentStatus
 func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusRequest) (*pb.PaymentTransaction, error) {
 	start := time.Now()
-	slog.Debug("gRPC GetPaymentStatus received", "payment_transaction_id", req.PaymentTransactionId)
+	slog.Debug("gRPC GetPaymentStatus received", "id", req.PaymentTransactionId)
 
-	// TODO: GetPaymentStatusRequest should include user_id for sharded lookup
-	payment, err := s.App.GetPaymentStatus(ctx, 0, req.PaymentTransactionId)
+	// Sharding note: If PaymentTransactionId is not sufficient, req should have UserId.
+	// Since proto doesn't have it, we might need to search or use a global ID.
+	payment, err := s.queryService.GetPaymentStatus(ctx, 0, req.PaymentTransactionId)
 	if err != nil {
 		slog.Error("gRPC GetPaymentStatus failed", "id", req.PaymentTransactionId, "error", err, "duration", time.Since(start))
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	slog.Debug("gRPC GetPaymentStatus successful", "id", req.PaymentTransactionId, "duration", time.Since(start))
@@ -108,10 +126,17 @@ func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest
 	start := time.Now()
 	slog.Info("gRPC RequestRefund received", "payment_id", req.PaymentTransactionId, "user_id", req.UserId, "amount", req.RefundAmount)
 
-	refund, err := s.App.RequestRefund(ctx, req.UserId, req.PaymentTransactionId, req.RefundAmount, req.Reason)
+	cmd := &application.RefundPaymentCommand{
+		UserID:    req.UserId,
+		PaymentID: req.PaymentTransactionId,
+		Amount:    req.RefundAmount,
+		Reason:    req.Reason,
+	}
+
+	refund, err := s.cmdService.RequestRefund(ctx, cmd)
 	if err != nil {
 		slog.Error("gRPC RequestRefund failed", "id", req.PaymentTransactionId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	slog.Info("gRPC RequestRefund successful", "refund_id", refund.ID, "user_id", req.UserId, "duration", time.Since(start))
@@ -125,7 +150,7 @@ func (s *Server) SagaRefund(ctx context.Context, req *pb.SagaRefundRequest) (*pb
 		return nil, status.Errorf(codes.Internal, "barrier error: %v", err)
 	}
 
-	refundNo, err := s.App.SagaRefund(ctx, barrier, req.UserId, req.OrderId, req.RefundAmount, req.Reason)
+	refundNo, err := s.cmdService.SagaRefund(ctx, barrier, req.UserId, req.OrderId, req.RefundAmount, req.Reason)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "SagaRefund failed: %v", err)
 	}
@@ -140,7 +165,7 @@ func (s *Server) SagaCancelRefund(ctx context.Context, req *pb.SagaRefundRequest
 		return nil, status.Errorf(codes.Internal, "barrier error: %v", err)
 	}
 
-	if err := s.App.SagaCancelRefund(ctx, barrier, req.UserId, req.OrderId); err != nil {
+	if err := s.cmdService.SagaCancelRefund(ctx, barrier, req.UserId, req.OrderId); err != nil {
 		return nil, status.Errorf(codes.Internal, "SagaCancelRefund failed: %v", err)
 	}
 
