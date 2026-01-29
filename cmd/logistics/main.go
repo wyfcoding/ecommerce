@@ -13,6 +13,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/logistics/v1"
 	"github.com/wyfcoding/ecommerce/internal/logistics/application"
+	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/persistence"
 	logisticsgrpc "github.com/wyfcoding/ecommerce/internal/logistics/interfaces/grpc"
 	logisticshttp "github.com/wyfcoding/ecommerce/internal/logistics/interfaces/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -160,9 +162,12 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	logisticsRepo := persistence.NewLogisticsRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	query := application.NewLogisticsQuery(logisticsRepo, logger.Logger)
-	manager := application.NewLogisticsManager(logisticsRepo, logger.Logger)
-	logisticsService := application.NewLogistics(manager, query)
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	publisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	query := application.NewLogisticsQuery(logisticsRepo)
+	command := application.NewLogisticsCommandService(logisticsRepo, publisher, db.RawDB(), logger.Logger)
+	logisticsService := application.NewLogistics(command, query)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := logisticshttp.NewHandler(logisticsService, logger.Logger)

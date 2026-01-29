@@ -10,14 +10,14 @@ import (
 
 // Logistics 是物流应用服务的门面。
 type Logistics struct {
-	Manager *LogisticsManager
+	Command *LogisticsCommandService
 	Query   *LogisticsQuery
 }
 
 // NewLogistics 创建物流服务门面实例。
-func NewLogistics(manager *LogisticsManager, query *LogisticsQuery) *Logistics {
+func NewLogistics(command *LogisticsCommandService, query *LogisticsQuery) *Logistics {
 	return &Logistics{
-		Manager: manager,
+		Command: command,
 		Query:   query,
 	}
 }
@@ -27,7 +27,7 @@ func (s *Logistics) CreateLogistics(ctx context.Context, orderID uint64, orderNo
 	senderName, senderPhone, senderAddress string, senderLat, senderLon float64,
 	receiverName, receiverPhone, receiverAddress string, receiverLat, receiverLon float64,
 ) (*domain.Logistics, error) {
-	return s.Manager.CreateLogistics(ctx, orderID, orderNo, trackingNo, carrier, carrierCode,
+	return s.Command.CreateLogistics(ctx, orderID, orderNo, trackingNo, carrier, carrierCode,
 		senderName, senderPhone, senderAddress, senderLat, senderLon,
 		receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon)
 }
@@ -42,19 +42,19 @@ func (s *Logistics) GetLogisticsByTrackingNo(ctx context.Context, trackingNo str
 	return s.Query.GetLogisticsByTrackingNo(ctx, trackingNo)
 }
 
-// UpdateStatus 更新物流状态（如已揽收、运输中、已送达等）。
+// UpdateStatus 更新物流状态。
 func (s *Logistics) UpdateStatus(ctx context.Context, id uint64, status domain.LogisticsStatus, location, description string) error {
-	return s.Manager.UpdateStatus(ctx, id, status, location, description)
+	return s.Command.UpdateStatus(ctx, id, status, location, description)
 }
 
 // AddTrace 添加一条新的物流轨迹记录。
 func (s *Logistics) AddTrace(ctx context.Context, id uint64, location, description, status string) error {
-	return s.Manager.AddTrace(ctx, id, location, description, status)
+	return s.Command.AddTrace(ctx, id, location, description, status)
 }
 
 // SetEstimatedTime 设置或更新预计送达时间。
 func (s *Logistics) SetEstimatedTime(ctx context.Context, id uint64, estimatedTime time.Time) error {
-	return s.Manager.SetEstimatedTime(ctx, id, estimatedTime)
+	return s.Command.SetEstimatedTime(ctx, id, estimatedTime)
 }
 
 // ListLogistics 列出所有物流记录（分页）。
@@ -62,7 +62,12 @@ func (s *Logistics) ListLogistics(ctx context.Context, page, pageSize int) ([]*d
 	return s.Query.ListLogistics(ctx, page, pageSize)
 }
 
-// OptimizeDeliveryRoute 核心算法：为指定运单及其多个目的地优化配送路径。
+// OptimizeDeliveryRoute 核心算法：路径规划优化。
 func (s *Logistics) OptimizeDeliveryRoute(ctx context.Context, logisticsID uint64, destinations []algorithm.Location) (*domain.DeliveryRoute, error) {
-	return s.Manager.OptimizeDeliveryRoute(ctx, logisticsID, destinations)
+	return s.Command.OptimizeDeliveryRoute(ctx, logisticsID, destinations)
+}
+
+// AssignRidersToOrders 指派并分配骑手。
+func (s *Logistics) AssignRidersToOrders(ctx context.Context, riders []RiderInfo, logisticsIDs []uint64) (map[string]uint64, error) {
+	return s.Command.AssignRidersToOrders(ctx, riders, logisticsIDs)
 }
