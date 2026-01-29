@@ -8,10 +8,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-// AdminService 门面服务，聚合 Command (Manager) 和 Query (Query)
+// AdminService 门面服务，聚合 Command 和 Query
 type AdminService struct {
-	Manager *AdminManager
-	Query   *AdminQuery
+	Command *AdminCommandService
+	Query   *AdminQueryService
 }
 
 // NewAdminService 创建一个新的管理后台应用服务实例。
@@ -25,8 +25,8 @@ func NewAdminService(
 	logger *slog.Logger,
 ) *AdminService {
 	return &AdminService{
-		Manager: NewAdminManager(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo, opsDeps, logger),
-		Query:   NewAdminQuery(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo),
+		Command: NewAdminCommandService(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo, opsDeps, logger),
+		Query:   NewAdminQueryService(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo),
 	}
 }
 

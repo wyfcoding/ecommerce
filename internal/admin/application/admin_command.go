@@ -17,8 +17,8 @@ import (
 	"github.com/wyfcoding/pkg/security"
 )
 
-// AdminManager 处理所有写操作（Command）
-type AdminManager struct {
+// AdminCommandService 处理所有写操作（Command）
+type AdminCommandService struct {
 	userRepo     domain.AdminRepository
 	roleRepo     domain.RoleRepository
 	auditRepo    domain.AuditRepository
@@ -29,7 +29,7 @@ type AdminManager struct {
 	logger  *slog.Logger
 }
 
-func NewAdminManager(
+func NewAdminCommandService(
 	userRepo domain.AdminRepository,
 	roleRepo domain.RoleRepository,
 	auditRepo domain.AuditRepository,
@@ -37,8 +37,8 @@ func NewAdminManager(
 	approvalRepo domain.ApprovalRepository,
 	opsDeps SystemOpsDependencies,
 	logger *slog.Logger,
-) *AdminManager {
-	return &AdminManager{
+) *AdminCommandService {
+	return &AdminCommandService{
 		userRepo:     userRepo,
 		roleRepo:     roleRepo,
 		auditRepo:    auditRepo,
@@ -51,7 +51,7 @@ func NewAdminManager(
 
 // --- Auth & User Management (Writes) ---
 
-func (m *AdminManager) RegisterAdmin(ctx context.Context, req *CreateUserRequest) (*domain.AdminUser, error) {
+func (m *AdminCommandService) RegisterAdmin(ctx context.Context, req *CreateUserRequest) (*domain.AdminUser, error) {
 	if _, err := m.userRepo.GetByUsername(ctx, req.Username); err == nil {
 		return nil, errors.New("username exists")
 	}
@@ -85,7 +85,7 @@ func (m *AdminManager) RegisterAdmin(ctx context.Context, req *CreateUserRequest
 }
 
 // Login 处理登录并返回 JWT。
-func (m *AdminManager) Login(ctx context.Context, username, password string, secret, issuer string, expiry time.Duration) (string, *domain.AdminUser, error) {
+func (m *AdminCommandService) Login(ctx context.Context, username, password string, secret, issuer string, expiry time.Duration) (string, *domain.AdminUser, error) {
 	user, err := m.userRepo.GetByUsername(ctx, username)
 	if err != nil {
 		return "", nil, err
@@ -134,7 +134,7 @@ func (m *AdminManager) Login(ctx context.Context, username, password string, sec
 
 // ... (UpdateAdmin and other methods remain unchanged)
 
-func (m *AdminManager) UpdateAdmin(ctx context.Context, id uint, email, fullName string, roleIDs []uint) (*domain.AdminUser, error) {
+func (m *AdminCommandService) UpdateAdmin(ctx context.Context, id uint, email, fullName string, roleIDs []uint) (*domain.AdminUser, error) {
 	user, err := m.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -160,11 +160,11 @@ func (m *AdminManager) UpdateAdmin(ctx context.Context, id uint, email, fullName
 	return user, nil
 }
 
-func (m *AdminManager) DeleteAdmin(ctx context.Context, id uint) error {
+func (m *AdminCommandService) DeleteAdmin(ctx context.Context, id uint) error {
 	return m.userRepo.Delete(ctx, id)
 }
 
-func (m *AdminManager) CreateRole(ctx context.Context, name, code, description string) (*domain.Role, error) {
+func (m *AdminCommandService) CreateRole(ctx context.Context, name, code, description string) (*domain.Role, error) {
 	role := &domain.Role{Name: name, Code: code, Description: description}
 	if err := m.roleRepo.CreateRole(ctx, role); err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (m *AdminManager) CreateRole(ctx context.Context, name, code, description s
 	return role, nil
 }
 
-func (m *AdminManager) UpdateRole(ctx context.Context, id uint, name, description string, permissionIDs []uint) (*domain.Role, error) {
+func (m *AdminCommandService) UpdateRole(ctx context.Context, id uint, name, description string, permissionIDs []uint) (*domain.Role, error) {
 	role, err := m.roleRepo.GetRoleByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -198,11 +198,11 @@ func (m *AdminManager) UpdateRole(ctx context.Context, id uint, name, descriptio
 	return role, nil
 }
 
-func (m *AdminManager) DeleteRole(ctx context.Context, id uint) error {
+func (m *AdminCommandService) DeleteRole(ctx context.Context, id uint) error {
 	return m.roleRepo.DeleteRole(ctx, id)
 }
 
-func (m *AdminManager) CreatePermission(ctx context.Context, name, code, permType, resource, action string, parentID uint) (*domain.Permission, error) {
+func (m *AdminCommandService) CreatePermission(ctx context.Context, name, code, permType, resource, action string, parentID uint) (*domain.Permission, error) {
 	perm := &domain.Permission{Name: name, Code: code, Type: permType, Resource: resource, Action: action, ParentID: parentID}
 	if err := m.roleRepo.CreatePermission(ctx, perm); err != nil {
 		return nil, err
@@ -210,11 +210,11 @@ func (m *AdminManager) CreatePermission(ctx context.Context, name, code, permTyp
 	return perm, nil
 }
 
-func (m *AdminManager) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint) error {
+func (m *AdminCommandService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint) error {
 	return m.roleRepo.AssignPermissions(ctx, roleID, []uint{permissionID})
 }
 
-func (m *AdminManager) UpdateSystemSetting(ctx context.Context, key, value, description string) (*domain.SystemSetting, error) {
+func (m *AdminCommandService) UpdateSystemSetting(ctx context.Context, key, value, description string) (*domain.SystemSetting, error) {
 	setting := &domain.SystemSetting{Key: key, Value: value, Description: description}
 	if err := m.settingRepo.Save(ctx, setting); err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func (m *AdminManager) UpdateSystemSetting(ctx context.Context, key, value, desc
 	return setting, nil
 }
 
-func (m *AdminManager) LogAction(ctx context.Context, log *domain.AuditLog) {
+func (m *AdminCommandService) LogAction(ctx context.Context, log *domain.AuditLog) {
 	go func() {
 		bgCtx := context.Background()
 		if err := m.auditRepo.Save(bgCtx, log); err != nil {
@@ -231,7 +231,7 @@ func (m *AdminManager) LogAction(ctx context.Context, log *domain.AuditLog) {
 	}()
 }
 
-func (m *AdminManager) CreateRequest(ctx context.Context, req *domain.ApprovalRequest) error {
+func (m *AdminCommandService) CreateRequest(ctx context.Context, req *domain.ApprovalRequest) error {
 	req.Status = domain.ApprovalStatusPending
 	req.CurrentStep = 1
 
@@ -255,7 +255,7 @@ func (m *AdminManager) CreateRequest(ctx context.Context, req *domain.ApprovalRe
 }
 
 // determineApprovalFlow 决定审批所需的步骤数和初始/后续审批人角色
-func (m *AdminManager) determineApprovalFlow(req *domain.ApprovalRequest) error {
+func (m *AdminCommandService) determineApprovalFlow(req *domain.ApprovalRequest) error {
 	switch req.ActionType {
 	case "ORDER_FORCE_REFUND":
 		var payload struct {
@@ -286,14 +286,14 @@ func (m *AdminManager) determineApprovalFlow(req *domain.ApprovalRequest) error 
 }
 
 // calculateNextApprover 简单的流转逻辑，实际场景可能查库配置
-func (m *AdminManager) calculateNextApprover(req *domain.ApprovalRequest) string {
+func (m *AdminCommandService) calculateNextApprover(req *domain.ApprovalRequest) string {
 	if req.ActionType == "ORDER_FORCE_REFUND" && req.CurrentStep == 2 {
 		return "SUPER_ADMIN"
 	}
 	return "SUPER_ADMIN" // Default fallback
 }
 
-func (m *AdminManager) ApproveRequest(ctx context.Context, requestID, approverID uint, comment string) error {
+func (m *AdminCommandService) ApproveRequest(ctx context.Context, requestID, approverID uint, comment string) error {
 	req, err := m.approvalRepo.GetRequestByID(ctx, requestID)
 	if err != nil {
 		return err
@@ -351,7 +351,7 @@ func (m *AdminManager) ApproveRequest(ctx context.Context, requestID, approverID
 }
 
 // RetryFailedRequest 手动重试执行失败的审批请求
-func (m *AdminManager) RetryFailedRequest(ctx context.Context, requestID uint) error {
+func (m *AdminCommandService) RetryFailedRequest(ctx context.Context, requestID uint) error {
 	req, err := m.approvalRepo.GetRequestByID(ctx, requestID)
 	if err != nil {
 		return err
@@ -377,7 +377,7 @@ func (m *AdminManager) RetryFailedRequest(ctx context.Context, requestID uint) e
 	return m.approvalRepo.UpdateRequest(ctx, req)
 }
 
-func (m *AdminManager) RejectRequest(ctx context.Context, requestID, approverID uint, comment string) error {
+func (m *AdminCommandService) RejectRequest(ctx context.Context, requestID, approverID uint, comment string) error {
 	req, err := m.approvalRepo.GetRequestByID(ctx, requestID)
 	if err != nil {
 		return err
@@ -395,7 +395,7 @@ func (m *AdminManager) RejectRequest(ctx context.Context, requestID, approverID 
 	return m.approvalRepo.UpdateRequest(ctx, req)
 }
 
-func (m *AdminManager) executeOperation(ctx context.Context, req *domain.ApprovalRequest) error {
+func (m *AdminCommandService) executeOperation(ctx context.Context, req *domain.ApprovalRequest) error {
 	m.logger.Info("executing approved operation", "type", req.ActionType, "req_id", req.ID)
 	switch req.ActionType {
 	case "ORDER_FORCE_REFUND":
@@ -407,7 +407,7 @@ func (m *AdminManager) executeOperation(ctx context.Context, req *domain.Approva
 	}
 }
 
-func (m *AdminManager) handleForceRefund(ctx context.Context, payloadStr string) error {
+func (m *AdminCommandService) handleForceRefund(ctx context.Context, payloadStr string) error {
 	var payload struct {
 		OrderID   string  `json:"orderId"`
 		Amount    float64 `json:"amount"`
@@ -470,7 +470,7 @@ func (m *AdminManager) handleForceRefund(ctx context.Context, payloadStr string)
 	return nil
 }
 
-func (m *AdminManager) handleConfigUpdate(ctx context.Context, payloadStr string) error {
+func (m *AdminCommandService) handleConfigUpdate(ctx context.Context, payloadStr string) error {
 	var payload struct {
 		Key         string `json:"key"`
 		Value       string `json:"value"`

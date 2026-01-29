@@ -160,9 +160,9 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	pricingRepo := persistence.NewPricingRepository(db.RawDB())
 
 	// 5.2 Application (Service)
-	query := application.NewDynamicPricingQuery(pricingRepo)
-	manager := application.NewDynamicPricingManager(pricingRepo, logger.Logger)
-	pricingService := application.NewDynamicPricingService(manager, query)
+	query := application.NewDynamicPricingQueryService(pricingRepo)
+	command := application.NewDynamicPricingCommandService(pricingRepo, logger.Logger)
+	pricingService := application.NewDynamicPricingService(command, query)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := pricinghttp.NewHandler(pricingService, logger.Logger)

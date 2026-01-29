@@ -50,7 +50,7 @@ func (s *Server) CreateAdminUser(ctx context.Context, req *pb.CreateAdminUserReq
 		createReq.Roles = rIDs
 	}
 
-	admin, err := s.app.Manager.RegisterAdmin(ctx, createReq)
+	admin, err := s.app.Command.RegisterAdmin(ctx, createReq)
 	if err != nil {
 		// 简单错误处理，生产环境应使用 status.Error 包装具体错误
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create admin user: %v", err))
@@ -89,7 +89,7 @@ func (s *Server) UpdateAdminUser(ctx context.Context, req *pb.UpdateAdminUserReq
 		}
 	}
 
-	admin, err := s.app.Manager.UpdateAdmin(ctx, uint(req.Id), req.Email, req.Nickname, rIDs)
+	admin, err := s.app.Command.UpdateAdmin(ctx, uint(req.Id), req.Email, req.Nickname, rIDs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update admin user: %v", err))
 	}
@@ -100,7 +100,7 @@ func (s *Server) UpdateAdminUser(ctx context.Context, req *pb.UpdateAdminUserReq
 
 // DeleteAdminUser 处理删除管理员用户的gRPC请求。
 func (s *Server) DeleteAdminUser(ctx context.Context, req *pb.DeleteAdminUserRequest) (*emptypb.Empty, error) {
-	if err := s.app.Manager.DeleteAdmin(ctx, uint(req.Id)); err != nil {
+	if err := s.app.Command.DeleteAdmin(ctx, uint(req.Id)); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete admin user: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -143,7 +143,7 @@ func (s *Server) ListAdminUsers(ctx context.Context, req *pb.ListAdminUsersReque
 func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.CreateRoleResponse, error) {
 	// 调用应用服务层创建角色。
 	// 注意：Proto中没有Code字段，这里暂时使用Name作为Code。
-	role, err := s.app.Manager.CreateRole(ctx, req.Name, req.Name, req.Description)
+	role, err := s.app.Command.CreateRole(ctx, req.Name, req.Name, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create role: %v", err))
 	}
@@ -151,7 +151,7 @@ func (s *Server) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb
 	// 如果请求中包含权限ID，则为新创建的角色分配权限。
 	if len(req.PermissionIds) > 0 {
 		for _, permID := range req.PermissionIds {
-			if err := s.app.Manager.AssignPermissionToRole(ctx, uint(role.ID), uint(permID)); err != nil {
+			if err := s.app.Command.AssignPermissionToRole(ctx, uint(role.ID), uint(permID)); err != nil {
 				return nil, status.Error(codes.Internal, fmt.Sprintf("failed to assign permission to role: %v", err))
 			}
 		}
@@ -187,7 +187,7 @@ func (s *Server) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb
 		}
 	}
 
-	role, err := s.app.Manager.UpdateRole(ctx, uint(req.Id), req.Name, req.Description, permIDs)
+	role, err := s.app.Command.UpdateRole(ctx, uint(req.Id), req.Name, req.Description, permIDs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update role: %v", err))
 	}
@@ -198,7 +198,7 @@ func (s *Server) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb
 
 // DeleteRole 处理删除角色的gRPC请求。
 func (s *Server) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*emptypb.Empty, error) {
-	if err := s.app.Manager.DeleteRole(ctx, uint(req.Id)); err != nil {
+	if err := s.app.Command.DeleteRole(ctx, uint(req.Id)); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete role: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -233,7 +233,7 @@ func (s *Server) ListRoles(ctx context.Context, _ *pb.ListRolesRequest) (*pb.Lis
 // 返回创建成功的权限响应和可能发生的gRPC错误。
 func (s *Server) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.CreatePermissionResponse, error) {
 	// 调用应用服务层创建权限。
-	perm, err := s.app.Manager.CreatePermission(ctx, req.Name, req.Name, "api", "", "", 0)
+	perm, err := s.app.Command.CreatePermission(ctx, req.Name, req.Name, "api", "", "", 0)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create permission: %v", err))
 	}
@@ -334,7 +334,7 @@ func (s *Server) GetSystemSetting(ctx context.Context, req *pb.GetSystemSettingR
 
 // UpdateSystemSetting 处理更新系统设置的gRPC请求。
 func (s *Server) UpdateSystemSetting(ctx context.Context, req *pb.UpdateSystemSettingRequest) (*pb.UpdateSystemSettingResponse, error) {
-	setting, err := s.app.Manager.UpdateSystemSetting(ctx, req.Key, req.Value, req.Description)
+	setting, err := s.app.Command.UpdateSystemSetting(ctx, req.Key, req.Value, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update system setting: %v", err))
 	}

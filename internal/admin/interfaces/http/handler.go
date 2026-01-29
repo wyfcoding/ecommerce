@@ -60,7 +60,7 @@ func (h *AdminHandler) Login(c *gin.Context) {
 	}
 
 	// 执行登录验证逻辑
-	token, user, err := h.svc.Manager.Login(
+	token, user, err := h.svc.Command.Login(
 		c.Request.Context(),
 		req.Username,
 		req.Password,
@@ -93,7 +93,7 @@ func (h *AdminHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Manager.RegisterAdmin(c.Request.Context(), &req)
+	user, err := h.svc.Command.RegisterAdmin(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "admin registration failed", "username", req.Username, "error", err)
 		response.Error(c, err)
@@ -133,7 +133,7 @@ func (h *AdminHandler) Apply(c *gin.Context) {
 		Payload:     req.Payload,
 	}
 
-	if err := h.svc.Manager.CreateRequest(c.Request.Context(), domainReq); err != nil {
+	if err := h.svc.Command.CreateRequest(c.Request.Context(), domainReq); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create approval request", "user_id", requesterID, "type", req.ActionType, "error", err)
 		response.Error(c, err)
 		return
@@ -165,9 +165,9 @@ func (h *AdminHandler) Action(c *gin.Context) {
 	}
 
 	if req.Action == "approve" {
-		err = h.svc.Manager.ApproveRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
+		err = h.svc.Command.ApproveRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
 	} else {
-		err = h.svc.Manager.RejectRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
+		err = h.svc.Command.RejectRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
 	}
 
 	if err != nil {

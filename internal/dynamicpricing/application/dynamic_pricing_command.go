@@ -10,22 +10,22 @@ import (
 	"github.com/wyfcoding/pkg/utils"
 )
 
-// DynamicPricingManager 处理动态定价的写操作。
-type DynamicPricingManager struct {
+// DynamicPricingCommandService 处理动态定价的写操作。
+type DynamicPricingCommandService struct {
 	repo   domain.PricingRepository
 	logger *slog.Logger
 }
 
-// NewDynamicPricingManager 创建并返回一个新的 DynamicPricingManager 实例。
-func NewDynamicPricingManager(repo domain.PricingRepository, logger *slog.Logger) *DynamicPricingManager {
-	return &DynamicPricingManager{
+// NewDynamicPricingCommandService 创建并返回一个新的 DynamicPricingCommandService 实例。
+func NewDynamicPricingCommandService(repo domain.PricingRepository, logger *slog.Logger) *DynamicPricingCommandService {
+	return &DynamicPricingCommandService{
 		repo:   repo,
 		logger: logger,
 	}
 }
 
 // CalculatePrice 计算给定SKU的动态价格。
-func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.PricingRequest) (*domain.DynamicPrice, error) {
+func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *domain.PricingRequest) (*domain.DynamicPrice, error) {
 	// 1. 获取基础策略
 	strategy, err := m.repo.GetPricingStrategy(ctx, req.SKUID)
 	if err != nil || strategy == nil {
@@ -179,6 +179,6 @@ func (m *DynamicPricingManager) CalculatePrice(ctx context.Context, req *domain.
 }
 
 // SaveStrategy 保存（创建或更新）一个定价策略。
-func (m *DynamicPricingManager) SaveStrategy(ctx context.Context, strategy *domain.PricingStrategy) error {
+func (m *DynamicPricingCommandService) SaveStrategy(ctx context.Context, strategy *domain.PricingStrategy) error {
 	return m.repo.SavePricingStrategy(ctx, strategy)
 }
