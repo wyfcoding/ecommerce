@@ -91,15 +91,18 @@ func (s *Server) ListSettlements(ctx context.Context, req *pb.ListSettlementsReq
 	start := time.Now()
 	slog.Debug("gRPC ListSettlements received", "merchant_id", req.MerchantId)
 
-	page := max(int(req.Page), 1)
+	page := int(req.Page)
+	if page < 1 {
+		page = 1
+	}
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
 	}
 
-	var statusPtr *int
+	var statusPtr *domain.SettlementStatus
 	if req.Status != -1 {
-		st := int(req.Status)
+		st := domain.SettlementStatus(req.Status)
 		statusPtr = &st
 	}
 

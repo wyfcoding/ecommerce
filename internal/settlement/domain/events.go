@@ -12,7 +12,7 @@ type SettlementCreatedEvent struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
-// SettlementProcessedEvent 结算单核算完成事件
+// SettlementProcessedEvent 结算单处理中事件
 type SettlementProcessedEvent struct {
 	SettlementNo string    `json:"settlement_no"`
 	MerchantID   uint64    `json:"merchant_id"`
@@ -20,10 +20,18 @@ type SettlementProcessedEvent struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
-// SettlementCompletedEvent 结算单完成事件 (资金已划转)
+// SettlementCompletedEvent 结算单完成事件
 type SettlementCompletedEvent struct {
 	SettlementNo string    `json:"settlement_no"`
 	MerchantID   uint64    `json:"merchant_id"`
 	Amount       uint64    `json:"amount"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+// SettlementFailedEvent 结算单失败事件
+type SettlementFailedEvent struct {
+	SettlementNo string    `json:"settlement_no"`
+	MerchantID   uint64    `json:"merchant_id"`
+	Reason       string    `json:"reason"`
 	Timestamp    time.Time `json:"timestamp"`
 }

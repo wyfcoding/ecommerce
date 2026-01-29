@@ -182,7 +182,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	if clients.Account != nil {
 		cmdService.SetRemoteAccountClient(clients.Account)
 	}
-	queryService := application.NewSettlementQuery(settlementRepo)
+	queryService := application.NewSettlementQueryService(settlementRepo)
 
 	// 门面服务组装
 	settlementService := application.NewSettlementService(cmdService, queryService)

@@ -7,65 +7,66 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
+	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Handler 结构体定义了结算模块的HTTP处理层。
+// Handler 处理 HTTP 请求。
 type Handler struct {
-	service *application.SettlementService
-	logger  *slog.Logger
+	app    *application.SettlementService
+	logger *slog.Logger
 }
 
-// NewHandler 创建并返回一个新的结算 HTTP Handler 实例。
-func NewHandler(service *application.SettlementService, logger *slog.Logger) *Handler {
+// NewHandler 创建一个新的 Handler 实例。
+func NewHandler(app *application.SettlementService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		app:    app,
+		logger: logger,
 	}
 }
 
-// CreateSettlement 处理创建结算单的HTTP请求。
+// CreateSettlement 处理创建结算单的请求。
 func (h *Handler) CreateSettlement(c *gin.Context) {
 	var req struct {
 		MerchantID uint64 `json:"merchant_id" binding:"required"`
 		Cycle      string `json:"cycle" binding:"required"`
-		StartDate  string `json:"start_date" binding:"required"`
+		StartDate  string `json:"start_date" binding:"required"` // 支持字符串格式 YYYY-MM-DD
 		EndDate    string `json:"end_date" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
 		return
 	}
 
 	start, err := time.Parse("2006-01-02", req.StartDate)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid StartDate format", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid start_date format", err.Error())
 		return
 	}
 	end, err := time.Parse("2006-01-02", req.EndDate)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid EndDate format", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid end_date format", err.Error())
 		return
 	}
 
-	settlement, err := h.service.CreateSettlement(c.Request.Context(), req.MerchantID, req.Cycle, start, end)
+	settlement, err := h.app.CreateSettlement(c.Request.Context(), req.MerchantID, req.Cycle, start, end)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create settlement", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create settlement", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to create settlement", "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusCreated, "Settlement created successfully", settlement)
+	response.SuccessWithStatus(c, http.StatusCreated, "settlement created successfully", settlement)
 }
 
-// AddOrder 处理添加订单到结算单的HTTP请求。
-func (h *Handler) AddOrder(c *gin.Context) {
+// AddOrderToSettlement 处理添加订单到结算单的请求。
+func (h *Handler) AddOrderToSettlement(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
 		return
 	}
 
@@ -75,130 +76,119 @@ func (h *Handler) AddOrder(c *gin.Context) {
 		Amount  uint64 `json:"amount" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+	if err := h.app.AddOrderToSettlement(c.Request.Context(), id, req.OrderID, req.OrderNo, req.Amount); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to add order to settlement", "id", id, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	if err := h.service.AddOrderToSettlement(c.Request.Context(), id, req.OrderID, req.OrderNo, req.Amount); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to add order", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add order", err.Error())
-		return
-	}
-
-	response.SuccessWithStatus(c, http.StatusOK, "Order added successfully", nil)
+	response.Success(c, nil)
 }
 
-// Process 处理结算单的HTTP请求。
-func (h *Handler) Process(c *gin.Context) {
+// ProcessSettlement 处理结算单的请求。
+func (h *Handler) ProcessSettlement(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
 		return
 	}
 
-	if err := h.service.ProcessSettlement(c.Request.Context(), id); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to process settlement", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to process settlement", err.Error())
+	if err := h.app.ProcessSettlement(c.Request.Context(), id); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to process settlement", "id", id, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Settlement processing started", nil)
+	response.Success(c, nil)
 }
 
-// Complete 处理完成结算单的HTTP请求。
-func (h *Handler) Complete(c *gin.Context) {
+// CompleteSettlement 完成结算单的请求。
+func (h *Handler) CompleteSettlement(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
 		return
 	}
 
-	if err := h.service.CompleteSettlement(c.Request.Context(), id); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to complete settlement", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to complete settlement", err.Error())
+	if err := h.app.CompleteSettlement(c.Request.Context(), id); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to complete settlement", "id", id, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Settlement completed successfully", nil)
+	response.Success(c, nil)
 }
 
-// List 处理获取结算单列表的HTTP请求。
-func (h *Handler) List(c *gin.Context) {
-	var (
-		merchantID uint64
-		err        error
-	)
-	if val := c.Query("merchant_id"); val != "" {
-		merchantID, err = strconv.ParseUint(val, 10, 64)
-		if err != nil {
-			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid merchant_id", err.Error())
-			return
-		}
-	}
-
+// ListSettlements 分页查询结算单。
+func (h *Handler) ListSettlements(c *gin.Context) {
+	merchantID, _ := strconv.ParseUint(c.Query("merchant_id"), 10, 64)
 	statusStr := c.Query("status")
-	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if err != nil || page <= 0 {
-		page = 1
-	}
-	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-	if err != nil || pageSize <= 0 {
-		pageSize = 10
-	}
-
-	var status *int
+	var statusPtr *domain.SettlementStatus
 	if statusStr != "" {
-		s, err := strconv.Atoi(statusStr)
-		if err != nil {
-			response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid status", err.Error())
-			return
-		}
-		status = &s
+		st, _ := strconv.Atoi(statusStr)
+		s := domain.SettlementStatus(st)
+		statusPtr = &s
 	}
 
-	list, total, err := h.service.ListSettlements(c.Request.Context(), merchantID, status, page, pageSize)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	list, total, err := h.app.ListSettlements(c.Request.Context(), merchantID, statusPtr, page, pageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list settlements", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list settlements", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to list settlements", "merchant_id", merchantID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Settlements listed successfully", gin.H{
-		"data":      list,
-		"total":     total,
-		"page":      page,
-		"page_size": pageSize,
-	})
+	response.SuccessWithPagination(c, list, total, int32(page), int32(pageSize))
 }
 
-// GetAccount 处理获取商户账户信息的HTTP请求。
-func (h *Handler) GetAccount(c *gin.Context) {
+// GetSettlement 获取结算单详情。
+func (h *Handler) GetSettlement(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
+		return
+	}
+
+	settlement, err := h.app.GetSettlement(c.Request.Context(), id)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to get settlement", "id", id, "error", err)
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, settlement)
+}
+
+// GetMerchantAccount 获取商户账户背景。
+func (h *Handler) GetMerchantAccount(c *gin.Context) {
 	merchantID, err := strconv.ParseUint(c.Param("merchant_id"), 10, 64)
 	if err != nil {
-		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid Merchant ID", err.Error())
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid merchant_id", "")
 		return
 	}
 
-	account, err := h.service.GetMerchantAccount(c.Request.Context(), merchantID)
+	account, err := h.app.GetMerchantAccount(c.Request.Context(), merchantID)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to get merchant account", "error", err)
-		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get merchant account", err.Error())
+		h.logger.ErrorContext(c.Request.Context(), "failed to get merchant account", "merchant_id", merchantID, "error", err)
+		response.Error(c, err)
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Merchant account retrieved successfully", account)
+	response.Success(c, account)
 }
 
-// RegisterRoutes 在给定的Gin路由组中注册结算模块的HTTP路由。
+// RegisterRoutes 注册路由。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	group := r.Group("/settlement")
 	{
 		group.POST("", h.CreateSettlement)
-		group.POST("/:id/orders", h.AddOrder)
-		group.POST("/:id/process", h.Process)
-		group.POST("/:id/complete", h.Complete)
-		group.GET("", h.List)
-		group.GET("/accounts/:merchant_id", h.GetAccount)
+		group.POST("/:id/orders", h.AddOrderToSettlement)
+		group.POST("/:id/process", h.ProcessSettlement)
+		group.POST("/:id/complete", h.CompleteSettlement)
+		group.GET("", h.ListSettlements)
+		group.GET("/:id", h.GetSettlement)
+		group.GET("/accounts/:merchant_id", h.GetMerchantAccount)
 	}
 }

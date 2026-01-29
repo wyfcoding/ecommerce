@@ -154,11 +154,18 @@ func (e *JournalEntry) Validate() error {
 
 // LedgerRepository 账务仓储接口
 type LedgerRepository interface {
+	// 事务支持
+	BeginTx(ctx context.Context) any
+	CommitTx(tx any) error
+	RollbackTx(tx any) error
+
 	GetSubject(code string) (*Subject, error)
 	GetAccount(subjectCode, entityID string) (*Account, error)
 	GetAccountByID(id uint64) (*Account, error)
 	SaveAccount(account *Account) error
+	SaveAccountInTx(ctx context.Context, tx any, account *Account) error
 	CreateJournalEntry(entry *JournalEntry) error
+	CreateJournalEntryInTx(ctx context.Context, tx any, entry *JournalEntry) error
 }
 
 type LedgerService struct {

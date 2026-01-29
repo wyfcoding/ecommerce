@@ -18,14 +18,12 @@ func NewOutboxPublisher(mgr *outbox.Manager) domain.EventPublisher {
 }
 
 func (p *outboxPublisher) Publish(ctx context.Context, topic string, event any) error {
-	// 非事务发布，直接使用管理器持有的 DB
 	return p.mgr.PublishInTx(ctx, p.mgr.DB(), topic, "", event)
 }
 
 func (p *outboxPublisher) PublishInTx(ctx context.Context, tx any, topic string, key string, event any) error {
 	gormTx, ok := tx.(*gorm.DB)
 	if !ok {
-		// 如果传入的不是 *gorm.DB，降级为非事务发布
 		return p.Publish(ctx, topic, event)
 	}
 	return p.mgr.PublishInTx(ctx, gormTx, topic, key, event)
