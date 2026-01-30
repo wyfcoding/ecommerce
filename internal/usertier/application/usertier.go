@@ -2,58 +2,56 @@ package application
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/usertier/domain"
 )
 
-// UserTierService 用户等级与积分门面服务，整合 Manager 和 Query。
+// UserTierService 用户等级与积分门面服务，整合 Command 和 Query。
 type UserTierService struct {
-	manager *UserTierManager
-	query   *UserTierQuery
+	Command *UserTierCommandService
+	Query   *UserTierQueryService
 }
 
 // NewUserTierService 构造函数。
-func NewUserTierService(repo domain.UserTierRepository, logger *slog.Logger) *UserTierService {
-	m := NewUserTierManager(repo, logger)
+func NewUserTierService(repo domain.UserTierRepository, command *UserTierCommandService, query *UserTierQueryService) *UserTierService {
 	return &UserTierService{
-		manager: m,
-		query:   NewUserTierQuery(repo, m),
+		Command: command,
+		Query:   query,
 	}
 }
 
 // --- Manager (Writes) ---
 
 func (s *UserTierService) AddScore(ctx context.Context, userID uint64, score int64) error {
-	return s.manager.AddScore(ctx, userID, score)
+	return s.Command.AddScore(ctx, userID, score)
 }
 
 func (s *UserTierService) AddPoints(ctx context.Context, userID uint64, points int64, reason string) error {
-	return s.manager.AddPoints(ctx, userID, points, reason)
+	return s.Command.AddPoints(ctx, userID, points, reason)
 }
 
 func (s *UserTierService) DeductPoints(ctx context.Context, userID uint64, points int64, reason string) error {
-	return s.manager.DeductPoints(ctx, userID, points, reason)
+	return s.Command.DeductPoints(ctx, userID, points, reason)
 }
 
 func (s *UserTierService) Exchange(ctx context.Context, userID uint64, exchangeID uint64) error {
-	return s.manager.Exchange(ctx, userID, exchangeID)
+	return s.Command.Exchange(ctx, userID, exchangeID)
 }
 
 // --- Query (Reads) ---
 
 func (s *UserTierService) GetUserTier(ctx context.Context, userID uint64) (*domain.UserTier, error) {
-	return s.query.GetUserTier(ctx, userID)
+	return s.Query.GetUserTier(ctx, userID)
 }
 
 func (s *UserTierService) GetPoints(ctx context.Context, userID uint64) (int64, error) {
-	return s.query.GetPoints(ctx, userID)
+	return s.Query.GetPoints(ctx, userID)
 }
 
 func (s *UserTierService) ListPointsLogs(ctx context.Context, userID uint64, page, pageSize int) ([]*domain.PointsLog, int64, error) {
-	return s.query.ListPointsLogs(ctx, userID, page, pageSize)
+	return s.Query.ListPointsLogs(ctx, userID, page, pageSize)
 }
 
 func (s *UserTierService) ListExchanges(ctx context.Context, page, pageSize int) ([]*domain.Exchange, int64, error) {
-	return s.query.ListExchanges(ctx, page, pageSize)
+	return s.Query.ListExchanges(ctx, page, pageSize)
 }

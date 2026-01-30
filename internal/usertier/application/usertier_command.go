@@ -9,22 +9,24 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/usertier/domain"
 )
 
-// UserTierManager 处理所有用户等级与积分相关的写入操作（Commands）。
-type UserTierManager struct {
-	repo   domain.UserTierRepository
-	logger *slog.Logger
+// UserTierCommandService 处理所有用户等级与积分相关的写入操作（Commands）。
+type UserTierCommandService struct {
+	repo      domain.UserTierRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewUserTierManager 构造函数。
-func NewUserTierManager(repo domain.UserTierRepository, logger *slog.Logger) *UserTierManager {
-	return &UserTierManager{
-		repo:   repo,
-		logger: logger,
+// NewUserTierCommandService 构造函数。
+func NewUserTierCommandService(repo domain.UserTierRepository, publisher domain.EventPublisher, logger *slog.Logger) *UserTierCommandService {
+	return &UserTierCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // EnsureUserTier 确保用户等级实体存在。
-func (m *UserTierManager) EnsureUserTier(ctx context.Context, userID uint64) (*domain.UserTier, error) {
+func (m *UserTierCommandService) EnsureUserTier(ctx context.Context, userID uint64) (*domain.UserTier, error) {
 	tier, err := m.repo.GetUserTier(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -43,7 +45,7 @@ func (m *UserTierManager) EnsureUserTier(ctx context.Context, userID uint64) (*d
 	return tier, nil
 }
 
-func (m *UserTierManager) AddScore(ctx context.Context, userID uint64, score int64) error {
+func (m *UserTierCommandService) AddScore(ctx context.Context, userID uint64, score int64) error {
 	tier, err := m.EnsureUserTier(ctx, userID)
 	if err != nil {
 		return err
@@ -79,7 +81,7 @@ func (m *UserTierManager) AddScore(ctx context.Context, userID uint64, score int
 	return m.repo.SaveUserTier(ctx, tier)
 }
 
-func (m *UserTierManager) AddPoints(ctx context.Context, userID uint64, points int64, reason string) error {
+func (m *UserTierCommandService) AddPoints(ctx context.Context, userID uint64, points int64, reason string) error {
 	acc, err := m.repo.GetPointsAccount(ctx, userID)
 	if err != nil {
 		return err
@@ -102,7 +104,7 @@ func (m *UserTierManager) AddPoints(ctx context.Context, userID uint64, points i
 	return m.repo.SavePointsLog(ctx, log)
 }
 
-func (m *UserTierManager) DeductPoints(ctx context.Context, userID uint64, points int64, reason string) error {
+func (m *UserTierCommandService) DeductPoints(ctx context.Context, userID uint64, points int64, reason string) error {
 	acc, err := m.repo.GetPointsAccount(ctx, userID)
 	if err != nil {
 		return err
@@ -125,7 +127,7 @@ func (m *UserTierManager) DeductPoints(ctx context.Context, userID uint64, point
 	return m.repo.SavePointsLog(ctx, log)
 }
 
-func (m *UserTierManager) Exchange(ctx context.Context, userID uint64, exchangeID uint64) error {
+func (m *UserTierCommandService) Exchange(ctx context.Context, userID uint64, exchangeID uint64) error {
 	item, err := m.repo.GetExchange(ctx, exchangeID)
 	if err != nil {
 		return err

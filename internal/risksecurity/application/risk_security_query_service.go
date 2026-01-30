@@ -7,20 +7,20 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
 )
 
-// RiskQuery 处理风控安全的读操作。
-type RiskQuery struct {
+// RiskSecurityQueryService 处理风控安全的读操作。
+type RiskSecurityQueryService struct {
 	repo domain.RiskRepository
 }
 
-// NewRiskQuery creates a new RiskQuery instance.
-func NewRiskQuery(repo domain.RiskRepository) *RiskQuery {
-	return &RiskQuery{
+// NewRiskSecurityQueryService creates a new RiskSecurityQueryService instance.
+func NewRiskSecurityQueryService(repo domain.RiskRepository) *RiskSecurityQueryService {
+	return &RiskSecurityQueryService{
 		repo: repo,
 	}
 }
 
 // GetRiskAnalysisResult 获取指定用户的最新风险分析结果。
-func (q *RiskQuery) GetRiskAnalysisResult(ctx context.Context, userID uint64) (*domain.RiskAnalysisResult, error) {
+func (q *RiskSecurityQueryService) GetRiskAnalysisResult(ctx context.Context, userID uint64) (*domain.RiskAnalysisResult, error) {
 	results, err := q.repo.ListAnalysisResults(ctx, userID, 1)
 	if err != nil {
 		return nil, err
@@ -32,11 +32,11 @@ func (q *RiskQuery) GetRiskAnalysisResult(ctx context.Context, userID uint64) (*
 }
 
 // CheckBlacklist 检查指定类型和值是否在黑名单中。
-func (q *RiskQuery) CheckBlacklist(ctx context.Context, bType string, value string) (*domain.Blacklist, error) {
+func (q *RiskSecurityQueryService) CheckBlacklist(ctx context.Context, bType string, value string) (*domain.Blacklist, error) {
 	return q.repo.GetBlacklist(ctx, domain.BlacklistType(bType), value)
 }
 
 // GetUserBehavior 获取用户行为数据。
-func (q *RiskQuery) GetUserBehavior(ctx context.Context, userID uint64) (*domain.UserBehavior, error) {
+func (q *RiskSecurityQueryService) GetUserBehavior(ctx context.Context, userID uint64) (*domain.UserBehavior, error) {
 	return q.repo.GetUserBehavior(ctx, userID)
 }

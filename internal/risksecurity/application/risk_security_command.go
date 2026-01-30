@@ -16,26 +16,28 @@ import (
 	"github.com/wyfcoding/pkg/contextx"
 )
 
-// RiskManager 处理风控安全的写操作。
-type RiskManager struct {
+// RiskSecurityCommandService 处理风控安全的写操作。
+type RiskSecurityCommandService struct {
 	repo          domain.RiskRepository
+	publisher     domain.EventPublisher
 	logger        *slog.Logger
 	detector      *infra.AntiBotDetector
 	calculator    *finance.RiskCalculator
 	remoteRiskCli riskv1.RiskServiceClient
 }
 
-// NewRiskManager creates a new RiskManager instance.
-func NewRiskManager(repo domain.RiskRepository, logger *slog.Logger) *RiskManager {
-	return &RiskManager{
+// NewRiskSecurityCommandService creates a new RiskSecurityCommandService instance.
+func NewRiskSecurityCommandService(repo domain.RiskRepository, publisher domain.EventPublisher, logger *slog.Logger) *RiskSecurityCommandService {
+	return &RiskSecurityCommandService{
 		repo:       repo,
+		publisher:  publisher,
 		logger:     logger,
 		detector:   infra.NewAntiBotDetector(),
 		calculator: finance.NewRiskCalculator(),
 	}
 }
 
-func (m *RiskManager) SetRemoteRiskClient(cli riskv1.RiskServiceClient) {
+func (m *RiskSecurityCommandService) SetRemoteRiskClient(cli riskv1.RiskServiceClient) {
 	m.remoteRiskCli = cli
 }
 
@@ -46,7 +48,7 @@ type UserRelation struct {
 }
 
 // DetectFraudGroups 检测欺诈团伙
-func (m *RiskManager) DetectFraudGroups(ctx context.Context, numUsers int, relations []UserRelation) [][]int {
+func (m *RiskSecurityCommandService) DetectFraudGroups(ctx context.Context, numUsers int, relations []UserRelation) [][]int {
 	m.logger.InfoContext(ctx, "starting fraud group detection", "nodes", numUsers, "relations", len(relations))
 
 	// 1. 构建图
@@ -72,7 +74,7 @@ func (m *RiskManager) DetectFraudGroups(ctx context.Context, numUsers int, relat
 }
 
 // EvaluateRisk 评估指定用户操作的风险。
-func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, deviceID string, amount int64) (*domain.RiskAnalysisResult, error) {
+func (m *RiskSecurityCommandService) EvaluateRisk(ctx context.Context, userID uint64, ip, deviceID string, amount int64) (*domain.RiskAnalysisResult, error) {
 	// 1. 检查黑名单 (一票否决)
 	isIPBlacklisted, _ := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeIP, ip)
 	isUserBlacklisted, _ := m.repo.IsBlacklisted(ctx, domain.BlacklistTypeUser, fmt.Sprintf("%d", userID))
@@ -151,7 +153,7 @@ func (m *RiskManager) EvaluateRisk(ctx context.Context, userID uint64, ip, devic
 }
 
 // createResult 是一个辅助函数，用于创建并保存 RiskAnalysisResult 实体。
-func (m *RiskManager) createResult(ctx context.Context, userID uint64, level domain.RiskLevel, score int32, reason string) (*domain.RiskAnalysisResult, error) {
+func (m *RiskSecurityCommandService) createResult(ctx context.Context, userID uint64, level domain.RiskLevel, score int32, reason string) (*domain.RiskAnalysisResult, error) {
 	items := []*domain.RiskItem{
 		{
 			Type:      domain.RiskTypeAnomalousTransaction,
@@ -183,7 +185,7 @@ func (m *RiskManager) createResult(ctx context.Context, userID uint64, level dom
 }
 
 // AddToBlacklist 将指定类型和值的实体添加到黑名单。
-func (m *RiskManager) AddToBlacklist(ctx context.Context, bType string, value, reason string, duration time.Duration) error {
+func (m *RiskSecurityCommandService) AddToBlacklist(ctx context.Context, bType string, value, reason string, duration time.Duration) error {
 	blacklist := &domain.Blacklist{
 		Type:      domain.BlacklistType(bType),
 		Value:     value,
@@ -199,7 +201,7 @@ func (m *RiskManager) AddToBlacklist(ctx context.Context, bType string, value, r
 }
 
 // RemoveFromBlacklist 从黑名单中移除指定ID的条目。
-func (m *RiskManager) RemoveFromBlacklist(ctx context.Context, id uint64) error {
+func (m *RiskSecurityCommandService) RemoveFromBlacklist(ctx context.Context, id uint64) error {
 	if err := m.repo.DeleteBlacklist(ctx, id); err != nil {
 		m.logger.ErrorContext(ctx, "failed to delete blacklist entry", "id", id, "error", err)
 		return err
@@ -209,7 +211,7 @@ func (m *RiskManager) RemoveFromBlacklist(ctx context.Context, id uint64) error 
 }
 
 // RecordUserBehavior 记录或更新用户的行为数据。
-func (m *RiskManager) RecordUserBehavior(ctx context.Context, userID uint64, ip, deviceID string) error {
+func (m *RiskSecurityCommandService) RecordUserBehavior(ctx context.Context, userID uint64, ip, deviceID string) error {
 	behavior, err := m.repo.GetUserBehavior(ctx, userID)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to get user behavior for recording", "user_id", userID, "error", err)

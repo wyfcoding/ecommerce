@@ -10,24 +10,26 @@ import (
 	"github.com/wyfcoding/pkg/contextx"
 )
 
-// ReviewManager 处理评论模块的写操作和核心业务流程。
-type ReviewManager struct {
-	repo    domain.ReviewRepository
-	logger  *slog.Logger
-	simHash *algorithm.SimHash
+// ReviewCommandService 处理评论模块的写操作和核心业务流程。
+type ReviewCommandService struct {
+	repo      domain.ReviewRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
+	simHash   *algorithm.SimHash
 }
 
-// NewReviewManager 创建并返回一个新的 ReviewManager 实例。
-func NewReviewManager(repo domain.ReviewRepository, logger *slog.Logger) *ReviewManager {
-	return &ReviewManager{
-		repo:    repo,
-		logger:  logger,
-		simHash: algorithm.NewSimHash(),
+// NewReviewCommandService 创建并返回一个新的 ReviewCommandService 实例。
+func NewReviewCommandService(repo domain.ReviewRepository, publisher domain.EventPublisher, logger *slog.Logger) *ReviewCommandService {
+	return &ReviewCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
+		simHash:   algorithm.NewSimHash(),
 	}
 }
 
 // CreateReview 提交一条新的评论。
-func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, orderID, skuID uint64, rating int, content string, images []string) (*domain.Review, error) {
+func (m *ReviewCommandService) CreateReview(ctx context.Context, userID, productID, orderID, skuID uint64, rating int, content string, images []string) (*domain.Review, error) {
 	// 简单校验：评分范围。
 	if rating < 1 || rating > 5 {
 		return nil, fmt.Errorf("rating must be between 1 and 5")
@@ -81,7 +83,7 @@ func (m *ReviewManager) CreateReview(ctx context.Context, userID, productID, ord
 }
 
 // AuditReview 审核评论。
-func (m *ReviewManager) AuditReview(ctx context.Context, reviewID uint64, approved bool) error {
+func (m *ReviewCommandService) AuditReview(ctx context.Context, reviewID uint64, approved bool) error {
 	review, err := m.repo.Get(ctx, reviewID)
 	if err != nil {
 		return err
@@ -100,7 +102,7 @@ func (m *ReviewManager) AuditReview(ctx context.Context, reviewID uint64, approv
 }
 
 // DeleteReview 删除评论。
-func (m *ReviewManager) DeleteReview(ctx context.Context, reviewID uint64, userID uint64) error {
+func (m *ReviewCommandService) DeleteReview(ctx context.Context, reviewID uint64, userID uint64) error {
 	review, err := m.repo.Get(ctx, reviewID)
 	if err != nil {
 		return err
