@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -15,6 +16,7 @@ import (
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
+	"github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/persistence"
 	aftersalesgrpc "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/grpc"
 	aftersaleshttp "github.com/wyfcoding/ecommerce/internal/aftersales/interfaces/http"
@@ -26,6 +28,7 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -167,7 +170,18 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. DDD 分层装配
+	// 5. 初始化 Outbox 管理器与发布者
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 启动 Outbox 处理器
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
+		return nil
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
+	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
@@ -197,6 +211,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	aftersalesService := application.NewAfterSalesService(
 		aftersalesRepo,
+		outboxPublisher,
 		idGenerator,
 		logger.Logger,
 		orderClient,
@@ -213,6 +228,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
