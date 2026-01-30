@@ -9,29 +9,31 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/multichannel/domain"
 )
 
-// ChannelManager 处理渠道的写操作。
-type ChannelManager struct {
-	repo     domain.MultiChannelRepository
-	logger   *slog.Logger
-	adapters map[string]domain.ChannelAdapter
+// MultiChannelCommandService 处理渠道的写操作。
+type MultiChannelCommandService struct {
+	repo      domain.MultiChannelRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
+	adapters  map[string]domain.ChannelAdapter
 }
 
-// NewChannelManager creates a new ChannelManager instance.
-func NewChannelManager(repo domain.MultiChannelRepository, logger *slog.Logger) *ChannelManager {
-	return &ChannelManager{
-		repo:     repo,
-		logger:   logger,
-		adapters: make(map[string]domain.ChannelAdapter),
+// NewMultiChannelCommandService creates a new MultiChannelCommandService instance.
+func NewMultiChannelCommandService(repo domain.MultiChannelRepository, publisher domain.EventPublisher, logger *slog.Logger) *MultiChannelCommandService {
+	return &MultiChannelCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
+		adapters:  make(map[string]domain.ChannelAdapter),
 	}
 }
 
 // RegisterAdapter 注册渠道适配器
-func (m *ChannelManager) RegisterAdapter(channelType string, adapter domain.ChannelAdapter) {
+func (m *MultiChannelCommandService) RegisterAdapter(channelType string, adapter domain.ChannelAdapter) {
 	m.adapters[channelType] = adapter
 }
 
 // RegisterChannel 注册一个新的销售渠道。
-func (m *ChannelManager) RegisterChannel(ctx context.Context, channel *domain.Channel) error {
+func (m *MultiChannelCommandService) RegisterChannel(ctx context.Context, channel *domain.Channel) error {
 	if err := m.repo.SaveChannel(ctx, channel); err != nil {
 		m.logger.Error("failed to register channel", "error", err)
 		return err
@@ -40,7 +42,7 @@ func (m *ChannelManager) RegisterChannel(ctx context.Context, channel *domain.Ch
 }
 
 // SyncOrders 同步指定渠道的订单数据。
-func (m *ChannelManager) SyncOrders(ctx context.Context, channelID uint64) error {
+func (m *MultiChannelCommandService) SyncOrders(ctx context.Context, channelID uint64) error {
 	channel, err := m.repo.GetChannel(ctx, channelID)
 	if err != nil {
 		return err

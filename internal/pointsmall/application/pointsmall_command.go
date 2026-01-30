@@ -11,29 +11,31 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
-// PointsManager 处理积分商城的写操作。
-type PointsManager struct {
-	repo   domain.PointsRepository
-	idGen  idgen.Generator
-	logger *slog.Logger
+// PointsmallCommandService 处理积分商城的写操作。
+type PointsmallCommandService struct {
+	repo      domain.PointsRepository
+	publisher domain.EventPublisher
+	idGen     idgen.Generator
+	logger    *slog.Logger
 }
 
-// NewPointsManager creates a new PointsManager instance.
-func NewPointsManager(repo domain.PointsRepository, idGen idgen.Generator, logger *slog.Logger) *PointsManager {
-	return &PointsManager{
-		repo:   repo,
-		idGen:  idGen,
-		logger: logger,
+// NewPointsmallCommandService creates a new PointsmallCommandService instance.
+func NewPointsmallCommandService(repo domain.PointsRepository, publisher domain.EventPublisher, idGen idgen.Generator, logger *slog.Logger) *PointsmallCommandService {
+	return &PointsmallCommandService{
+		repo:      repo,
+		publisher: publisher,
+		idGen:     idGen,
+		logger:    logger,
 	}
 }
 
 // CreateProduct 创建积分商品。
-func (m *PointsManager) CreateProduct(ctx context.Context, product *domain.PointsProduct) error {
+func (m *PointsmallCommandService) CreateProduct(ctx context.Context, product *domain.PointsProduct) error {
 	return m.repo.SaveProduct(ctx, product)
 }
 
 // ExchangeProduct 兑换商品。
-func (m *PointsManager) ExchangeProduct(ctx context.Context, userID, productID uint64, quantity int32, address, phone, receiver string) (*domain.PointsOrder, error) {
+func (m *PointsmallCommandService) ExchangeProduct(ctx context.Context, userID, productID uint64, quantity int32, address, phone, receiver string) (*domain.PointsOrder, error) {
 	// 1. 获取商品信息
 	product, err := m.repo.GetProduct(ctx, productID)
 	if err != nil {
@@ -112,7 +114,7 @@ func (m *PointsManager) ExchangeProduct(ctx context.Context, userID, productID u
 }
 
 // AddPoints 增加用户积分。
-func (m *PointsManager) AddPoints(ctx context.Context, userID uint64, points int64, description, refID string) error {
+func (m *PointsmallCommandService) AddPoints(ctx context.Context, userID uint64, points int64, description, refID string) error {
 	account, err := m.repo.GetAccount(ctx, userID)
 	if err != nil {
 		return err

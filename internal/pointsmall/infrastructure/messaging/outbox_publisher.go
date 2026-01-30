@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
+	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"gorm.io/gorm"
 )
@@ -20,8 +20,8 @@ func NewOutboxPublisher(manager *outbox.Manager) domain.EventPublisher {
 }
 
 // Publish 发布一个普通事件（非事务内）。
-func (p *outboxPublisher) Publish(ctx context.Context, topic string, event any) error {
-	return p.manager.PublishInTx(ctx, p.manager.DB(), topic, "", event)
+func (p *outboxPublisher) Publish(ctx context.Context, topic string, key string, event any) error {
+	return p.manager.PublishInTx(ctx, p.manager.DB(), topic, key, event)
 }
 
 // PublishInTx 在事务中发布事件，核心用于 Outbox 模式。

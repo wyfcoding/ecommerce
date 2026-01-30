@@ -11,11 +11,11 @@ import (
 // Logistics 是物流应用服务的门面。
 type Logistics struct {
 	Command *LogisticsCommandService
-	Query   *LogisticsQuery
+	Query   *LogisticsQueryService
 }
 
 // NewLogistics 创建物流服务门面实例。
-func NewLogistics(command *LogisticsCommandService, query *LogisticsQuery) *Logistics {
+func NewLogistics(command *LogisticsCommandService, query *LogisticsQueryService) *Logistics {
 	return &Logistics{
 		Command: command,
 		Query:   query,
