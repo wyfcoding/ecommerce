@@ -10,18 +10,20 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/domain"
 )
 
-// OptimizationManager 处理订单优化的写操作。
-type OptimizationManager struct {
+// OptimizationCommandService 处理订单优化的写操作。
+type OptimizationCommandService struct {
 	repo         domain.OrderOptimizationRepository
+	publisher    domain.EventPublisher
 	orderCli     orderv1.OrderServiceClient
 	inventoryCli inventoryv1.InventoryServiceClient
 	logger       *slog.Logger
 }
 
-// NewOptimizationManager 创建一个新的 OptimizationManager 实例。
-func NewOptimizationManager(repo domain.OrderOptimizationRepository, orderCli orderv1.OrderServiceClient, inventoryCli inventoryv1.InventoryServiceClient, logger *slog.Logger) *OptimizationManager {
-	return &OptimizationManager{
+// NewOptimizationCommandService 创建一个新的 OptimizationCommandService 实例。
+func NewOptimizationCommandService(repo domain.OrderOptimizationRepository, publisher domain.EventPublisher, orderCli orderv1.OrderServiceClient, inventoryCli inventoryv1.InventoryServiceClient, logger *slog.Logger) *OptimizationCommandService {
+	return &OptimizationCommandService{
 		repo:         repo,
+		publisher:    publisher,
 		orderCli:     orderCli,
 		inventoryCli: inventoryCli,
 		logger:       logger,
@@ -29,12 +31,12 @@ func NewOptimizationManager(repo domain.OrderOptimizationRepository, orderCli or
 }
 
 // MergeOrders 合并订单 (保留基础逻辑，实际应根据地址和用户进行聚合)
-func (m *OptimizationManager) MergeOrders(ctx context.Context, userID uint64, orderIDs []uint64) (*domain.MergedOrder, error) {
+func (m *OptimizationCommandService) MergeOrders(ctx context.Context, userID uint64, orderIDs []uint64) (*domain.MergedOrder, error) {
 	// ... (Merge logic remains but could be expanded with real address check)
 	return m.mergeOrdersInternal(ctx, userID, orderIDs)
 }
 
-func (m *OptimizationManager) mergeOrdersInternal(ctx context.Context, userID uint64, orderIDs []uint64) (*domain.MergedOrder, error) {
+func (m *OptimizationCommandService) mergeOrdersInternal(ctx context.Context, userID uint64, orderIDs []uint64) (*domain.MergedOrder, error) {
 	mergedOrder := &domain.MergedOrder{
 		UserID:           userID,
 		OriginalOrderIDs: orderIDs,
@@ -48,7 +50,7 @@ func (m *OptimizationManager) mergeOrdersInternal(ctx context.Context, userID ui
 }
 
 // SplitOrder 拆分订单：基于库存服务的真实分配结果。
-func (m *OptimizationManager) SplitOrder(ctx context.Context, orderID uint64) ([]*domain.SplitOrder, error) {
+func (m *OptimizationCommandService) SplitOrder(ctx context.Context, orderID uint64) ([]*domain.SplitOrder, error) {
 	// 1. 获取订单详情
 	orderResp, err := m.orderCli.GetOrderByID(ctx, &orderv1.GetOrderByIDRequest{Id: orderID})
 	if err != nil {
@@ -131,7 +133,7 @@ func (m *OptimizationManager) SplitOrder(ctx context.Context, orderID uint64) ([
 }
 
 // AllocateWarehouse 分配仓库：基于真实库存和距离。
-func (m *OptimizationManager) AllocateWarehouse(ctx context.Context, orderID uint64) (*domain.WarehouseAllocationPlan, error) {
+func (m *OptimizationCommandService) AllocateWarehouse(ctx context.Context, orderID uint64) (*domain.WarehouseAllocationPlan, error) {
 	// 真实实现：应聚合仓库位置和当前 SKU 库存
 	plan := &domain.WarehouseAllocationPlan{
 		OrderID:     orderID,

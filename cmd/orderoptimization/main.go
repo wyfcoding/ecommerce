@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -15,6 +16,7 @@ import (
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/orderoptimization/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/application"
+	"github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/persistence"
 	optimizationgrpc "github.com/wyfcoding/ecommerce/internal/orderoptimization/interfaces/grpc"
 	optimizationhttp "github.com/wyfcoding/ecommerce/internal/orderoptimization/interfaces/http"
@@ -25,6 +27,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -156,14 +159,25 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. DDD 分层装配
+	// 5. 初始化 Outbox 管理器与发布者
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 启动 Outbox 处理器
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
+		return nil
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
+	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
 	optimizationRepo := persistence.NewOrderOptimizationRepository(db.RawDB())
 
-	// 5.2 Application (Service)
-	query := application.NewOptimizationQuery(optimizationRepo)
+	// 6.2 Application (Service)
+	querySvc := application.NewOptimizationQueryService(optimizationRepo)
 
 	var (
 		orderCli     orderv1.OrderServiceClient
@@ -176,8 +190,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		inventoryCli = inventoryv1.NewInventoryServiceClient(clients.InventoryConn)
 	}
 
-	manager := application.NewOptimizationManager(optimizationRepo, orderCli, inventoryCli, logger.Logger)
-	optimizationService := application.NewOrderOptimizationService(manager, query)
+	commandSvc := application.NewOptimizationCommandService(optimizationRepo, outboxPublisher, orderCli, inventoryCli, logger.Logger)
+	optimizationService := application.NewOrderOptimizationService(commandSvc, querySvc)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := optimizationhttp.NewHandler(optimizationService, logger.Logger)
@@ -185,6 +199,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {

@@ -8,25 +8,25 @@ import (
 	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
 )
 
-// PricingQuery 处理读操作和计算。
-type PricingQuery struct {
+// PricingQueryService 处理读操作和计算。
+type PricingQueryService struct {
 	repo          domain.PricingRepository
 	marketDataCli marketdatav1.MarketDataServiceClient
 }
 
-// NewPricingQuery creates a new PricingQuery instance.
-func NewPricingQuery(repo domain.PricingRepository) *PricingQuery {
-	return &PricingQuery{
+// NewPricingQueryService creates a new PricingQueryService instance.
+func NewPricingQueryService(repo domain.PricingRepository) *PricingQueryService {
+	return &PricingQueryService{
 		repo: repo,
 	}
 }
 
-func (q *PricingQuery) SetMarketDataClient(cli marketdatav1.MarketDataServiceClient) {
+func (q *PricingQueryService) SetMarketDataClient(cli marketdatav1.MarketDataServiceClient) {
 	q.marketDataCli = cli
 }
 
 // CalculatePrice 根据定价规则计算商品或SKU的价格。
-func (q *PricingQuery) CalculatePrice(ctx context.Context, productID, skuID uint64, demand, competition float64) (uint64, error) {
+func (q *PricingQueryService) CalculatePrice(ctx context.Context, productID, skuID uint64, demand, competition float64) (uint64, error) {
 	rule, err := q.repo.GetActiveRule(ctx, productID, skuID)
 	if err != nil {
 		return 0, err
@@ -40,7 +40,7 @@ func (q *PricingQuery) CalculatePrice(ctx context.Context, productID, skuID uint
 }
 
 // ConvertPrice 将价格转换为目标币种 (Cross-Project Interaction)
-func (q *PricingQuery) ConvertPrice(ctx context.Context, amount uint64, baseCurrency, targetCurrency string) (float64, error) {
+func (q *PricingQueryService) ConvertPrice(ctx context.Context, amount uint64, baseCurrency, targetCurrency string) (float64, error) {
 	if baseCurrency == targetCurrency {
 		return float64(amount), nil
 	}
@@ -64,13 +64,13 @@ func (q *PricingQuery) ConvertPrice(ctx context.Context, amount uint64, baseCurr
 }
 
 // ListRules 获取定价规则列表。
-func (q *PricingQuery) ListRules(ctx context.Context, productID uint64, page, pageSize int) ([]*domain.PricingRule, int64, error) {
+func (q *PricingQueryService) ListRules(ctx context.Context, productID uint64, page, pageSize int) ([]*domain.PricingRule, int64, error) {
 	offset := (page - 1) * pageSize
 	return q.repo.ListRules(ctx, productID, offset, pageSize)
 }
 
 // ListHistory 获取价格历史记录列表。
-func (q *PricingQuery) ListHistory(ctx context.Context, productID, skuID uint64, page, pageSize int) ([]*domain.PriceHistory, int64, error) {
+func (q *PricingQueryService) ListHistory(ctx context.Context, productID, skuID uint64, page, pageSize int) ([]*domain.PriceHistory, int64, error) {
 	offset := (page - 1) * pageSize
 	return q.repo.ListHistory(ctx, productID, skuID, offset, pageSize)
 }
