@@ -9,22 +9,24 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain"
 )
 
-// SubscriptionManager 处理订阅的写操作。
-type SubscriptionManager struct {
-	repo   domain.SubscriptionRepository
-	logger *slog.Logger
+// SubscriptionCommandService 处理订阅的写操作。
+type SubscriptionCommandService struct {
+	repo      domain.SubscriptionRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewSubscriptionManager creates a new SubscriptionManager instance.
-func NewSubscriptionManager(repo domain.SubscriptionRepository, logger *slog.Logger) *SubscriptionManager {
-	return &SubscriptionManager{
-		repo:   repo,
-		logger: logger,
+// NewSubscriptionCommandService creates a new SubscriptionCommandService instance.
+func NewSubscriptionCommandService(repo domain.SubscriptionRepository, publisher domain.EventPublisher, logger *slog.Logger) *SubscriptionCommandService {
+	return &SubscriptionCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // CreatePlan creates a new subscription plan.
-func (m *SubscriptionManager) CreatePlan(ctx context.Context, name, desc string, price uint64, duration int32, features []string) (*domain.SubscriptionPlan, error) {
+func (m *SubscriptionCommandService) CreatePlan(ctx context.Context, name, desc string, price uint64, duration int32, features []string) (*domain.SubscriptionPlan, error) {
 	plan := &domain.SubscriptionPlan{
 		Name:        name,
 		Description: desc,
@@ -42,7 +44,7 @@ func (m *SubscriptionManager) CreatePlan(ctx context.Context, name, desc string,
 }
 
 // Subscribe 为用户订阅计划。
-func (m *SubscriptionManager) Subscribe(ctx context.Context, userID, planID uint64) (*domain.Subscription, error) {
+func (m *SubscriptionCommandService) Subscribe(ctx context.Context, userID, planID uint64) (*domain.Subscription, error) {
 	active, err := m.repo.GetActiveSubscription(ctx, userID)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to check active subscription", "user_id", userID, "error", err)
@@ -80,7 +82,7 @@ func (m *SubscriptionManager) Subscribe(ctx context.Context, userID, planID uint
 }
 
 // Cancel cancels a subscription.
-func (m *SubscriptionManager) Cancel(ctx context.Context, id uint64) error {
+func (m *SubscriptionCommandService) Cancel(ctx context.Context, id uint64) error {
 	sub, err := m.repo.GetSubscription(ctx, id)
 	if err != nil {
 		return err
@@ -103,7 +105,7 @@ func (m *SubscriptionManager) Cancel(ctx context.Context, id uint64) error {
 }
 
 // Renew renews a subscription.
-func (m *SubscriptionManager) Renew(ctx context.Context, id uint64) error {
+func (m *SubscriptionCommandService) Renew(ctx context.Context, id uint64) error {
 	sub, err := m.repo.GetSubscription(ctx, id)
 	if err != nil {
 		return err
@@ -137,7 +139,7 @@ func (m *SubscriptionManager) Renew(ctx context.Context, id uint64) error {
 }
 
 // UpdatePlan updates an existing subscription plan.
-func (m *SubscriptionManager) UpdatePlan(ctx context.Context, id uint64, name, desc *string, price *uint64, duration *int32, features []string, enabled *bool) (*domain.SubscriptionPlan, error) {
+func (m *SubscriptionCommandService) UpdatePlan(ctx context.Context, id uint64, name, desc *string, price *uint64, duration *int32, features []string, enabled *bool) (*domain.SubscriptionPlan, error) {
 	plan, err := m.repo.GetPlan(ctx, id)
 	if err != nil {
 		return nil, err

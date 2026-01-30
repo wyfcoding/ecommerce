@@ -14,39 +14,41 @@ import (
 // JobHandler 定义了任务处理函数的原型
 type JobHandler func(ctx context.Context, params string) (string, error)
 
-// SchedulerManager 处理调度任务和日志的写操作。
-type SchedulerManager struct {
+// SchedulerCommandService 处理调度任务和日志的写操作。
+type SchedulerCommandService struct {
 	repo       domain.SchedulerRepository
+	publisher  domain.EventPublisher
 	logger     *slog.Logger
 	timerWheel *algorithm.TimingWheel
 	handlers   map[string]JobHandler
 }
 
-// NewSchedulerManager creates a new SchedulerManager instance.
-func NewSchedulerManager(repo domain.SchedulerRepository, logger *slog.Logger) (*SchedulerManager, error) {
+// NewSchedulerCommandService creates a new SchedulerCommandService instance.
+func NewSchedulerCommandService(repo domain.SchedulerRepository, publisher domain.EventPublisher, logger *slog.Logger) (*SchedulerCommandService, error) {
 	tw, err := algorithm.NewTimingWheel(time.Second, 3600)
 	if err != nil {
 		return nil, err
 	}
 
-	manager := &SchedulerManager{
+	service := &SchedulerCommandService{
 		repo:       repo,
+		publisher:  publisher,
 		logger:     logger,
 		timerWheel: tw,
 		handlers:   make(map[string]JobHandler),
 	}
-	manager.timerWheel.Start()
-	return manager, nil
+	service.timerWheel.Start()
+	return service, nil
 }
 
 // RegisterHandler 注册任务处理器
-func (m *SchedulerManager) RegisterHandler(name string, handler JobHandler) {
+func (m *SchedulerCommandService) RegisterHandler(name string, handler JobHandler) {
 	m.handlers[name] = handler
 }
 
 // ScheduleDelayJob 调度一个延迟任务。
 // 与传统的 time.After 不同，时间轮可以在极低资源消耗下管理百万级别的延迟任务。
-func (m *SchedulerManager) ScheduleDelayJob(ctx context.Context, delay time.Duration, jobID uint64) {
+func (m *SchedulerCommandService) ScheduleDelayJob(ctx context.Context, delay time.Duration, jobID uint64) {
 	m.logger.InfoContext(ctx, "scheduling delay job", "job_id", jobID, "delay", delay)
 
 	if err := m.timerWheel.AddTask(delay, func() {
@@ -62,7 +64,7 @@ func (m *SchedulerManager) ScheduleDelayJob(ctx context.Context, delay time.Dura
 }
 
 // CreateJob 创建一个新的定时任务。
-func (m *SchedulerManager) CreateJob(ctx context.Context, name, desc, cron, handler, params string) (*domain.Job, error) {
+func (m *SchedulerCommandService) CreateJob(ctx context.Context, name, desc, cron, handler, params string) (*domain.Job, error) {
 	existing, err := m.repo.GetJobByName(ctx, name)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to check existing job name", "job_name", name, "error", err)
@@ -90,7 +92,7 @@ func (m *SchedulerManager) CreateJob(ctx context.Context, name, desc, cron, hand
 }
 
 // UpdateJob 更新指定ID的定时任务信息。
-func (m *SchedulerManager) UpdateJob(ctx context.Context, id uint64, cron, params string) error {
+func (m *SchedulerCommandService) UpdateJob(ctx context.Context, id uint64, cron, params string) error {
 	job, err := m.repo.GetJob(ctx, id)
 	if err != nil {
 		return err
@@ -111,7 +113,7 @@ func (m *SchedulerManager) UpdateJob(ctx context.Context, id uint64, cron, param
 }
 
 // ToggleJobStatus 切换定时任务的启用/禁用状态。
-func (m *SchedulerManager) ToggleJobStatus(ctx context.Context, id uint64, enable bool) error {
+func (m *SchedulerCommandService) ToggleJobStatus(ctx context.Context, id uint64, enable bool) error {
 	job, err := m.repo.GetJob(ctx, id)
 	if err != nil {
 		return err
@@ -135,7 +137,7 @@ func (m *SchedulerManager) ToggleJobStatus(ctx context.Context, id uint64, enabl
 }
 
 // RunJob 立即运行指定ID的定时任务。
-func (m *SchedulerManager) RunJob(ctx context.Context, id uint64) error {
+func (m *SchedulerCommandService) RunJob(ctx context.Context, id uint64) error {
 	job, err := m.repo.GetJob(ctx, id)
 	if err != nil {
 		return err

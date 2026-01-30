@@ -8,22 +8,24 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain"
 )
 
-// WishlistManager 处理收藏夹模块的写操作和核心业务逻辑。
-type WishlistManager struct {
-	repo   domain.WishlistRepository
-	logger *slog.Logger
+// WishlistCommandService 处理收藏夹模块的写操作和核心业务逻辑。
+type WishlistCommandService struct {
+	repo      domain.WishlistRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewWishlistManager 创建并返回一个新的 WishlistManager 实例。
-func NewWishlistManager(repo domain.WishlistRepository, logger *slog.Logger) *WishlistManager {
-	return &WishlistManager{
-		repo:   repo,
-		logger: logger,
+// NewWishlistCommandService 创建并返回一个新的 WishlistCommandService 实例。
+func NewWishlistCommandService(repo domain.WishlistRepository, publisher domain.EventPublisher, logger *slog.Logger) *WishlistCommandService {
+	return &WishlistCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // AddToWishlist 将商品添加到收藏夹。
-func (m *WishlistManager) AddToWishlist(ctx context.Context, userID, productID, skuID uint64, productName, skuName, imageURL string, price uint64) (*domain.Wishlist, error) {
+func (m *WishlistCommandService) AddToWishlist(ctx context.Context, userID, productID, skuID uint64, productName, skuName, imageURL string, price uint64) (*domain.Wishlist, error) {
 	// 检查是否已存在。
 	existing, err := m.repo.Get(ctx, userID, skuID)
 	if err != nil {
@@ -61,7 +63,7 @@ func (m *WishlistManager) AddToWishlist(ctx context.Context, userID, productID, 
 }
 
 // RemoveFromWishlist 从收藏夹中移除指定商品。
-func (m *WishlistManager) RemoveFromWishlist(ctx context.Context, userID, skuID uint64) error {
+func (m *WishlistCommandService) RemoveFromWishlist(ctx context.Context, userID, skuID uint64) error {
 	if err := m.repo.DeleteByProduct(ctx, userID, skuID); err != nil {
 		m.logger.Error("failed to remove from wishlist", "error", err, "user_id", userID, "sku_id", skuID)
 		return err
@@ -70,7 +72,7 @@ func (m *WishlistManager) RemoveFromWishlist(ctx context.Context, userID, skuID 
 }
 
 // ClearWishlist 清空用户的收藏夹。
-func (m *WishlistManager) ClearWishlist(ctx context.Context, userID uint64) error {
+func (m *WishlistCommandService) ClearWishlist(ctx context.Context, userID uint64) error {
 	if err := m.repo.Clear(ctx, userID); err != nil {
 		m.logger.Error("failed to clear wishlist", "error", err, "user_id", userID)
 		return err
