@@ -8,22 +8,24 @@ import (
 	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
 )
 
-// RecommendationManager 处理推荐模块的写操作和业务逻辑。
-type RecommendationManager struct {
-	repo   domain.RecommendationRepository
-	logger *slog.Logger
+// RecommendationCommandService 处理推荐模块的写操作和业务逻辑。
+type RecommendationCommandService struct {
+	repo      domain.RecommendationRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewRecommendationManager 创建并返回一个新的 RecommendationManager 实例。
-func NewRecommendationManager(repo domain.RecommendationRepository, logger *slog.Logger) *RecommendationManager {
-	return &RecommendationManager{
-		repo:   repo,
-		logger: logger,
+// NewRecommendationCommandService 创建并返回一个新的 RecommendationCommandService 实例。
+func NewRecommendationCommandService(repo domain.RecommendationRepository, publisher domain.EventPublisher, logger *slog.Logger) *RecommendationCommandService {
+	return &RecommendationCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // SaveRecommendation 保存推荐结果。
-func (m *RecommendationManager) SaveRecommendation(ctx context.Context, rec *domain.Recommendation) error {
+func (m *RecommendationCommandService) SaveRecommendation(ctx context.Context, rec *domain.Recommendation) error {
 	if err := m.repo.SaveRecommendation(ctx, rec); err != nil {
 		m.logger.Error("failed to save recommendation", "error", err, "user_id", rec.UserID)
 		return err
@@ -32,7 +34,7 @@ func (m *RecommendationManager) SaveRecommendation(ctx context.Context, rec *dom
 }
 
 // DeleteRecommendations 删除推荐。
-func (m *RecommendationManager) DeleteRecommendations(ctx context.Context, userID uint64, recType *domain.RecommendationType) error {
+func (m *RecommendationCommandService) DeleteRecommendations(ctx context.Context, userID uint64, recType *domain.RecommendationType) error {
 	if err := m.repo.DeleteRecommendations(ctx, userID, recType); err != nil {
 		m.logger.Error("failed to delete recommendations", "error", err, "user_id", userID)
 		return err
@@ -41,7 +43,7 @@ func (m *RecommendationManager) DeleteRecommendations(ctx context.Context, userI
 }
 
 // SaveUserPreference 保存用户偏好。
-func (m *RecommendationManager) SaveUserPreference(ctx context.Context, pref *domain.UserPreference) error {
+func (m *RecommendationCommandService) SaveUserPreference(ctx context.Context, pref *domain.UserPreference) error {
 	if err := m.repo.SaveUserPreference(ctx, pref); err != nil {
 		m.logger.Error("failed to save user preference", "error", err, "user_id", pref.UserID)
 		return err
@@ -50,7 +52,7 @@ func (m *RecommendationManager) SaveUserPreference(ctx context.Context, pref *do
 }
 
 // SaveUserBehavior 记录用户行为。
-func (m *RecommendationManager) SaveUserBehavior(ctx context.Context, behavior *domain.UserBehavior) error {
+func (m *RecommendationCommandService) SaveUserBehavior(ctx context.Context, behavior *domain.UserBehavior) error {
 	if err := m.repo.SaveUserBehavior(ctx, behavior); err != nil {
 		m.logger.Error("failed to save user behavior", "error", err, "user_id", behavior.UserID)
 		return err
@@ -59,7 +61,7 @@ func (m *RecommendationManager) SaveUserBehavior(ctx context.Context, behavior *
 }
 
 // GenerateRecommendations 生成并保存用户的推荐结果。
-func (m *RecommendationManager) GenerateRecommendations(ctx context.Context, userID uint64) error {
+func (m *RecommendationCommandService) GenerateRecommendations(ctx context.Context, userID uint64) error {
 	// 1. 获取数据
 	userBehaviors, err := m.repo.ListUserBehaviors(ctx, userID, 100)
 	if err != nil {
