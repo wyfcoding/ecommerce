@@ -22,10 +22,11 @@ func NewAdminService(
 	settingRepo domain.SettingRepository,
 	approvalRepo domain.ApprovalRepository,
 	opsDeps SystemOpsDependencies,
+	publisher domain.EventPublisher,
 	logger *slog.Logger,
 ) *AdminService {
 	return &AdminService{
-		Command: NewAdminCommandService(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo, opsDeps, logger),
+		Command: NewAdminCommandService(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo, opsDeps, publisher, logger),
 		Query:   NewAdminQueryService(userRepo, roleRepo, auditRepo, settingRepo, approvalRepo),
 	}
 }

@@ -2,7 +2,6 @@ package messaging
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
@@ -23,11 +22,7 @@ func NewOutboxPublisher(manager *outbox.Manager) domain.EventPublisher {
 
 // Publish 发布一个普通事件（非事务内）。
 func (p *OutboxPublisher) Publish(ctx context.Context, topic string, key string, event any) error {
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
-	return p.manager.Save(ctx, nil, topic, key, payload)
+	return p.manager.PublishInTx(ctx, p.manager.DB(), topic, key, event)
 }
 
 // PublishInTx 在事务中发布事件，核心用于 Outbox 模式。
@@ -36,10 +31,5 @@ func (p *OutboxPublisher) PublishInTx(ctx context.Context, tx any, topic string,
 	if !ok {
 		return fmt.Errorf("tx must be *gorm.DB, got %T", tx)
 	}
-
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
-	return p.manager.Save(ctx, gormTx, topic, key, payload)
+	return p.manager.PublishInTx(ctx, gormTx, topic, key, event)
 }

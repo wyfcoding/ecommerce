@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -12,15 +13,17 @@ import (
 
 // DynamicPricingCommandService 处理动态定价的写操作。
 type DynamicPricingCommandService struct {
-	repo   domain.PricingRepository
-	logger *slog.Logger
+	repo      domain.PricingRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
 // NewDynamicPricingCommandService 创建并返回一个新的 DynamicPricingCommandService 实例。
-func NewDynamicPricingCommandService(repo domain.PricingRepository, logger *slog.Logger) *DynamicPricingCommandService {
+func NewDynamicPricingCommandService(repo domain.PricingRepository, publisher domain.EventPublisher, logger *slog.Logger) *DynamicPricingCommandService {
 	return &DynamicPricingCommandService{
-		repo:   repo,
-		logger: logger,
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
@@ -173,6 +176,15 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 		m.logger.ErrorContext(ctx, "failed to save dynamic price", "sku_id", req.SKUID, "error", err)
 		return nil, err
 	}
+
+	// 发布领域事件 (异步)
+	_ = m.publisher.Publish(ctx, "dynamic_pricing_calculated", fmt.Sprintf("%d", req.SKUID), &domain.PriceCalculatedEvent{
+		SKUID:      req.SKUID,
+		BasePrice:  req.BasePrice,
+		FinalPrice: finalPrice,
+		Timestamp:  time.Now(),
+	})
+
 	m.logger.InfoContext(ctx, "dynamic price calculated successfully", "sku_id", req.SKUID, "strategy", strategy.StrategyType, "final_price", finalPrice)
 
 	return price, nil
@@ -180,5 +192,18 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 
 // SaveStrategy 保存（创建或更新）一个定价策略。
 func (m *DynamicPricingCommandService) SaveStrategy(ctx context.Context, strategy *domain.PricingStrategy) error {
-	return m.repo.SavePricingStrategy(ctx, strategy)
+	if err := m.repo.SavePricingStrategy(ctx, strategy); err != nil {
+		return err
+	}
+
+	// 发布策略更新事件
+	_ = m.publisher.Publish(ctx, "pricing_strategy_updated", fmt.Sprintf("%d", strategy.SKUID), &domain.StrategyUpdatedEvent{
+		StrategyID:   uint64(strategy.ID),
+		SKUID:        strategy.SKUID,
+		StrategyType: strategy.StrategyType,
+		Enabled:      strategy.Enabled,
+		Timestamp:    time.Now(),
+	})
+
+	return nil
 }

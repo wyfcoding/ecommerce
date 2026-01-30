@@ -25,8 +25,9 @@ type AdminCommandService struct {
 	settingRepo  domain.SettingRepository
 	approvalRepo domain.ApprovalRepository
 
-	opsDeps SystemOpsDependencies
-	logger  *slog.Logger
+	opsDeps   SystemOpsDependencies
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
 func NewAdminCommandService(
@@ -36,6 +37,7 @@ func NewAdminCommandService(
 	settingRepo domain.SettingRepository,
 	approvalRepo domain.ApprovalRepository,
 	opsDeps SystemOpsDependencies,
+	publisher domain.EventPublisher,
 	logger *slog.Logger,
 ) *AdminCommandService {
 	return &AdminCommandService{
@@ -45,6 +47,7 @@ func NewAdminCommandService(
 		settingRepo:  settingRepo,
 		approvalRepo: approvalRepo,
 		opsDeps:      opsDeps,
+		publisher:    publisher,
 		logger:       logger,
 	}
 }
@@ -73,6 +76,14 @@ func (m *AdminCommandService) RegisterAdmin(ctx context.Context, req *CreateUser
 	if err := m.userRepo.Create(ctx, admin); err != nil {
 		return nil, err
 	}
+
+	// 发布领域事件
+	_ = m.publisher.Publish(ctx, "admin_user_created", fmt.Sprintf("%d", admin.ID), &domain.AdminUserCreatedEvent{
+		UserID:    admin.ID,
+		Username:  admin.Username,
+		Email:     admin.Email,
+		Timestamp: time.Now(),
+	})
 
 	if len(req.Roles) > 0 {
 		if err := m.userRepo.AssignRole(ctx, admin.ID, req.Roles); err != nil {
@@ -243,6 +254,15 @@ func (m *AdminCommandService) CreateRequest(ctx context.Context, req *domain.App
 	if err := m.approvalRepo.CreateRequest(ctx, req); err != nil {
 		return err
 	}
+
+	// 发布领域事件
+	_ = m.publisher.Publish(ctx, "approval_request_created", fmt.Sprintf("%d", req.ID), &domain.ApprovalRequestCreatedEvent{
+		RequestID:   req.ID,
+		RequesterID: req.RequesterID,
+		ActionType:  req.ActionType,
+		Timestamp:   time.Now(),
+	})
+
 	m.LogAction(ctx, &domain.AuditLog{
 		UserID:   req.RequesterID,
 		Action:   "workflow:create",

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/pkg/database"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +15,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/dynamicpricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/application"
+	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/infrastructure/persistence"
 	pricinggrpc "github.com/wyfcoding/ecommerce/internal/dynamicpricing/interfaces/grpc"
 	pricinghttp "github.com/wyfcoding/ecommerce/internal/dynamicpricing/interfaces/http"
@@ -156,12 +159,21 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence)
+	// 5.1 Infrastructure (Persistence & Messaging)
 	pricingRepo := persistence.NewPricingRepository(db.RawDB())
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 启动 Outbox 处理器
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
+		return nil
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
 
 	// 5.2 Application (Service)
 	query := application.NewDynamicPricingQueryService(pricingRepo)
-	command := application.NewDynamicPricingCommandService(pricingRepo, logger.Logger)
+	command := application.NewDynamicPricingCommandService(pricingRepo, outboxPublisher, logger.Logger)
 	pricingService := application.NewDynamicPricingService(command, query)
 
 	// 5.3 Interface (HTTP Handlers)
@@ -170,6 +182,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
