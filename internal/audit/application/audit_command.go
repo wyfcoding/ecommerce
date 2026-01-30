@@ -11,24 +11,26 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
-// AuditManager 处理审计模块的写操作和业务逻辑。
-type AuditManager struct {
+// AuditCommandService 处理审计模块的写操作和业务逻辑。
+type AuditCommandService struct {
 	repo        domain.AuditRepository
+	publisher   domain.EventPublisher
 	idGenerator idgen.Generator
 	logger      *slog.Logger
 }
 
-// NewAuditManager 创建并返回一个新的 AuditManager 实例。
-func NewAuditManager(repo domain.AuditRepository, idGenerator idgen.Generator, logger *slog.Logger) *AuditManager {
-	return &AuditManager{
+// NewAuditCommandService 创建并返回一个新的 AuditCommandService 实例。
+func NewAuditCommandService(repo domain.AuditRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *AuditCommandService {
+	return &AuditCommandService{
 		repo:        repo,
+		publisher:   publisher,
 		idGenerator: idGenerator,
 		logger:      logger,
 	}
 }
 
 // SealLogs 为最近的日志生成“数字封条”（Merkle Root）
-func (m *AuditManager) SealLogs(ctx context.Context, limit int) (string, error) {
+func (m *AuditCommandService) SealLogs(ctx context.Context, limit int) (string, error) {
 	// 1. 获取最近的日志
 	query := &domain.AuditLogQuery{
 		Page:     1,
@@ -58,7 +60,7 @@ func (m *AuditManager) SealLogs(ctx context.Context, limit int) (string, error) 
 }
 
 // LogEvent 记录一个审计事件。
-func (m *AuditManager) LogEvent(ctx context.Context, userID uint64, username string, eventType domain.AuditEventType, module, action string, opts ...LogOption) error {
+func (m *AuditCommandService) LogEvent(ctx context.Context, userID uint64, username string, eventType domain.AuditEventType, module, action string, opts ...LogOption) error {
 	auditNo := fmt.Sprintf("AUD%d", m.idGenerator.Generate())
 	log := domain.NewAuditLog(auditNo, userID, username, eventType, module, action)
 
@@ -112,7 +114,7 @@ func WithDuration(duration int64) LogOption {
 }
 
 // CreatePolicy 创建一个新的审计策略。
-func (m *AuditManager) CreatePolicy(ctx context.Context, name, description string) (*domain.AuditPolicy, error) {
+func (m *AuditCommandService) CreatePolicy(ctx context.Context, name, description string) (*domain.AuditPolicy, error) {
 	policy := domain.NewAuditPolicy(name, description)
 	if err := m.repo.CreatePolicy(ctx, policy); err != nil {
 		m.logger.ErrorContext(ctx, "failed to create audit policy", "name", name, "error", err)
@@ -122,7 +124,7 @@ func (m *AuditManager) CreatePolicy(ctx context.Context, name, description strin
 }
 
 // UpdatePolicy 更新审计策略。
-func (m *AuditManager) UpdatePolicy(ctx context.Context, id uint64, eventTypes, modules []string, enabled bool) error {
+func (m *AuditCommandService) UpdatePolicy(ctx context.Context, id uint64, eventTypes, modules []string, enabled bool) error {
 	policy, err := m.repo.GetPolicy(ctx, id)
 	if err != nil {
 		return err
@@ -137,12 +139,12 @@ func (m *AuditManager) UpdatePolicy(ctx context.Context, id uint64, eventTypes, 
 }
 
 // DeletePolicy 删除审计策略。
-func (m *AuditManager) DeletePolicy(ctx context.Context, id uint64) error {
+func (m *AuditCommandService) DeletePolicy(ctx context.Context, id uint64) error {
 	return m.repo.DeletePolicy(ctx, id)
 }
 
 // CreateReport 创建一个新的审计报告。
-func (m *AuditManager) CreateReport(ctx context.Context, title, description string) (*domain.AuditReport, error) {
+func (m *AuditCommandService) CreateReport(ctx context.Context, title, description string) (*domain.AuditReport, error) {
 	reportNo := fmt.Sprintf("AUDRPT%d", m.idGenerator.Generate())
 	report := domain.NewAuditReport(reportNo, title, description)
 
@@ -154,7 +156,7 @@ func (m *AuditManager) CreateReport(ctx context.Context, title, description stri
 }
 
 // GenerateReport 生成审计报告。
-func (m *AuditManager) GenerateReport(ctx context.Context, id uint64) error {
+func (m *AuditCommandService) GenerateReport(ctx context.Context, id uint64) error {
 	report, err := m.repo.GetReport(ctx, id)
 	if err != nil {
 		return err
@@ -167,11 +169,11 @@ func (m *AuditManager) GenerateReport(ctx context.Context, id uint64) error {
 }
 
 // DeleteReport 删除审计报告。
-func (m *AuditManager) DeleteReport(ctx context.Context, id uint64) error {
+func (m *AuditCommandService) DeleteReport(ctx context.Context, id uint64) error {
 	return m.repo.DeleteReport(ctx, id)
 }
 
 // DeleteLogsBefore 清理历史日志。
-func (m *AuditManager) DeleteLogsBefore(ctx context.Context, beforeTime time.Time) error {
+func (m *AuditCommandService) DeleteLogsBefore(ctx context.Context, beforeTime time.Time) error {
 	return m.repo.DeleteLogsBefore(ctx, beforeTime)
 }

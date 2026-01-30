@@ -8,42 +8,42 @@ import (
 
 // ModerationService 作为内容审核操作的门面。
 type ModerationService struct {
-	manager *ModerationManager
-	query   *ModerationQuery
+	Command *ModerationCommandService
+	Query   *ModerationQueryService
 }
 
 // NewModerationService 创建并返回一个新的 ModerationService 门面实例。
-func NewModerationService(manager *ModerationManager, query *ModerationQuery) *ModerationService {
+func NewModerationService(command *ModerationCommandService, query *ModerationQueryService) *ModerationService {
 	return &ModerationService{
-		manager: manager,
-		query:   query,
+		Command: command,
+		Query:   query,
 	}
 }
 
 // --- 写操作（委托给 Manager）---
 
 func (s *ModerationService) SubmitContent(ctx context.Context, contentType domain.ContentType, contentID uint64, content string, userID uint64) (*domain.ModerationRecord, error) {
-	return s.manager.SubmitContent(ctx, contentType, contentID, content, userID)
+	return s.Command.SubmitContent(ctx, contentType, contentID, content, userID)
 }
 
 func (s *ModerationService) ReviewContent(ctx context.Context, id uint64, moderatorID uint64, approved bool, reason string) error {
-	return s.manager.ReviewContent(ctx, id, moderatorID, approved, reason)
+	return s.Command.ReviewContent(ctx, id, moderatorID, approved, reason)
 }
 
 func (s *ModerationService) AddSensitiveWord(ctx context.Context, word, category string, level int8) (*domain.SensitiveWord, error) {
-	return s.manager.AddSensitiveWord(ctx, word, category, level)
+	return s.Command.AddSensitiveWord(ctx, word, category, level)
 }
 
 func (s *ModerationService) DeleteSensitiveWord(ctx context.Context, id uint64) error {
-	return s.manager.DeleteSensitiveWord(ctx, id)
+	return s.Command.DeleteSensitiveWord(ctx, id)
 }
 
 // --- 读操作（委托给 Query）---
 
 func (s *ModerationService) ListPendingRecords(ctx context.Context, page, pageSize int) ([]*domain.ModerationRecord, int64, error) {
-	return s.query.ListPendingRecords(ctx, page, pageSize)
+	return s.Query.ListPendingRecords(ctx, page, pageSize)
 }
 
 func (s *ModerationService) ListSensitiveWords(ctx context.Context, page, pageSize int) ([]*domain.SensitiveWord, int64, error) {
-	return s.query.ListSensitiveWords(ctx, page, pageSize)
+	return s.Query.ListSensitiveWords(ctx, page, pageSize)
 }

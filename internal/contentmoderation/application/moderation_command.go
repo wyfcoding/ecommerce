@@ -11,18 +11,20 @@ import (
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 )
 
-// ModerationManager 处理内容审核的写操作。
-type ModerationManager struct {
+// ModerationCommandService 处理内容审核的写操作。
+type ModerationCommandService struct {
 	repo          domain.ModerationRepository
+	publisher     domain.EventPublisher
 	logger        *slog.Logger
 	sensitiveTrie *algorithm.Trie[*domain.SensitiveWord]
 	aimodelCli    aimodelv1.AIModelServiceClient
 }
 
-// NewModerationManager 创建并返回一个新的 ModerationManager 实例。
-func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger, aimodelCli aimodelv1.AIModelServiceClient) *ModerationManager {
-	return &ModerationManager{
+// NewModerationCommandService 创建并返回一个新的 ModerationCommandService 实例。
+func NewModerationCommandService(repo domain.ModerationRepository, publisher domain.EventPublisher, logger *slog.Logger, aimodelCli aimodelv1.AIModelServiceClient) *ModerationCommandService {
+	return &ModerationCommandService{
 		repo:          repo,
+		publisher:     publisher,
 		logger:        logger,
 		sensitiveTrie: algorithm.NewTrie[*domain.SensitiveWord](),
 		aimodelCli:    aimodelCli,
@@ -30,7 +32,7 @@ func NewModerationManager(repo domain.ModerationRepository, logger *slog.Logger,
 }
 
 // SubmitContent 提交内容进行审核。
-func (m *ModerationManager) SubmitContent(ctx context.Context, contentType domain.ContentType, contentID uint64, content string, userID uint64) (*domain.ModerationRecord, error) {
+func (m *ModerationCommandService) SubmitContent(ctx context.Context, contentType domain.ContentType, contentID uint64, content string, userID uint64) (*domain.ModerationRecord, error) {
 	record := domain.NewModerationRecord(contentType, contentID, content, userID)
 
 	// 1. 使用 Trie 进行敏感词检测 (简单的分词匹配)
@@ -71,7 +73,7 @@ func (m *ModerationManager) SubmitContent(ctx context.Context, contentType domai
 }
 
 // ReviewContent 对内容进行人工审核。
-func (m *ModerationManager) ReviewContent(ctx context.Context, id uint64, moderatorID uint64, approved bool, reason string) error {
+func (m *ModerationCommandService) ReviewContent(ctx context.Context, id uint64, moderatorID uint64, approved bool, reason string) error {
 	record, err := m.repo.GetRecord(ctx, id)
 	if err != nil {
 		return err
@@ -87,7 +89,7 @@ func (m *ModerationManager) ReviewContent(ctx context.Context, id uint64, modera
 }
 
 // AddSensitiveWord 添加一个敏感词到系统。
-func (m *ModerationManager) AddSensitiveWord(ctx context.Context, word, category string, level int8) (*domain.SensitiveWord, error) {
+func (m *ModerationCommandService) AddSensitiveWord(ctx context.Context, word, category string, level int8) (*domain.SensitiveWord, error) {
 	sensitiveWord := domain.NewSensitiveWord(word, category, level)
 	if err := m.repo.CreateWord(ctx, sensitiveWord); err != nil {
 		m.logger.ErrorContext(ctx, "failed to create sensitive word", "word", word, "error", err)
@@ -102,13 +104,13 @@ func (m *ModerationManager) AddSensitiveWord(ctx context.Context, word, category
 }
 
 // DeleteSensitiveWord 根据ID删除一个敏感词。
-func (m *ModerationManager) DeleteSensitiveWord(ctx context.Context, id uint64) error {
+func (m *ModerationCommandService) DeleteSensitiveWord(ctx context.Context, id uint64) error {
 	// 注意：当前 Trie 实现不支持删除，生产环境需支持动态重载或并发安全的 Map/Trie 替换
 	return m.repo.DeleteWord(ctx, id)
 }
 
 // LoadSensitiveWords 加载所有敏感词到内存 Trie 中。
-func (m *ModerationManager) LoadSensitiveWords(ctx context.Context) error {
+func (m *ModerationCommandService) LoadSensitiveWords(ctx context.Context) error {
 	words, _, err := m.repo.ListWords(ctx, 0, 10000) // 假设最多10000个
 	if err != nil {
 		return err
@@ -126,7 +128,7 @@ func (m *ModerationManager) LoadSensitiveWords(ctx context.Context) error {
 var wordRegex = regexp.MustCompile(`\w+`)
 
 // CheckSensitiveWords 检查内容中是否包含敏感词。
-func (m *ModerationManager) CheckSensitiveWords(content string) []string {
+func (m *ModerationCommandService) CheckSensitiveWords(content string) []string {
 	// 真实化分词逻辑：使用正则提取所有词元，并自动过滤标点符号
 	tokens := wordRegex.FindAllString(strings.ToLower(content), -1)
 	found := make([]string, 0)

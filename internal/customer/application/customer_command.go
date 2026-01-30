@@ -10,22 +10,24 @@ import (
 	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
 )
 
-// CustomerManager 处理客户服务的写操作。
-type CustomerManager struct {
-	repo   domain.CustomerRepository
-	logger *slog.Logger
+// CustomerCommandService 处理客户服务的写操作。
+type CustomerCommandService struct {
+	repo      domain.CustomerRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewCustomerManager 创建并返回一个新的 CustomerManager 实例。
-func NewCustomerManager(repo domain.CustomerRepository, logger *slog.Logger) *CustomerManager {
-	return &CustomerManager{
-		repo:   repo,
-		logger: logger,
+// NewCustomerCommandService 创建并返回一个新的 CustomerCommandService 实例。
+func NewCustomerCommandService(repo domain.CustomerRepository, publisher domain.EventPublisher, logger *slog.Logger) *CustomerCommandService {
+	return &CustomerCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // SegmentUsers 利用 K-Means 算法对用户进行分群。
-func (m *CustomerManager) SegmentUsers(ctx context.Context, k int) (map[uint64]int, error) {
+func (m *CustomerCommandService) SegmentUsers(ctx context.Context, k int) (map[uint64]int, error) {
 	// 1. 从 Repository 获取真实的聚合统计数据
 	userStats, err := m.repo.GetCustomerSegmentationStats(ctx)
 	if err != nil {
@@ -61,7 +63,7 @@ func (m *CustomerManager) SegmentUsers(ctx context.Context, k int) (map[uint64]i
 }
 
 // CreateTicket 创建一个新的客户服务工单。
-func (m *CustomerManager) CreateTicket(ctx context.Context, userID uint64, subject, description, category string, priority domain.TicketPriority) (*domain.Ticket, error) {
+func (m *CustomerCommandService) CreateTicket(ctx context.Context, userID uint64, subject, description, category string, priority domain.TicketPriority) (*domain.Ticket, error) {
 	ticketNo := fmt.Sprintf("TKT%d", time.Now().UnixNano())
 	ticket := domain.NewTicket(ticketNo, userID, subject, description, category, priority)
 
@@ -74,7 +76,7 @@ func (m *CustomerManager) CreateTicket(ctx context.Context, userID uint64, subje
 }
 
 // ReplyTicket 回复一个工单。
-func (m *CustomerManager) ReplyTicket(ctx context.Context, ticketID, senderID uint64, senderType, content string, msgType domain.MessageType) (*domain.Message, error) {
+func (m *CustomerCommandService) ReplyTicket(ctx context.Context, ticketID, senderID uint64, senderType, content string, msgType domain.MessageType) (*domain.Message, error) {
 	ticket, err := m.repo.GetTicket(ctx, ticketID)
 	if err != nil {
 		return nil, err
@@ -98,7 +100,7 @@ func (m *CustomerManager) ReplyTicket(ctx context.Context, ticketID, senderID ui
 }
 
 // CloseTicket 关闭一个工单。
-func (m *CustomerManager) CloseTicket(ctx context.Context, id uint64) error {
+func (m *CustomerCommandService) CloseTicket(ctx context.Context, id uint64) error {
 	ticket, err := m.repo.GetTicket(ctx, id)
 	if err != nil {
 		return err
@@ -109,7 +111,7 @@ func (m *CustomerManager) CloseTicket(ctx context.Context, id uint64) error {
 }
 
 // ResolveTicket 解决一个工单。
-func (m *CustomerManager) ResolveTicket(ctx context.Context, id uint64) error {
+func (m *CustomerCommandService) ResolveTicket(ctx context.Context, id uint64) error {
 	ticket, err := m.repo.GetTicket(ctx, id)
 	if err != nil {
 		return err
