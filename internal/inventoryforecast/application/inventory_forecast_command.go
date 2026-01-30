@@ -10,22 +10,24 @@ import (
 	algorithm "github.com/wyfcoding/pkg/algorithm/math"
 )
 
-// InventoryForecastManager 处理库存预测的写操作。
-type InventoryForecastManager struct {
-	repo   domain.InventoryForecastRepository
-	logger *slog.Logger
+// InventoryForecastCommandService 处理库存预测的写操作。
+type InventoryForecastCommandService struct {
+	repo      domain.InventoryForecastRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewInventoryForecastManager creates a new InventoryForecastManager instance.
-func NewInventoryForecastManager(repo domain.InventoryForecastRepository, logger *slog.Logger) *InventoryForecastManager {
-	return &InventoryForecastManager{
-		repo:   repo,
-		logger: logger,
+// NewInventoryForecastCommandService creates a new InventoryForecastCommandService instance.
+func NewInventoryForecastCommandService(repo domain.InventoryForecastRepository, publisher domain.EventPublisher, logger *slog.Logger) *InventoryForecastCommandService {
+	return &InventoryForecastCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // SmoothSalesData 使用卡尔曼滤波平滑历史销量数据
-func (m *InventoryForecastManager) SmoothSalesData(history []float64) float64 {
+func (m *InventoryForecastCommandService) SmoothSalesData(history []float64) float64 {
 	if len(history) == 0 {
 		return 0
 	}
@@ -41,7 +43,7 @@ func (m *InventoryForecastManager) SmoothSalesData(history []float64) float64 {
 }
 
 // GenerateForecast 生成销售预测。
-func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID uint64) (*domain.SalesForecast, error) {
+func (m *InventoryForecastCommandService) GenerateForecast(ctx context.Context, skuID uint64) (*domain.SalesForecast, error) {
 	// 1. 获取历史销量数据
 	intHistory, err := m.repo.GetSalesHistory(ctx, skuID, 30)
 	if err != nil {
@@ -114,7 +116,7 @@ func (m *InventoryForecastManager) GenerateForecast(ctx context.Context, skuID u
 }
 
 // AnalyzeStockoutRisk 分析缺货风险。
-func (m *InventoryForecastManager) AnalyzeStockoutRisk(ctx context.Context, skuID uint64, currentStock int32) (*domain.StockoutRisk, error) {
+func (m *InventoryForecastCommandService) AnalyzeStockoutRisk(ctx context.Context, skuID uint64, currentStock int32) (*domain.StockoutRisk, error) {
 	// 获取或生成预测
 	forecast, err := m.repo.GetForecastBySKU(ctx, skuID)
 	if err != nil {

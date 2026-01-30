@@ -11,25 +11,27 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
-// GroupbuyManager 负责处理 Groupbuy 相关的写操作和业务逻辑。
-type GroupbuyManager struct {
+// GroupbuyCommandService 负责处理 Groupbuy 相关的写操作和业务逻辑。
+type GroupbuyCommandService struct {
 	repo        domain.GroupbuyRepository
+	publisher   domain.EventPublisher
 	idGenerator idgen.Generator
 	logger      *slog.Logger
 	matcher     *algorithm.GroupBuyMatcher
 }
 
-// NewGroupbuyManager 负责处理 NewGroupbuy 相关的写操作和业务逻辑。
-func NewGroupbuyManager(repo domain.GroupbuyRepository, idGenerator idgen.Generator, logger *slog.Logger) *GroupbuyManager {
-	return &GroupbuyManager{
+// NewGroupbuyCommandService 构造函数。
+func NewGroupbuyCommandService(repo domain.GroupbuyRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *GroupbuyCommandService {
+	return &GroupbuyCommandService{
 		repo:        repo,
+		publisher:   publisher,
 		idGenerator: idGenerator,
 		logger:      logger,
 		matcher:     algorithm.NewGroupBuyMatcher(),
 	}
 }
 
-func (m *GroupbuyManager) CreateGroupbuy(ctx context.Context, name string, productID, skuID, originalPrice, groupPrice uint64,
+func (m *GroupbuyCommandService) CreateGroupbuy(ctx context.Context, name string, productID, skuID, originalPrice, groupPrice uint64,
 	minPeople, maxPeople, totalStock int32, startTime, endTime time.Time,
 ) (*domain.Groupbuy, error) {
 	groupbuy := domain.NewGroupbuy(name, productID, skuID, originalPrice, groupPrice, minPeople, maxPeople, totalStock, startTime, endTime)
@@ -43,7 +45,7 @@ func (m *GroupbuyManager) CreateGroupbuy(ctx context.Context, name string, produ
 	return groupbuy, nil
 }
 
-func (m *GroupbuyManager) InitiateTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyTeam, *domain.GroupbuyOrder, error) {
+func (m *GroupbuyCommandService) InitiateTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyTeam, *domain.GroupbuyOrder, error) {
 	groupbuy, err := m.repo.GetGroupbuyByID(ctx, groupbuyID)
 	if err != nil {
 		return nil, nil, err
@@ -75,7 +77,7 @@ func (m *GroupbuyManager) InitiateTeam(ctx context.Context, groupbuyID, userID u
 	return team, order, nil
 }
 
-func (m *GroupbuyManager) JoinTeam(ctx context.Context, teamNo string, userID uint64) (*domain.GroupbuyOrder, error) {
+func (m *GroupbuyCommandService) JoinTeam(ctx context.Context, teamNo string, userID uint64) (*domain.GroupbuyOrder, error) {
 	team, err := m.repo.GetTeamByNo(ctx, teamNo)
 	if err != nil {
 		return nil, err
@@ -105,7 +107,7 @@ func (m *GroupbuyManager) JoinTeam(ctx context.Context, teamNo string, userID ui
 }
 
 // AutoJoinTeam 自动匹配并加入一个最合适的拼团团队。
-func (m *GroupbuyManager) AutoJoinTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyOrder, error) {
+func (m *GroupbuyCommandService) AutoJoinTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyOrder, error) {
 	// 1. 获取活跃的团队列表 (获取前100个作为候选)
 	teams, _, err := m.repo.ListTeamsByGroupbuyID(ctx, groupbuyID, 1, 100)
 	if err != nil {
@@ -155,7 +157,7 @@ func (m *GroupbuyManager) AutoJoinTeam(ctx context.Context, groupbuyID, userID u
 }
 
 // OptimizeTeamAssignments 优化团员与团长的匹配方案 (基于 Gale-Shapley 算法)
-func (m *GroupbuyManager) OptimizeTeamAssignments(ctx context.Context, members, leaders []algorithm.Participant) map[int]int {
+func (m *GroupbuyCommandService) OptimizeTeamAssignments(ctx context.Context, members, leaders []algorithm.Participant) map[int]int {
 	if len(members) == 0 || len(leaders) == 0 {
 		return nil
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/dataingestion/v1"
 	"github.com/wyfcoding/ecommerce/internal/dataingestion/application"
+	"github.com/wyfcoding/ecommerce/internal/dataingestion/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/dataingestion/infrastructure/persistence"
 	ingestiongrpc "github.com/wyfcoding/ecommerce/internal/dataingestion/interfaces/grpc"
 	ingestionhttp "github.com/wyfcoding/ecommerce/internal/dataingestion/interfaces/http"
@@ -23,6 +25,7 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
@@ -153,16 +156,27 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. DDD 分层装配
+	// 5. 初始化 Outbox 管理器与发布者
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 启动 Outbox 处理器
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
+		return nil
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
+	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
 	ingestionRepo := persistence.NewDataIngestionRepository(db.RawDB())
 
-	// 5.2 Application (Service)
-	query := application.NewDataIngestionQuery(ingestionRepo)
-	manager := application.NewDataIngestionManager(ingestionRepo, logger.Logger)
-	ingestionService := application.NewDataIngestionService(manager, query)
+	// 6.2 Application (Service)
+	querySvc := application.NewDataIngestionQueryService(ingestionRepo)
+	commandSvc := application.NewDataIngestionCommandService(ingestionRepo, outboxPublisher, logger.Logger)
+	ingestionService := application.NewDataIngestionService(commandSvc, querySvc)
 
 	// 5.3 Interface (HTTP Handlers)
 	handler := ingestionhttp.NewHandler(ingestionService, logger.Logger)
@@ -170,6 +184,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {

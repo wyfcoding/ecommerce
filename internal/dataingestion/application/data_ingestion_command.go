@@ -8,22 +8,24 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/dataingestion/domain"
 )
 
-// DataIngestionManager 处理数据采集的写操作。
-type DataIngestionManager struct {
-	repo   domain.DataIngestionRepository
-	logger *slog.Logger
+// DataIngestionCommandService 处理数据采集的写操作。
+type DataIngestionCommandService struct {
+	repo      domain.DataIngestionRepository
+	publisher domain.EventPublisher
+	logger    *slog.Logger
 }
 
-// NewDataIngestionManager 创建并返回一个新的 DataIngestionManager 实例。
-func NewDataIngestionManager(repo domain.DataIngestionRepository, logger *slog.Logger) *DataIngestionManager {
-	return &DataIngestionManager{
-		repo:   repo,
-		logger: logger,
+// NewDataIngestionCommandService 创建并返回一个新的 DataIngestionCommandService 实例。
+func NewDataIngestionCommandService(repo domain.DataIngestionRepository, publisher domain.EventPublisher, logger *slog.Logger) *DataIngestionCommandService {
+	return &DataIngestionCommandService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
 // RegisterSource 注册一个新的数据源。
-func (m *DataIngestionManager) RegisterSource(ctx context.Context, name string, sourceType domain.SourceType, config, description string) (*domain.IngestionSource, error) {
+func (m *DataIngestionCommandService) RegisterSource(ctx context.Context, name string, sourceType domain.SourceType, config, description string) (*domain.IngestionSource, error) {
 	source := domain.NewIngestionSource(name, sourceType, config, description)
 	if err := m.repo.SaveSource(ctx, source); err != nil {
 		m.logger.ErrorContext(ctx, "failed to save source", "name", name, "error", err)
@@ -34,7 +36,7 @@ func (m *DataIngestionManager) RegisterSource(ctx context.Context, name string, 
 }
 
 // TriggerIngestion 触发一个数据摄取任务。
-func (m *DataIngestionManager) TriggerIngestion(ctx context.Context, sourceID uint64) (*domain.IngestionJob, error) {
+func (m *DataIngestionCommandService) TriggerIngestion(ctx context.Context, sourceID uint64) (*domain.IngestionJob, error) {
 	source, err := m.repo.GetSource(ctx, sourceID)
 	if err != nil {
 		return nil, err
@@ -53,7 +55,7 @@ func (m *DataIngestionManager) TriggerIngestion(ctx context.Context, sourceID ui
 }
 
 // processJob 异步处理数据摄取任务的后台逻辑。
-func (m *DataIngestionManager) processJob(job *domain.IngestionJob) {
+func (m *DataIngestionCommandService) processJob(job *domain.IngestionJob) {
 	ctx := context.Background()
 	job.Start()
 	if err := m.repo.UpdateJob(ctx, job); err != nil {
@@ -86,7 +88,7 @@ func (m *DataIngestionManager) processJob(job *domain.IngestionJob) {
 }
 
 // IngestEvent 摄取单个事件。
-func (m *DataIngestionManager) IngestEvent(ctx context.Context, eventType, eventData, source string, timestamp time.Time) error {
+func (m *DataIngestionCommandService) IngestEvent(ctx context.Context, eventType, eventData, source string, timestamp time.Time) error {
 	event := domain.NewIngestedEvent(eventType, eventData, source, timestamp)
 	if err := m.repo.SaveEvent(ctx, event); err != nil {
 		m.logger.ErrorContext(ctx, "failed to save event", "event_type", eventType, "error", err)
@@ -97,7 +99,7 @@ func (m *DataIngestionManager) IngestEvent(ctx context.Context, eventType, event
 }
 
 // IngestBatch 批量摄取事件。
-func (m *DataIngestionManager) IngestBatch(ctx context.Context, events []*domain.IngestedEvent) error {
+func (m *DataIngestionCommandService) IngestBatch(ctx context.Context, events []*domain.IngestedEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
