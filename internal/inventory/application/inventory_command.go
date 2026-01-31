@@ -84,7 +84,7 @@ func (m *InventoryCommandService) DeleteInventory(ctx context.Context, skuID uin
 // executeWithRetry 执行带乐观锁重试的库存更新逻辑
 func (m *InventoryCommandService) executeWithRetry(ctx context.Context, skuID uint64, fn func(*domain.Inventory) (*domain.InventoryLog, any, error)) error {
 	maxRetries := 3
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		inventory, err := m.repo.GetBySkuID(ctx, skuID)
 		if err != nil {
 			return err

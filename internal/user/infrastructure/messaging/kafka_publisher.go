@@ -37,7 +37,7 @@ func NewKafkaPublisher(brokers []string, logger *slog.Logger) *KafkaPublisher {
 }
 
 // Publish 发布事件到指定 Topic
-func (p *KafkaPublisher) Publish(ctx context.Context, topic string, event interface{}) error {
+func (p *KafkaPublisher) Publish(ctx context.Context, topic string, event any) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)

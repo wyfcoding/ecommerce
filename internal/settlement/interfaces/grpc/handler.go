@@ -91,10 +91,7 @@ func (s *Server) ListSettlements(ctx context.Context, req *pb.ListSettlementsReq
 	start := time.Now()
 	slog.Debug("gRPC ListSettlements received", "merchant_id", req.MerchantId)
 
-	page := int(req.Page)
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.Page), 1)
 	pageSize := int(req.PageSize)
 	if pageSize < 1 {
 		pageSize = 10
