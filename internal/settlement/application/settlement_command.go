@@ -147,7 +147,6 @@ func (s *SettlementCommandService) CreateSettlement(ctx context.Context, merchan
 		}
 		return s.publisher.PublishInTx(ctx, tx, "settlement.created", settlement.SettlementNo, event)
 	})
-
 	if err != nil {
 		return nil, err
 	}

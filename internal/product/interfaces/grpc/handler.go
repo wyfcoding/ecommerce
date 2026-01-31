@@ -369,12 +369,15 @@ func (s *Server) UpdateCategory(ctx context.Context, req *pb.UpdateCategoryReque
 	// Not implemented in this turn
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
+
 func (s *Server) DeleteCategory(ctx context.Context, req *pb.DeleteCategoryRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
+
 func (s *Server) UpdateBrand(ctx context.Context, req *pb.UpdateBrandRequest) (*pb.Brand, error) {
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
+
 func (s *Server) DeleteBrand(ctx context.Context, req *pb.DeleteBrandRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }

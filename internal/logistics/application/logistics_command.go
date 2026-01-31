@@ -78,7 +78,6 @@ func (s *LogisticsCommandService) CreateLogistics(ctx context.Context, orderID u
 		}
 		return s.publisher.PublishInTx(ctx, tx, "logistics.created", fmt.Sprintf("%d", orderID), event)
 	})
-
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create logistics", "order_id", orderID, "error", err)
 		return nil, err
@@ -155,7 +154,6 @@ func (s *LogisticsCommandService) AssignRidersToOrders(ctx context.Context, ride
 				}
 				return s.publisher.PublishInTx(ctx, tx, "logistics.rider_assigned", fmt.Sprintf("%d", logistics.ID), event)
 			})
-
 			if err != nil {
 				s.logger.ErrorContext(ctx, "failed to assign rider", "logistics_id", logistics.ID, "rider_id", riderID, "error", err)
 				continue

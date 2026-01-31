@@ -60,7 +60,6 @@ func (s *MarketingCommandService) CreateCampaign(ctx context.Context, name strin
 		}
 		return s.publisher.PublishInTx(ctx, tx, "marketing.campaign.created", fmt.Sprintf("%d", campaign.ID), event)
 	})
-
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create campaign", "name", name, "error", err)
 		return nil, err
@@ -166,7 +165,6 @@ func (s *MarketingCommandService) CreateBanner(ctx context.Context, title, image
 		}
 		return s.publisher.PublishInTx(ctx, tx, "marketing.banner.created", fmt.Sprintf("%d", banner.ID), event)
 	})
-
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create banner", "title", title, "error", err)
 		return nil, err

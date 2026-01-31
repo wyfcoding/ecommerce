@@ -84,7 +84,6 @@ func registerGRPC(s *grpc.Server, ctx *AppContext) {
 
 // registerGin 注册 HTTP 路由
 func registerGin(e *gin.Engine, ctx *AppContext) {
-
 	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)

@@ -44,7 +44,7 @@ func (s *WarehouseQueryService) GetOptimalWarehouse(ctx context.Context, skuID u
 	}
 
 	var bestW *domain.Warehouse
-	var minDistance = math.MaxFloat64
+	minDistance := math.MaxFloat64
 	var availQty int32
 
 	for _, w := range warehouses {

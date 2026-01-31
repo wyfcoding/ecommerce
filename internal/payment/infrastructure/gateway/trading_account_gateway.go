@@ -32,7 +32,6 @@ func (g *TradingAccountGateway) PreAuth(ctx context.Context, req *domain.Payment
 		Amount:   strconv.FormatFloat(float64(req.Amount)/100.0, 'f', 2, 64), // 假设电商单位是分，交易侧是元
 		OrderId:  req.OrderID,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to call trading account freeze: %w", err)
 	}

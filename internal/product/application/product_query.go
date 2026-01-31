@@ -13,8 +13,8 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
 	"github.com/wyfcoding/pkg/cache"
-	"github.com/wyfcoding/pkg/policy"
 	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/policy"
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )

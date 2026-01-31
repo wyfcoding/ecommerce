@@ -128,7 +128,6 @@ func (m *FlashSaleCommandService) PlaceOrder(ctx context.Context, userID, flashs
 		}
 		return m.publisher.PublishInTx(ctx, tx, "flashsale.order.created", fmt.Sprintf("%d", orderID), event)
 	})
-
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to commit flashsale transaction", "order_id", orderID, "error", err)
 		// 容错：DB 失败必须回滚 Redis
@@ -169,7 +168,6 @@ func (m *FlashSaleCommandService) CancelOrder(ctx context.Context, orderID uint6
 		}
 		return m.publisher.PublishInTx(ctx, tx, "flashsale.order.cancelled", fmt.Sprintf("%d", orderID), event)
 	})
-
 	if err != nil {
 		return err
 	}
