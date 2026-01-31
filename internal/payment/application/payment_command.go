@@ -17,6 +17,7 @@ type PaymentCommandService struct {
 	paymentRepo domain.PaymentRepository
 	refundRepo  domain.RefundRepository
 	channelRepo domain.ChannelRepository
+	eventStore  domain.EventStore
 	routing     *RoutingEngine
 	riskService domain.RiskService
 	idGenerator idgen.Generator
@@ -30,6 +31,7 @@ func NewPaymentCommandService(
 	paymentRepo domain.PaymentRepository,
 	refundRepo domain.RefundRepository,
 	channelRepo domain.ChannelRepository,
+	eventStore domain.EventStore,
 	riskService domain.RiskService,
 	idGenerator idgen.Generator,
 	gateways map[domain.GatewayType]domain.PaymentGateway,
@@ -41,6 +43,7 @@ func NewPaymentCommandService(
 		paymentRepo: paymentRepo,
 		refundRepo:  refundRepo,
 		channelRepo: channelRepo,
+		eventStore:  eventStore,
 		routing:     NewRoutingEngine(channelRepo),
 		riskService: riskService,
 		idGenerator: idGenerator,
@@ -82,7 +85,6 @@ func (s *PaymentCommandService) InitiatePayment(ctx context.Context, cmd *Initia
 		return nil, nil, fmt.Errorf("high risk blocked: %s", riskResult.Reason)
 	}
 
-	// 3. 创建或获取支付单
 	payment, err := s.paymentRepo.FindByOrderID(ctx, cmd.UserID, cmd.OrderID)
 	if err != nil {
 		return nil, nil, err
@@ -114,18 +116,71 @@ func (s *PaymentCommandService) InitiatePayment(ctx context.Context, cmd *Initia
 	}
 	payment.TransactionID = resp.TransactionID
 
-	// 7. 保存
-	if payment.ID == 0 {
-		err = s.paymentRepo.Save(ctx, payment)
-	} else {
-		err = s.paymentRepo.Update(ctx, payment)
-	}
-	if err != nil {
+	// 7. 保存聚合与事件
+	if err := s.saveAggregate(ctx, payment); err != nil {
 		return nil, nil, err
 	}
 
 	s.logger.InfoContext(ctx, "payment initiated successfully", "payment_no", payment.PaymentNo, "transaction_id", resp.TransactionID)
 	return payment, resp, nil
+}
+
+// saveAggregate 内部辅助方法，保存聚合状态并持久化未提交的事件。
+func (s *PaymentCommandService) saveAggregate(ctx context.Context, p *domain.Payment) error {
+	events := p.GetUncommittedEvents()
+	if len(events) == 0 {
+		return nil
+	}
+
+	return s.paymentRepo.Transaction(ctx, p.UserID, func(tx any) error {
+		txRepo := s.paymentRepo.WithTx(tx)
+
+		var err error
+		if p.Model.ID == 0 {
+			err = txRepo.Save(ctx, p)
+		} else {
+			err = txRepo.Update(ctx, p)
+		}
+		if err != nil {
+			return err
+		}
+
+		// 保存事件到事件存储。
+		if err := s.eventStore.Save(ctx, events); err != nil {
+			return err
+		}
+
+		// 发布事件。
+		for _, e := range events {
+			topic := s.getTopicForEvent(e)
+			if topic != "" {
+				if err := s.publisher.PublishInTx(ctx, tx, topic, p.PaymentNo, e); err != nil {
+					return err
+				}
+			}
+		}
+
+		p.MarkCommitted()
+		return nil
+	})
+}
+
+func (s *PaymentCommandService) getTopicForEvent(event any) string {
+	switch event.(type) {
+	case *domain.PaymentInitiatedEvent:
+		return "payment.initiated"
+	case *domain.PaymentAuthorizedEvent:
+		return "payment.authorized"
+	case *domain.PaymentCapturedEvent:
+		return "payment.captured"
+	case *domain.PaymentPaidEvent:
+		return "payment.paid"
+	case *domain.RefundFinishedEvent:
+		return "payment.refunded"
+	case *domain.PaymentClosedEvent:
+		return "payment.closed"
+	}
+	return ""
 }
 
 // CapturePayment 对标金融级账本一致性
@@ -148,33 +203,19 @@ func (s *PaymentCommandService) CapturePayment(ctx context.Context, cmd *Capture
 			return err
 		}
 
-		// 2. 状态驱动变更 (FSM)
+		// 2. 状态驱动变更 (FSM) - 事件将包含 PaidAt 等信息
+		payment.CapturedAmount = cmd.Amount
 		if err := payment.Trigger(ctx, "CAPTURE", "Real-time fund capture"); err != nil {
 			return err
 		}
-		payment.CapturedAmount = cmd.Amount
-		now := time.Now()
-		payment.PaidAt = &now
 
 		// 3. 更新分账状态
 		for i := range payment.Splits {
 			payment.Splits[i].Status = "SETTLED"
 		}
 
-		if err := txRepo.Update(ctx, payment); err != nil {
-			return err
-		}
-
-		// 3. 发送结算事件 (Internal Service Interaction)
-		event := &domain.PaymentCapturedEvent{
-			PaymentNo: payment.PaymentNo,
-			OrderNo:   payment.OrderNo,
-			UserID:    payment.UserID,
-			Amount:    payment.CapturedAmount,
-			Timestamp: time.Now().Unix(),
-			PaidAt:    now,
-		}
-		return s.publisher.PublishInTx(ctx, tx, "payment.captured", payment.PaymentNo, event)
+		// 4. 保存聚合 (含事件发布)
+		return s.saveAggregate(ctx, payment)
 	})
 
 	if err == nil {
@@ -220,7 +261,7 @@ func (s *PaymentCommandService) RequestRefund(ctx context.Context, cmd *RefundPa
 		// 创建退款单
 		refund = &domain.Refund{
 			RefundNo:     fmt.Sprintf("REF%d", s.idGenerator.Generate()),
-			PaymentID:    uint64(p.ID),
+			PaymentID:    uint64(p.Model.ID),
 			PaymentNo:    p.PaymentNo,
 			OrderID:      p.OrderID,
 			OrderNo:      p.OrderNo,
@@ -240,10 +281,10 @@ func (s *PaymentCommandService) RequestRefund(ctx context.Context, cmd *RefundPa
 		refund.RefundedAt = &now
 
 		// 保存支付单和退款单
-		if err := txPaymentRepo.Update(ctx, p); err != nil {
+		if err := txRefundRepo.Save(ctx, refund); err != nil {
 			return err
 		}
-		return txRefundRepo.Save(ctx, refund)
+		return s.saveAggregate(ctx, p)
 	})
 	if err != nil {
 		return nil, err
@@ -296,22 +337,9 @@ func (s *PaymentCommandService) HandlePaymentCallback(ctx context.Context, userI
 		// 2.3 更新核心流水字段
 		payment.TransactionID = transactionID
 		payment.ThirdPartyNo = thirdPartyNo
-		now := time.Now()
-		payment.PaidAt = &now
 
-		if err := txRepo.Update(ctx, payment); err != nil {
-			return fmt.Errorf("failed to update payment record: %w", err)
-		}
-
-		// 2.4 发布支付成功事件至消息总线 (Outbox 模式保证 100% 投递)
-		event := &domain.PaymentPaidEvent{
-			PaymentNo: payment.PaymentNo,
-			OrderNo:   payment.OrderNo,
-			UserID:    payment.UserID,
-			Amount:    payment.Amount,
-			PaidAt:    now.Unix(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "payment.paid", payment.PaymentNo, event)
+		// 2.4 保存聚合 (含事件发布)
+		return s.saveAggregate(ctx, payment)
 	})
 
 	if err == nil {
@@ -344,7 +372,7 @@ func (s *PaymentCommandService) SagaRefund(ctx context.Context, barrier any, use
 		refundNo = fmt.Sprintf("SAGA-REF-%d", s.idGenerator.Generate())
 		refund := &domain.Refund{
 			RefundNo:     refundNo,
-			PaymentID:    uint64(payment.ID),
+			PaymentID:    uint64(payment.Model.ID),
 			PaymentNo:    payment.PaymentNo,
 			OrderID:      orderID,
 			OrderNo:      payment.OrderNo,

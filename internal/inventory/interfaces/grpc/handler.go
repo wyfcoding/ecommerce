@@ -40,7 +40,7 @@ func (s *Server) CreateInventory(ctx context.Context, req *pb.CreateInventoryReq
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create inventory: %v", err))
 	}
 
-	slog.Info("gRPC CreateInventory successful", "sku_id", req.SkuId, "inventory_id", inventory.ID, "duration", time.Since(start))
+	slog.Info("gRPC CreateInventory successful", "sku_id", req.SkuId, "inventory_id", inventory.Model.ID, "duration", time.Since(start))
 	return &pb.CreateInventoryResponse{
 		Inventory: convertInventoryToProto(inventory),
 	}, nil
@@ -243,7 +243,7 @@ func convertInventoryToProto(inv *domain.Inventory) *pb.Inventory {
 		return nil
 	}
 	return &pb.Inventory{
-		Id:               uint64(inv.ID),                 // 库存记录ID。
+		Id:               uint64(inv.Model.ID),           // 使用 Model.ID
 		SkuId:            inv.SkuID,                      // SKU ID。
 		ProductId:        inv.ProductID,                  // 商品ID。
 		WarehouseId:      inv.WarehouseID,                // 仓库ID。
@@ -263,7 +263,7 @@ func convertLogToProto(log *domain.InventoryLog) *pb.InventoryLog {
 		return nil
 	}
 	return &pb.InventoryLog{
-		Id:             uint64(log.ID),                 // 日志记录ID。
+		Id:             uint64(log.Model.ID),           // 使用 Model.ID
 		InventoryId:    log.InventoryID,                // 库存ID。
 		Action:         log.Action,                     // 操作类型。
 		ChangeQuantity: log.ChangeQuantity,             // 变更数量。

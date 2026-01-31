@@ -4,6 +4,7 @@ import (
 	"errors" // 导入标准错误处理库。
 	"fmt"    // 导入格式化库。
 
+	"github.com/wyfcoding/pkg/eventsourcing"
 	"gorm.io/gorm" // 导入GORM库。
 )
 
@@ -24,215 +25,177 @@ const (
 )
 
 // Inventory 实体是库存模块的聚合根。
-// 它代表一个SKU在特定仓库中的库存信息，包含了可用库存、锁定库存、总库存和状态。
 type Inventory struct {
-	gorm.Model                       // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	SkuID            uint64          `gorm:"not null;index;comment:SKU ID" json:"sku_id"`            // 关联的SKU ID，索引字段。
-	ProductID        uint64          `gorm:"not null;index;comment:商品ID" json:"product_id"`          // 关联的商品ID，索引字段。
-	WarehouseID      uint64          `gorm:"not null;index;comment:仓库ID" json:"warehouse_id"`        // 关联的仓库ID，索引字段。
-	AvailableStock   int32           `gorm:"not null;default:0;comment:可用库存" json:"available_stock"` // 可用于销售的库存数量。
-	LockedStock      int32           `gorm:"not null;default:0;comment:锁定库存" json:"locked_stock"`    // 因预购或订单待支付而锁定的库存数量。
-	TotalStock       int32           `gorm:"not null;default:0;comment:总库存" json:"total_stock"`      // 总库存数量（可用库存 + 锁定库存）。
-	Status           InventoryStatus `gorm:"default:1;comment:状态" json:"status"`                     // 库存状态，默认为正常。
-	WarningThreshold int32           `gorm:"default:10;comment:预警阈值" json:"warning_threshold"`       // 触发库存预警的阈值。
-	Version          int64           `gorm:"default:1;comment:乐观锁版本号" json:"version"`                // 乐观锁版本号
+	gorm.Model
+	eventsourcing.AggregateRoot
+	SkuID            uint64          `gorm:"column:sku_id;not null;index;comment:SKU ID" json:"sku_id"`
+	ProductID        uint64          `gorm:"column:product_id;not null;index;comment:商品ID" json:"product_id"`
+	WarehouseID      uint64          `gorm:"column:warehouse_id;not null;index;comment:仓库ID" json:"warehouse_id"`
+	AvailableStock   int32           `gorm:"column:available_stock;not null;default:0;comment:可用库存" json:"available_stock"`
+	LockedStock      int32           `gorm:"column:locked_stock;not null;default:0;comment:锁定库存" json:"locked_stock"`
+	TotalStock       int32           `gorm:"column:total_stock;not null;default:0;comment:总库存" json:"total_stock"`
+	Status           InventoryStatus `gorm:"column:status;default:1;comment:状态" json:"status"`
+	WarningThreshold int32           `gorm:"column:warning_threshold;default:10;comment:预警阈值" json:"warning_threshold"`
+	PersistenceVer   int64           `gorm:"column:version;default:1;comment:乐观锁版本号" json:"version"` // 改名为 PersistenceVer 避免与 AggregateRoot.Version() 冲突
+}
+
+// GetID 返回聚合标识。
+func (inv *Inventory) GetID() string {
+	return inv.AggregateRoot.ID()
+}
+
+// Apply 实现 eventsourcing.EventApplier 接口。
+func (inv *Inventory) Apply(event eventsourcing.DomainEvent) {
+	switch e := event.(type) {
+	case *StockLockedEvent:
+		inv.AvailableStock -= e.Quantity
+		inv.LockedStock += e.Quantity
+	case *StockUnlockedEvent:
+		inv.AvailableStock += e.Quantity
+		inv.LockedStock -= e.Quantity
+	case *StockDeductedEvent:
+		inv.AvailableStock -= e.Quantity
+		inv.TotalStock -= e.Quantity
+	case *StockAddedEvent:
+		inv.AvailableStock += e.Quantity
+		inv.TotalStock += e.Quantity
+	}
+	inv.updateStatus()
+	inv.SetVersion(event.Version())
 }
 
 // InventoryLog 实体代表库存的一次操作日志。
-// 它记录了操作类型、数量变更、变更前后状态和原因等信息。
 type InventoryLog struct {
-	gorm.Model            // 嵌入gorm.Model。
-	InventoryID    uint64 `gorm:"not null;index;comment:库存ID" json:"inventory_id"`      // 关联的库存记录ID，索引字段。
-	SkuID          uint64 `gorm:"not null;index;comment:SKU ID" json:"sku_id"`          // 关联的SKU ID，用于分片。
-	Action         string `gorm:"type:varchar(32);not null;comment:操作类型" json:"action"` // 操作类型，例如“Add”（增加），“Deduct”（扣减），“Lock”（锁定）。
-	ChangeQuantity int32  `gorm:"not null;comment:变更数量" json:"change_quantity"`         // 本次操作导致的库存数量变化。
-	OldAvailable   int32  `gorm:"not null;comment:变更前可用" json:"old_available"`          // 变更前的可用库存数量。
-	NewAvailable   int32  `gorm:"not null;comment:变更后可用" json:"new_available"`          // 变更后的可用库存数量。
-	OldLocked      int32  `gorm:"not null;comment:变更前锁定" json:"old_locked"`             // 变更前的锁定库存数量。
-	NewLocked      int32  `gorm:"not null;comment:变更后锁定" json:"new_locked"`             // 变更后的锁定库存数量。
-	Reason         string `gorm:"type:varchar(255);comment:原因" json:"reason"`           // 变更原因。
+	gorm.Model
+	InventoryID    uint64 `gorm:"column:inventory_id;not null;index;comment:库存ID" json:"inventory_id"`
+	SkuID          uint64 `gorm:"column:sku_id;not null;index;comment:SKU ID" json:"sku_id"`
+	Action         string `gorm:"column:action;type:varchar(32);not null;comment:操作类型" json:"action"`
+	ChangeQuantity int32  `gorm:"column:change_quantity;not null;comment:变更数量" json:"change_quantity"`
+	OldAvailable   int32  `gorm:"column:old_available;not null;comment:变更前可用" json:"old_available"`
+	NewAvailable   int32  `gorm:"column:new_available;not null;comment:变更后可用" json:"new_available"`
+	OldLocked      int32  `gorm:"column:old_locked;not null;comment:变更前锁定" json:"old_locked"`
+	NewLocked      int32  `gorm:"column:new_locked;not null;comment:变更后锁定" json:"new_locked"`
+	Reason         string `gorm:"column:reason;type:varchar(255);comment:原因" json:"reason"`
 }
 
 // NewInventory 创建并返回一个新的 Inventory 实体实例。
-// skuID, productID, warehouseID: SKU、商品和仓库ID。
-// totalStock: 初始总库存。
-// warningThreshold: 预警阈值。
 func NewInventory(skuID, productID, warehouseID uint64, totalStock, warningThreshold int32) *Inventory {
-	status := InventoryStatusNormal
-	if totalStock == 0 {
-		status = InventoryStatusOutOfStock
-	} else if totalStock <= warningThreshold {
-		status = InventoryStatusWarning
-	}
-
-	return &Inventory{
+	inv := &Inventory{
 		SkuID:            skuID,
 		ProductID:        productID,
 		WarehouseID:      warehouseID,
-		AvailableStock:   totalStock, // 初始可用库存等于总库存。
-		LockedStock:      0,          // 初始锁定库存为0。
+		AvailableStock:   totalStock,
+		LockedStock:      0,
 		TotalStock:       totalStock,
-		Status:           status,
 		WarningThreshold: warningThreshold,
-		Version:          1,
+		PersistenceVer:   1,
 	}
-}
-
-// CanDeduct 检查是否可以扣减指定数量的库存。
-// quantity: 待扣减的数量。
-func (inv *Inventory) CanDeduct(quantity int32) error {
-	if quantity <= 0 {
-		return ErrNegativeQuantity
-	}
-	if inv.AvailableStock < quantity {
-		// 返回详细错误信息，指明可用库存和所需数量。
-		return fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
-	}
-	return nil
+	// 将 uint64 ID 转换为 string 设置给 AggregateRoot
+	inv.SetID(fmt.Sprintf("%d", skuID))
+	inv.updateStatus()
+	return inv
 }
 
 // Deduct 扣减指定数量的库存。
-// quantity: 待扣减的数量。
-// reason: 扣减原因。
-// 返回生成的日志对象，由调用者负责保存。
 func (inv *Inventory) Deduct(quantity int32, reason string) (*InventoryLog, error) {
-	if err := inv.CanDeduct(quantity); err != nil {
-		return nil, err
-	}
-
-	oldAvailable := inv.AvailableStock
-	// 扣减可用库存和总库存。
-	inv.AvailableStock -= quantity
-	inv.TotalStock -= quantity
-
-	inv.updateStatus() // 更新库存状态。
-
-	return inv.createLog("Deduct", -quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
-}
-
-// CanLock 检查是否可以锁定指定数量的库存。
-// quantity: 待锁定的数量。
-func (inv *Inventory) CanLock(quantity int32) error {
 	if quantity <= 0 {
-		return ErrNegativeQuantity
+		return nil, ErrNegativeQuantity
 	}
 	if inv.AvailableStock < quantity {
-		// 返回详细错误信息，指明可用库存和所需数量。
-		return fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
+		return nil, fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
 	}
-	return nil
+
+	event := &StockDeductedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		SkuID:     inv.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+	}
+	inv.ApplyChange(event)
+	inv.Apply(event)
+
+	return inv.createLog("Deduct", -quantity, inv.AvailableStock+quantity, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
 }
 
 // Lock 锁定指定数量的库存。
-// quantity: 待锁定的数量。
-// reason: 锁定原因。
 func (inv *Inventory) Lock(quantity int32, reason string) (*InventoryLog, error) {
-	if err := inv.CanLock(quantity); err != nil {
-		return nil, err
-	}
-
-	oldAvailable := inv.AvailableStock
-	oldLocked := inv.LockedStock
-
-	// 减少可用库存，增加锁定库存。
-	inv.AvailableStock -= quantity
-	inv.LockedStock += quantity
-
-	inv.updateStatus() // 更新库存状态。
-
-	return inv.createLog("Lock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
-}
-
-// CanUnlock 检查是否可以解锁指定数量的库存。
-// quantity: 待解锁的数量。
-func (inv *Inventory) CanUnlock(quantity int32) error {
 	if quantity <= 0 {
-		return ErrNegativeQuantity
+		return nil, ErrNegativeQuantity
 	}
-	if inv.LockedStock < quantity {
-		// 返回详细错误信息，指明锁定库存和所需数量。
-		return fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
+	if inv.AvailableStock < quantity {
+		return nil, fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
 	}
-	return nil
+
+	event := &StockLockedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockLockedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		SkuID:     inv.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+	}
+	inv.ApplyChange(event)
+	inv.Apply(event)
+
+	return inv.createLog("Lock", 0, inv.AvailableStock+quantity, inv.AvailableStock, inv.LockedStock-quantity, inv.LockedStock, reason), nil
 }
 
 // Unlock 解锁指定数量的库存。
-// quantity: 待解锁的数量。
-// reason: 解锁原因。
 func (inv *Inventory) Unlock(quantity int32, reason string) (*InventoryLog, error) {
-	if err := inv.CanUnlock(quantity); err != nil {
-		return nil, err
-	}
-
-	oldAvailable := inv.AvailableStock
-	oldLocked := inv.LockedStock
-
-	// 增加可用库存，减少锁定库存。
-	inv.AvailableStock += quantity
-	inv.LockedStock -= quantity
-
-	inv.updateStatus() // 更新库存状态。
-
-	return inv.createLog("Unlock", 0, oldAvailable, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
-}
-
-// CanConfirmDeduction 检查是否可以确认扣减指定数量的库存（从锁定库存中扣减）。
-// quantity: 待确认扣减的数量。
-func (inv *Inventory) CanConfirmDeduction(quantity int32) error {
 	if quantity <= 0 {
-		return ErrNegativeQuantity
+		return nil, ErrNegativeQuantity
 	}
 	if inv.LockedStock < quantity {
-		// 返回详细错误信息，指明锁定库存和所需数量。
-		return fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
+		return nil, fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
 	}
-	return nil
+
+	event := &StockUnlockedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockUnlockedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		SkuID:     inv.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+	}
+	inv.ApplyChange(event)
+	inv.Apply(event)
+
+	return inv.createLog("Unlock", 0, inv.AvailableStock-quantity, inv.AvailableStock, inv.LockedStock+quantity, inv.LockedStock, reason), nil
 }
 
-// ConfirmDeduction 确认扣减指定数量的库存（从锁定库存中扣减）。
-// quantity: 待确认扣减的数量。
-// reason: 确认扣减原因。
+// ConfirmDeduction 确认扣减。
 func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) (*InventoryLog, error) {
-	if err := inv.CanConfirmDeduction(quantity); err != nil {
-		return nil, err
-	}
-
-	oldLocked := inv.LockedStock
-
-	// 减少锁定库存和总库存。
-	inv.LockedStock -= quantity
-	inv.TotalStock -= quantity
-
-	inv.updateStatus() // 更新库存状态。
-
-	return inv.createLog("ConfirmDeduction", -quantity, inv.AvailableStock, inv.AvailableStock, oldLocked, inv.LockedStock, reason), nil
-}
-
-// CanAdd 检查是否可以增加指定数量的库存。
-// quantity: 待增加的数量。
-func (inv *Inventory) CanAdd(quantity int32) error {
 	if quantity <= 0 {
-		return ErrNegativeQuantity
+		return nil, ErrNegativeQuantity
 	}
-	return nil
+	if inv.LockedStock < quantity {
+		return nil, fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
+	}
+
+	event := &StockDeductedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		SkuID:     inv.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+	}
+	inv.ApplyChange(event)
+	inv.Apply(event)
+
+	return inv.createLog("ConfirmDeduction", -quantity, inv.AvailableStock, inv.AvailableStock, inv.LockedStock+quantity, inv.LockedStock, reason), nil
 }
 
-// Add 增加指定数量的库存。
-// quantity: 待增加的数量。
-// reason: 增加库存的原因。
+// Add 增加库存。
 func (inv *Inventory) Add(quantity int32, reason string) (*InventoryLog, error) {
-	if err := inv.CanAdd(quantity); err != nil {
-		return nil, err
+	if quantity <= 0 {
+		return nil, ErrNegativeQuantity
 	}
 
-	oldAvailable := inv.AvailableStock
-	// 增加可用库存和总库存。
-	inv.AvailableStock += quantity
-	inv.TotalStock += quantity
+	event := &StockAddedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockAddedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		SkuID:     inv.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+	}
+	inv.ApplyChange(event)
+	inv.Apply(event)
 
-	inv.updateStatus() // 更新库存状态。
-
-	return inv.createLog("Add", quantity, oldAvailable, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
+	return inv.createLog("Add", quantity, inv.AvailableStock-quantity, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
 }
 
 // updateStatus 根据当前可用库存和总库存更新库存状态。
@@ -249,7 +212,7 @@ func (inv *Inventory) updateStatus() {
 // createLog 创建一条库存操作日志对象。
 func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, newAvailable, oldLocked, newLocked int32, reason string) *InventoryLog {
 	return &InventoryLog{
-		InventoryID:    uint64(inv.ID),
+		InventoryID:    uint64(inv.Model.ID),
 		SkuID:          inv.SkuID,
 		Action:         action,
 		ChangeQuantity: changeQuantity,
@@ -261,16 +224,14 @@ func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, new
 	}
 }
 
-// --- Warehouse Aggregates ---
-
 // Warehouse 实体代表一个仓库。
 type Warehouse struct {
 	gorm.Model
-	Name     string  `gorm:"type:varchar(255);not null;comment:仓库名称" json:"name"`
-	Lat      float64 `gorm:"type:decimal(10,6);not null;comment:纬度" json:"lat"`
-	Lon      float64 `gorm:"type:decimal(10,6);not null;comment:经度" json:"lon"`
-	Priority int     `gorm:"not null;default:0;comment:优先级" json:"priority"`
-	ShipCost int64   `gorm:"not null;default:0;comment:基础配送成本(分)" json:"ship_cost"`
+	Name     string  `gorm:"column:name;type:varchar(255);not null;comment:仓库名称" json:"name"`
+	Lat      float64 `gorm:"column:lat;type:decimal(10,6);not null;comment:纬度" json:"lat"`
+	Lon      float64 `gorm:"column:lon;type:decimal(10,6);not null;comment:经度" json:"lon"`
+	Priority int     `gorm:"column:priority;not null;default:0;comment:优先级" json:"priority"`
+	ShipCost int64   `gorm:"column:ship_cost;not null;default:0;comment:基础配送成本(分)" json:"ship_cost"`
 }
 
 func NewWarehouse(name string, lat, lon float64, priority int, shipCost int64) *Warehouse {

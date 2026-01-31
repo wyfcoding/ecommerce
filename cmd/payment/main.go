@@ -18,7 +18,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/messaging"
-	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/mysql"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/risk"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
 	paymenthttp "github.com/wyfcoding/ecommerce/internal/payment/interfaces/http"
@@ -226,9 +226,10 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence, Gateways, Risk)
-	paymentRepo := persistence.NewPaymentRepository(shardingManager)
-	channelRepo := persistence.NewChannelRepository(shardingManager)
-	refundRepo := persistence.NewRefundRepository(shardingManager)
+	paymentRepo := mysql.NewPaymentRepository(shardingManager)
+	channelRepo := mysql.NewChannelRepository(shardingManager)
+	refundRepo := mysql.NewRefundRepository(shardingManager)
+	eventStore := mysql.NewEventStore(shardingManager)
 
 	riskSvc := risk.NewRiskService(clients.RiskSecurity)
 
@@ -247,6 +248,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		paymentRepo,
 		refundRepo,
 		channelRepo,
+		eventStore,
 		riskSvc,
 		idGenerator,
 		gateways,
@@ -254,7 +256,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		redisLock,
 		logger.Logger,
 	)
-	paymentQuery := application.NewPaymentQuery(paymentRepo, redisCache, logger.Logger, m)
+	paymentQuery := application.NewPaymentQuery(paymentRepo)
 
 	// 5.3 Interface (HTTP Handlers)
 	httpHandler := paymenthttp.NewHandler(paymentCmdService, paymentQuery, logger.Logger)

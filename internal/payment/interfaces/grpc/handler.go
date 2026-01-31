@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -109,12 +110,17 @@ func (s *Server) GetPaymentStatus(ctx context.Context, req *pb.GetPaymentStatusR
 	start := time.Now()
 	slog.Debug("gRPC GetPaymentStatus received", "id", req.PaymentTransactionId)
 
-	// Sharding note: If PaymentTransactionId is not sufficient, req should have UserId.
-	// Since proto doesn't have it, we might need to search or use a global ID.
-	payment, err := s.queryService.GetPaymentStatus(ctx, 0, req.PaymentTransactionId)
+	v := fmt.Sprintf("%v", req.PaymentTransactionId)
+
+	// gRPC 请求中的 ID 可能是单号。尝试按单号查询。
+	payment, err := s.queryService.GetPaymentStatus(ctx, 0, v)
 	if err != nil {
 		slog.Error("gRPC GetPaymentStatus failed", "id", req.PaymentTransactionId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if payment == nil {
+		return nil, status.Error(codes.NotFound, "payment record not found")
 	}
 
 	slog.Debug("gRPC GetPaymentStatus successful", "id", req.PaymentTransactionId, "duration", time.Since(start))
@@ -183,13 +189,13 @@ func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	}
 
 	return &pb.PaymentTransaction{
-		Id:                   uint64(p.ID),
+		Id:                   uint64(p.Model.ID),
 		TransactionNo:        p.PaymentNo,
 		OrderId:              p.OrderID,
 		UserId:               p.UserID,
 		PaymentMethod:        p.PaymentMethod,
 		Amount:               p.Amount,
-		Status:               pb.PaymentStatus(p.Status),
+		Status:               p.Status,
 		GatewayTransactionId: p.TransactionID,
 		CreatedAt:            timestamppb.New(p.CreatedAt),
 		UpdatedAt:            timestamppb.New(p.UpdatedAt),

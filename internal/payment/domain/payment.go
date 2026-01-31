@@ -2,10 +2,12 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	"github.com/wyfcoding/pkg/eventsourcing"
 	"github.com/wyfcoding/pkg/fsm"
 	"github.com/wyfcoding/pkg/idgen"
 	"gorm.io/gorm"
@@ -15,27 +17,33 @@ import (
 
 type PaymentStatus = pb.PaymentStatus
 
+var (
+	ErrInvalidParameter = errors.New("invalid parameter")
+)
+
 // --- Payment Aggregates ---
 
 type Payment struct {
 	gorm.Model
-	PaymentNo      string      `gorm:"uniqueIndex;size:64"`
-	OrderID        uint64      `gorm:"index"`
-	OrderNo        string      `gorm:"size:64"`
-	UserID         uint64      `gorm:"index"`
-	Amount         int64       `gorm:"not null"` // 总金额
-	CapturedAmount int64       `gorm:"default:0"`
-	Currency       string      `gorm:"size:10;default:'CNY'"`
-	PaymentMethod  string      `gorm:"size:32"`
-	GatewayType    GatewayType `gorm:"size:32"`
-	Status         PaymentStatus
-	TransactionID  string `gorm:"size:128"`
-	ThirdPartyNo   string `gorm:"size:128"`
-	CallbackData   string `gorm:"type:text"`
-	FailureReason  string `gorm:"size:255"`
-	PaidAt         *time.Time
-	CancelledAt    *time.Time
-	RefundedAt     *time.Time
+	eventsourcing.AggregateRoot
+	PaymentNo      string        `gorm:"uniqueIndex;size:64;comment:支付单号"`
+	OrderID        uint64        `gorm:"index;comment:订单ID"`
+	OrderNo        string        `gorm:"size:64;comment:订单号"`
+	UserID         uint64        `gorm:"index;comment:用户ID"`
+	Amount         int64         `gorm:"not null;comment:总金额"`
+	CapturedAmount int64         `gorm:"default:0;comment:捕获金额"`
+	Currency       string        `gorm:"size:10;default:'CNY';comment:币种"`
+	PaymentMethod  string        `gorm:"size:32;comment:支付方式"`
+	GatewayType    GatewayType   `gorm:"size:32;comment:网关类型"`
+	Status         PaymentStatus `gorm:"column:status;comment:支付状态"`
+	TransactionID  string        `gorm:"size:128;comment:网关交易号"`
+	ThirdPartyNo   string        `gorm:"size:128;comment:三方单号"`
+	CallbackData   string        `gorm:"type:text;comment:回调原始数据"`
+	FailureReason  string        `gorm:"size:255;comment:失败原因"`
+	PaidAt         *time.Time    `gorm:"comment:支付时间"`
+	CancelledAt    *time.Time    `gorm:"comment:取消时间"`
+	RefundedAt     *time.Time    `gorm:"comment:退款时间"`
+	PersistenceVer int64         `gorm:"column:version;default:1;comment:乐观锁版本"`
 
 	fsm     *fsm.Machine[string, string] `gorm:"-"`
 	Logs    []*PaymentLog                `gorm:"foreignKey:PaymentID"`
@@ -43,6 +51,44 @@ type Payment struct {
 
 	// 世界级特性：分账信息 (用于平台抽佣、多商家结算)
 	Splits []PaymentSplit `gorm:"foreignKey:PaymentID"`
+}
+
+// GetID 返回聚合标识。
+func (p *Payment) GetID() string {
+	return p.AggregateRoot.ID()
+}
+
+// Apply 实现 eventsourcing.EventApplier 接口。
+func (p *Payment) Apply(event eventsourcing.DomainEvent) {
+	switch e := event.(type) {
+	case *PaymentInitiatedEvent:
+		p.PaymentNo = e.AggregateID()
+		p.OrderID = e.OrderID
+		p.OrderNo = e.OrderNo
+		p.UserID = e.UserID
+		p.Amount = e.Amount
+		p.PaymentMethod = e.PaymentMethod
+		p.Status = pb.PaymentStatus_PENDING
+	case *PaymentAuthorizedEvent:
+		p.Status = pb.PaymentStatus_AUTHORIZED
+		p.TransactionID = e.TransactionID
+	case *PaymentCapturedEvent:
+		p.Status = pb.PaymentStatus_SUCCESS
+		p.CapturedAmount = e.Amount
+		p.PaidAt = &e.PaidAt
+	case *PaymentPaidEvent:
+		p.Status = pb.PaymentStatus_SUCCESS
+		p.Amount = e.Amount
+		t := time.Unix(e.PaidAt, 0)
+		p.PaidAt = &t
+	case *RefundFinishedEvent:
+		p.Status = pb.PaymentStatus_REFUNDED
+		p.RefundedAt = &e.RefundedAt
+	case *PaymentClosedEvent:
+		p.Status = pb.PaymentStatus_CLOSED
+		p.CancelledAt = &e.ClosedAt
+	}
+	p.SetVersion(event.Version())
 }
 
 // PaymentSplit 定义了资金流向的拆分详情
@@ -56,7 +102,6 @@ type PaymentSplit struct {
 }
 
 // AccountingEntry 影子账本分录 (复式记账原则)
-// 顶级系统必须记录资金从“用户借记”到“系统中间科目”的流转
 type AccountingEntry struct {
 	gorm.Model
 	PaymentID     uint64 `gorm:"index"`
@@ -96,15 +141,28 @@ type PaymentLog struct {
 
 func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string, gatewayType GatewayType, idGenerator idgen.Generator) *Payment {
 	p := &Payment{
-		PaymentNo:     fmt.Sprintf("PAY%d", idGenerator.Generate()),
+		OrderID:        orderID,
+		OrderNo:        orderNo,
+		UserID:         userID,
+		Amount:         amount,
+		PaymentMethod:  paymentMethod,
+		GatewayType:    gatewayType,
+		PersistenceVer: 1,
+	}
+	paymentNo := fmt.Sprintf("PAY%d", idGenerator.Generate())
+	p.SetID(paymentNo)
+
+	event := &PaymentInitiatedEvent{
+		BaseEvent:     eventsourcing.NewBaseEvent(PaymentInitiatedEventType, paymentNo, 0),
 		OrderID:       orderID,
 		OrderNo:       orderNo,
 		UserID:        userID,
 		Amount:        amount,
 		PaymentMethod: paymentMethod,
-		GatewayType:   gatewayType,
-		Status:        pb.PaymentStatus_PENDING,
 	}
+	p.ApplyChange(event)
+	p.Apply(event)
+
 	p.initFSM()
 	p.AddLog("INIT", "", pb.PaymentStatus_PENDING.String(), "Payment created")
 	return p
@@ -113,20 +171,13 @@ func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, pay
 func (p *Payment) initFSM() {
 	m := fsm.NewMachine[string, string](p.Status.String())
 
-	// 标准支付流
 	m.AddTransition(pb.PaymentStatus_PENDING.String(), "AUTH", pb.PaymentStatus_AUTHORIZED.String())
 	m.AddTransition(pb.PaymentStatus_AUTHORIZED.String(), "CAPTURE", pb.PaymentStatus_SUCCESS.String())
 	m.AddTransition(pb.PaymentStatus_PENDING.String(), "PAY_DIRECT", pb.PaymentStatus_SUCCESS.String())
-
-	// 逆向流
 	m.AddTransition(pb.PaymentStatus_PENDING.String(), "CANCEL", pb.PaymentStatus_CLOSED.String())
 	m.AddTransition(pb.PaymentStatus_AUTHORIZED.String(), "VOID", pb.PaymentStatus_CLOSED.String())
-
-	// 退款流
 	m.AddTransition(pb.PaymentStatus_SUCCESS.String(), "REFUND_REQ", pb.PaymentStatus_REFUNDING.String())
 	m.AddTransition(pb.PaymentStatus_REFUNDING.String(), "REFUND_FINISH", pb.PaymentStatus_REFUNDED.String())
-
-	// 对账流
 	m.AddTransition(pb.PaymentStatus_SUCCESS.String(), "RECONCILE", pb.PaymentStatus_RECONCILED.String())
 	m.AddTransition(pb.PaymentStatus_SUCCESS.String(), "RECONCILE_FAIL", pb.PaymentStatus_RECONCILE_ERROR.String())
 
@@ -143,20 +194,64 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 	}
 
 	newStatusStr := p.fsm.Current()
-	v, ok := pb.PaymentStatus_value[newStatusStr]
-	if ok {
-		p.Status = pb.PaymentStatus(v)
+	v, _ := pb.PaymentStatus_value[newStatusStr]
+	newStatus := pb.PaymentStatus(v)
+
+	var domainEv eventsourcing.DomainEvent
+	switch event {
+	case "AUTH":
+		domainEv = &PaymentAuthorizedEvent{
+			BaseEvent:     eventsourcing.NewBaseEvent(PaymentAuthorizedEventType, p.GetID(), p.AggregateRoot.Version()),
+			TransactionID: p.TransactionID,
+		}
+	case "CAPTURE":
+		domainEv = &PaymentCapturedEvent{
+			BaseEvent: eventsourcing.NewBaseEvent(PaymentCapturedEventType, p.GetID(), p.AggregateRoot.Version()),
+			PaymentNo: p.PaymentNo,
+			OrderNo:   p.OrderNo,
+			UserID:    p.UserID,
+			Amount:    p.CapturedAmount,
+			PaidAt:    time.Now(),
+		}
+	case "PAY_DIRECT":
+		domainEv = &PaymentPaidEvent{
+			BaseEvent: eventsourcing.NewBaseEvent(PaymentPaidEventType, p.GetID(), p.AggregateRoot.Version()),
+			PaymentNo: p.PaymentNo,
+			OrderNo:   p.OrderNo,
+			UserID:    p.UserID,
+			Amount:    p.Amount,
+			PaidAt:    time.Now().Unix(),
+		}
+	case "REFUND_FINISH":
+		domainEv = &RefundFinishedEvent{
+			BaseEvent:    eventsourcing.NewBaseEvent(RefundFinishedEventType, p.GetID(), p.AggregateRoot.Version()),
+			PaymentNo:    p.PaymentNo,
+			OrderNo:      p.OrderNo,
+			UserID:       p.UserID,
+			RefundAmount: p.Amount,
+			RefundedAt:   time.Now(),
+		}
+	case "CANCEL", "VOID":
+		domainEv = &PaymentClosedEvent{
+			BaseEvent: eventsourcing.NewBaseEvent(PaymentClosedEventType, p.GetID(), p.AggregateRoot.Version()),
+			ClosedAt:  time.Now(),
+		}
+	}
+
+	if domainEv != nil {
+		p.ApplyChange(domainEv)
+		p.Apply(domainEv)
+	} else {
+		p.Status = newStatus
 	}
 
 	p.AddLog(event, oldStatus.String(), p.Status.String(), remark)
 	return nil
 }
 
-// Status names map is deprecated in favor of proto generated names.
-
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 	p.Logs = append(p.Logs, &PaymentLog{
-		PaymentID: uint64(p.ID),
+		PaymentID: uint64(p.Model.ID),
 		UserID:    p.UserID,
 		Action:    action,
 		OldStatus: oldStatus,
@@ -176,18 +271,6 @@ const (
 	ChannelTypeTrading ChannelType = "trading"
 )
 
-type ChannelConfig struct {
-	gorm.Model
-	Code        string      `gorm:"uniqueIndex;size:32;not null" json:"code"`
-	Type        ChannelType `gorm:"size:32;not null" json:"type"`
-	Name        string      `gorm:"size:64" json:"name"`
-	Priority    int         `gorm:"default:0" json:"priority"`
-	Enabled     bool        `gorm:"default:true" json:"enabled"`
-	ConfigJSON  string      `gorm:"type:text" json:"config_json"`
-	RatePercent float64     `gorm:"type:decimal(5,2)" json:"rate_percent"`
-	Description string      `gorm:"size:255" json:"description"`
-}
-
 type GatewayType string
 
 const (
@@ -195,7 +278,7 @@ const (
 	GatewayTypeWechat  GatewayType = "wechat"
 	GatewayTypeStripe  GatewayType = "stripe"
 	GatewayTypeMock    GatewayType = "mock"
-	GatewayTypeTrading GatewayType = "trading" // 证券账户支付
+	GatewayTypeTrading GatewayType = "trading"
 )
 
 type PaymentGatewayRequest struct {
@@ -217,7 +300,6 @@ type PaymentGateway interface {
 	Capture(ctx context.Context, transactionID string, amount int64) (*PaymentGatewayResponse, error)
 	Void(ctx context.Context, transactionID string) error
 	Refund(ctx context.Context, transactionID string, amount int64) error
-	// DownloadBill 下载指定日期的对账单数据
 	DownloadBill(ctx context.Context, date time.Time) ([]*GatewayBillItem, error)
 }
 
@@ -231,6 +313,11 @@ type GatewayBillItem struct {
 
 // --- Repositories ---
 
+type EventStore interface {
+	Save(ctx context.Context, events []eventsourcing.DomainEvent) error
+	GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error)
+}
+
 type PaymentRepository interface {
 	FindByID(ctx context.Context, userID uint64, id uint64) (*Payment, error)
 	FindByPaymentNo(ctx context.Context, userID uint64, paymentNo string) (*Payment, error)
@@ -241,15 +328,9 @@ type PaymentRepository interface {
 	FindLogsByPaymentID(ctx context.Context, userID uint64, paymentID uint64) ([]*PaymentLog, error)
 	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	WithTx(tx any) PaymentRepository
-
-	// 辅助查询
 	GetUserIDByPaymentNo(ctx context.Context, paymentNo string) (uint64, error)
-
-	// 对账相关
 	FindSuccessPaymentsByDate(ctx context.Context, date time.Time) ([]*Payment, error)
 	SaveReconciliationRecord(ctx context.Context, record *ReconciliationRecord) error
-
-	// 分布式事务支持
 	ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error
 }
 
@@ -269,15 +350,22 @@ type ChannelRepository interface {
 	WithTx(tx any) ChannelRepository
 }
 
-// --- Risk Services ---
+type ChannelConfig struct {
+	gorm.Model
+	Code        string      `json:"code"`
+	Type        ChannelType `json:"type"`
+	Name        string      `json:"name"`
+	Priority    int         `json:"priority"`
+	Enabled     bool        `json:"enabled"`
+	ConfigJSON  string      `json:"config_json"`
+	RatePercent float64     `json:"rate_percent"`
+	Description string      `json:"description"`
+}
 
-type RiskAction string
-
-const (
-	RiskActionPass      RiskAction = "PASS"
-	RiskActionBlock     RiskAction = "BLOCK"
-	RiskActionChallenge RiskAction = "CHALLENGE"
-)
+type RiskService interface {
+	CheckPrePayment(ctx context.Context, riskCtx *RiskContext) (*RiskResult, error)
+	RecordTransaction(ctx context.Context, riskCtx *RiskContext) error
+}
 
 type RiskResult struct {
 	Action      RiskAction
@@ -285,6 +373,14 @@ type RiskResult struct {
 	RuleID      string
 	Description string
 }
+
+type RiskAction string
+
+const (
+	RiskActionBlock     RiskAction = "BLOCK"
+	RiskActionChallenge RiskAction = "CHALLENGE"
+	RiskActionPass      RiskAction = "PASS"
+)
 
 type RiskContext struct {
 	UserID        uint64
@@ -295,20 +391,13 @@ type RiskContext struct {
 	OrderID       uint64
 }
 
-type RiskService interface {
-	CheckPrePayment(ctx context.Context, riskCtx *RiskContext) (*RiskResult, error)
-	RecordTransaction(ctx context.Context, riskCtx *RiskContext) error
-}
-
-// --- Reconciliation ---
-
 type ReconciliationRecord struct {
 	gorm.Model
+	OrderNo       string `gorm:"size:64"`
 	PaymentID     uint64 `gorm:"index"`
-	OrderNo       string `gorm:"index"`
-	SystemAmount  int64
 	GatewayAmount int64
+	SystemAmount  int64
 	DiffAmount    int64
-	Status        string // MATCH, MISMATCH, MISSING_SYSTEM, MISSING_GATEWAY
-	Remark        string
+	Status        string `gorm:"size:32"`
+	Remark        string `gorm:"size:255"`
 }

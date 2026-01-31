@@ -2,10 +2,13 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"github.com/wyfcoding/pkg/database/sharding"
+	"github.com/wyfcoding/pkg/eventsourcing"
 
 	"gorm.io/gorm"
 )
@@ -28,15 +31,15 @@ func (r *inventoryRepository) Save(ctx context.Context, inventory *domain.Invent
 // SaveWithOptimisticLock 使用乐观锁保存。
 func (r *inventoryRepository) SaveWithOptimisticLock(ctx context.Context, inventory *domain.Inventory) error {
 	db := r.sharding.GetDB(inventory.SkuID)
-	if inventory.ID == 0 {
+	if inventory.Model.ID == 0 {
 		return db.WithContext(ctx).Create(inventory).Error
 	}
 
-	currentVersion := inventory.Version
-	inventory.Version++
+	currentVersion := inventory.PersistenceVer
+	inventory.PersistenceVer++
 
 	res := db.WithContext(ctx).Model(inventory).
-		Where("id = ? AND version = ?", inventory.ID, currentVersion).
+		Where("id = ? AND version = ?", inventory.Model.ID, currentVersion).
 		Updates(inventory)
 
 	if res.Error != nil {
@@ -64,17 +67,18 @@ func (r *inventoryRepository) GetBySkuID(ctx context.Context, skuID uint64) (*do
 		}
 		return nil, err
 	}
+	// 恢复 AggregateRoot ID
+	inventory.SetID(fmt.Sprintf("%d", inventory.SkuID))
 	return &inventory, nil
 }
 
 // GetBySkuIDs 执行跨分片的批量查询。
-// 注意：由于底层分片键不一致，此操作会遍历多个分片执行点查，并汇总结果。
 func (r *inventoryRepository) GetBySkuIDs(ctx context.Context, skuIDs []uint64) ([]*domain.Inventory, error) {
 	var allList []*domain.Inventory
 	for _, id := range skuIDs {
 		inv, err := r.GetBySkuID(ctx, id)
 		if err != nil {
-			return nil, err // 点查失败立即中断并返回错误
+			return nil, err
 		}
 		if inv != nil {
 			allList = append(allList, inv)
@@ -83,8 +87,7 @@ func (r *inventoryRepository) GetBySkuIDs(ctx context.Context, skuIDs []uint64) 
 	return allList, nil
 }
 
-// List 扫描集群中所有的分片数据库，并进行全量统计与分页汇总。
-// 架构警告：此操作属于昂贵的 Full-Scan 操作，高并发场景下应优先使用搜索引擎。
+// List 扫描集群中所有的分片数据库。
 func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*domain.Inventory, int64, error) {
 	dbs := r.sharding.GetAllDBs()
 	var allList []*domain.Inventory
@@ -102,10 +105,12 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 		if err := query.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
 			return nil, 0, err
 		}
+		for _, inv := range list {
+			inv.SetID(fmt.Sprintf("%d", inv.SkuID))
+		}
 		allList = append(allList, list...)
 	}
 
-	// 执行内存聚合后的截断处理
 	if len(allList) > limit {
 		allList = allList[:limit]
 	}
@@ -135,4 +140,93 @@ func (r *inventoryRepository) GetLogs(ctx context.Context, skuID uint64, invento
 	}
 
 	return list, total, nil
+}
+
+// ExecWithBarrier 实现 ExecWithBarrier 接口。
+func (r *inventoryRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
+	// 暂时简单实现，如果是使用 DTM 等分布式事务管理器，这里应该是调用其 Barrier。
+	return fn(ctx)
+}
+
+// eventStore 实现 domain.EventStore 接口。
+type eventStore struct {
+	sharding *sharding.Manager
+}
+
+// NewEventStore 创建 EventStore。
+func NewEventStore(sharding *sharding.Manager) domain.EventStore {
+	return &eventStore{sharding: sharding}
+}
+
+func (s *eventStore) Save(ctx context.Context, events []eventsourcing.DomainEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+	// 使用聚合根 ID (SKU ID) 来确定分片
+	idStr := events[0].AggregateID()
+	var skuID uint64
+	fmt.Sscanf(idStr, "%d", &skuID)
+
+	db := s.sharding.GetDB(skuID)
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, e := range events {
+			data, err := json.Marshal(e)
+			if err != nil {
+				return err
+			}
+			record := struct {
+				gorm.Model
+				AggregateID string `gorm:"column:aggregate_id;not null;index"`
+				EventType   string `gorm:"column:event_type;not null"`
+				Version     int64  `gorm:"column:version;not null"`
+				Data        []byte `gorm:"column:data;type:json"`
+			}{
+				AggregateID: e.AggregateID(),
+				EventType:   e.EventType(),
+				Version:     e.Version(),
+				Data:        data,
+			}
+			if err := tx.Table("inventory_events").Create(&record).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
+	var skuID uint64
+	fmt.Sscanf(aggregateID, "%d", &skuID)
+	db := s.sharding.GetDB(skuID)
+
+	var records []struct {
+		EventType string
+		Version   int64
+		Data      []byte
+	}
+	if err := db.WithContext(ctx).Table("inventory_events").Where("aggregate_id = ?", aggregateID).Order("version asc").Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	events := make([]eventsourcing.DomainEvent, len(records))
+	for i, r := range records {
+		var event eventsourcing.DomainEvent
+		switch r.EventType {
+		case domain.StockLockedEventType:
+			event = &domain.StockLockedEvent{}
+		case domain.StockUnlockedEventType:
+			event = &domain.StockUnlockedEvent{}
+		case domain.StockDeductedEventType:
+			event = &domain.StockDeductedEvent{}
+		case domain.StockAddedEventType:
+			event = &domain.StockAddedEvent{}
+		default:
+			return nil, fmt.Errorf("unknown event type: %s", r.EventType)
+		}
+		if err := json.Unmarshal(r.Data, event); err != nil {
+			return nil, err
+		}
+		events[i] = event
+	}
+	return events, nil
 }

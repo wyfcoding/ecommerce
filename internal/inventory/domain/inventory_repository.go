@@ -2,45 +2,35 @@ package domain
 
 import (
 	"context"
+
+	"github.com/wyfcoding/pkg/eventsourcing"
 )
 
+// EventStore 库存模块的事件存储接口。
+type EventStore interface {
+	// Save 保存领域事件。
+	Save(ctx context.Context, events []eventsourcing.DomainEvent) error
+	// GetHistory 获取聚合根的事件历史。
+	GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error)
+}
+
 // InventoryRepository 是库存模块的仓储接口。
-// 它定义了对库存实体和库存日志实体进行数据持久化操作的契约。
-// 仓储接口属于领域层，旨在将领域逻辑与数据存储的实现细节解耦。
 type InventoryRepository interface {
-	// Save 将库存实体保存到数据存储中。
-	// 如果库存已存在，则更新；如果不存在，则创建。
-	// ctx: 上下文。
-	// inventory: 待保存的库存实体。
 	Save(ctx context.Context, inventory *Inventory) error
-
-	// SaveWithOptimisticLock 使用乐观锁保存库存实体。
-	// 更新时会检查版本号，如果版本号不匹配则返回错误。
 	SaveWithOptimisticLock(ctx context.Context, inventory *Inventory) error
-
-	// SaveLog 保存库存日志。
 	SaveLog(ctx context.Context, log *InventoryLog) error
-
-	// GetBySkuID 根据SKU ID获取库存实体。
 	GetBySkuID(ctx context.Context, skuID uint64) (*Inventory, error)
-	// GetBySkuIDs 根据SKU ID列表获取多个库存实体。
 	GetBySkuIDs(ctx context.Context, skuIDs []uint64) ([]*Inventory, error)
-	// List 列出所有库存实体，支持分页。
 	List(ctx context.Context, offset, limit int) ([]*Inventory, int64, error)
-	// GetLogs 获取指定SKU的所有库存日志。
 	GetLogs(ctx context.Context, skuID uint64, inventoryID uint64, offset, limit int) ([]*InventoryLog, int64, error)
-	// Delete 删除指定库存记录。
 	Delete(ctx context.Context, skuID uint64) error
+	// ExecWithBarrier 在分布式事务屏障下执行业务逻辑
+	ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error
 }
 
 // WarehouseRepository 是仓库模块的仓储接口。
-// 它定义了对仓库实体进行数据持久化操作的契约。
-// 仓储接口属于领域层。
 type WarehouseRepository interface {
-	// Save 将仓库实体保存到数据存储中。
 	Save(ctx context.Context, warehouse *Warehouse) error
-	// GetByID 根据ID获取仓库实体。
 	GetByID(ctx context.Context, id uint64) (*Warehouse, error)
-	// ListAll 列出所有仓库实体。
 	ListAll(ctx context.Context) ([]*Warehouse, error)
 }

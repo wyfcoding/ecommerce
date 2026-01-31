@@ -1,4 +1,4 @@
-package persistence
+package mysql
 
 import (
 	"context"
@@ -24,14 +24,16 @@ func NewPaymentRepository(sharding *sharding.Manager) domain.PaymentRepository {
 	return &paymentRepository{sharding: sharding}
 }
 
+func (r *paymentRepository) getDB(userID uint64) *gorm.DB {
+	if r.tx != nil {
+		return r.tx
+	}
+	return r.sharding.GetDB(userID)
+}
+
 // Save 将支付实体保存到数据库。
 func (r *paymentRepository) Save(ctx context.Context, entity *domain.Payment) error {
-	var db *gorm.DB
-	if r.tx != nil {
-		db = r.tx
-	} else {
-		db = r.sharding.GetDB(uint64(entity.UserID))
-	}
+	db := r.getDB(uint64(entity.UserID))
 	return db.WithContext(ctx).Create(entity).Error
 }
 
@@ -45,39 +47,44 @@ func (r *paymentRepository) FindByID(ctx context.Context, userID uint64, id uint
 		}
 		return nil, err
 	}
+	// 恢复领域模型 ID
+	entity.SetID(entity.PaymentNo)
+	entity.SetVersion(entity.PersistenceVer)
 	return &entity, nil
 }
 
-// getDB 内部辅助方法
-func (r *paymentRepository) getDB(userID uint64) *gorm.DB {
-	if r.tx != nil {
-		return r.tx
-	}
-	return r.sharding.GetDB(userID)
-}
-
-// Update 更新支付实体。
+// Update 更新支付实体，通过版本号实现乐观锁。
 func (r *paymentRepository) Update(ctx context.Context, entity *domain.Payment) error {
 	db := r.getDB(uint64(entity.UserID))
-	return db.WithContext(ctx).Save(entity).Error
-}
 
-// Delete 根据ID从数据库删除支付记录。
-func (r *paymentRepository) Delete(ctx context.Context, userID uint64, id uint64) error {
-	db := r.getDB(userID)
-	return db.WithContext(ctx).Delete(&domain.Payment{}, id).Error
+	currentVer := entity.PersistenceVer
+	entity.PersistenceVer++
+
+	res := db.WithContext(ctx).Model(entity).
+		Where("id = ? AND version = ?", entity.Model.ID, currentVer).
+		Updates(entity)
+
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return errors.New("optimistic lock failed")
+	}
+	return nil
 }
 
 // FindByPaymentNo 根据支付单号从数据库获取支付记录。
 func (r *paymentRepository) FindByPaymentNo(ctx context.Context, userID uint64, paymentNo string) (*domain.Payment, error) {
 	db := r.getDB(userID)
 	var entity domain.Payment
-	if err := db.WithContext(ctx).Where("payment_no = ?", paymentNo).First(&entity).Error; err != nil {
+	if err := db.WithContext(ctx).Where("payment_no = ?", paymentNo).Preload("Logs").First(&entity).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
+	entity.SetID(entity.PaymentNo)
+	entity.SetVersion(entity.PersistenceVer)
 	return &entity, nil
 }
 
@@ -85,27 +92,15 @@ func (r *paymentRepository) FindByPaymentNo(ctx context.Context, userID uint64, 
 func (r *paymentRepository) FindByOrderID(ctx context.Context, userID uint64, orderID uint64) (*domain.Payment, error) {
 	db := r.getDB(userID)
 	var entity domain.Payment
-	if err := db.WithContext(ctx).Where("order_id = ?", orderID).First(&entity).Error; err != nil {
+	if err := db.WithContext(ctx).Where("order_id = ?", orderID).Preload("Logs").First(&entity).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
+	entity.SetID(entity.PaymentNo)
+	entity.SetVersion(entity.PersistenceVer)
 	return &entity, nil
-}
-
-// ListByUserID 从数据库列出指定用户ID的所有支付记录。
-func (r *paymentRepository) ListByUserID(ctx context.Context, userID uint64, offset, limit int) ([]*domain.Payment, int64, error) {
-	var entities []*domain.Payment
-	var total int64
-	db := r.sharding.GetDB(userID)
-	if err := db.WithContext(ctx).Model(&domain.Payment{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	if err := db.WithContext(ctx).Where("user_id = ?", userID).Offset(offset).Limit(limit).Find(&entities).Error; err != nil {
-		return nil, 0, err
-	}
-	return entities, total, nil
 }
 
 // SaveLog 将支付日志实体保存到数据库。
@@ -136,6 +131,10 @@ func (r *paymentRepository) FindSuccessPaymentsByDate(ctx context.Context, date 
 		if err != nil {
 			return nil, err
 		}
+		for i := range list {
+			list[i].SetID(list[i].PaymentNo)
+			list[i].SetVersion(list[i].PersistenceVer)
+		}
 		allPayments = append(allPayments, list...)
 	}
 	return allPayments, nil
@@ -143,6 +142,7 @@ func (r *paymentRepository) FindSuccessPaymentsByDate(ctx context.Context, date 
 
 // SaveReconciliationRecord 保存对账结果。
 func (r *paymentRepository) SaveReconciliationRecord(ctx context.Context, record *domain.ReconciliationRecord) error {
+	// 对账记录通常存储在管理分片/全局片 (shard 0)
 	db := r.sharding.GetDB(0)
 	return db.WithContext(ctx).Save(record).Error
 }
@@ -168,13 +168,16 @@ func (r *paymentRepository) Transaction(ctx context.Context, userID uint64, fn f
 }
 
 func (r *paymentRepository) WithTx(tx any) domain.PaymentRepository {
-	return &paymentRepository{
-		sharding: r.sharding,
-		tx:       tx.(*gorm.DB),
+	if db, ok := tx.(*gorm.DB); ok {
+		return &paymentRepository{
+			sharding: r.sharding,
+			tx:       db,
+		}
 	}
+	return r
 }
 
-// ExecWithBarrier 在分布式事务屏障下执行业务逻辑 (支持分片)
+// ExecWithBarrier 在分布式事务屏障下执行业务逻辑。
 func (r *paymentRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
 	db := r.sharding.GetDB(0)
 	return dtm.CallWithGorm(ctx, barrier, db, func(tx *gorm.DB) error {

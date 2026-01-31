@@ -1,4 +1,4 @@
-package persistence
+package mysql
 
 import (
 	"context"
@@ -9,28 +9,28 @@ import (
 	"gorm.io/gorm"
 )
 
-// ChannelRepositoryImpl 渠道配置仓储实现
-type ChannelRepositoryImpl struct {
+// channelRepositoryImpl 渠道配置仓储实现
+type channelRepositoryImpl struct {
 	sharding *sharding.Manager
 	tx       *gorm.DB
 }
 
 // NewChannelRepository 构造函数
 func NewChannelRepository(sharding *sharding.Manager) domain.ChannelRepository {
-	return &ChannelRepositoryImpl{sharding: sharding}
+	return &channelRepositoryImpl{sharding: sharding}
 }
 
-func (r *ChannelRepositoryImpl) getDB(_ context.Context) *gorm.DB {
+func (r *channelRepositoryImpl) getDB() *gorm.DB {
 	if r.tx != nil {
 		return r.tx
 	}
-	// 假设渠道配置存储在全局库或第一个分片
+	// 渠道配置通常存储在第一个分片 (shard 0)
 	return r.sharding.GetDB(0)
 }
 
 // FindByCode 根据编码查找渠道
-func (r *ChannelRepositoryImpl) FindByCode(ctx context.Context, code string) (*domain.ChannelConfig, error) {
-	db := r.getDB(ctx)
+func (r *channelRepositoryImpl) FindByCode(ctx context.Context, code string) (*domain.ChannelConfig, error) {
+	db := r.getDB()
 	var config domain.ChannelConfig
 	if err := db.WithContext(ctx).Where("code = ?", code).First(&config).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -42,8 +42,8 @@ func (r *ChannelRepositoryImpl) FindByCode(ctx context.Context, code string) (*d
 }
 
 // ListEnabledByType 获取指定类型的所有启用渠道
-func (r *ChannelRepositoryImpl) ListEnabledByType(ctx context.Context, channelType domain.ChannelType) ([]*domain.ChannelConfig, error) {
-	db := r.getDB(ctx)
+func (r *channelRepositoryImpl) ListEnabledByType(ctx context.Context, channelType domain.ChannelType) ([]*domain.ChannelConfig, error) {
+	db := r.getDB()
 	var list []*domain.ChannelConfig
 	err := db.WithContext(ctx).
 		Where("type = ? AND enabled = ?", channelType, true).
@@ -53,21 +53,24 @@ func (r *ChannelRepositoryImpl) ListEnabledByType(ctx context.Context, channelTy
 }
 
 // Save 保存配置
-func (r *ChannelRepositoryImpl) Save(ctx context.Context, channel *domain.ChannelConfig) error {
-	db := r.getDB(ctx)
+func (r *channelRepositoryImpl) Save(ctx context.Context, channel *domain.ChannelConfig) error {
+	db := r.getDB()
 	return db.WithContext(ctx).Save(channel).Error
 }
 
-func (r *ChannelRepositoryImpl) Transaction(ctx context.Context, fn func(tx any) error) error {
+func (r *channelRepositoryImpl) Transaction(ctx context.Context, fn func(tx any) error) error {
 	db := r.sharding.GetDB(0)
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(tx)
 	})
 }
 
-func (r *ChannelRepositoryImpl) WithTx(tx any) domain.ChannelRepository {
-	return &ChannelRepositoryImpl{
-		sharding: r.sharding,
-		tx:       tx.(*gorm.DB),
+func (r *channelRepositoryImpl) WithTx(tx any) domain.ChannelRepository {
+	if db, ok := tx.(*gorm.DB); ok {
+		return &channelRepositoryImpl{
+			sharding: r.sharding,
+			tx:       db,
+		}
 	}
+	return r
 }

@@ -67,7 +67,7 @@ func (m *InventoryCommandService) CreateInventory(ctx context.Context, skuID, pr
 		m.logger.ErrorContext(ctx, "failed to save inventory", "sku_id", skuID, "error", err)
 		return nil, err
 	}
-	m.logger.InfoContext(ctx, "inventory created successfully", "inventory_id", inventory.ID, "sku_id", skuID)
+	m.logger.InfoContext(ctx, "inventory created successfully", "inventory_id", inventory.Model.ID, "sku_id", skuID)
 	return inventory, nil
 }
 
@@ -160,14 +160,15 @@ func (m *InventoryCommandService) AddStock(ctx context.Context, skuID uint64, qu
 			m.filterMu.Unlock()
 		}
 
-		event := &domain.StockAddedEvent{
-			SkuID:     skuID,
-			Quantity:  quantity,
-			Reason:    reason,
-			Timestamp: time.Now(),
+		// 事件已经在领域模型中通过 ApplyChange/Apply 生成并处理
+		// 我们从聚合根中获取未提交的事件进行发布
+		events := inv.GetUncommittedEvents()
+		var lastEvent any
+		if len(events) > 0 {
+			lastEvent = events[len(events)-1]
 		}
 
-		return log, event, nil
+		return log, lastEvent, nil
 	})
 }
 
@@ -186,14 +187,14 @@ func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64,
 			m.filterMu.Unlock()
 		}
 
-		event := &domain.StockDeductedEvent{
-			SkuID:     skuID,
-			Quantity:  quantity,
-			Reason:    reason,
-			Timestamp: time.Now(),
+		// 从聚合根中获取事件
+		events := inv.GetUncommittedEvents()
+		var lastEvent any
+		if len(events) > 0 {
+			lastEvent = events[len(events)-1]
 		}
 
-		// 检查预警
+		// 检查预警 (这也可以由领域层抛出事件，但在此保留应用层检查逻辑)
 		if inv.AvailableStock < inv.WarningThreshold {
 			warningEvent := &domain.StockWarningEvent{
 				SkuID:          skuID,
@@ -204,7 +205,7 @@ func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64,
 			_ = m.publisher.Publish(ctx, "inventory.stock.warning", warningEvent)
 		}
 
-		return log, event, nil
+		return log, lastEvent, nil
 	})
 }
 
@@ -215,13 +216,13 @@ func (m *InventoryCommandService) LockStock(ctx context.Context, skuID uint64, q
 		if err != nil {
 			return nil, nil, err
 		}
-		event := &domain.StockLockedEvent{
-			SkuID:     skuID,
-			Quantity:  quantity,
-			Reason:    reason,
-			Timestamp: time.Now(),
+
+		events := inv.GetUncommittedEvents()
+		var lastEvent any
+		if len(events) > 0 {
+			lastEvent = events[len(events)-1]
 		}
-		return log, event, nil
+		return log, lastEvent, nil
 	})
 }
 
@@ -232,13 +233,13 @@ func (m *InventoryCommandService) UnlockStock(ctx context.Context, skuID uint64,
 		if err != nil {
 			return nil, nil, err
 		}
-		event := &domain.StockUnlockedEvent{
-			SkuID:     skuID,
-			Quantity:  quantity,
-			Reason:    reason,
-			Timestamp: time.Now(),
+
+		events := inv.GetUncommittedEvents()
+		var lastEvent any
+		if len(events) > 0 {
+			lastEvent = events[len(events)-1]
 		}
-		return log, event, nil
+		return log, lastEvent, nil
 	})
 }
 
@@ -293,13 +294,13 @@ func (m *InventoryCommandService) ConfirmDeduction(ctx context.Context, skuID ui
 		if err != nil {
 			return nil, nil, err
 		}
-		event := &domain.StockDeductedEvent{
-			SkuID:     skuID,
-			Quantity:  quantity,
-			Reason:    reason,
-			Timestamp: time.Now(),
+
+		events := inv.GetUncommittedEvents()
+		var lastEvent any
+		if len(events) > 0 {
+			lastEvent = events[len(events)-1]
 		}
-		return log, event, nil
+		return log, lastEvent, nil
 	})
 }
 

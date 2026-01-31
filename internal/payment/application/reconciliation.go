@@ -68,7 +68,7 @@ func (s *ReconciliationService) RunDailyReconciliation(ctx context.Context, date
 				record.Status = "MISSING_SYSTEM"
 				record.Remark = "transaction exists in gateway but not in local success list"
 			} else {
-				record.PaymentID = uint64(local.ID)
+				record.PaymentID = uint64(local.Model.ID)
 				record.SystemAmount = local.Amount
 				record.DiffAmount = local.Amount - item.Amount
 
@@ -93,7 +93,7 @@ func (s *ReconciliationService) RunDailyReconciliation(ctx context.Context, date
 	// 3. 处理“单边账”：本地显示成功，但网关账单中未发现
 	for _, p := range localMap {
 		record := &domain.ReconciliationRecord{
-			PaymentID:    uint64(p.ID),
+			PaymentID:    uint64(p.Model.ID),
 			OrderNo:      p.PaymentNo,
 			SystemAmount: p.Amount,
 			Status:       "MISSING_GATEWAY",

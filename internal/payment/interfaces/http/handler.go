@@ -124,7 +124,7 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	// 尝试从 query 获取 user_id 用于分片定位
 	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64)
 
-	payment, err := h.queryService.GetPaymentStatus(c.Request.Context(), userID, id)
+	payment, err := h.queryService.GetPayment(c.Request.Context(), userID, id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to query payment status", "id", id, "user_id", userID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "failed to get status", "")
