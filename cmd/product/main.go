@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
 	"github.com/wyfcoding/ecommerce/internal/product/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence/elasticsearch"
+	"github.com/wyfcoding/ecommerce/internal/product/interfaces/events"
 	productgrpc "github.com/wyfcoding/ecommerce/internal/product/interfaces/grpc"
 	producthttp "github.com/wyfcoding/ecommerce/internal/product/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -23,6 +26,7 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -90,17 +94,29 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("failed to init redis: %w", err)
 	}
 
-	// 3. Reliable Messaging (Outbox)
+	// 3. Search
+	esCfg := &search.Config{
+		ServiceName: cfg.Server.Name,
+		ElasticsearchConfig: configpkg.ElasticsearchConfig{
+			Addresses: []string{"http://localhost:9200"},
+		},
+	}
+	esClient, err := search.NewClient(esCfg, logger, m)
+	if err != nil {
+		bootLog.Error("failed to connect elasticsearch", "error", err)
+	}
+
+	// 4. Reliable Messaging (Outbox)
 	outboxMgr := outbox.NewManager(db, logger.Logger)
 	publisher := messaging.NewOutboxPublisher(outboxMgr)
 
-	// 4. Repositories
 	productRepo := persistence.NewProductRepository(db)
 	skuRepo := persistence.NewSKURepository(db)
 	brandRepo := persistence.NewBrandRepository(db)
 	categoryRepo := persistence.NewCategoryRepository(db)
+	searchRepo := elasticsearch.NewProductSearchRepository(esClient)
 
-	// 5. Application Services
+	// 6. Application Services
 	cmdService := application.NewProductCommandService(
 		productRepo,
 		skuRepo,
@@ -119,7 +135,12 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		redisCache,
 		logger.Logger,
 		m,
+		searchRepo,
 	)
+
+	// 7. Event Handlers
+	searchHandler := events.NewProductSearchHandler(searchRepo)
+	searchHandler.Subscribe(context.Background(), nil)
 
 	httpHandler := producthttp.NewHandler(cmdService, queryService, logger.Logger)
 

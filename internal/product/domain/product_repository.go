@@ -82,3 +82,10 @@ type BrandRepository interface {
 	// List 列出所有品牌实体。
 	List(ctx context.Context) ([]*Brand, error)
 }
+
+// ProductSearchRepository 是商品搜索的高性能仓储接口 (基于 ES)。
+type ProductSearchRepository interface {
+	Index(ctx context.Context, product *Product) error
+	Search(ctx context.Context, query string, limit int) ([]*Product, error)
+	Delete(ctx context.Context, productID uint64) error
+}

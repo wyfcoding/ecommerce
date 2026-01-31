@@ -21,15 +21,16 @@ import (
 
 // ProductQuery 处理商品模块的所有只读查询，集成了高性能缓存、并发防击穿及业务降级机制。
 type ProductQuery struct {
-	repo         domain.ProductRepository  // 商品主仓储
-	skuRepo      domain.SKURepository      // SKU 仓储
-	brandRepo    domain.BrandRepository    // 品牌仓储
-	categoryRepo domain.CategoryRepository // 分类仓储
-	cache        cache.Cache               // 缓存组件
-	logger       *slog.Logger              // 结构化日志记录器
-	cacheHits    *prometheus.CounterVec    // 缓存命中指标统计
-	cacheMisses  *prometheus.CounterVec    // 缓存未命中指标统计
-	sf           singleflight.Group        // SingleFlight 实例，用于合并瞬时高并发下的同 Key 回源请求
+	repo         domain.ProductRepository       // 商品主仓储
+	skuRepo      domain.SKURepository           // SKU 仓储
+	brandRepo    domain.BrandRepository         // 品牌仓储
+	categoryRepo domain.CategoryRepository      // 分类仓储
+	cache        cache.Cache                    // 缓存组件
+	logger       *slog.Logger                   // 结构化日志记录器
+	cacheHits    *prometheus.CounterVec         // 缓存命中指标统计
+	cacheMisses  *prometheus.CounterVec         // 缓存未命中指标统计
+	sf           singleflight.Group             // SingleFlight 实例，用于合并瞬时高并发下的同 Key 回源请求
+	searchRepo   domain.ProductSearchRepository // ES 搜索仓储
 }
 
 // NewProductQuery 初始化并返回一个新的商品查询服务。
@@ -41,6 +42,7 @@ func NewProductQuery(
 	cache cache.Cache,
 	logger *slog.Logger,
 	m *metrics.Metrics,
+	searchRepo domain.ProductSearchRepository,
 ) *ProductQuery {
 	cacheHits := m.NewCounterVec(&prometheus.CounterOpts{
 		Name: "product_cache_hits_total",
@@ -62,6 +64,7 @@ func NewProductQuery(
 		cacheHits:    cacheHits,
 		cacheMisses:  cacheMisses,
 		sf:           singleflight.Group{},
+		searchRepo:   searchRepo,
 	}
 }
 
@@ -134,6 +137,11 @@ func (q *ProductQuery) ListProducts(ctx context.Context, page, pageSize int, cat
 		return q.repo.ListByBrand(ctx, uint(brandID), offset, pageSize)
 	}
 	return q.repo.List(ctx, offset, pageSize)
+}
+
+// SearchProducts 利用 Elasticsearch 进行高性能全文检索。
+func (q *ProductQuery) SearchProducts(ctx context.Context, query string, limit int) ([]*domain.Product, error) {
+	return q.searchRepo.Search(ctx, query, limit)
 }
 
 // CalculateProductPrice 计算商品动态实时价格。
