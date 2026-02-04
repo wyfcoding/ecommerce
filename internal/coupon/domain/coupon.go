@@ -31,26 +31,30 @@ const (
 // Coupon 实体是优惠券模块的聚合根。
 // 它代表一个优惠券模板，包含了优惠券的规则、状态、发行和使用统计等信息。
 type Coupon struct {
-	gorm.Model                   // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	CouponNo        string       `gorm:"type:varchar(64);uniqueIndex;not null;comment:优惠券编号" json:"coupon_no"` // 优惠券编号，唯一索引，不允许为空。
-	Name            string       `gorm:"type:varchar(255);not null;comment:名称" json:"name"`                    // 优惠券名称。
-	Description     string       `gorm:"type:text;comment:描述" json:"description"`                              // 优惠券描述。
-	Type            CouponType   `gorm:"default:1;comment:类型" json:"type"`                                     // 优惠券类型，默认为折扣券。
-	Status          CouponStatus `gorm:"default:1;comment:状态" json:"status"`                                   // 优惠券状态，默认为草稿。
-	DiscountAmount  int64        `gorm:"comment:折扣金额/比例" json:"discount_amount"`                               // 优惠金额（单位：分）或折扣比例（0-100）。
-	MinOrderAmount  int64        `gorm:"comment:最低订单金额" json:"min_order_amount"`                               // 使用优惠券的最低订单金额（单位：分）。
-	MaxDiscount     int64        `gorm:"comment:最大折扣金额" json:"max_discount"`                                   // 折扣券的最大优惠金额。
-	ValidFrom       time.Time    `gorm:"comment:有效期开始" json:"valid_from"`                                      // 优惠券有效期开始时间。
-	ValidTo         time.Time    `gorm:"comment:有效期结束" json:"valid_to"`                                        // 优惠券有效期结束时间。
-	UsageLimit      int32        `gorm:"default:0;comment:总发行量" json:"usage_limit"`                            // 优惠券的总发行数量，0表示不限制。
-	UsagePerUser    int32        `gorm:"default:1;comment:每人限领" json:"usage_per_user"`                         // 每个用户可以领取的优惠券数量。
-	TotalIssued     int32        `gorm:"default:0;comment:已发行量" json:"total_issued"`                           // 已经发放的数量。
-	TotalUsed       int32        `gorm:"default:0;comment:已使用量" json:"total_used"`                             // 已经使用的数量。
-	ConditionExpr   string       `gorm:"type:text;comment:判定表达式" json:"condition_expr"`                        // 判定表达式，用于规则引擎判定。
-	ApplicableScope string       `gorm:"type:varchar(255);comment:适用范围" json:"applicable_scope"`               // 优惠券适用范围，例如“全场通用”、“指定商品”。
-	ApplicableIDs   []uint64     `gorm:"type:json;serializer:json;comment:适用ID列表" json:"applicable_ids"`       // 适用商品ID或品类ID列表（JSON存储）。
-	CanStack        bool         `gorm:"default:false;comment:是否可叠加" json:"can_stack"`                         // 是否允许与其他优惠券叠加使用。
-	StackingRules   string       `gorm:"type:text;comment:叠加规则(JSON)" json:"stacking_rules"`                   // 详细的叠加规则，如“仅限同类券叠加”。
+	gorm.Model                         // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
+	CouponNo              string       `gorm:"type:varchar(64);uniqueIndex;not null;comment:优惠券编号" json:"coupon_no"`      // 优惠券编号，唯一索引，不允许为空。
+	Name                  string       `gorm:"type:varchar(255);not null;comment:名称" json:"name"`                         // 优惠券名称。
+	Description           string       `gorm:"type:text;comment:描述" json:"description"`                                   // 优惠券描述。
+	Type                  CouponType   `gorm:"default:1;comment:类型" json:"type"`                                          // 优惠券类型，默认为折扣券。
+	Status                CouponStatus `gorm:"default:1;comment:状态" json:"status"`                                        // 优惠券状态，默认为草稿。
+	DiscountAmount        int64        `gorm:"comment:折扣金额/比例" json:"discount_amount"`                                    // 优惠金额（单位：分）或折扣比例（0-100）。
+	MinOrderAmount        int64        `gorm:"comment:最低订单金额" json:"min_order_amount"`                                    // 使用优惠券的最低订单金额（单位：分）。
+	MaxDiscount           int64        `gorm:"comment:最大折扣金额" json:"max_discount"`                                        // 折扣券的最大优惠金额。
+	ValidFrom             time.Time    `gorm:"comment:有效期开始" json:"valid_from"`                                           // 优惠券有效期开始时间。
+	ValidTo               time.Time    `gorm:"comment:有效期结束" json:"valid_to"`                                             // 优惠券有效期结束时间。
+	UsageLimit            int32        `gorm:"default:0;comment:总发行量" json:"usage_limit"`                                 // 优惠券的总发行数量，0表示不限制。
+	UsagePerUser          int32        `gorm:"default:1;comment:每人限领" json:"usage_per_user"`                              // 每个用户可以领取的优惠券数量。
+	TotalIssued           int32        `gorm:"default:0;comment:已发行量" json:"total_issued"`                                // 已经发放的数量。
+	TotalUsed             int32        `gorm:"default:0;comment:已使用量" json:"total_used"`                                  // 已经使用的数量。
+	ConditionExpr         string       `gorm:"type:text;comment:判定表达式" json:"condition_expr"`                             // 判定表达式，用于规则引擎判定。
+	ApplicableScope       string       `gorm:"type:varchar(255);comment:适用范围" json:"applicable_scope"`                    // 优惠券适用范围，例如“全场通用”、“指定商品”。
+	ApplicableProductIDs  []uint64     `gorm:"type:json;serializer:json;comment:适用商品ID列表" json:"applicable_product_ids"`  // 适用商品ID列表。
+	ExcludedProductIDs    []uint64     `gorm:"type:json;serializer:json;comment:排除商品ID列表" json:"excluded_product_ids"`    // 排除商品ID列表。
+	ApplicableCategoryIDs []string     `gorm:"type:json;serializer:json;comment:适用分类ID列表" json:"applicable_category_ids"` // 适用分类ID列表。
+	ExcludedCategoryIDs   []string     `gorm:"type:json;serializer:json;comment:排除分类ID列表" json:"excluded_category_ids"`   // 排除分类ID列表。
+	UserTierRequirement   string       `gorm:"type:varchar(32);comment:会员等级要求" json:"usertier_requirement"`               // 会员等级要求。
+	CanStack              bool         `gorm:"default:false;comment:是否可叠加" json:"can_stack"`                              // 是否允许与其他优惠券叠加使用。
+	StackingRules         string       `gorm:"type:text;comment:叠加规则(JSON)" json:"stacking_rules"`                        // 详细的叠加规则，如“仅限同类券叠加”。
 }
 
 // UserCoupon 实体代表用户拥有的优惠券。
@@ -88,18 +92,18 @@ func NewCoupon(name, description string, couponType CouponType, discountAmount, 
 	validTo := now.AddDate(0, 3, 0) // 默认有效期为3个月。
 
 	return &Coupon{
-		CouponNo:       generateCouponNo(), // 生成唯一的优惠券编号。
-		Name:           name,
-		Description:    description,
-		Type:           couponType,
-		Status:         CouponStatusDraft, // 初始状态为草稿。
-		DiscountAmount: discountAmount,
-		MinOrderAmount: minOrderAmount,
-		ValidFrom:      now,        // 有效期从当前时间开始。
-		ValidTo:        validTo,    // 默认有效期结束时间。
-		UsageLimit:     10000,      // 默认总发行量为10000张。
-		UsagePerUser:   1,          // 默认每人限领1张。
-		ApplicableIDs:  []uint64{}, // 初始化适用ID列表。
+		CouponNo:             generateCouponNo(), // 生成唯一的优惠券编号。
+		Name:                 name,
+		Description:          description,
+		Type:                 couponType,
+		Status:               CouponStatusDraft, // 初始状态为草稿。
+		DiscountAmount:       discountAmount,
+		MinOrderAmount:       minOrderAmount,
+		ValidFrom:            now,        // 有效期从当前时间开始。
+		ValidTo:              validTo,    // 默认有效期结束时间。
+		UsageLimit:           10000,      // 默认总发行量为10000张。
+		UsagePerUser:         1,          // 默认每人限领1张。
+		ApplicableProductIDs: []uint64{}, // 初始化适用商品ID列表。
 	}
 }
 

@@ -15,6 +15,7 @@ type ProductDTO struct {
 	Price       int64                `json:"price"`
 	Stock       int32                `json:"stock"`
 	Status      domain.ProductStatus `json:"status"`
+	Type        domain.ProductType   `json:"type"`
 	MainImage   string               `json:"main_image"`
 	Images      []string             `json:"images"`
 	SKUs        []*SKUDTO            `json:"skus"`
@@ -35,12 +36,13 @@ type SKUDTO struct {
 // --- Product Requests ---
 
 type CreateProductRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	CategoryID  uint   `json:"category_id" binding:"required"`
-	BrandID     uint   `json:"brand_id" binding:"required"`
-	Price       int64  `json:"price" binding:"required"`
-	Stock       int32  `json:"stock" binding:"required"`
+	Name        string             `json:"name" binding:"required"`
+	Description string             `json:"description"`
+	CategoryID  uint               `json:"category_id" binding:"required"`
+	BrandID     uint               `json:"brand_id" binding:"required"`
+	Type        domain.ProductType `json:"type"`
+	Price       int64              `json:"price" binding:"required"`
+	Stock       int32              `json:"stock" binding:"required"`
 }
 
 type UpdateProductRequest struct {
@@ -100,6 +102,7 @@ type CreateProductCommand struct {
 	Description string
 	CategoryID  uint
 	BrandID     uint
+	Type        domain.ProductType
 	Price       int64
 	Stock       int32
 }

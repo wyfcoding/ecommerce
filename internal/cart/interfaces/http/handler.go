@@ -47,8 +47,8 @@ func (h *Handler) AddItem(c *gin.Context) {
 	// ... (请求参数定义保持不变) ...
 	var req struct {
 		UserID          uint64  `json:"user_id" binding:"required"`
-		ProductID       uint64  `json:"product_id" binding:"required"`
-		SkuID           uint64  `json:"sku_id" binding:"required"`
+		ProductID       string  `json:"product_id" binding:"required"`
+		SkuID           string  `json:"sku_id" binding:"required"`
 		ProductName     string  `json:"product_name" binding:"required"`
 		SkuName         string  `json:"sku_name" binding:"required"`
 		Price           float64 `json:"price" binding:"required"`
@@ -75,7 +75,7 @@ func (h *Handler) AddItem(c *gin.Context) {
 func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 	var req struct {
 		UserID   uint64 `json:"user_id" binding:"required"`
-		SkuID    uint64 `json:"sku_id" binding:"required"`
+		SkuID    string `json:"sku_id" binding:"required"`
 		Quantity int32  `json:"quantity" binding:"required"`
 	}
 
@@ -98,7 +98,7 @@ func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 func (h *Handler) RemoveItem(c *gin.Context) {
 	var req struct {
 		UserID uint64 `json:"user_id" binding:"required"`
-		SkuID  uint64 `json:"sku_id" binding:"required"`
+		SkuID  string `json:"sku_id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {

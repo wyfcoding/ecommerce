@@ -22,19 +22,19 @@ func NewCartService(command *CartCommandService, query *CartQuery) *CartService 
 
 // --- Commands (Writes) ---
 
-func (s *CartService) AddItem(ctx context.Context, userID uint64, productID, skuID uint64, productName, skuName string, price float64, quantity int32, imageURL string) error {
+func (s *CartService) AddItem(ctx context.Context, userID uint64, productID, skuID string, productName, skuName string, price float64, quantity int32, imageURL string) error {
 	return s.command.AddItem(ctx, userID, productID, skuID, productName, skuName, price, quantity, imageURL)
 }
 
-func (s *CartService) UpdateItemQuantity(ctx context.Context, userID uint64, skuID uint64, quantity int32) error {
+func (s *CartService) UpdateItemQuantity(ctx context.Context, userID uint64, skuID string, quantity int32) error {
 	return s.command.UpdateItemQuantity(ctx, userID, skuID, quantity)
 }
 
-func (s *CartService) RemoveItem(ctx context.Context, userID uint64, skuID uint64) error {
+func (s *CartService) RemoveItem(ctx context.Context, userID uint64, skuID string) error {
 	return s.command.RemoveItem(ctx, userID, skuID)
 }
 
-func (s *CartService) RemoveItems(ctx context.Context, userID uint64, skuIDs []uint64) error {
+func (s *CartService) RemoveItems(ctx context.Context, userID uint64, skuIDs []string) error {
 	return s.command.RemoveItems(ctx, userID, skuIDs)
 }
 

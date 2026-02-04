@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -11,15 +10,14 @@ import (
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
-	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"
-	"github.com/wyfcoding/ecommerce/internal/cart/application"
-	"github.com/wyfcoding/ecommerce/internal/cart/infrastructure/messaging"
-	cart_redis "github.com/wyfcoding/ecommerce/internal/cart/infrastructure/persistence/redis"
-	cartgrpc "github.com/wyfcoding/ecommerce/internal/cart/interfaces/grpc"
-	carthttp "github.com/wyfcoding/ecommerce/internal/cart/interfaces/http"
+	pb "github.com/wyfcoding/ecommerce/goapi/support/v1"
+	"github.com/wyfcoding/ecommerce/internal/support/application"
+	"github.com/wyfcoding/ecommerce/internal/support/infrastructure/messaging"
+	"github.com/wyfcoding/ecommerce/internal/support/infrastructure/persistence"
+	customergrpc "github.com/wyfcoding/ecommerce/internal/support/interfaces/grpc"
+	customerhttp "github.com/wyfcoding/ecommerce/internal/support/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
@@ -27,47 +25,48 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
-	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
 )
 
 // BootstrapName 服务唯一标识
-const BootstrapName = "cart"
+const BootstrapName = "support"
 
 // IdempotencyPrefix 幂等性 Redis 键前缀
-const IdempotencyPrefix = "cart:idem"
+const IdempotencyPrefix = "customer:idem"
 
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
 }
 
-// AppContext 应用上下文
+// AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Cart        *application.CartService
+	Support     *application.Support
 	Clients     *ServiceClients
-	Handler     *carthttp.Handler
+	Handler     *customerhttp.Handler
 	Metrics     *metrics.Metrics
 	Limiter     limiter.Limiter
 	Idempotency idempotency.Manager
-	Consumer    *kafka.Consumer
 }
 
 // ServiceClients 下游微服务客户端集合
-type ServiceClients struct{}
+type ServiceClients struct {
+	// 目前 Customer 服务无下游强依赖
+}
 
 func main() {
+	// 构建并运行服务
 	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
 		WithConfig(&Config{}).
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.CORS(),
-			middleware.TimeoutMiddleware(30*time.Second),
+			middleware.CORS(), // 跨域处理
+			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
 		).
 		Build().
 		Run(); err != nil {
@@ -75,14 +74,19 @@ func main() {
 	}
 }
 
+// registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterCartServiceServer(s, cartgrpc.NewServer(ctx.Cart))
+	pb.RegisterSupportServiceServer(s, customergrpc.NewServer(ctx.Support))
 }
 
+// registerGin 注册 HTTP 路由
 func registerGin(e *gin.Engine, ctx *AppContext) {
+	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
+	// 系统检查接口
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
@@ -96,21 +100,27 @@ func registerGin(e *gin.Engine, ctx *AppContext) {
 			response.SuccessWithRawData(c, gin.H{"status": "READY"})
 		})
 	}
+
+	// 指标暴露
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
+
+	// 全局限流中间件
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
+
+	// 业务 API 路由 v1
 	api := e.Group("/api/v1")
 	{
-		api.Use(middleware.JWTAuth(ctx.Config.JWT.Secret))
 		ctx.Handler.RegisterRoutes(api)
 	}
 }
 
+// initService 初始化服务依赖 (数据库、缓存、客户端、领域层)
 func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	c := cfg
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default()
+	logger := logging.Default() // 获取全局 Logger
 
 	// 打印脱敏配置
 	configpkg.PrintWithMask(c)
@@ -118,10 +128,10 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 1. 初始化数据库 (MySQL)
 	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
 
-	// 2. 初始化缓存
+	// 2. 初始化缓存 (Redis)
 	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
 	if err != nil {
 		if sqlDB, err := db.RawDB().DB(); err == nil {
@@ -130,7 +140,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 3. 初始化治理组件
+	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
@@ -145,61 +155,35 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. DDD 分层装配
+	// 5. 初始化 Outbox 管理器与发布者
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+
+	// 启动 Outbox 处理器
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
+		return nil
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
+	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 5.1 Infrastructure (Persistence & Messaging)
-	cartRepo := cart_redis.NewCartRepository(redisCache.GetClient())
-	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	// 5.1 Infrastructure (Persistence)
+	customerRepo := persistence.NewTicketRepository(db.RawDB())
 
-	// 5.2 Application (Service)
-	cartQuery := application.NewCartQuery(cartRepo, logger.Logger)
-	cartCommand := application.NewCartCommandService(cartRepo, publisher, logger.Logger, cartQuery)
-	cartService := application.NewCartService(cartCommand, cartQuery)
+	// 6.2 Application (Service)
+	querySvc := application.NewSupportQueryService(customerRepo)
+	commandSvc := application.NewSupportCommandService(customerRepo, outboxPublisher, logger.Logger)
+	customerService := application.NewSupport(commandSvc, querySvc)
 
-	// 5. [关键优化]：启动订单确认事件消费者，自动清空购物车
-	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
-	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
-		if msg.Topic != "order.confirmed" {
-			return nil
-		}
-		var event struct {
-			OrderID uint64 `json:"order_id"`
-			UserID  uint64 `json:"user_id"`
-			Items   []struct {
-				SkuID uint64 `json:"sku_id"`
-			} `json:"items"`
-		}
-		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			return err
-		}
+	// 5.3 Interface (HTTP Handlers)
+	handler := customerhttp.NewHandler(customerService, logger.Logger)
 
-		// 幂等处理：防止同一个订单重复清空购物车
-		idemKey := fmt.Sprintf("cart:clear:order:%d", event.OrderID)
-		isFirst, _, err := idemManager.TryStart(ctx, idemKey, 24*time.Hour)
-		if err != nil || !isFirst {
-			return err
-		}
-
-		skuIDs := make([]string, len(event.Items))
-		for i, it := range event.Items {
-			skuIDs[i] = fmt.Sprintf("%d", it.SkuID)
-		}
-
-		if err := cartCommand.RemoveItems(ctx, event.UserID, skuIDs); err != nil {
-			_ = idemManager.Delete(ctx, idemKey)
-			return err
-		}
-
-		_ = idemManager.Finish(ctx, idemKey, &idempotency.Response{Body: "OK"}, 24*time.Hour)
-		return nil
-	})
-
-	handler := carthttp.NewHandler(cartService, logger.Logger)
-
+	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -215,7 +199,12 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 返回应用上下文与清理函数
 	return &AppContext{
-		Config: c, Cart: cartService, Handler: handler, Metrics: m,
-		Limiter: rateLimiter, Idempotency: idemManager, Consumer: consumer,
+		Config:      c,
+		Support:     customerService,
+		Clients:     clients,
+		Handler:     handler,
+		Metrics:     m,
+		Limiter:     rateLimiter,
+		Idempotency: idemManager,
 	}, cleanup, nil
 }

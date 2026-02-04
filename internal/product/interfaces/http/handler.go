@@ -76,6 +76,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		Description: req.Description,
 		CategoryID:  req.CategoryID,
 		BrandID:     req.BrandID,
+		Type:        req.Type,
 		Price:       req.Price,
 		Stock:       req.Stock,
 	})

@@ -11,19 +11,21 @@ import (
 
 // NotificationManager 处理通知的写操作（发送、标记已读、模板管理）。
 type NotificationManager struct {
-	repo        domain.NotificationRepository
-	emailSender domain.Sender
-	smsSender   domain.Sender
-	logger      *slog.Logger
+	repo          domain.NotificationRepository
+	emailSender   domain.Sender
+	smsSender     domain.Sender
+	webhookSender domain.Sender
+	logger        *slog.Logger
 }
 
 // NewNotificationManager 负责处理 NewNotification 相关的写操作和业务逻辑。
-func NewNotificationManager(repo domain.NotificationRepository, emailSender, smsSender domain.Sender, logger *slog.Logger) *NotificationManager {
+func NewNotificationManager(repo domain.NotificationRepository, emailSender, smsSender, webhookSender domain.Sender, logger *slog.Logger) *NotificationManager {
 	return &NotificationManager{
-		repo:        repo,
-		emailSender: emailSender,
-		smsSender:   smsSender,
-		logger:      logger,
+		repo:          repo,
+		emailSender:   emailSender,
+		smsSender:     smsSender,
+		webhookSender: webhookSender,
+		logger:        logger,
 	}
 }
 
@@ -55,6 +57,10 @@ func (m *NotificationManager) SendNotification(ctx context.Context, userID uint6
 	case domain.NotificationChannelApp:
 		// 站内信仅持久化，无需额外发送动作
 		m.logger.Info("In-app notification persisted", "user_id", userID)
+	case domain.NotificationChannelWebhook:
+		if m.webhookSender != nil {
+			sendErr = m.webhookSender.Send(ctx, target, title, content)
+		}
 	}
 
 	if sendErr != nil {

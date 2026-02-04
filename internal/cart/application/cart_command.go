@@ -27,7 +27,7 @@ func NewCartCommandService(repo domain.CartRepository, publisher domain.EventPub
 }
 
 // AddItem 添加商品到购物车。
-func (s *CartCommandService) AddItem(ctx context.Context, userID uint64, productID, skuID uint64, productName, skuName string, price float64, quantity int32, imageURL string) error {
+func (s *CartCommandService) AddItem(ctx context.Context, userID uint64, productID, skuID string, productName, skuName string, price float64, quantity int32, imageURL string) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func (s *CartCommandService) AddItem(ctx context.Context, userID uint64, product
 }
 
 // UpdateItemQuantity 更新商品数量。
-func (s *CartCommandService) UpdateItemQuantity(ctx context.Context, userID uint64, skuID uint64, quantity int32) error {
+func (s *CartCommandService) UpdateItemQuantity(ctx context.Context, userID uint64, skuID string, quantity int32) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func (s *CartCommandService) UpdateItemQuantity(ctx context.Context, userID uint
 }
 
 // RemoveItem 移除商品。
-func (s *CartCommandService) RemoveItem(ctx context.Context, userID uint64, skuID uint64) error {
+func (s *CartCommandService) RemoveItem(ctx context.Context, userID uint64, skuID string) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (s *CartCommandService) RemoveItem(ctx context.Context, userID uint64, skuI
 	// 发布领域事件
 	event := &domain.CartItemRemovedEvent{
 		UserID:    userID,
-		SkuIDs:    []uint64{skuID},
+		SkuIDs:    []string{skuID},
 		Timestamp: time.Now(),
 	}
 	_ = s.publisher.Publish(ctx, "cart.item.removed", event)
@@ -105,7 +105,7 @@ func (s *CartCommandService) RemoveItem(ctx context.Context, userID uint64, skuI
 }
 
 // RemoveItems 批量移除商品 (用于下单后的购物车自动清理)
-func (s *CartCommandService) RemoveItems(ctx context.Context, userID uint64, skuIDs []uint64) error {
+func (s *CartCommandService) RemoveItems(ctx context.Context, userID uint64, skuIDs []string) error {
 	cart, err := s.query.GetCart(ctx, userID)
 	if err != nil {
 		return err

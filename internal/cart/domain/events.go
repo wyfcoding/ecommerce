@@ -7,8 +7,8 @@ import (
 // CartItemAddedEvent 商品加入购物车事件
 type CartItemAddedEvent struct {
 	UserID    uint64    `json:"user_id"`
-	ProductID uint64    `json:"product_id"`
-	SkuID     uint64    `json:"sku_id"`
+	ProductID string    `json:"product_id"`
+	SkuID     string    `json:"sku_id"`
 	Quantity  int32     `json:"quantity"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -16,7 +16,7 @@ type CartItemAddedEvent struct {
 // CartItemUpdatedEvent 购物车项更新事件
 type CartItemUpdatedEvent struct {
 	UserID    uint64    `json:"user_id"`
-	SkuID     uint64    `json:"sku_id"`
+	SkuID     string    `json:"sku_id"`
 	Quantity  int32     `json:"quantity"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -24,7 +24,7 @@ type CartItemUpdatedEvent struct {
 // CartItemRemovedEvent 购物车项移除事件
 type CartItemRemovedEvent struct {
 	UserID    uint64    `json:"user_id"`
-	SkuIDs    []uint64  `json:"sku_ids"`
+	SkuIDs    []string  `json:"sku_ids"`
 	Timestamp time.Time `json:"timestamp"`
 }
 

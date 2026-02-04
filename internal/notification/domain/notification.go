@@ -29,10 +29,11 @@ const (
 type NotificationChannel string
 
 const (
-	NotificationChannelApp   NotificationChannel = "APP"   // 站内信/应用程序内通知。
-	NotificationChannelSMS   NotificationChannel = "SMS"   // 短信通知。
-	NotificationChannelEmail NotificationChannel = "EMAIL" // 邮件通知。
-	NotificationChannelPush  NotificationChannel = "PUSH"  // 推送通知（例如，App Push）。
+	NotificationChannelApp     NotificationChannel = "APP"     // 站内信/应用程序内通知。
+	NotificationChannelSMS     NotificationChannel = "SMS"     // 短信通知。
+	NotificationChannelEmail   NotificationChannel = "EMAIL"   // 邮件通知。
+	NotificationChannelPush    NotificationChannel = "PUSH"    // 推送通知（例如，App Push）。
+	NotificationChannelWebhook NotificationChannel = "WEBHOOK" // Webhook通知。
 )
 
 // NotificationStatus 定义了通知的阅读状态。

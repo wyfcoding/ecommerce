@@ -40,9 +40,14 @@ type Settlement struct {
 	OrderCount       int64            `gorm:"not null;default:0;comment:订单数量" json:"order_count"`
 	TotalAmount      uint64           `gorm:"not null;default:0;comment:总金额(分)" json:"total_amount"`
 	PlatformFee      uint64           `gorm:"not null;default:0;comment:平台手续费(分)" json:"platform_fee"`
+	CommissionAmount int64            `gorm:"not null;default:0;comment:佣金金额(分)" json:"commission_amount"`
+	RebateAmount     int64            `gorm:"not null;default:0;comment:返利金额(分)" json:"rebate_amount"`
+	OtherFees        int64            `gorm:"not null;default:0;comment:其他费用(分)" json:"other_fees"`
 	SettlementAmount uint64           `gorm:"not null;default:0;comment:结算金额(分)" json:"settlement_amount"`
 	Status           SettlementStatus `gorm:"type:tinyint;not null;default:0;comment:状态" json:"status"`
 	SettledAt        *time.Time       `gorm:"comment:结算时间" json:"settled_at"`
+	ApprovedBy       string           `gorm:"type:varchar(64);comment:审核人" json:"approved_by"`
+	ApprovedAt       *time.Time       `gorm:"comment:审核时间" json:"approved_at"`
 	FailReason       string           `gorm:"type:varchar(255);comment:失败原因" json:"fail_reason"`
 }
 
@@ -54,7 +59,31 @@ type SettlementDetail struct {
 	OrderNo          string `gorm:"type:varchar(64);not null;comment:订单号" json:"order_no"`
 	OrderAmount      uint64 `gorm:"not null;comment:订单金额(分)" json:"order_amount"`
 	PlatformFee      uint64 `gorm:"not null;comment:平台手续费(分)" json:"platform_fee"`
+	LogisticsFee     int64  `gorm:"not null;default:0;comment:物流费(分)" json:"logistics_fee"`
+	ReturnFee        int64  `gorm:"not null;default:0;comment:退货费(分)" json:"return_fee"`
+	OtherFee         int64  `gorm:"not null;default:0;comment:其他费用(分)" json:"other_fee"`
 	SettlementAmount uint64 `gorm:"not null;comment:结算金额(分)" json:"settlement_amount"`
+}
+
+// PaymentStatus 定义了结算支付的生命周期状态。
+type PaymentStatus string
+
+const (
+	PaymentStatusPending    PaymentStatus = "pending"    // 待处理
+	PaymentStatusProcessing PaymentStatus = "processing" // 处理中
+	PaymentStatusCompleted  PaymentStatus = "completed"  // 已完成
+	PaymentStatusFailed     PaymentStatus = "failed"     // 失败
+)
+
+// SettlementPayment 实体代表一笔结算支付记录。
+type SettlementPayment struct {
+	gorm.Model
+	SettlementID  uint64        `gorm:"not null;index;comment:结算ID" json:"settlement_id"`
+	MerchantID    uint64        `gorm:"not null;index;comment:商户ID" json:"merchant_id"`
+	Amount        int64         `gorm:"not null;comment:支付金额(分)" json:"amount"`
+	Status        PaymentStatus `gorm:"type:varchar(32);default:'pending';comment:状态" json:"status"`
+	TransactionID string        `gorm:"type:varchar(128);comment:交易流水号" json:"transaction_id"`
+	CompletedAt   *time.Time    `gorm:"comment:完成时间" json:"completed_at"`
 }
 
 // MerchantAccount 实体代表商户的账户信息。

@@ -47,7 +47,7 @@ func NewProductCommandService(
 // ---------------- Product ----------------
 
 func (s *ProductCommandService) CreateProduct(ctx context.Context, cmd *CreateProductCommand) (*domain.Product, error) {
-	product, err := domain.NewProduct(cmd.Name, cmd.Description, cmd.CategoryID, cmd.BrandID, cmd.Price, cmd.Stock)
+	product, err := domain.NewProduct(cmd.Name, cmd.Description, cmd.CategoryID, cmd.BrandID, cmd.Type, cmd.Price, cmd.Stock)
 	if err != nil {
 		return nil, err
 	}

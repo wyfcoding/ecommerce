@@ -32,19 +32,27 @@ func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest
 	start := time.Now()
 	slog.Info("gRPC CreateProduct received", "name", req.Name, "category_id", req.CategoryId)
 
+	var pType domain.ProductType
+	switch req.Type {
+	case pb.ProductType_PHYSICAL:
+		pType = domain.ProductTypePhysical
+	case pb.ProductType_DIGITAL:
+		pType = domain.ProductTypeDigital
+	case pb.ProductType_ASSET:
+		pType = domain.ProductTypeAsset
+	default:
+		pType = domain.ProductTypePhysical // Default
+	}
+
 	createReq := &application.CreateProductCommand{
 		Name:        req.Name,
 		Description: req.Description,
 		CategoryID:  uint(req.CategoryId),
 		BrandID:     uint(req.BrandId),
-		Price:       0, // Proto missing fields, assume defaults or handled in service logic
-		Stock:       0,
+		Type:        pType,
+		Price:       req.Price,
+		Stock:       req.Stock,
 	}
-	// Note: Proto requests have weight, seo_info etc, which are not in my simple command yet.
-	// For compilation, I ignore them or I should add them to Command.
-	// Users expects standard template: so I should align Command with Domain.
-	// But CommandService uses domain.NewProduct which takes specific args.
-	// I'll stick to what CommandService supports for now.
 
 	product, err := s.cmdService.CreateProduct(ctx, createReq)
 	if err != nil {

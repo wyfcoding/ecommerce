@@ -13,6 +13,7 @@ type User struct {
 	gorm.Model            // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
 	Username   string     `gorm:"column:username;type:varchar(255);uniqueIndex;not null" json:"username"` // 用户名，唯一索引，不允许为空。
 	Email      string     `gorm:"column:email;type:varchar(255);uniqueIndex;not null" json:"email"`       // 邮箱，唯一索引，不允许为空。
+	FullName   string     `gorm:"column:full_name;type:varchar(100);comment:全名" json:"full_name"`         // 全名。
 	Password   string     `gorm:"column:password;type:varchar(255);not null" json:"-"`                    // 密码（加密存储），JSON序列化时忽略。
 	Phone      string     `gorm:"column:phone;type:varchar(20);index" json:"phone"`                       // 手机号，索引字段。
 	Nickname   string     `gorm:"column:nickname;type:varchar(255)" json:"nickname"`                      // 昵称。
@@ -21,6 +22,8 @@ type User struct {
 	Birthday   *time.Time `gorm:"column:birthday;type:date" json:"birthday"`                              // 生日。
 	Status     int8       `gorm:"column:status;type:tinyint;default:1" json:"status"`                     // 状态 1:正常 2:禁用，默认为正常。
 	Addresses  []*Address `gorm:"foreignKey:UserID" json:"addresses"`                                     // 关联的地址列表，一对多关系。
+	Roles      []*Role    `gorm:"many2many:user_roles;" json:"roles"`                                     // 关联的角色列表。
+	Tier       *UserTier  `gorm:"foreignKey:UserID" json:"tier"`                                          // 关联的用户等级信息。
 }
 
 // Address 实体代表用户的收货地址信息。

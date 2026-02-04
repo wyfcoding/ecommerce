@@ -200,7 +200,6 @@ func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64,
 				SkuID:          skuID,
 				AvailableStock: inv.AvailableStock,
 				Threshold:      inv.WarningThreshold,
-				Timestamp:      time.Now(),
 			}
 			_ = m.publisher.Publish(ctx, "inventory.stock.warning", warningEvent)
 		}

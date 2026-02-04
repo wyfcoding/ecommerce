@@ -64,9 +64,9 @@ message CartItem {
   // 用户 ID。
   uint64 user_id = 2;
   // 商品 SPU ID。
-  uint64 product_id = 3;
+  string product_id = 3;
   // 规格 SKU ID。
-  uint64 sku_id = 4;
+  string sku_id = 4;
   // 商品标题。
   string product_name = 5;
   // 规格描述。
@@ -90,9 +90,9 @@ message AddItemToCartRequest {
   // 买家。
   uint64 user_id = 1;
   // 商品。
-  uint64 product_id = 2;
+  string product_id = 2;
   // 规格。
-  uint64 sku_id = 3;
+  string sku_id = 3;
   // 增量数量。
   int32 quantity = 4;
 }
@@ -101,8 +101,8 @@ message AddItemToCartRequest {
 message UpdateCartItemRequest {
   // 买家。
   uint64 user_id = 1;
-  // 目标项 ID。
-  uint64 cart_item_id = 2;
+  // 目标项 SKU ID (原来是 cart_item_id，实际逻辑使用 sku_id)。
+  string sku_id = 2;
   // 覆盖数量。
   int32 quantity = 3;
 }
@@ -111,8 +111,8 @@ message UpdateCartItemRequest {
 message RemoveItemFromCartRequest {
   // 买家。
   uint64 user_id = 1;
-  // 待删项 ID 集合。
-  repeated uint64 cart_item_ids = 2;
+  // 待删项 SKU ID 集合。
+  repeated string sku_ids = 2;
 }
 
 // 查询请求。

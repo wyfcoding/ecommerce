@@ -16,6 +16,15 @@ const (
 	ProductStatusDeleted   ProductStatus = 4 // 已删除：商品已被逻辑删除。
 )
 
+// ProductType 定义了商品类型。
+type ProductType int
+
+const (
+	ProductTypePhysical ProductType = 1 // 实物商品 (需要物流)
+	ProductTypeDigital  ProductType = 2 // 虚拟商品 (充值卡、会员)
+	ProductTypeAsset    ProductType = 3 // 金融资产 (股票、债券)
+)
+
 // Product 实体是商品模块的聚合根。
 type Product struct {
 	gorm.Model                // 嵌入 gorm.Model，包含 ID, CreatedAt, UpdatedAt, DeletedAt 等通用字段
@@ -24,6 +33,7 @@ type Product struct {
 	CategoryID  uint          `gorm:"column:category_id;index;not null;comment:所属分类ID" json:"category_id"`
 	BrandID     uint          `gorm:"column:brand_id;index;not null;comment:所属品牌ID" json:"brand_id"`
 	Status      ProductStatus `gorm:"column:status;type:tinyint;default:1;comment:商品状态(1:草稿, 2:已发布, 3:已下架, 4:已删除)" json:"status"`
+	Type        ProductType   `gorm:"column:type;type:tinyint;default:1;comment:商品类型(1:实物, 2:虚拟, 3:资产)" json:"type"`
 	MainImage   string        `gorm:"column:main_image;type:varchar(1024);comment:商品主图URL" json:"main_image"`
 	Images      []string      `gorm:"type:json;serializer:json;comment:商品图集JSON" json:"images"`
 	Price       int64         `gorm:"column:price;type:bigint;not null;comment:默认售价(单位:分)" json:"price"`
@@ -62,7 +72,7 @@ type Brand struct {
 }
 
 // NewProduct 是一个工厂方法，用于创建并返回一个新的 Product 实体实例。
-func NewProduct(name, description string, categoryID, brandID uint, price int64, stock int32) (*Product, error) {
+func NewProduct(name, description string, categoryID, brandID uint, pType ProductType, price int64, stock int32) (*Product, error) {
 	if name == "" {
 		return nil, fmt.Errorf("product name cannot be empty")
 	}
@@ -79,6 +89,7 @@ func NewProduct(name, description string, categoryID, brandID uint, price int64,
 		CategoryID:  categoryID,
 		BrandID:     brandID,
 		Status:      ProductStatusDraft, // 新商品默认为草稿状态。
+		Type:        pType,
 		Price:       price,
 		Stock:       stock,
 		Sales:       0,

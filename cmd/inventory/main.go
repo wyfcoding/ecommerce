@@ -17,7 +17,7 @@ import (
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
 	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/messaging"
-	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence"
+	persistence "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/mysql"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"
 	inventoryhttp "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/http"
 	"github.com/wyfcoding/pkg/app"

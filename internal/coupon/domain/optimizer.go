@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/shopspring/decimal"
@@ -114,13 +115,23 @@ func (o *CouponOptimizer) canApply(c *Coupon, items []*CartItem, currentPrice de
 	threshold := decimal.NewFromInt(c.MinOrderAmount)
 
 	// 1. 检查范围金额是否达标
+	// 1. 检查范围金额是否达标
 	var scopeAmount decimal.Decimal
-	if c.ApplicableScope == "全场通用" || len(c.ApplicableIDs) == 0 {
+	if c.ApplicableScope == "全场通用" || (len(c.ApplicableProductIDs) == 0 && len(c.ApplicableCategoryIDs) == 0) {
 		scopeAmount = currentPrice
 	} else {
 		// 计算特定品类的金额
 		for _, item := range items {
-			if contains(c.ApplicableIDs, item.CategoryID) || contains(c.ApplicableIDs, item.SKUID) {
+			// Check Product ID
+			if len(c.ApplicableProductIDs) > 0 && contains(c.ApplicableProductIDs, item.SKUID) {
+				scopeAmount = scopeAmount.Add(item.Price.Mul(decimal.NewFromInt32(item.Quantity)))
+				continue
+			}
+			// Check Category ID (convert item.CategoryID to string to match)
+			// Assuming CategoryID is uint64, usually stored as string in JSON arrays for flexibility
+			// If ApplicableCategoryIDs contains the string rep of CategoryID
+			// Note: simpler to just use a helper that converts
+			if len(c.ApplicableCategoryIDs) > 0 && containsString(c.ApplicableCategoryIDs, fmt.Sprintf("%d", item.CategoryID)) {
 				scopeAmount = scopeAmount.Add(item.Price.Mul(decimal.NewFromInt32(item.Quantity)))
 			}
 		}
@@ -135,13 +146,21 @@ func (o *CouponOptimizer) applyDiscount(c *Coupon, items []*CartItem, currentPri
 
 	// 1. 计算该券覆盖的商品总额基数
 	var applicableBase decimal.Decimal
-	if c.ApplicableScope == "全场通用" || len(c.ApplicableIDs) == 0 {
+	if c.ApplicableScope == "全场通用" || (len(c.ApplicableProductIDs) == 0 && len(c.ApplicableCategoryIDs) == 0) {
 		// 全场券：基数即为当前价格（或者初始价格，取决于业务规则，这里假设按原价基数折算）
 		applicableBase = calculateTotalPrice(items)
 	} else {
 		// 局部券：只计算范围内商品的金额
 		for _, item := range items {
-			if contains(c.ApplicableIDs, item.CategoryID) || contains(c.ApplicableIDs, item.SKUID) {
+			matched := false
+			if len(c.ApplicableProductIDs) > 0 && contains(c.ApplicableProductIDs, item.SKUID) {
+				matched = true
+			}
+			if !matched && len(c.ApplicableCategoryIDs) > 0 && containsString(c.ApplicableCategoryIDs, fmt.Sprintf("%d", item.CategoryID)) {
+				matched = true
+			}
+
+			if matched {
 				applicableBase = applicableBase.Add(item.Price.Mul(decimal.NewFromInt32(item.Quantity)))
 			}
 		}
@@ -176,5 +195,9 @@ func calculateTotalPrice(items []*CartItem) decimal.Decimal {
 }
 
 func contains(slice []uint64, val uint64) bool {
+	return slices.Contains(slice, val)
+}
+
+func containsString(slice []string, val string) bool {
 	return slices.Contains(slice, val)
 }

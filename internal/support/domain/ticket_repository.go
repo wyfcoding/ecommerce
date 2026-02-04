@@ -1,0 +1,30 @@
+package domain
+
+import (
+	"context"
+)
+
+// TicketRepository 定义了 customer 模块的仓储接口。
+type TicketRepository interface {
+	// Ticket
+	SaveTicket(ctx context.Context, ticket *Ticket) error
+	GetTicket(ctx context.Context, id uint64) (*Ticket, error)
+	GetTicketByNo(ctx context.Context, ticketNo string) (*Ticket, error)
+	UpdateTicket(ctx context.Context, ticket *Ticket) error
+	ListTickets(ctx context.Context, userID uint64, status TicketStatus, offset, limit int) ([]*Ticket, int64, error)
+	GetCustomerSegmentationStats(ctx context.Context) ([]struct {
+		UserID      uint64
+		TicketCount float64
+		AvgPriority float64
+	}, error)
+
+	// Ticket Message
+	SaveMessage(ctx context.Context, message *Message) error
+	ListMessages(ctx context.Context, ticketID uint64, offset, limit int) ([]*Message, int64, error)
+
+	// Conversation (P2P Chat)
+	SaveConversation(ctx context.Context, conversation *Conversation) error
+	GetConversation(ctx context.Context, id uint64) (*Conversation, error)
+	SaveConversationMessage(ctx context.Context, message *ConversationMessage) error
+	ListConversationMessages(ctx context.Context, conversationID uint64, offset, limit int) ([]*ConversationMessage, int64, error)
+}

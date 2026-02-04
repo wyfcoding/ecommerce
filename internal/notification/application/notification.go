@@ -16,8 +16,9 @@ type Notification struct {
 
 // NewNotification 创建并返回一个新的 Notification 实例。
 func NewNotification(repo domain.NotificationRepository, emailSender, smsSender domain.Sender, logger *slog.Logger) *Notification {
+	webhookSender := NewWebhookSender()
 	return &Notification{
-		manager: NewNotificationManager(repo, emailSender, smsSender, logger),
+		manager: NewNotificationManager(repo, emailSender, smsSender, webhookSender, logger),
 		query:   NewNotificationQuery(repo, logger),
 	}
 }

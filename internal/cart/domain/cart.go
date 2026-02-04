@@ -17,8 +17,8 @@ type Cart struct {
 type CartItem struct {
 	gorm.Model              // 嵌入gorm.Model。
 	CartID          uint64  `gorm:"not null;index;comment:购物车ID" json:"cart_id"`                 // 关联的购物车ID，索引字段，不允许为空。
-	ProductID       uint64  `gorm:"not null;comment:商品ID" json:"product_id"`                     // 商品ID。
-	SkuID           uint64  `gorm:"not null;index;comment:SKU ID" json:"sku_id"`                 // SKU ID，索引字段。
+	ProductID       string  `gorm:"not null;comment:商品ID" json:"product_id"`                     // 商品ID。
+	SkuID           string  `gorm:"not null;index;comment:SKU ID" json:"sku_id"`                 // SKU ID，索引字段。
 	ProductName     string  `gorm:"type:varchar(255);not null;comment:商品名称" json:"product_name"` // 商品名称。
 	SkuName         string  `gorm:"type:varchar(255);not null;comment:SKU名称" json:"sku_name"`    // SKU名称（例如，颜色、尺码等属性组合）。
 	Price           float64 `gorm:"type:decimal(10,2);not null;comment:价格" json:"price"`         // 商品单价。
@@ -44,7 +44,7 @@ func NewCart(userID uint64) *Cart {
 // price: 商品单价。
 // quantity: 待添加的数量。
 // imageURL: 商品图片URL。
-func (c *Cart) AddItem(productID, skuID uint64, productName, skuName string, price float64, quantity int32, imageURL string) {
+func (c *Cart) AddItem(productID, skuID string, productName, skuName string, price float64, quantity int32, imageURL string) {
 	// 检查购物车中是否已存在该SKU的商品。
 	for _, item := range c.Items {
 		if item.SkuID == skuID {
@@ -69,7 +69,7 @@ func (c *Cart) AddItem(productID, skuID uint64, productName, skuName string, pri
 // UpdateItemQuantity 更新购物车中指定SKU商品的数量。
 // skuID: 待更新商品的SKU ID。
 // quantity: 更新后的商品数量。
-func (c *Cart) UpdateItemQuantity(skuID uint64, quantity int32) {
+func (c *Cart) UpdateItemQuantity(skuID string, quantity int32) {
 	for _, item := range c.Items {
 		if item.SkuID == skuID {
 			item.Quantity = quantity // 找到商品并更新数量。
@@ -80,7 +80,7 @@ func (c *Cart) UpdateItemQuantity(skuID uint64, quantity int32) {
 
 // RemoveItem 从购物车中移除指定SKU的商品。
 // skuID: 待移除商品的SKU ID。
-func (c *Cart) RemoveItem(skuID uint64) {
+func (c *Cart) RemoveItem(skuID string) {
 	for i, item := range c.Items {
 		if item.SkuID == skuID {
 			// 从切片中移除元素。

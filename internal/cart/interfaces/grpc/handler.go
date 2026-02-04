@@ -48,11 +48,11 @@ func (s *Server) AddItemToCart(ctx context.Context, req *pb.AddItemToCartRequest
 // UpdateCartItem 处理更新购物车中商品数量的gRPC请求。
 func (s *Server) UpdateCartItem(ctx context.Context, req *pb.UpdateCartItemRequest) (*pb.CartInfo, error) {
 	start := time.Now()
-	slog.Info("gRPC UpdateCartItem received", "user_id", req.UserId, "cart_item_id", req.CartItemId, "quantity", req.Quantity)
+	slog.Info("gRPC UpdateCartItem received", "user_id", req.UserId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	err := s.app.UpdateItemQuantity(ctx, req.UserId, req.CartItemId, req.Quantity)
+	err := s.app.UpdateItemQuantity(ctx, req.UserId, req.SkuId, req.Quantity)
 	if err != nil {
-		slog.Error("gRPC UpdateCartItem failed", "user_id", req.UserId, "cart_item_id", req.CartItemId, "error", err, "duration", time.Since(start))
+		slog.Error("gRPC UpdateCartItem failed", "user_id", req.UserId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update cart item quantity: %v", err))
 	}
 
@@ -63,9 +63,9 @@ func (s *Server) UpdateCartItem(ctx context.Context, req *pb.UpdateCartItemReque
 // RemoveItemFromCart 处理从购物车中移除商品的gRPC请求。
 func (s *Server) RemoveItemFromCart(ctx context.Context, req *pb.RemoveItemFromCartRequest) (*pb.CartInfo, error) {
 	start := time.Now()
-	slog.Info("gRPC RemoveItemFromCart received", "user_id", req.UserId, "item_ids", req.CartItemIds)
+	slog.Info("gRPC RemoveItemFromCart received", "user_id", req.UserId, "sku_ids", req.SkuIds)
 
-	for _, id := range req.CartItemIds {
+	for _, id := range req.SkuIds {
 		if err := s.app.RemoveItem(ctx, req.UserId, id); err != nil {
 			slog.Error("gRPC RemoveItemFromCart failed", "user_id", req.UserId, "item_id", id, "error", err, "duration", time.Since(start))
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove item from cart: %v", err))

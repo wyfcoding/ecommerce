@@ -222,6 +222,20 @@ message CreateProductRequest {
   SeoInfo seo_info = 9;
   // 重量。
   google.protobuf.DoubleValue weight = 10;
+  // 商品类型。
+  ProductType type = 11;
+  // 基础价格（分）。
+  int64 price = 12;
+  // 基础库存。
+  int32 stock = 13;
+}
+
+// 商品类型
+enum ProductType {
+  PRODUCT_TYPE_UNSPECIFIED = 0;
+  PHYSICAL = 1; // 实物
+  DIGITAL = 2; // 虚拟
+  ASSET = 3; // 资产
 }
 
 // ID 查询请求。
