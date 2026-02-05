@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/pointsmall/v1"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
-	"github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence"
 	pointsmallgrpc "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/grpc"
 	pointsmallhttp "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/http"
@@ -165,7 +164,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5. 初始化 Outbox 管理器与发布者
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+	outboxPublisher := outbox.NewPublisher(outboxMgr)
 
 	// 启动 Outbox 处理器
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {

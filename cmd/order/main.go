@@ -13,11 +13,10 @@ import (
 	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	productv1 "github.com/wyfcoding/ecommerce/goapi/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
-	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/messaging"
 	ordersearch "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/elasticsearch"
 	ordermysql "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/mysql"
 	orderredis "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/redis"
-	"github.com/wyfcoding/ecommerce/internal/order/interfaces/consumer"
+	consumer "github.com/wyfcoding/ecommerce/internal/order/interfaces/event"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
 	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
@@ -246,7 +245,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		orderRepo,
 		orderEventStore,
 		idGenerator,
-		messaging.NewOutboxPublisher(defaultOutboxMgr),
+		outbox.NewPublisher(defaultOutboxMgr),
 		logger.Logger,
 		dtmAddr,
 		warehouseAddr,

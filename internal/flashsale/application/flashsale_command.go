@@ -65,7 +65,7 @@ func (m *FlashSaleCommandService) CreateFlashsale(ctx context.Context, name stri
 		EndTime:   endTime,
 		Timestamp: time.Now(),
 	}
-	_ = m.publisher.Publish(ctx, "flashsale.event.created", event)
+	_ = m.publisher.Publish(ctx, "flashsale.event.created", fmt.Sprintf("%d", flashsale.ID), event)
 
 	m.logger.InfoContext(ctx, "flashsale created successfully", "flashsale_id", flashsale.ID, "name", name)
 	return flashsale, nil

@@ -16,7 +16,6 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
-	"github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/messaging"
 	persistence "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/mysql"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"
 	inventoryhttp "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/http"
@@ -180,7 +179,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 初始化可靠消息发布者 (Outbox) - 注意：分片场景下 Outbox Manager 通常绑定主库或第一个分片库
 	// 这里使用第一个分片库作为消息基座
 	outboxMgr := outbox.NewManager(shardingMgr.GetDB(0), logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	// 5.2 Application (Service)
 	cmdService, err := application.NewInventoryCommandService(inventoryRepo, warehouseRepo, publisher, logger.Logger)

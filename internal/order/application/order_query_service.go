@@ -9,7 +9,6 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/metrics"
-	"github.com/wyfcoding/pkg/tracing"
 )
 
 // OrderQueryService 处理所有订单相关的查询操作 (Queries)。
@@ -52,8 +51,6 @@ func (s *OrderQueryService) GetOrder(ctx context.Context, userID uint64, orderID
 		return nil, err
 	}
 	if o != nil {
-		s.refreshReadModel(ctx, o)
-
 		return o, nil
 	}
 
@@ -69,9 +66,6 @@ func (s *OrderQueryService) GetOrder(ctx context.Context, userID uint64, orderID
 			if rebuildErr != nil {
 				s.logger.WarnContext(ctx, "order rebuild failed", "order_id", orderID, "error", rebuildErr)
 				return nil, nil
-			}
-			if order != nil {
-				s.refreshReadModel(ctx, order)
 			}
 			return order, nil
 		}
@@ -90,7 +84,6 @@ func (s *OrderQueryService) GetOrderByNo(ctx context.Context, userID uint64, ord
 
 	if s.searchRepo != nil {
 		if order, err := s.searchRepo.FindByOrderNo(ctx, orderNo); err == nil && order != nil {
-			s.refreshReadModel(ctx, order)
 			return order, nil
 		}
 	}
@@ -98,9 +91,6 @@ func (s *OrderQueryService) GetOrderByNo(ctx context.Context, userID uint64, ord
 	order, err := s.repo.FindByOrderNo(ctx, userID, orderNo)
 	if err != nil {
 		return nil, err
-	}
-	if order != nil {
-		s.refreshReadModel(ctx, order)
 	}
 	return order, nil
 }
@@ -119,7 +109,6 @@ func (s *OrderQueryService) ListOrders(ctx context.Context, offset, limit int) (
 	if err != nil {
 		return nil, 0, err
 	}
-	s.refreshReadModels(ctx, list)
 	return list, total, nil
 }
 
@@ -137,33 +126,5 @@ func (s *OrderQueryService) ListUserOrders(ctx context.Context, userID uint64, s
 	if err != nil {
 		return nil, 0, err
 	}
-	s.refreshReadModels(ctx, list)
 	return list, total, nil
-}
-
-// refreshReadModels 批量刷新读模型（Redis + ES）。
-func (s *OrderQueryService) refreshReadModels(ctx context.Context, orders []*domain.Order) {
-	for _, order := range orders {
-		s.refreshReadModel(ctx, order)
-	}
-}
-
-// refreshReadModel 刷新单个订单读模型。
-func (s *OrderQueryService) refreshReadModel(ctx context.Context, order *domain.Order) {
-	if order == nil {
-		return
-	}
-
-	if s.readRepo != nil {
-		if err := s.readRepo.Save(ctx, order); err != nil {
-			s.logger.WarnContext(ctx, "failed to update order read model", "order_id", order.ID, "error", err)
-		}
-	}
-	if s.searchRepo != nil {
-		ctx, span := tracing.Tracer().Start(ctx, "OrderSearch.Index")
-		defer span.End()
-		if err := s.searchRepo.Index(ctx, order); err != nil {
-			s.logger.WarnContext(ctx, "failed to index order search model", "order_id", order.ID, "error", err)
-		}
-	}
 }

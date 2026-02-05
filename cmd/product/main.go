@@ -12,7 +12,6 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/product/application"
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
-	"github.com/wyfcoding/ecommerce/internal/product/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence"
 	"github.com/wyfcoding/ecommerce/internal/product/infrastructure/persistence/elasticsearch"
 	"github.com/wyfcoding/ecommerce/internal/product/interfaces/events"
@@ -108,7 +107,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 4. Reliable Messaging (Outbox)
 	outboxMgr := outbox.NewManager(db, logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	productRepo := persistence.NewProductRepository(db)
 	skuRepo := persistence.NewSKURepository(db)

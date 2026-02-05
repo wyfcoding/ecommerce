@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
-	"github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence"
 	warehousegrpc "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/grpc"
 	warehousehttp "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/http"
@@ -131,7 +130,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// Outbox initialization
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+	outboxPublisher := outbox.NewPublisher(outboxMgr)
 
 	// 这里通常需要一个 MQ Pusher，暂设空或从配置初始化
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {

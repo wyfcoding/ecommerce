@@ -17,7 +17,6 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"
-	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/mysql"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/risk"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
@@ -242,7 +241,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	}
 
 	// 5.2 Application
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	paymentCmdService := application.NewPaymentCommandService(
 		paymentRepo,

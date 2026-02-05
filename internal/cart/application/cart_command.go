@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/cart/domain"
@@ -47,7 +48,7 @@ func (s *CartCommandService) AddItem(ctx context.Context, userID uint64, product
 		Quantity:  quantity,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.item.added", event)
+	_ = s.publisher.Publish(ctx, "cart.item.added", strconv.FormatUint(userID, 10), event)
 
 	s.logger.InfoContext(ctx, "item added to cart successfully", "user_id", userID, "sku_id", skuID, "quantity", quantity)
 	return nil
@@ -73,7 +74,7 @@ func (s *CartCommandService) UpdateItemQuantity(ctx context.Context, userID uint
 		Quantity:  quantity,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.item.updated", event)
+	_ = s.publisher.Publish(ctx, "cart.item.updated", strconv.FormatUint(userID, 10), event)
 
 	s.logger.InfoContext(ctx, "item quantity updated successfully", "user_id", userID, "sku_id", skuID, "quantity", quantity)
 	return nil
@@ -98,7 +99,7 @@ func (s *CartCommandService) RemoveItem(ctx context.Context, userID uint64, skuI
 		SkuIDs:    []string{skuID},
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.item.removed", event)
+	_ = s.publisher.Publish(ctx, "cart.item.removed", strconv.FormatUint(userID, 10), event)
 
 	s.logger.InfoContext(ctx, "item removed from cart successfully", "user_id", userID, "sku_id", skuID)
 	return nil
@@ -126,7 +127,7 @@ func (s *CartCommandService) RemoveItems(ctx context.Context, userID uint64, sku
 		SkuIDs:    skuIDs,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.item.removed", event)
+	_ = s.publisher.Publish(ctx, "cart.item.removed", strconv.FormatUint(userID, 10), event)
 
 	s.logger.InfoContext(ctx, "cart items removed after checkout", "user_id", userID, "count", len(skuIDs))
 	return nil
@@ -150,7 +151,7 @@ func (s *CartCommandService) ClearCart(ctx context.Context, userID uint64) error
 		UserID:    userID,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.cleared", event)
+	_ = s.publisher.Publish(ctx, "cart.cleared", strconv.FormatUint(userID, 10), event)
 
 	s.logger.InfoContext(ctx, "cart cleared successfully", "user_id", userID, "cart_id", cart.ID)
 	return nil
@@ -190,7 +191,7 @@ func (s *CartCommandService) MergeCarts(ctx context.Context, sourceUserID, targe
 		TargetUserID: targetUserID,
 		Timestamp:    time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.merged", event)
+	_ = s.publisher.Publish(ctx, "cart.merged", strconv.FormatUint(targetUserID, 10), event)
 
 	s.logger.InfoContext(ctx, "carts merged successfully", "source_user_id", sourceUserID, "target_user_id", targetUserID)
 	return nil
@@ -215,7 +216,7 @@ func (s *CartCommandService) ApplyCoupon(ctx context.Context, userID uint64, cou
 		CouponCode: couponCode,
 		Timestamp:  time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, "cart.coupon.applied", event)
+	_ = s.publisher.Publish(ctx, "cart.coupon.applied", strconv.FormatUint(userID, 10), event)
 
 	s.logger.InfoContext(ctx, "coupon applied to cart", "user_id", userID, "coupon_code", couponCode)
 	return nil

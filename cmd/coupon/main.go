@@ -13,7 +13,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/coupon/application"
-	"github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence"
 	coupongrpc "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/grpc"
 	couponhttp "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/http"
@@ -141,7 +140,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 3. Reliable Messaging (Outbox)
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	// 4. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)

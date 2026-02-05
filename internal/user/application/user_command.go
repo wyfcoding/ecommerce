@@ -104,7 +104,7 @@ func (s *UserCommandService) Register(ctx context.Context, cmd *CreateUserComman
 	}
 	// Best effort delivery. In strict EDA, use Outbox pattern.
 	if s.publisher != nil {
-		if err := s.publisher.Publish(ctx, s.topic, event); err != nil {
+		if err := s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", user.ID), event); err != nil {
 			s.logger.ErrorContext(ctx, "failed to publish UserCreatedEvent", "error", err, "user_id", user.ID)
 			// Decide: fail usage or ignore? Typically for non-critical downstream, ignore.
 			// But for strict consistency, might want to rollback. GORM transaction required.
@@ -180,7 +180,7 @@ func (s *UserCommandService) UpdateProfile(ctx context.Context, cmd *UpdateUserC
 		UpdatedAt: time.Now(),
 	}
 	if s.publisher != nil {
-		_ = s.publisher.Publish(ctx, s.topic, event)
+		_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", user.ID), event)
 	}
 
 	return nil

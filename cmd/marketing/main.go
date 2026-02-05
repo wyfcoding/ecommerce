@@ -14,7 +14,6 @@ import (
 	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/marketing/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/application"
-	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/marketing/infrastructure/persistence"
 	marketinggrpc "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/grpc"
 	marketinghttp "github.com/wyfcoding/ecommerce/internal/marketing/interfaces/http"
@@ -163,7 +162,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5.2 Application (Service)
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	query := application.NewMarketingQueryService(marketingRepo)
 	var couponCli couponv1.CouponServiceClient

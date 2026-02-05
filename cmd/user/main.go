@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+
 	"github.com/wyfcoding/ecommerce/internal/user/application"
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"github.com/wyfcoding/ecommerce/internal/user/infrastructure/messaging"
@@ -22,9 +26,6 @@ import (
 	"github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
-	"google.golang.org/grpc"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
 )

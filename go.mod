@@ -1,6 +1,6 @@
 module github.com/wyfcoding/ecommerce
 
-go 1.25.6
+go 1.25.7
 
 require (
 	github.com/dtm-labs/client v1.18.7

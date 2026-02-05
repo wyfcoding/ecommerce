@@ -64,7 +64,7 @@ func (s *ProductCommandService) CreateProduct(ctx context.Context, cmd *CreatePr
 		Stock:     product.Stock,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, s.topic, event)
+	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", product.ID), event)
 
 	return product, nil
 }
@@ -106,7 +106,7 @@ func (s *ProductCommandService) UpdateProduct(ctx context.Context, cmd *UpdatePr
 		Status:    int(product.Status),
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, s.topic, event)
+	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", product.ID), event)
 
 	return product, nil
 }
@@ -123,7 +123,7 @@ func (s *ProductCommandService) DeleteProduct(ctx context.Context, id uint64) er
 		ID:        uint(id),
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, s.topic, event)
+	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", id), event)
 
 	return nil
 }
@@ -156,7 +156,7 @@ func (s *ProductCommandService) AddSKU(ctx context.Context, cmd *AddSKUCommand) 
 		SKUID:     sku.ID,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, s.topic, event)
+	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", sku.ID), event)
 
 	return sku, nil
 }
@@ -193,7 +193,7 @@ func (s *ProductCommandService) UpdateSKU(ctx context.Context, cmd *UpdateSKUCom
 		SKUID:     sku.ID,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, s.topic, event)
+	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", sku.ID), event)
 
 	return sku, nil
 }
@@ -220,7 +220,7 @@ func (s *ProductCommandService) DeleteSKU(ctx context.Context, id uint64) error 
 		SKUID:     sku.ID,
 		Timestamp: time.Now(),
 	}
-	_ = s.publisher.Publish(ctx, s.topic, event)
+	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", sku.ID), event)
 
 	return nil
 }

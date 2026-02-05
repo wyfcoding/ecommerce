@@ -16,7 +16,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/cart/v1"
 	"github.com/wyfcoding/ecommerce/internal/cart/application"
-	"github.com/wyfcoding/ecommerce/internal/cart/infrastructure/messaging"
 	cart_redis "github.com/wyfcoding/ecommerce/internal/cart/infrastructure/persistence/redis"
 	cartgrpc "github.com/wyfcoding/ecommerce/internal/cart/interfaces/grpc"
 	carthttp "github.com/wyfcoding/ecommerce/internal/cart/interfaces/http"
@@ -151,7 +150,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5.1 Infrastructure (Persistence & Messaging)
 	cartRepo := cart_redis.NewCartRepository(redisCache.GetClient())
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	// 5.2 Application (Service)
 	cartQuery := application.NewCartQuery(cartRepo, logger.Logger)

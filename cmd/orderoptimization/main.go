@@ -16,7 +16,6 @@ import (
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/orderoptimization/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/application"
-	"github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/persistence"
 	optimizationgrpc "github.com/wyfcoding/ecommerce/internal/orderoptimization/interfaces/grpc"
 	optimizationhttp "github.com/wyfcoding/ecommerce/internal/orderoptimization/interfaces/http"
@@ -160,7 +159,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5. 初始化 Outbox 管理器与发布者
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+	outboxPublisher := outbox.NewPublisher(outboxMgr)
 
 	// 启动 Outbox 处理器
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {

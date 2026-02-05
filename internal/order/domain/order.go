@@ -9,8 +9,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/pkg/fsm"
-
-	"gorm.io/gorm"
 )
 
 // TimeoutScheduler 定义了超时调度的接口，用于处理订单超时取消等逻辑。
@@ -22,64 +20,70 @@ type TimeoutScheduler interface {
 
 // Order 实体是订单模块的聚合根。
 type Order struct {
-	gorm.Model
-	OrderNo         string                       `gorm:"type:varchar(64);uniqueIndex;not null;comment:订单编号" json:"order_no"`
-	Version         int64                        `gorm:"not null;default:0;comment:事件版本号(用于事件溯源并发控制)" json:"version"`
-	UserID          uint64                       `gorm:"index;not null;comment:用户ID" json:"user_id"`
-	Status          pb.OrderStatus               `gorm:"type:tinyint;not null;default:1;comment:订单状态" json:"status"`
-	TotalAmount     int64                        `gorm:"not null;comment:订单总金额(分)" json:"total_amount"`
-	ActualAmount    int64                        `gorm:"not null;comment:实际支付金额(分)" json:"actual_amount"`
-	ShippingFee     int64                        `gorm:"not null;default:0;comment:运费(分)" json:"shipping_fee"`
-	DiscountAmount  int64                        `gorm:"not null;default:0;comment:优惠金额(分)" json:"discount_amount"`
-	PaymentMethod   string                       `gorm:"type:varchar(32);comment:支付方式" json:"payment_method"`
-	Remark          string                       `gorm:"type:varchar(255);comment:订单备注" json:"remark"`
-	ShippingAddress *ShippingAddress             `gorm:"embedded;embeddedPrefix:shipping_" json:"shipping_address"`
-	Items           []*OrderItem                 `gorm:"foreignKey:OrderID" json:"items"`
-	Logs            []*OrderLog                  `gorm:"foreignKey:OrderID" json:"logs"`
-	PaidAt          *time.Time                   `gorm:"comment:支付时间" json:"paid_at"`
-	ShippedAt       *time.Time                   `gorm:"comment:发货时间" json:"shipped_at"`
-	DeliveredAt     *time.Time                   `gorm:"comment:送达时间" json:"delivered_at"`
-	CompletedAt     *time.Time                   `gorm:"comment:完成时间" json:"completed_at"`
-	CancelledAt     *time.Time                   `gorm:"comment:取消时间" json:"cancelled_at"`
-	fsm             *fsm.Machine[string, string] `gorm:"-" json:"-"`
+	ID              uint
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	OrderNo         string                       `json:"order_no"`
+	Version         int64                        `json:"version"`
+	UserID          uint64                       `json:"user_id"`
+	Status          pb.OrderStatus               `json:"status"`
+	TotalAmount     int64                        `json:"total_amount"`
+	ActualAmount    int64                        `json:"actual_amount"`
+	ShippingFee     int64                        `json:"shipping_fee"`
+	DiscountAmount  int64                        `json:"discount_amount"`
+	PaymentMethod   string                       `json:"payment_method"`
+	Remark          string                       `json:"remark"`
+	ShippingAddress *ShippingAddress             `json:"shipping_address"`
+	Items           []*OrderItem                 `json:"items"`
+	Logs            []*OrderLog                  `json:"logs"`
+	PaidAt          *time.Time                   `json:"paid_at"`
+	ShippedAt       *time.Time                   `json:"shipped_at"`
+	DeliveredAt     *time.Time                   `json:"delivered_at"`
+	CompletedAt     *time.Time                   `json:"completed_at"`
+	CancelledAt     *time.Time                   `json:"cancelled_at"`
+	fsm             *fsm.Machine[string, string] `json:"-"`
 }
 
 // OrderItem 实体代表订单中的一个商品项。
 type OrderItem struct {
-	gorm.Model
-	OrderID         uint64 `gorm:"index;not null;comment:订单ID" json:"order_id"`
-	ProductID       uint64 `gorm:"not null;comment:商品ID" json:"product_id"`
-	SkuID           uint64 `gorm:"not null;comment:SKU ID" json:"sku_id"`
-	ProductName     string `gorm:"type:varchar(255);not null;comment:商品名称" json:"product_name"`
-	SkuName         string `gorm:"type:varchar(255);not null;comment:SKU名称" json:"sku_name"`
-	ProductImageURL string `gorm:"type:varchar(255);comment:商品图片URL" json:"product_image_url"`
-	Price           int64  `gorm:"not null;comment:单价(分)" json:"price"`
-	Quantity        int32  `gorm:"not null;comment:数量" json:"quantity"`
-	TotalPrice      int64  `gorm:"not null;comment:总价(分)" json:"total_price"`
+	ID              uint
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	OrderID         uint64 `json:"order_id"`
+	ProductID       uint64 `json:"product_id"`
+	SkuID           uint64 `json:"sku_id"`
+	ProductName     string `json:"product_name"`
+	SkuName         string `json:"sku_name"`
+	ProductImageURL string `json:"product_image_url"`
+	Price           int64  `json:"price"`
+	Quantity        int32  `json:"quantity"`
+	TotalPrice      int64  `json:"total_price"`
 }
 
 // ShippingAddress 值对象定义了订单的收货地址信息。
 type ShippingAddress struct {
-	RecipientName   string  `gorm:"type:varchar(64);comment:收货人姓名" json:"recipient_name"`
-	PhoneNumber     string  `gorm:"type:varchar(20);comment:手机号" json:"phone_number"`
-	Province        string  `gorm:"type:varchar(64);comment:省份" json:"province"`
-	City            string  `gorm:"type:varchar(64);comment:城市" json:"city"`
-	District        string  `gorm:"type:varchar(64);comment:区县" json:"district"`
-	DetailedAddress string  `gorm:"type:varchar(255);comment:详细地址" json:"detailed_address"`
-	PostalCode      string  `gorm:"type:varchar(20);comment:邮政编码" json:"postal_code"`
-	Lat             float64 `gorm:"type:decimal(10,6);comment:纬度" json:"lat"`
-	Lon             float64 `gorm:"type:decimal(10,6);comment:经度" json:"lon"`
+	RecipientName   string  `json:"recipient_name"`
+	PhoneNumber     string  `json:"phone_number"`
+	Province        string  `json:"province"`
+	City            string  `json:"city"`
+	District        string  `json:"district"`
+	DetailedAddress string  `json:"detailed_address"`
+	PostalCode      string  `json:"postal_code"`
+	Lat             float64 `json:"lat"`
+	Lon             float64 `json:"lon"`
 }
 
 // OrderLog 值对象定义了订单的操作日志记录。
 type OrderLog struct {
-	gorm.Model
-	OrderID   uint64 `gorm:"index;not null;comment:订单ID" json:"order_id"`
-	Operator  string `gorm:"type:varchar(64);not null;comment:操作人" json:"operator"`
-	Action    string `gorm:"type:varchar(64);not null;comment:操作动作" json:"action"`
-	OldStatus string `gorm:"type:varchar(32);comment:旧状态" json:"old_status"`
-	NewStatus string `gorm:"type:varchar(32);comment:新状态" json:"new_status"`
-	Remark    string `gorm:"type:varchar(255);comment:备注" json:"remark"`
+	ID        uint
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	OrderID   uint64 `json:"order_id"`
+	Operator  string `json:"operator"`
+	Action    string `json:"action"`
+	OldStatus string `json:"old_status"`
+	NewStatus string `json:"new_status"`
+	Remark    string `json:"remark"`
 }
 
 // NewOrder 创建并返回一个新的 Order 实体实例。
@@ -130,10 +134,11 @@ func (o *Order) initFSM() {
 	o.fsm = m
 }
 
-// AfterFind GORM 钩子，加载后初始化状态机
-func (o *Order) AfterFind(tx *gorm.DB) error {
-	o.initFSM()
-	return nil
+// InitFSM 确保状态机已初始化。
+func (o *Order) InitFSM() {
+	if o.fsm == nil {
+		o.initFSM()
+	}
 }
 
 // Trigger 触发状态变更

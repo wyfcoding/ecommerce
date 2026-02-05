@@ -56,23 +56,30 @@ func (r *orderRepository) Save(ctx context.Context, order *domain.Order) error {
 // SaveInTx 在事务中保存订单聚合根。
 func (r *orderRepository) SaveInTx(ctx context.Context, tx any, order *domain.Order) error {
 	gormTx := tx.(*gorm.DB).WithContext(ctx)
-	if err := gormTx.Save(order).Error; err != nil {
+	model := toOrderModel(order)
+	if err := gormTx.Save(model).Error; err != nil {
 		return err
 	}
-	for _, item := range order.Items {
-		if item.ID == 0 {
-			item.OrderID = uint64(order.ID)
+	for i := range model.Items {
+		if model.Items[i].ID == 0 {
+			model.Items[i].OrderID = uint64(model.ID)
 		}
-		if err := gormTx.Save(item).Error; err != nil {
+		if err := gormTx.Save(&model.Items[i]).Error; err != nil {
 			return err
 		}
 	}
-	for _, log := range order.Logs {
-		if log.ID == 0 {
-			log.OrderID = uint64(order.ID)
+	for i := range model.Logs {
+		if model.Logs[i].ID == 0 {
+			model.Logs[i].OrderID = uint64(model.ID)
 		}
-		if err := gormTx.Save(log).Error; err != nil {
+		if err := gormTx.Save(&model.Logs[i]).Error; err != nil {
 			return err
+		}
+	}
+
+	if order != nil {
+		if synced := toDomainOrder(model); synced != nil {
+			*order = *synced
 		}
 	}
 	return nil
@@ -81,27 +88,27 @@ func (r *orderRepository) SaveInTx(ctx context.Context, tx any, order *domain.Or
 // FindByID 根据ID从数据库中查询订单。
 func (r *orderRepository) FindByID(ctx context.Context, userID uint64, id uint64) (*domain.Order, error) {
 	db := r.sharding.GetDB(userID)
-	var order domain.Order
+	var order OrderModel
 	if err := db.WithContext(ctx).Preload("Items").Preload("Logs").First(&order, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &order, nil
+	return toDomainOrder(&order), nil
 }
 
 // FindByOrderNo 根据订单编号查询订单。
 func (r *orderRepository) FindByOrderNo(ctx context.Context, userID uint64, orderNo string) (*domain.Order, error) {
 	db := r.sharding.GetDB(userID)
-	var order domain.Order
+	var order OrderModel
 	if err := db.WithContext(ctx).Preload("Items").Preload("Logs").Where("order_no = ?", orderNo).First(&order).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &order, nil
+	return toDomainOrder(&order), nil
 }
 
 // Update 更新订单聚合根状态及相关信息。
@@ -117,7 +124,7 @@ func (r *orderRepository) UpdateInTx(ctx context.Context, tx any, order *domain.
 // Delete 根据ID物理删除订单记录。
 func (r *orderRepository) Delete(ctx context.Context, userID uint64, id uint64) error {
 	db := r.sharding.GetDB(userID)
-	return db.WithContext(ctx).Delete(&domain.Order{}, id).Error
+	return db.WithContext(ctx).Delete(&OrderModel{}, id).Error
 }
 
 // List 全局分页列出所有订单记录。
@@ -127,9 +134,9 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 	var totalCount int64
 
 	for _, db := range dbs {
-		var list []*domain.Order
+		var list []OrderModel
 		var count int64
-		query := db.WithContext(ctx).Model(&domain.Order{})
+		query := db.WithContext(ctx).Model(&OrderModel{})
 		if err := query.Count(&count).Error; err != nil {
 			return nil, 0, err
 		}
@@ -139,7 +146,12 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 		if err := query.Preload("Items").Order("created_at desc").Limit(offset + limit).Find(&list).Error; err != nil {
 			return nil, 0, err
 		}
-		allOrders = append(allOrders, list...)
+		for i := range list {
+			order := toDomainOrder(&list[i])
+			if order != nil {
+				allOrders = append(allOrders, order)
+			}
+		}
 	}
 
 	// 全局排序
@@ -164,14 +176,14 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 
 // ListByUserID 获取指定用户的订单列表。
 func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, status *int, offset, limit int) ([]*domain.Order, int64, error) {
-	db := r.sharding.GetDB(userID).WithContext(ctx).Model(&domain.Order{})
+	db := r.sharding.GetDB(userID).WithContext(ctx).Model(&OrderModel{})
 
 	db = db.Where("user_id = ?", userID)
 	if status != nil {
 		db = db.Where("status = ?", *status)
 	}
 
-	var list []*domain.Order
+	var list []OrderModel
 	var total int64
 
 	if err := db.Count(&total).Error; err != nil {
@@ -182,5 +194,12 @@ func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, statu
 		return nil, 0, err
 	}
 
-	return list, total, nil
+	orders := make([]*domain.Order, 0, len(list))
+	for i := range list {
+		order := toDomainOrder(&list[i])
+		if order != nil {
+			orders = append(orders, order)
+		}
+	}
+	return orders, total, nil
 }

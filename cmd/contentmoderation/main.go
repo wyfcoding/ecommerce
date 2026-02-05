@@ -15,7 +15,6 @@ import (
 	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/application"
-	"github.com/wyfcoding/ecommerce/internal/contentmoderation/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/infrastructure/persistence"
 	moderationgrpc "github.com/wyfcoding/ecommerce/internal/contentmoderation/interfaces/grpc"
 	moderationhttp "github.com/wyfcoding/ecommerce/internal/contentmoderation/interfaces/http"
@@ -158,7 +157,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5. 初始化 Outbox 管理器与发布者
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+	outboxPublisher := outbox.NewPublisher(outboxMgr)
 
 	// 启动 Outbox 处理器
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {

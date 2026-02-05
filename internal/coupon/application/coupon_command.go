@@ -44,7 +44,7 @@ func (m *CouponCommandService) CreateCoupon(ctx context.Context, name, descripti
 		DiscountAmount: discountAmount,
 		Timestamp:      time.Now(),
 	}
-	_ = m.publisher.Publish(ctx, "coupon.created", event)
+	_ = m.publisher.Publish(ctx, "coupon.created", coupon.CouponNo, event)
 
 	m.logger.InfoContext(ctx, "coupon template created", "coupon_id", coupon.ID, "coupon_no", coupon.CouponNo)
 	return coupon, nil

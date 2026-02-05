@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/multichannel/v1"
 	"github.com/wyfcoding/ecommerce/internal/multichannel/application"
-	"github.com/wyfcoding/ecommerce/internal/multichannel/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/multichannel/infrastructure/persistence"
 	channelgrpc "github.com/wyfcoding/ecommerce/internal/multichannel/interfaces/grpc"
 	channelhttp "github.com/wyfcoding/ecommerce/internal/multichannel/interfaces/http"
@@ -157,7 +156,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5. 初始化 Outbox 管理器与发布者
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+	outboxPublisher := outbox.NewPublisher(outboxMgr)
 
 	// 启动 Outbox 处理器
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {

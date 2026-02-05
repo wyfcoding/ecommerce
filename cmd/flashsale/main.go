@@ -16,7 +16,6 @@ import (
 	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
-	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/persistence"
 	flashsalegrpc "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/grpc"
 	flashsalehttp "github.com/wyfcoding/ecommerce/internal/flashsale/interfaces/http"
@@ -165,7 +164,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 	idGenerator, err := idgen.NewGenerator(c.Snowflake)
 	if err != nil {
 		outboxProcessor.Stop()

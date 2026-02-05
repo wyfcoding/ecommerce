@@ -15,7 +15,6 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
-	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/settlement/infrastructure/persistence"
 	"github.com/wyfcoding/ecommerce/internal/settlement/interfaces/event"
 	settlementgrpc "github.com/wyfcoding/ecommerce/internal/settlement/interfaces/grpc"
@@ -174,7 +173,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 初始化可靠消息发布者 (Outbox)
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	publisher := messaging.NewOutboxPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(outboxMgr)
 
 	// 5.2 Application (Service)
 	cmdService := application.NewSettlementCommandService(settlementRepo, ledgerService, publisher, logger.Logger)

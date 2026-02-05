@@ -112,7 +112,7 @@ func (m *InventoryCommandService) executeWithRetry(ctx context.Context, skuID ui
 			if event != nil {
 				topic := m.getTopicForEvent(event)
 				if topic != "" {
-					_ = m.publisher.Publish(ctx, topic, event)
+					_ = m.publisher.Publish(ctx, topic, fmt.Sprintf("%d", skuID), event)
 				}
 			}
 			return nil
@@ -201,7 +201,7 @@ func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64,
 				AvailableStock: inv.AvailableStock,
 				Threshold:      inv.WarningThreshold,
 			}
-			_ = m.publisher.Publish(ctx, "inventory.stock.warning", warningEvent)
+			_ = m.publisher.Publish(ctx, "inventory.stock.warning", fmt.Sprintf("%d", skuID), warningEvent)
 		}
 
 		return log, lastEvent, nil

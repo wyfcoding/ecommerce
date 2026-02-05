@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/admin/v1"
 	"github.com/wyfcoding/ecommerce/internal/admin/application"
-	"github.com/wyfcoding/ecommerce/internal/admin/infrastructure/messaging"
 	"github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence/mysql"
 	admingrpc "github.com/wyfcoding/ecommerce/internal/admin/interfaces/grpc"
 	adminhttp "github.com/wyfcoding/ecommerce/internal/admin/interfaces/http"
@@ -174,7 +173,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5. 初始化 Outbox 管理器与发布者
 	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := messaging.NewOutboxPublisher(outboxMgr)
+	outboxPublisher := outbox.NewPublisher(outboxMgr)
 
 	// 启动 Outbox 处理器 (定时扫描并推送消息)
 	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {

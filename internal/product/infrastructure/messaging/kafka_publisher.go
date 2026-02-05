@@ -37,18 +37,15 @@ func NewKafkaPublisher(brokers []string, logger *slog.Logger) *KafkaPublisher {
 }
 
 // Publish 发布事件到指定 Topic
-func (p *KafkaPublisher) Publish(ctx context.Context, topic string, event any) error {
+func (p *KafkaPublisher) Publish(ctx context.Context, topic string, key string, event any) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// 尝试从事件中提取 Key (例如 UserID) 以保证有序性，这里简化为随机(无Key)或由Balancer决定
-	// 如果需要严格顺序，需要定义 Key。这里假设 event 结构体没有通用 Key 接口。
-	// 改进：若 event 实现了 Key() string 接口则使用。
-
 	msg := kafka.Message{
 		Topic: topic,
+		Key:   []byte(key),
 		Value: payload,
 		Time:  time.Now(),
 	}
