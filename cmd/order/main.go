@@ -16,6 +16,7 @@ import (
 	ordersearch "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/elasticsearch"
 	ordermysql "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/mysql"
 	orderredis "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/redis"
+	orderscheduler "github.com/wyfcoding/ecommerce/internal/order/infrastructure/scheduler"
 	consumer "github.com/wyfcoding/ecommerce/internal/order/interfaces/consumer"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
@@ -244,6 +245,25 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		orderSvcAddr = "order:50051"
 	}
 
+	timeoutScheduler, err := orderscheduler.NewWheelScheduler(time.Second, 3600)
+	if err != nil {
+		for _, p := range outboxProcessors {
+			p.Stop()
+		}
+		if producer != nil {
+			producer.Close()
+		}
+		if redisCache != nil {
+			redisCache.Close()
+		}
+		if shardingManager != nil {
+			shardingManager.Close()
+		}
+		clientCleanup()
+		return nil, nil, fmt.Errorf("timeout scheduler init error: %w", err)
+	}
+	timeoutScheduler.Start()
+
 	orderCommandService := application.NewOrderCommandService(
 		orderRepo,
 		orderEventStore,
@@ -289,6 +309,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		"order.completed",
 		"order.cancelled",
 		"order.confirmed",
+		"order.refund.requested",
+		"order.refund.approved",
 	}
 	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
 	for _, topic := range projectionTopics {
@@ -303,16 +325,30 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 6.4 Interface (HTTP Handlers)
 	httpHandler := orderhttp.NewHandler(orderCommandService, orderQuery, logger.Logger)
 
+	// --- 6.5 Payment Timeout Consumer ---
+	timeoutHandler := consumer.NewPaymentTimeoutHandler(orderCommandService, timeoutScheduler, logger.Logger)
+	timeoutConsumerCfg := c.MessageQueue.Kafka
+	timeoutConsumerCfg.Topic = "order.payment.timeout"
+	timeoutConsumerCfg.GroupID = BootstrapName + "-timeout-group"
+	timeoutConsumer := kafka.NewConsumer(&timeoutConsumerCfg, logger, m)
+	timeoutConsumer.Start(context.Background(), 3, timeoutHandler.Handle)
+
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
 		if flashsaleConsumer != nil {
 			flashsaleConsumer.Close()
 		}
+		if timeoutConsumer != nil {
+			timeoutConsumer.Close()
+		}
 		for _, c := range projectionConsumers {
 			if c != nil {
 				c.Close()
 			}
+		}
+		if timeoutScheduler != nil {
+			timeoutScheduler.Stop()
 		}
 		for _, p := range outboxProcessors {
 			p.Stop()

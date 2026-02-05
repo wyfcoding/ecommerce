@@ -354,6 +354,8 @@ message ProcessPaymentRequest {
   string transaction_id = 5;
   // 支付状态回传。
   PaymentStatus payment_status = 6;
+  // 失败/状态说明。
+  string remark = 7;
 }
 
 // 退款申请请求。
@@ -396,4 +398,6 @@ message UpdateOrderShippingStatusRequest {
   string logistics_company = 5;
   // 录入人。
   string operator = 6;
+  // 备注说明。
+  string remark = 7;
 }

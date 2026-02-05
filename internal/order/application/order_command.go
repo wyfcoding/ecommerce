@@ -652,6 +652,56 @@ func (s *OrderCommandService) CancelOrder(ctx context.Context, cmd *CancelOrderC
 	})
 }
 
+// CancelOrderIfPending 仅在待支付/分配中状态执行超时取消。
+func (s *OrderCommandService) CancelOrderIfPending(ctx context.Context, cmd *CancelOrderCommand) error {
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
+		if order.Status != orderv1.OrderStatus_PENDING_PAYMENT && order.Status != orderv1.OrderStatus_ALLOCATING {
+			return nil
+		}
+
+		oldStatus := order.Status
+		if err := order.Cancel(ctx, cmd.Operator, cmd.Reason); err != nil {
+			return err
+		}
+		cancelledAt := time.Now()
+		if order.CancelledAt != nil {
+			cancelledAt = *order.CancelledAt
+		}
+		cancelledPayload := &domain.OrderCancelledPayload{
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			OldStatus:      oldStatus,
+			NewStatus:      order.Status,
+			PaymentStatus:  order.PaymentStatus,
+			ShippingStatus: order.ShippingStatus,
+			Reason:         cmd.Reason,
+			CancelledAt:    cancelledAt,
+			Log:            buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCancelled, cancelledPayload); err != nil {
+			return err
+		}
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, &domain.OrderCancelledEvent{
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			Reason:         cmd.Reason,
+			PaymentStatus:  order.PaymentStatus,
+			ShippingStatus: order.ShippingStatus,
+			CancelledAt:    *order.CancelledAt,
+			Timestamp:      time.Now(),
+		})
+	})
+}
+
 // RequestRefund 申请退款。
 func (s *OrderCommandService) RequestRefund(ctx context.Context, cmd *RequestRefundCommand) error {
 	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {

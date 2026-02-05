@@ -241,6 +241,7 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 			Status:        paymentStatus,
 			PaymentMethod: req.PaymentMethod,
 			TransactionID: req.TransactionId,
+			Remark:        req.Remark,
 		})
 		if err != nil {
 			slog.Error("gRPC ProcessPayment failed", "order_id", req.OrderId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
@@ -251,6 +252,7 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 			OrderId:       req.OrderId,
 			TransactionId: req.TransactionId,
 			Status:        paymentStatus,
+			Message:       req.Remark,
 		}, nil
 	default:
 		return nil, status.Error(codes.InvalidArgument, "unsupported payment status")
@@ -319,6 +321,7 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 			NewStatus:        req.NewShippingStatus,
 			TrackingNumber:   req.TrackingNumber,
 			LogisticsCompany: req.LogisticsCompany,
+			Remark:           req.Remark,
 		})
 	}
 	if err != nil {
