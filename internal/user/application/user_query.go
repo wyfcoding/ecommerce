@@ -3,17 +3,20 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/cache"
 )
 
 // UserQuery 处理用户模块的所有只读查询操作，集成了安全审计与行为分析逻辑。
 type UserQuery struct {
 	userRepo    domain.UserRepository    // 用户基础信息仓储
 	addressRepo domain.AddressRepository // 用户地址信息仓储
+	cache       cache.Cache              // Cache Injected
 	antiBot     *infra.AntiBotDetector   // 机器人检测引擎
 	logger      *slog.Logger             // 结构化日志记录器
 }
@@ -22,19 +25,31 @@ type UserQuery struct {
 func NewUserQuery(
 	userRepo domain.UserRepository,
 	addressRepo domain.AddressRepository,
+	cache cache.Cache,
 	antiBot *infra.AntiBotDetector,
 	logger *slog.Logger,
 ) *UserQuery {
 	return &UserQuery{
 		userRepo:    userRepo,
 		addressRepo: addressRepo,
+		cache:       cache,
 		antiBot:     antiBot,
 		logger:      logger,
 	}
 }
 
 // GetUser 获取指定 ID 用户的完整资料（含关联地址列表）。
+// GetUser 获取指定 ID 用户的完整资料（含关联地址列表）。
 func (q *UserQuery) GetUser(ctx context.Context, userID uint) (*UserDTO, error) {
+	cacheKey := fmt.Sprintf("user:%d", userID)
+	var dto UserDTO
+
+	// 1. Try Cache
+	if err := q.cache.Get(ctx, cacheKey, &dto); err == nil {
+		return &dto, nil
+	}
+
+	// 2. DB Fallback
 	user, err := q.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -42,7 +57,15 @@ func (q *UserQuery) GetUser(ctx context.Context, userID uint) (*UserDTO, error) 
 	if user == nil {
 		return nil, nil
 	}
-	return toUserDTO(user), nil
+
+	res := toUserDTO(user)
+
+	// 3. Set Cache
+	if err := q.cache.Set(ctx, cacheKey, res, time.Hour); err != nil {
+		q.logger.WarnContext(ctx, "failed to set user cache", "key", cacheKey, "error", err)
+	}
+
+	return res, nil
 }
 
 // CheckBot 基于用户当前行为与 IP 地址执行实时的机器人/爬虫风险判定。

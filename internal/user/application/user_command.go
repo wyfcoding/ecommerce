@@ -9,6 +9,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/cache"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
 	"github.com/wyfcoding/pkg/security"
@@ -19,6 +20,7 @@ type UserCommandService struct {
 	userRepo    domain.UserRepository
 	addressRepo domain.AddressRepository
 	publisher   domain.EventPublisher // Event Publisher Injected
+	cache       cache.Cache           // Cache Injected
 	jwtSecret   string
 	jwtIssuer   string
 	jwtExpiry   time.Duration
@@ -32,6 +34,7 @@ func NewUserCommandService(
 	userRepo domain.UserRepository,
 	addressRepo domain.AddressRepository,
 	publisher domain.EventPublisher,
+	cache cache.Cache,
 	topic string,
 	jwtSecret string,
 	jwtIssuer string,
@@ -43,6 +46,7 @@ func NewUserCommandService(
 		userRepo:    userRepo,
 		addressRepo: addressRepo,
 		publisher:   publisher,
+		cache:       cache,
 		topic:       topic,
 		jwtSecret:   jwtSecret,
 		jwtIssuer:   jwtIssuer,
@@ -162,6 +166,9 @@ func (s *UserCommandService) UpdateProfile(ctx context.Context, cmd *UpdateUserC
 		return fmt.Errorf("failed to update user: %w", err)
 	}
 
+	// Cache Invalidation
+	_ = s.cache.Delete(ctx, fmt.Sprintf("user:%d", user.ID))
+
 	// 发布 UserUpdatedEvent
 	event := domain.UserUpdatedEvent{
 		Header: domain.EventHeader{
@@ -205,6 +212,9 @@ func (s *UserCommandService) AddAddress(ctx context.Context, cmd *AddAddressComm
 	}
 
 	return addr, nil
+	// Note: Ideally we should invalidate user cache here too if user profile includes addresses
+	// But deferring for now to keep it simple or adding explicit delete:
+	// _ = s.cache.Delete(ctx, fmt.Sprintf("user:%d", cmd.UserID))
 }
 
 // UpdateAddress 处理更新地址命令

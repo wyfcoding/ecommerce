@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/user/application"
@@ -17,7 +18,10 @@ import (
 	grpcInterface "github.com/wyfcoding/ecommerce/internal/user/interfaces/grpc"
 	httpInterface "github.com/wyfcoding/ecommerce/internal/user/interfaces/http"
 	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/cache"
 	"github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/metrics"
 	"google.golang.org/grpc"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -38,15 +42,19 @@ func main() {
 	config.PrintWithMask(cfg)
 
 	// 2. 初始化 Logger
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo, // optimized to use cfg.Log.Level if mapper available
-	}))
-	slog.SetDefault(logger)
+	logging.InitLogger(cfg.Server.Name, "user-service", cfg.Log.Level)
+	logger := logging.Default()
+	// slog.SetDefault(logger.Logger) // Already done in InitLogger
 
-	// 3. 初始化数据库
-	db, err := gorm.Open(mysql.Open(cfg.Data.Database.DSN), &gorm.Config{})
+	// 3. 初始化 Metrics
+	m := metrics.NewMetrics(cfg.Server.Name)
+
+	// 4. 初始化数据库
+	db, err := gorm.Open(mysql.Open(cfg.Data.Database.DSN), &gorm.Config{
+		Logger: logging.NewGormLogger(logger, 200*time.Millisecond),
+	})
 	if err != nil {
-		logger.Error("failed to connect database", "error", err)
+		logger.ErrorContext(context.Background(), "failed to connect database", "error", err)
 		os.Exit(1)
 	}
 	// 自动迁移 (生产环境建议使用 migrate 工具)
@@ -54,77 +62,86 @@ func main() {
 		db.AutoMigrate(&domain.User{}, &domain.Address{})
 	}
 
-	// 4. 初始化 Kafka Publisher
-	// 如果配置中 KafkaEnabled 或 broker 非空 (根据实际 config.toml)
+	// 5. 初始化 Redis Cache
+	// Fix: cfg.Resiliency.CircuitBreaker -> cfg.CircuitBreaker
+	redisCache, err := cache.NewRedisCache(&cfg.Data.Redis, cfg.CircuitBreaker, logger, m)
+	if err != nil {
+		logger.ErrorContext(context.Background(), "failed to init redis cache", "error", err)
+		os.Exit(1)
+	}
+	defer redisCache.Close()
+
+	// 6. 初始化 Kafka Publisher
 	var publisher domain.EventPublisher
 	if len(cfg.MessageQueue.Kafka.Brokers) > 0 {
-		publisher = messaging.NewKafkaPublisher(cfg.MessageQueue.Kafka.Brokers, logger)
-		// 注意: Kafka Publisher 需要 Close，但 application 层目前没有 Close 接口
-		// 可以在 main defer close
+		publisher = messaging.NewKafkaPublisher(cfg.MessageQueue.Kafka.Brokers, logger.Logger)
 		if closer, ok := publisher.(interface{ Close() error }); ok {
 			defer closer.Close()
 		}
 	} else {
-		logger.Warn("Kafka brokers not configured, event publishing disabled")
+		logger.WarnContext(context.Background(), "Kafka brokers not configured, event publishing disabled")
 	}
 
-	// 5. 初始化依赖
+	// 7. 初始化依赖
 	userRepo := persistence.NewUserRepository(db)
 	addressRepo := persistence.NewAddressRepository(db)
 	antiBot := infra.NewAntiBotDetector()
 
-	// 6. 初始化 Application Service
+	// 8. 初始化 Application Service
 	cmdService := application.NewUserCommandService(
 		userRepo,
 		addressRepo,
 		publisher,
+		redisCache, // Injected
 		cfg.MessageQueue.Kafka.Topic,
 		cfg.JWT.Secret,
 		cfg.JWT.Issuer,
 		cfg.JWT.ExpireDuration,
 		antiBot,
-		logger,
+		logger.Logger, // Pass *slog.Logger
 	)
 	queryService := application.NewUserQuery(
 		userRepo,
 		addressRepo,
+		redisCache, // Injected
 		antiBot,
-		logger,
+		logger.Logger, // Pass *slog.Logger
 	)
 
-	// 7. 初始化 Handlers
+	// 9. 初始化 Handlers
 	httpHandler := httpInterface.NewUserHandler(cmdService, queryService)
 	grpcHandler := grpcInterface.NewGrpcHandler(cmdService, queryService)
 
-	// 8. 启动 gRPC Server
+	// 10. 启动 gRPC Server
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.GRPC.Port))
 	if err != nil {
-		logger.Error("failed to listen tcp", "error", err)
+		logger.ErrorContext(context.Background(), "failed to listen tcp", "error", err)
 		os.Exit(1)
 	}
 	s := grpc.NewServer()
 	pb.RegisterUserServiceServer(s, grpcHandler)
 	go func() {
-		logger.Info("gRPC server started", "addr", cfg.Server.GRPC.Addr, "port", cfg.Server.GRPC.Port)
+		logger.InfoContext(context.Background(), "gRPC server started", "addr", cfg.Server.GRPC.Addr, "port", cfg.Server.GRPC.Port)
 		if err := s.Serve(lis); err != nil {
-			logger.Error("gRPC server failed", "error", err)
+			logger.ErrorContext(context.Background(), "gRPC server failed", "error", err)
 		}
 	}()
 
-	// 9. 启动 HTTP Server
+	// 11. 启动 HTTP Server
 	r := gin.Default()
+	r.GET("/metrics", gin.WrapH(m.Handler()))
 	httpHandler.RegisterHandlers(r)
 	go func() {
 		addr := fmt.Sprintf(":%d", cfg.Server.HTTP.Port)
-		logger.Info("HTTP server started", "port", cfg.Server.HTTP.Port)
+		logger.InfoContext(context.Background(), "HTTP server started", "port", cfg.Server.HTTP.Port)
 		if err := r.Run(addr); err != nil {
-			logger.Error("HTTP server failed", "error", err)
+			logger.ErrorContext(context.Background(), "HTTP server failed", "error", err)
 		}
 	}()
 
-	// 10. 优雅退出
+	// 12. 优雅退出
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	logger.Info("Shutting down server...")
+	logger.InfoContext(context.Background(), "Shutting down server...")
 }

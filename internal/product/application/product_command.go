@@ -185,6 +185,7 @@ func (s *ProductCommandService) UpdateSKU(ctx context.Context, cmd *UpdateSKUCom
 	}
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
+	_ = s.cache.Delete(ctx, fmt.Sprintf("sku:%d", sku.ID))
 
 	// 发布领域事件
 	event := &domain.SKUUpdatedEvent{
@@ -211,6 +212,7 @@ func (s *ProductCommandService) DeleteSKU(ctx context.Context, id uint64) error 
 	}
 
 	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
+	_ = s.cache.Delete(ctx, fmt.Sprintf("sku:%d", sku.ID))
 
 	// 发布领域事件
 	event := &domain.SKUDeletedEvent{
@@ -233,6 +235,7 @@ func (s *ProductCommandService) CreateBrand(ctx context.Context, cmd *CreateBran
 	if err := s.brandRepo.Save(ctx, brand); err != nil {
 		return nil, err
 	}
+	_ = s.cache.Delete(ctx, "brand:list")
 	return brand, nil
 }
 
@@ -253,11 +256,18 @@ func (s *ProductCommandService) UpdateBrand(ctx context.Context, cmd *UpdateBran
 	if err := s.brandRepo.Update(ctx, brand); err != nil {
 		return nil, err
 	}
+	_ = s.cache.Delete(ctx, fmt.Sprintf("brand:%d", cmd.ID))
+	_ = s.cache.Delete(ctx, "brand:list")
 	return brand, nil
 }
 
 func (s *ProductCommandService) DeleteBrand(ctx context.Context, id uint64) error {
-	return s.brandRepo.Delete(ctx, uint(id))
+	if err := s.brandRepo.Delete(ctx, uint(id)); err != nil {
+		return err
+	}
+	_ = s.cache.Delete(ctx, fmt.Sprintf("brand:%d", id))
+	_ = s.cache.Delete(ctx, "brand:list")
+	return nil
 }
 
 // ---------------- Category ----------------
@@ -270,6 +280,7 @@ func (s *ProductCommandService) CreateCategory(ctx context.Context, cmd *CreateC
 	if err := s.categoryRepo.Save(ctx, category); err != nil {
 		return nil, err
 	}
+	_ = s.cache.Delete(ctx, "category:list")
 	return category, nil
 }
 
@@ -293,9 +304,16 @@ func (s *ProductCommandService) UpdateCategory(ctx context.Context, cmd *UpdateC
 	if err := s.categoryRepo.Update(ctx, category); err != nil {
 		return nil, err
 	}
+	_ = s.cache.Delete(ctx, fmt.Sprintf("category:%d", cmd.ID))
+	_ = s.cache.Delete(ctx, "category:list")
 	return category, nil
 }
 
 func (s *ProductCommandService) DeleteCategory(ctx context.Context, id uint64) error {
-	return s.categoryRepo.Delete(ctx, uint(id))
+	if err := s.categoryRepo.Delete(ctx, uint(id)); err != nil {
+		return err
+	}
+	_ = s.cache.Delete(ctx, fmt.Sprintf("category:%d", id))
+	_ = s.cache.Delete(ctx, "category:list")
+	return nil
 }

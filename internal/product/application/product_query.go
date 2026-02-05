@@ -185,8 +185,23 @@ func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, 
 	cacheKey := fmt.Sprintf("sku:%d", id)
 
 	val, err, _ := q.sf.Do(cacheKey, func() (any, error) {
-		return q.skuRepo.FindByID(ctx, uint(id))
+		var sku domain.SKU
+		if err := q.cache.Get(ctx, cacheKey, &sku); err == nil {
+			return &sku, nil
+		}
+
+		p, err := q.skuRepo.FindByID(ctx, uint(id))
+		if err != nil {
+			return nil, err
+		}
+		if p == nil {
+			return nil, nil
+		}
+
+		_ = q.cache.Set(context.Background(), cacheKey, p, 10*time.Minute)
+		return p, nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -198,23 +213,94 @@ func (q *ProductQuery) GetSKUByID(ctx context.Context, id uint64) (*domain.SKU, 
 
 // GetBrandByID 获取品牌详情。
 func (q *ProductQuery) GetBrandByID(ctx context.Context, id uint64) (*domain.Brand, error) {
-	return q.brandRepo.FindByID(ctx, uint(id))
+	cacheKey := fmt.Sprintf("brand:%d", id)
+	var brand domain.Brand
+	if err := q.cache.Get(ctx, cacheKey, &brand); err == nil {
+		return &brand, nil
+	}
+
+	res, err := q.brandRepo.FindByID(ctx, uint(id))
+	if err != nil {
+		return nil, err
+	}
+	if res == nil {
+		return nil, nil
+	}
+
+	_ = q.cache.Set(ctx, cacheKey, res, 1*time.Hour)
+	return res, nil
 }
 
 // ListBrands 获取所有品牌。
 func (q *ProductQuery) ListBrands(ctx context.Context) ([]*domain.Brand, error) {
-	return q.brandRepo.List(ctx)
+	cacheKey := "brand:list"
+	var brands []*domain.Brand
+	if err := q.cache.Get(ctx, cacheKey, &brands); err == nil {
+		return brands, nil
+	}
+	res, err := q.brandRepo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_ = q.cache.Set(ctx, cacheKey, res, 1*time.Hour)
+	return res, nil
 }
 
 // GetCategoryByID 获取分类详情。
 func (q *ProductQuery) GetCategoryByID(ctx context.Context, id uint64) (*domain.Category, error) {
-	return q.categoryRepo.FindByID(ctx, uint(id))
+	cacheKey := fmt.Sprintf("category:%d", id)
+	var cat domain.Category
+	if err := q.cache.Get(ctx, cacheKey, &cat); err == nil {
+		return &cat, nil
+	}
+
+	res, err := q.categoryRepo.FindByID(ctx, uint(id))
+	if err != nil {
+		return nil, err
+	}
+	if res == nil {
+		return nil, nil
+	}
+	_ = q.cache.Set(ctx, cacheKey, res, 24*time.Hour)
+	return res, nil
 }
 
 // ListCategories 获取子分类。
 func (q *ProductQuery) ListCategories(ctx context.Context, parentID uint64) ([]*domain.Category, error) {
-	if parentID > 0 {
-		return q.categoryRepo.FindByParentID(ctx, uint(parentID))
+	// Only cache the full tree or root if parentID is 0?
+	// Assuming "category:list" is for all categories or just roots?
+	// Since UpdateCategory invalidates "category:list", we can cache here for parentID=0 or even others if key is specific.
+	// But ListCategories with parentID usually means children.
+	// Let's cache based on parentID.
+
+	// cacheKey := fmt.Sprintf("category:list:%d", parentID)
+	// Note: Command only deletes "category:list". We need to ensure consistency.
+	// If we cache per parentID, we need to invalidate all or just "category:list" is enough if we use "category:list" only for full list?
+	// The implementation plan said "category:list".
+	// Let's assume parentID=0 is the main one to cache, others maybe less critical or we use "category:list" for parentID=0.
+
+	if parentID == 0 {
+		var cats []*domain.Category
+		if err := q.cache.Get(ctx, "category:list", &cats); err == nil {
+			return cats, nil
+		}
 	}
-	return q.categoryRepo.List(ctx)
+
+	// Real DB call
+	var res []*domain.Category
+	var err error
+	if parentID > 0 {
+		res, err = q.categoryRepo.FindByParentID(ctx, uint(parentID))
+	} else {
+		res, err = q.categoryRepo.List(ctx)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if parentID == 0 {
+		_ = q.cache.Set(ctx, "category:list", res, 24*time.Hour)
+	}
+	return res, nil
 }
