@@ -20,44 +20,49 @@ type TimeoutScheduler interface {
 
 // Order 实体是订单模块的聚合根。
 type Order struct {
-	ID              uint
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	OrderNo         string                       `json:"order_no"`
-	Version         int64                        `json:"version"`
-	UserID          uint64                       `json:"user_id"`
-	Status          pb.OrderStatus               `json:"status"`
-	TotalAmount     int64                        `json:"total_amount"`
-	ActualAmount    int64                        `json:"actual_amount"`
-	ShippingFee     int64                        `json:"shipping_fee"`
-	DiscountAmount  int64                        `json:"discount_amount"`
-	PaymentMethod   string                       `json:"payment_method"`
-	Remark          string                       `json:"remark"`
-	ShippingAddress *ShippingAddress             `json:"shipping_address"`
-	Items           []*OrderItem                 `json:"items"`
-	Logs            []*OrderLog                  `json:"logs"`
-	PaidAt          *time.Time                   `json:"paid_at"`
-	ShippedAt       *time.Time                   `json:"shipped_at"`
-	DeliveredAt     *time.Time                   `json:"delivered_at"`
-	CompletedAt     *time.Time                   `json:"completed_at"`
-	CancelledAt     *time.Time                   `json:"cancelled_at"`
-	fsm             *fsm.Machine[string, string] `json:"-"`
+	ID                   uint                         `json:"id"`
+	CreatedAt            time.Time                    `json:"created_at"`
+	UpdatedAt            time.Time                    `json:"updated_at"`
+	OrderNo              string                       `json:"order_no"`
+	Version              int64                        `json:"version"`
+	UserID               uint64                       `json:"user_id"`
+	Status               pb.OrderStatus               `json:"status"`
+	TotalAmount          int64                        `json:"total_amount"`
+	ActualAmount         int64                        `json:"actual_amount"`
+	ShippingFee          int64                        `json:"shipping_fee"`
+	DiscountAmount       int64                        `json:"discount_amount"`
+	PaymentMethod        string                       `json:"payment_method"`
+	PaymentTransactionID string                       `json:"payment_transaction_id"`
+	Remark               string                       `json:"remark"`
+	TrackingNumber       string                       `json:"tracking_number"`
+	LogisticsCompany     string                       `json:"logistics_company"`
+	RefundAmount         int64                        `json:"refund_amount"`
+	RefundReason         string                       `json:"refund_reason"`
+	ShippingAddress      *ShippingAddress             `json:"shipping_address"`
+	Items                []*OrderItem                 `json:"items"`
+	Logs                 []*OrderLog                  `json:"logs"`
+	PaidAt               *time.Time                   `json:"paid_at"`
+	ShippedAt            *time.Time                   `json:"shipped_at"`
+	DeliveredAt          *time.Time                   `json:"delivered_at"`
+	CompletedAt          *time.Time                   `json:"completed_at"`
+	CancelledAt          *time.Time                   `json:"cancelled_at"`
+	fsm                  *fsm.Machine[string, string] `json:"-"`
 }
 
 // OrderItem 实体代表订单中的一个商品项。
 type OrderItem struct {
-	ID              uint
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	OrderID         uint64 `json:"order_id"`
-	ProductID       uint64 `json:"product_id"`
-	SkuID           uint64 `json:"sku_id"`
-	ProductName     string `json:"product_name"`
-	SkuName         string `json:"sku_name"`
-	ProductImageURL string `json:"product_image_url"`
-	Price           int64  `json:"price"`
-	Quantity        int32  `json:"quantity"`
-	TotalPrice      int64  `json:"total_price"`
+	ID              uint      `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	OrderID         uint64    `json:"order_id"`
+	ProductID       uint64    `json:"product_id"`
+	SkuID           uint64    `json:"sku_id"`
+	ProductName     string    `json:"product_name"`
+	SkuName         string    `json:"sku_name"`
+	ProductImageURL string    `json:"product_image_url"`
+	Price           int64     `json:"price"`
+	Quantity        int32     `json:"quantity"`
+	TotalPrice      int64     `json:"total_price"`
 }
 
 // ShippingAddress 值对象定义了订单的收货地址信息。
@@ -75,15 +80,15 @@ type ShippingAddress struct {
 
 // OrderLog 值对象定义了订单的操作日志记录。
 type OrderLog struct {
-	ID        uint
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	OrderID   uint64 `json:"order_id"`
-	Operator  string `json:"operator"`
-	Action    string `json:"action"`
-	OldStatus string `json:"old_status"`
-	NewStatus string `json:"new_status"`
-	Remark    string `json:"remark"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	OrderID   uint64    `json:"order_id"`
+	Operator  string    `json:"operator"`
+	Action    string    `json:"action"`
+	OldStatus string    `json:"old_status"`
+	NewStatus string    `json:"new_status"`
+	Remark    string    `json:"remark"`
 }
 
 // NewOrder 创建并返回一个新的 Order 实体实例。

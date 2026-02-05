@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/database/sharding"
@@ -128,22 +130,30 @@ func (r *orderRepository) Delete(ctx context.Context, userID uint64, id uint64) 
 }
 
 // List 全局分页列出所有订单记录。
-func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
+func (r *orderRepository) List(ctx context.Context, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*domain.Order, int64, error) {
 	dbs := r.sharding.GetAllDBs()
 	var allOrders []*domain.Order
 	var totalCount int64
+	orderColumn, desc := parseOrderSort(sortBy)
 
 	for _, db := range dbs {
 		var list []OrderModel
 		var count int64
 		query := db.WithContext(ctx).Model(&OrderModel{})
+		query = applyOrderFilters(query, status, startTime, endTime)
 		if err := query.Count(&count).Error; err != nil {
 			return nil, 0, err
 		}
 		totalCount += count
 
 		// 获取样本
-		if err := query.Preload("Items").Order("created_at desc").Limit(offset + limit).Find(&list).Error; err != nil {
+		orderClause := orderColumn
+		if desc {
+			orderClause += " desc"
+		} else {
+			orderClause += " asc"
+		}
+		if err := query.Preload("Items").Preload("Logs").Order(orderClause).Limit(offset + limit).Find(&list).Error; err != nil {
 			return nil, 0, err
 		}
 		for i := range list {
@@ -156,13 +166,11 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 
 	// 全局排序
 	slices.SortFunc(allOrders, func(a, b *domain.Order) int {
-		if a.CreatedAt.After(b.CreatedAt) {
-			return -1
+		cmp := compareOrderByColumn(a, b, orderColumn)
+		if desc {
+			cmp = -cmp
 		}
-		if b.CreatedAt.After(a.CreatedAt) {
-			return 1
-		}
-		return 0
+		return cmp
 	})
 
 	start := offset
@@ -175,13 +183,11 @@ func (r *orderRepository) List(ctx context.Context, offset, limit int) ([]*domai
 }
 
 // ListByUserID 获取指定用户的订单列表。
-func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, status *int, offset, limit int) ([]*domain.Order, int64, error) {
+func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*domain.Order, int64, error) {
 	db := r.sharding.GetDB(userID).WithContext(ctx).Model(&OrderModel{})
 
 	db = db.Where("user_id = ?", userID)
-	if status != nil {
-		db = db.Where("status = ?", *status)
-	}
+	db = applyOrderFilters(db, status, startTime, endTime)
 
 	var list []OrderModel
 	var total int64
@@ -190,7 +196,14 @@ func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, statu
 		return nil, 0, err
 	}
 
-	if err := db.Preload("Items").Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
+	orderColumn, desc := parseOrderSort(sortBy)
+	orderClause := orderColumn
+	if desc {
+		orderClause += " desc"
+	} else {
+		orderClause += " asc"
+	}
+	if err := db.Preload("Items").Preload("Logs").Offset(offset).Limit(limit).Order(orderClause).Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -202,4 +215,110 @@ func (r *orderRepository) ListByUserID(ctx context.Context, userID uint64, statu
 		}
 	}
 	return orders, total, nil
+}
+
+func applyOrderFilters(db *gorm.DB, status *int, startTime, endTime *time.Time) *gorm.DB {
+	if status != nil {
+		db = db.Where("status = ?", *status)
+	}
+	if startTime != nil {
+		db = db.Where("created_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		db = db.Where("created_at <= ?", *endTime)
+	}
+	return db
+}
+
+func parseOrderSort(sortBy string) (string, bool) {
+	allowed := map[string]string{
+		"created_at":    "created_at",
+		"updated_at":    "updated_at",
+		"paid_at":       "paid_at",
+		"shipped_at":    "shipped_at",
+		"delivered_at":  "delivered_at",
+		"completed_at":  "completed_at",
+		"cancelled_at":  "cancelled_at",
+		"total_amount":  "total_amount",
+		"actual_amount": "actual_amount",
+	}
+
+	sortBy = strings.TrimSpace(strings.ToLower(sortBy))
+	if sortBy == "" {
+		return "created_at", true
+	}
+
+	desc := true
+	if strings.HasPrefix(sortBy, "-") {
+		sortBy = strings.TrimPrefix(sortBy, "-")
+		desc = true
+	}
+
+	parts := strings.Fields(sortBy)
+	if len(parts) > 0 {
+		sortBy = parts[0]
+	}
+	if len(parts) > 1 {
+		switch parts[1] {
+		case "asc":
+			desc = false
+		case "desc":
+			desc = true
+		}
+	}
+
+	if col, ok := allowed[sortBy]; ok {
+		return col, desc
+	}
+	return "created_at", true
+}
+
+func compareOrderByColumn(a, b *domain.Order, column string) int {
+	switch column {
+	case "updated_at":
+		return compareTime(a.UpdatedAt, b.UpdatedAt)
+	case "paid_at":
+		return compareTime(timeOrZero(a.PaidAt), timeOrZero(b.PaidAt))
+	case "shipped_at":
+		return compareTime(timeOrZero(a.ShippedAt), timeOrZero(b.ShippedAt))
+	case "delivered_at":
+		return compareTime(timeOrZero(a.DeliveredAt), timeOrZero(b.DeliveredAt))
+	case "completed_at":
+		return compareTime(timeOrZero(a.CompletedAt), timeOrZero(b.CompletedAt))
+	case "cancelled_at":
+		return compareTime(timeOrZero(a.CancelledAt), timeOrZero(b.CancelledAt))
+	case "total_amount":
+		return compareInt64(a.TotalAmount, b.TotalAmount)
+	case "actual_amount":
+		return compareInt64(a.ActualAmount, b.ActualAmount)
+	default:
+		return compareTime(a.CreatedAt, b.CreatedAt)
+	}
+}
+
+func timeOrZero(t *time.Time) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return *t
+}
+
+func compareTime(a, b time.Time) int {
+	if a.Before(b) {
+		return -1
+	}
+	if a.After(b) {
+		return 1
+	}
+	return 0
+}
+
+func compareInt64(a, b int64) int {
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
+	return 0
 }

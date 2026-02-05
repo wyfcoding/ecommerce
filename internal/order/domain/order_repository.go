@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 )
 
 // OrderRepository 是订单模块的仓储接口。
@@ -21,6 +22,6 @@ type OrderRepository interface {
 	Update(ctx context.Context, order *Order) error
 	UpdateInTx(ctx context.Context, tx any, order *Order) error
 	Delete(ctx context.Context, userID uint64, id uint64) error
-	List(ctx context.Context, offset, limit int) ([]*Order, int64, error)
-	ListByUserID(ctx context.Context, userID uint64, status *int, offset, limit int) ([]*Order, int64, error)
+	List(ctx context.Context, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*Order, int64, error)
+	ListByUserID(ctx context.Context, userID uint64, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*Order, int64, error)
 }

@@ -12,24 +12,29 @@ import (
 // OrderModel 订单写模型（持久化专用）。
 type OrderModel struct {
 	gorm.Model
-	OrderNo         string               `gorm:"type:varchar(64);uniqueIndex;not null;comment:订单编号"`
-	Version         int64                `gorm:"not null;default:0;comment:事件版本号(用于事件溯源并发控制)"`
-	UserID          uint64               `gorm:"index;not null;comment:用户ID"`
-	Status          pb.OrderStatus       `gorm:"type:tinyint;not null;default:1;comment:订单状态"`
-	TotalAmount     int64                `gorm:"not null;comment:订单总金额(分)"`
-	ActualAmount    int64                `gorm:"not null;comment:实际支付金额(分)"`
-	ShippingFee     int64                `gorm:"not null;default:0;comment:运费(分)"`
-	DiscountAmount  int64                `gorm:"not null;default:0;comment:优惠金额(分)"`
-	PaymentMethod   string               `gorm:"type:varchar(32);comment:支付方式"`
-	Remark          string               `gorm:"type:varchar(255);comment:订单备注"`
-	ShippingAddress ShippingAddressModel `gorm:"embedded;embeddedPrefix:shipping_"`
-	Items           []OrderItemModel     `gorm:"foreignKey:OrderID"`
-	Logs            []OrderLogModel      `gorm:"foreignKey:OrderID"`
-	PaidAt          *time.Time           `gorm:"comment:支付时间"`
-	ShippedAt       *time.Time           `gorm:"comment:发货时间"`
-	DeliveredAt     *time.Time           `gorm:"comment:送达时间"`
-	CompletedAt     *time.Time           `gorm:"comment:完成时间"`
-	CancelledAt     *time.Time           `gorm:"comment:取消时间"`
+	OrderNo              string               `gorm:"type:varchar(64);uniqueIndex;not null;comment:订单编号"`
+	Version              int64                `gorm:"not null;default:0;comment:事件版本号(用于事件溯源并发控制)"`
+	UserID               uint64               `gorm:"index;not null;comment:用户ID"`
+	Status               pb.OrderStatus       `gorm:"type:tinyint;not null;default:1;comment:订单状态"`
+	TotalAmount          int64                `gorm:"not null;comment:订单总金额(分)"`
+	ActualAmount         int64                `gorm:"not null;comment:实际支付金额(分)"`
+	ShippingFee          int64                `gorm:"not null;default:0;comment:运费(分)"`
+	DiscountAmount       int64                `gorm:"not null;default:0;comment:优惠金额(分)"`
+	PaymentMethod        string               `gorm:"type:varchar(32);comment:支付方式"`
+	PaymentTransactionID string               `gorm:"type:varchar(128);comment:支付流水号"`
+	Remark               string               `gorm:"type:varchar(255);comment:订单备注"`
+	TrackingNumber       string               `gorm:"type:varchar(128);comment:快递单号"`
+	LogisticsCompany     string               `gorm:"type:varchar(128);comment:物流公司"`
+	RefundAmount         int64                `gorm:"not null;default:0;comment:退款金额(分)"`
+	RefundReason         string               `gorm:"type:varchar(255);comment:退款原因"`
+	ShippingAddress      ShippingAddressModel `gorm:"embedded;embeddedPrefix:shipping_"`
+	Items                []OrderItemModel     `gorm:"foreignKey:OrderID"`
+	Logs                 []OrderLogModel      `gorm:"foreignKey:OrderID"`
+	PaidAt               *time.Time           `gorm:"comment:支付时间"`
+	ShippedAt            *time.Time           `gorm:"comment:发货时间"`
+	DeliveredAt          *time.Time           `gorm:"comment:送达时间"`
+	CompletedAt          *time.Time           `gorm:"comment:完成时间"`
+	CancelledAt          *time.Time           `gorm:"comment:取消时间"`
 }
 
 func (OrderModel) TableName() string {
@@ -93,21 +98,26 @@ func toOrderModel(order *domain.Order) *OrderModel {
 			CreatedAt: order.CreatedAt,
 			UpdatedAt: order.UpdatedAt,
 		},
-		OrderNo:        order.OrderNo,
-		Version:        order.Version,
-		UserID:         order.UserID,
-		Status:         order.Status,
-		TotalAmount:    order.TotalAmount,
-		ActualAmount:   order.ActualAmount,
-		ShippingFee:    order.ShippingFee,
-		DiscountAmount: order.DiscountAmount,
-		PaymentMethod:  order.PaymentMethod,
-		Remark:         order.Remark,
-		PaidAt:         order.PaidAt,
-		ShippedAt:      order.ShippedAt,
-		DeliveredAt:    order.DeliveredAt,
-		CompletedAt:    order.CompletedAt,
-		CancelledAt:    order.CancelledAt,
+		OrderNo:              order.OrderNo,
+		Version:              order.Version,
+		UserID:               order.UserID,
+		Status:               order.Status,
+		TotalAmount:          order.TotalAmount,
+		ActualAmount:         order.ActualAmount,
+		ShippingFee:          order.ShippingFee,
+		DiscountAmount:       order.DiscountAmount,
+		PaymentMethod:        order.PaymentMethod,
+		PaymentTransactionID: order.PaymentTransactionID,
+		Remark:               order.Remark,
+		TrackingNumber:       order.TrackingNumber,
+		LogisticsCompany:     order.LogisticsCompany,
+		RefundAmount:         order.RefundAmount,
+		RefundReason:         order.RefundReason,
+		PaidAt:               order.PaidAt,
+		ShippedAt:            order.ShippedAt,
+		DeliveredAt:          order.DeliveredAt,
+		CompletedAt:          order.CompletedAt,
+		CancelledAt:          order.CancelledAt,
 	}
 
 	if order.ShippingAddress != nil {
@@ -176,24 +186,29 @@ func toDomainOrder(model *OrderModel) *domain.Order {
 	}
 
 	order := &domain.Order{
-		ID:             model.ID,
-		CreatedAt:      model.CreatedAt,
-		UpdatedAt:      model.UpdatedAt,
-		OrderNo:        model.OrderNo,
-		Version:        model.Version,
-		UserID:         model.UserID,
-		Status:         model.Status,
-		TotalAmount:    model.TotalAmount,
-		ActualAmount:   model.ActualAmount,
-		ShippingFee:    model.ShippingFee,
-		DiscountAmount: model.DiscountAmount,
-		PaymentMethod:  model.PaymentMethod,
-		Remark:         model.Remark,
-		PaidAt:         model.PaidAt,
-		ShippedAt:      model.ShippedAt,
-		DeliveredAt:    model.DeliveredAt,
-		CompletedAt:    model.CompletedAt,
-		CancelledAt:    model.CancelledAt,
+		ID:                   model.ID,
+		CreatedAt:            model.CreatedAt,
+		UpdatedAt:            model.UpdatedAt,
+		OrderNo:              model.OrderNo,
+		Version:              model.Version,
+		UserID:               model.UserID,
+		Status:               model.Status,
+		TotalAmount:          model.TotalAmount,
+		ActualAmount:         model.ActualAmount,
+		ShippingFee:          model.ShippingFee,
+		DiscountAmount:       model.DiscountAmount,
+		PaymentMethod:        model.PaymentMethod,
+		PaymentTransactionID: model.PaymentTransactionID,
+		Remark:               model.Remark,
+		TrackingNumber:       model.TrackingNumber,
+		LogisticsCompany:     model.LogisticsCompany,
+		RefundAmount:         model.RefundAmount,
+		RefundReason:         model.RefundReason,
+		PaidAt:               model.PaidAt,
+		ShippedAt:            model.ShippedAt,
+		DeliveredAt:          model.DeliveredAt,
+		CompletedAt:          model.CompletedAt,
+		CancelledAt:          model.CancelledAt,
 	}
 
 	if hasShippingAddress(model.ShippingAddress) {

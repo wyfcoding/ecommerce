@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
@@ -206,7 +207,33 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		}
 	}
 
-	list, total, err := h.queryService.ListUserOrders(c.Request.Context(), userID, status, pageReq.Page, pageReq.PageSize)
+	var startTime *time.Time
+	if v := c.Query("start_time"); v != "" {
+		t, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "invalid start_time format", "")
+			return
+		}
+		startTime = &t
+	}
+	var endTime *time.Time
+	if v := c.Query("end_time"); v != "" {
+		t, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			response.ErrorWithStatus(c, http.StatusBadRequest, "invalid end_time format", "")
+			return
+		}
+		endTime = &t
+	}
+	sortBy := c.Query("sort_by")
+
+	var list []*domain.Order
+	var total int64
+	if userID > 0 {
+		list, total, err = h.queryService.ListUserOrders(c.Request.Context(), userID, status, pageReq.Offset(), pageReq.Limit(), startTime, endTime, sortBy)
+	} else {
+		list, total, err = h.queryService.ListOrders(c.Request.Context(), status, pageReq.Offset(), pageReq.Limit(), startTime, endTime, sortBy)
+	}
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list orders", "user_id", userID, "error", err)
 		response.Error(c, err)

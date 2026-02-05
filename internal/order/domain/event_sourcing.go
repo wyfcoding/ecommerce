@@ -26,6 +26,10 @@ const (
 	OrderEventTypeCancelled = "order.es.cancelled"
 	// OrderEventTypeConfirmed 表示订单确认事件（事件溯源专用）。
 	OrderEventTypeConfirmed = "order.es.confirmed"
+	// OrderEventTypeRefundRequested 表示订单退款申请事件（事件溯源专用）。
+	OrderEventTypeRefundRequested = "order.es.refund_requested"
+	// OrderEventTypeRefundApproved 表示订单退款完成事件（事件溯源专用）。
+	OrderEventTypeRefundApproved = "order.es.refund_approved"
 )
 
 // OrderEventLog 定义事件溯源中的操作日志载荷。
@@ -40,43 +44,51 @@ type OrderEventLog struct {
 
 // OrderCreatedPayload 定义订单创建事件载荷。
 type OrderCreatedPayload struct {
-	OrderID         uint64           `json:"order_id"`
-	OrderNo         string           `json:"order_no"`
-	UserID          uint64           `json:"user_id"`
-	Status          pb.OrderStatus   `json:"status"`
-	TotalAmount     int64            `json:"total_amount"`
-	ActualAmount    int64            `json:"actual_amount"`
-	ShippingFee     int64            `json:"shipping_fee"`
-	DiscountAmount  int64            `json:"discount_amount"`
-	PaymentMethod   string           `json:"payment_method"`
-	Remark          string           `json:"remark"`
-	ShippingAddress *ShippingAddress `json:"shipping_address"`
-	Items           []*OrderItem     `json:"items"`
-	CreatedAt       time.Time        `json:"created_at"`
-	InitLog         *OrderEventLog   `json:"init_log"`
+	OrderID              uint64           `json:"order_id"`
+	OrderNo              string           `json:"order_no"`
+	UserID               uint64           `json:"user_id"`
+	Status               pb.OrderStatus   `json:"status"`
+	TotalAmount          int64            `json:"total_amount"`
+	ActualAmount         int64            `json:"actual_amount"`
+	ShippingFee          int64            `json:"shipping_fee"`
+	DiscountAmount       int64            `json:"discount_amount"`
+	PaymentMethod        string           `json:"payment_method"`
+	PaymentTransactionID string           `json:"payment_transaction_id"`
+	Remark               string           `json:"remark"`
+	TrackingNumber       string           `json:"tracking_number"`
+	LogisticsCompany     string           `json:"logistics_company"`
+	RefundAmount         int64            `json:"refund_amount"`
+	RefundReason         string           `json:"refund_reason"`
+	ShippingAddress      *ShippingAddress `json:"shipping_address"`
+	Items                []*OrderItem     `json:"items"`
+	CreatedAt            time.Time        `json:"created_at"`
+	InitLog              *OrderEventLog   `json:"init_log"`
 }
 
 // OrderPaidPayload 定义订单支付事件载荷。
 type OrderPaidPayload struct {
-	OrderID       uint64         `json:"order_id"`
-	OrderNo       string         `json:"order_no"`
-	UserID        uint64         `json:"user_id"`
-	PaymentMethod string         `json:"payment_method"`
-	OldStatus     pb.OrderStatus `json:"old_status"`
-	NewStatus     pb.OrderStatus `json:"new_status"`
-	PaidAt        time.Time      `json:"paid_at"`
-	Log           *OrderEventLog `json:"log"`
+	OrderID              uint64         `json:"order_id"`
+	OrderNo              string         `json:"order_no"`
+	UserID               uint64         `json:"user_id"`
+	PaymentMethod        string         `json:"payment_method"`
+	PaymentTransactionID string         `json:"payment_transaction_id"`
+	OldStatus            pb.OrderStatus `json:"old_status"`
+	NewStatus            pb.OrderStatus `json:"new_status"`
+	PaidAt               time.Time      `json:"paid_at"`
+	Log                  *OrderEventLog `json:"log"`
 }
 
 // OrderShippedPayload 定义订单发货事件载荷。
 type OrderShippedPayload struct {
-	OrderID   uint64         `json:"order_id"`
-	OrderNo   string         `json:"order_no"`
-	UserID    uint64         `json:"user_id"`
-	OldStatus pb.OrderStatus `json:"old_status"`
-	NewStatus pb.OrderStatus `json:"new_status"`
-	ShippedAt time.Time      `json:"shipped_at"`
-	Log       *OrderEventLog `json:"log"`
+	OrderID          uint64         `json:"order_id"`
+	OrderNo          string         `json:"order_no"`
+	UserID           uint64         `json:"user_id"`
+	OldStatus        pb.OrderStatus `json:"old_status"`
+	NewStatus        pb.OrderStatus `json:"new_status"`
+	TrackingNumber   string         `json:"tracking_number"`
+	LogisticsCompany string         `json:"logistics_company"`
+	ShippedAt        time.Time      `json:"shipped_at"`
+	Log              *OrderEventLog `json:"log"`
 }
 
 // OrderDeliveredPayload 定义订单送达事件载荷。
@@ -124,6 +136,30 @@ type OrderConfirmedPayload struct {
 	Log       *OrderEventLog `json:"log"`
 }
 
+// OrderRefundRequestedPayload 定义订单退款申请事件载荷。
+type OrderRefundRequestedPayload struct {
+	OrderID      uint64         `json:"order_id"`
+	OrderNo      string         `json:"order_no"`
+	UserID       uint64         `json:"user_id"`
+	OldStatus    pb.OrderStatus `json:"old_status"`
+	NewStatus    pb.OrderStatus `json:"new_status"`
+	RefundAmount int64          `json:"refund_amount"`
+	RefundReason string         `json:"refund_reason"`
+	RequestedAt  time.Time      `json:"requested_at"`
+	Log          *OrderEventLog `json:"log"`
+}
+
+// OrderRefundApprovedPayload 定义订单退款完成事件载荷。
+type OrderRefundApprovedPayload struct {
+	OrderID    uint64         `json:"order_id"`
+	OrderNo    string         `json:"order_no"`
+	UserID     uint64         `json:"user_id"`
+	OldStatus  pb.OrderStatus `json:"old_status"`
+	NewStatus  pb.OrderStatus `json:"new_status"`
+	RefundedAt time.Time      `json:"refunded_at"`
+	Log        *OrderEventLog `json:"log"`
+}
+
 // RebuildOrderFromEvents 基于事件流重建订单聚合状态。
 func RebuildOrderFromEvents(events []eventsourcing.DomainEvent) (*Order, error) {
 	if len(events) == 0 {
@@ -158,7 +194,12 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 		order.ShippingFee = payload.ShippingFee
 		order.DiscountAmount = payload.DiscountAmount
 		order.PaymentMethod = payload.PaymentMethod
+		order.PaymentTransactionID = payload.PaymentTransactionID
 		order.Remark = payload.Remark
+		order.TrackingNumber = payload.TrackingNumber
+		order.LogisticsCompany = payload.LogisticsCompany
+		order.RefundAmount = payload.RefundAmount
+		order.RefundReason = payload.RefundReason
 		order.ShippingAddress = payload.ShippingAddress
 		order.Items = payload.Items
 		order.CreatedAt = payload.CreatedAt
@@ -171,6 +212,7 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 		}
 		order.Status = payload.NewStatus
 		order.PaymentMethod = payload.PaymentMethod
+		order.PaymentTransactionID = payload.PaymentTransactionID
 		order.PaidAt = &payload.PaidAt
 		appendEventLog(order, payload.OrderID, payload.Log)
 	case OrderEventTypeShipped:
@@ -179,6 +221,8 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 			return err
 		}
 		order.Status = payload.NewStatus
+		order.TrackingNumber = payload.TrackingNumber
+		order.LogisticsCompany = payload.LogisticsCompany
 		order.ShippedAt = &payload.ShippedAt
 		appendEventLog(order, payload.OrderID, payload.Log)
 	case OrderEventTypeDelivered:
@@ -207,6 +251,22 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 		appendEventLog(order, payload.OrderID, payload.Log)
 	case OrderEventTypeConfirmed:
 		var payload OrderConfirmedPayload
+		if err := decodeEventData(event, &payload); err != nil {
+			return err
+		}
+		order.Status = payload.NewStatus
+		appendEventLog(order, payload.OrderID, payload.Log)
+	case OrderEventTypeRefundRequested:
+		var payload OrderRefundRequestedPayload
+		if err := decodeEventData(event, &payload); err != nil {
+			return err
+		}
+		order.Status = payload.NewStatus
+		order.RefundAmount = payload.RefundAmount
+		order.RefundReason = payload.RefundReason
+		appendEventLog(order, payload.OrderID, payload.Log)
+	case OrderEventTypeRefundApproved:
+		var payload OrderRefundApprovedPayload
 		if err := decodeEventData(event, &payload); err != nil {
 			return err
 		}

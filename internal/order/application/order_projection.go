@@ -62,6 +62,16 @@ func (s *OrderProjectionService) OnOrderConfirmed(ctx context.Context, event *do
 	return s.refreshReadModel(ctx, event.UserID, event.OrderID, event.OrderNo)
 }
 
+// OnOrderRefundRequested 处理订单退款申请事件。
+func (s *OrderProjectionService) OnOrderRefundRequested(ctx context.Context, event *domain.OrderRefundRequestedEvent) error {
+	return s.refreshReadModel(ctx, event.UserID, event.OrderID, event.OrderNo)
+}
+
+// OnOrderRefundApproved 处理订单退款完成事件。
+func (s *OrderProjectionService) OnOrderRefundApproved(ctx context.Context, event *domain.OrderRefundApprovedEvent) error {
+	return s.refreshReadModel(ctx, event.UserID, event.OrderID, event.OrderNo)
+}
+
 // refreshReadModel 从写模型加载订单并刷新读侧。
 func (s *OrderProjectionService) refreshReadModel(ctx context.Context, userID, orderID uint64, orderNo string) error {
 	order, err := s.repo.FindByID(ctx, userID, orderID)

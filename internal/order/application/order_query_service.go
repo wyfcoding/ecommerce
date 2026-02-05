@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/metrics"
@@ -96,16 +97,16 @@ func (s *OrderQueryService) GetOrderByNo(ctx context.Context, userID uint64, ord
 }
 
 // ListOrders 分页查询。
-func (s *OrderQueryService) ListOrders(ctx context.Context, offset, limit int) ([]*domain.Order, int64, error) {
+func (s *OrderQueryService) ListOrders(ctx context.Context, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*domain.Order, int64, error) {
 	if s.searchRepo != nil {
-		list, total, err := s.searchRepo.Search(ctx, nil, nil, offset, limit)
+		list, total, err := s.searchRepo.Search(ctx, nil, status, offset, limit, startTime, endTime, sortBy)
 		if err == nil {
 			return list, total, nil
 		}
 		s.logger.WarnContext(ctx, "order search fallback to mysql", "error", err)
 	}
 
-	list, total, err := s.repo.List(ctx, offset, limit)
+	list, total, err := s.repo.List(ctx, status, offset, limit, startTime, endTime, sortBy)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -113,16 +114,16 @@ func (s *OrderQueryService) ListOrders(ctx context.Context, offset, limit int) (
 }
 
 // ListUserOrders 查询用户订单。
-func (s *OrderQueryService) ListUserOrders(ctx context.Context, userID uint64, status *int, offset, limit int) ([]*domain.Order, int64, error) {
+func (s *OrderQueryService) ListUserOrders(ctx context.Context, userID uint64, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*domain.Order, int64, error) {
 	if s.searchRepo != nil {
-		list, total, err := s.searchRepo.Search(ctx, &userID, status, offset, limit)
+		list, total, err := s.searchRepo.Search(ctx, &userID, status, offset, limit, startTime, endTime, sortBy)
 		if err == nil {
 			return list, total, nil
 		}
 		s.logger.WarnContext(ctx, "order search fallback to mysql", "user_id", userID, "error", err)
 	}
 
-	list, total, err := s.repo.ListByUserID(ctx, userID, status, offset, limit)
+	list, total, err := s.repo.ListByUserID(ctx, userID, status, offset, limit, startTime, endTime, sortBy)
 	if err != nil {
 		return nil, 0, err
 	}

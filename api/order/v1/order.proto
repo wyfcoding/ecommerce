@@ -44,6 +44,27 @@ enum ShippingStatus {
   EXCEPTION = 5; // 配送异常（拒收、丢失等）
 }
 
+// 订单服务错误码定义。
+enum OrderErrorCode {
+  ORDER_ERROR_CODE_UNSPECIFIED = 0;
+  ORDER_NOT_FOUND = 1; // 订单不存在
+  ORDER_STATUS_INVALID = 2; // 订单状态不合法
+  ORDER_PAYMENT_FAILED = 3; // 支付失败
+  ORDER_STOCK_INSUFFICIENT = 4; // 库存不足
+  ORDER_COUPON_INVALID = 5; // 优惠券无效
+  ORDER_RISK_REJECTED = 6; // 风控拒绝
+  ORDER_DUPLICATED_REQUEST = 7; // 幂等请求重复
+  ORDER_SAGA_FAILED = 8; // 分布式事务失败
+}
+
+// 标准错误详情结构（可用于 RPC error details）。
+message OrderErrorDetail {
+  OrderErrorCode code = 1; // 错误码
+  string message = 2; // 错误描述
+  string trace_id = 3; // 链路追踪 ID
+  string request_id = 4; // 请求 ID
+}
+
 // 订单管理服务，负责订单生命周期、支付及退款流程协调。
 service OrderService {
   // 创建新订单。
@@ -138,6 +159,16 @@ message OrderInfo {
   repeated OrderItem items = 21;
   // 流程节点变更日志。
   repeated OrderLog logs = 22;
+  // 支付平台流水号。
+  string payment_transaction_id = 23;
+  // 快递单号。
+  string tracking_number = 24;
+  // 物流商名称。
+  string logistics_company = 25;
+  // 退款金额。
+  int64 refund_amount = 26;
+  // 退款原因。
+  string refund_reason = 27;
 }
 
 // 订单包含的商品。
@@ -202,6 +233,8 @@ message OrderLog {
   string new_status = 6;
   // 发生时间。
   google.protobuf.Timestamp created_at = 7;
+  // 备注。
+  string remark = 8;
 }
 
 // 支付结果回执。

@@ -5,6 +5,8 @@ package elasticsearch
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	"github.com/wyfcoding/pkg/search"
@@ -40,7 +42,7 @@ func (r *orderSearchRepository) Delete(ctx context.Context, orderID uint64) erro
 }
 
 // Search 按条件检索订单（支持用户与状态过滤、分页）。
-func (r *orderSearchRepository) Search(ctx context.Context, userID *uint64, status *int, offset, limit int) ([]*domain.Order, int64, error) {
+func (r *orderSearchRepository) Search(ctx context.Context, userID *uint64, status *int, offset, limit int, startTime, endTime *time.Time, sortBy string) ([]*domain.Order, int64, error) {
 	filters := make([]any, 0)
 	if userID != nil {
 		filters = append(filters, map[string]any{
@@ -52,13 +54,31 @@ func (r *orderSearchRepository) Search(ctx context.Context, userID *uint64, stat
 			"term": map[string]any{"status": *status},
 		})
 	}
+	if startTime != nil || endTime != nil {
+		rangeFilter := map[string]any{}
+		if startTime != nil {
+			rangeFilter["gte"] = startTime.Format(time.RFC3339)
+		}
+		if endTime != nil {
+			rangeFilter["lte"] = endTime.Format(time.RFC3339)
+		}
+		filters = append(filters, map[string]any{
+			"range": map[string]any{"created_at": rangeFilter},
+		})
+	}
+
+	sortField, desc := parseOrderSort(sortBy)
+	orderDir := "desc"
+	if !desc {
+		orderDir = "asc"
+	}
 
 	query := map[string]any{
 		"from":             offset,
 		"size":             limit,
 		"track_total_hits": true,
 		"sort": []any{
-			map[string]any{"CreatedAt": map[string]any{"order": "desc"}},
+			map[string]any{sortField: map[string]any{"order": orderDir}},
 		},
 	}
 
@@ -123,4 +143,47 @@ func (r *orderSearchRepository) FindByOrderNo(ctx context.Context, orderNo strin
 
 	order := searchRes.Hits.Hits[0].Source
 	return &order, nil
+}
+
+func parseOrderSort(sortBy string) (string, bool) {
+	allowed := map[string]string{
+		"created_at":    "created_at",
+		"updated_at":    "updated_at",
+		"paid_at":       "paid_at",
+		"shipped_at":    "shipped_at",
+		"delivered_at":  "delivered_at",
+		"completed_at":  "completed_at",
+		"cancelled_at":  "cancelled_at",
+		"total_amount":  "total_amount",
+		"actual_amount": "actual_amount",
+	}
+
+	sortBy = strings.TrimSpace(strings.ToLower(sortBy))
+	if sortBy == "" {
+		return "created_at", true
+	}
+
+	desc := true
+	if strings.HasPrefix(sortBy, "-") {
+		sortBy = strings.TrimPrefix(sortBy, "-")
+		desc = true
+	}
+
+	parts := strings.Fields(sortBy)
+	if len(parts) > 0 {
+		sortBy = parts[0]
+	}
+	if len(parts) > 1 {
+		switch parts[1] {
+		case "asc":
+			desc = false
+		case "desc":
+			desc = true
+		}
+	}
+
+	if col, ok := allowed[sortBy]; ok {
+		return col, desc
+	}
+	return "created_at", true
 }

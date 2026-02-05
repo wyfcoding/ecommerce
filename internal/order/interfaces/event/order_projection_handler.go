@@ -79,6 +79,20 @@ func (h *OrderProjectionHandler) Handle(ctx context.Context, msg kafka.Message) 
 			return err
 		}
 		return h.projector.OnOrderConfirmed(ctx, &event)
+	case "order.refund.requested":
+		var event domain.OrderRefundRequestedEvent
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			h.logger.ErrorContext(ctx, "failed to unmarshal order refund requested event", "error", err)
+			return err
+		}
+		return h.projector.OnOrderRefundRequested(ctx, &event)
+	case "order.refund.approved":
+		var event domain.OrderRefundApprovedEvent
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			h.logger.ErrorContext(ctx, "failed to unmarshal order refund approved event", "error", err)
+			return err
+		}
+		return h.projector.OnOrderRefundApproved(ctx, &event)
 	default:
 		h.logger.WarnContext(ctx, "unknown order event topic", "topic", msg.Topic)
 		return nil

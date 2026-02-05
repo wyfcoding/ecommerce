@@ -55,6 +55,8 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 		District:        req.ShippingAddress.District,
 		DetailedAddress: req.ShippingAddress.DetailedAddress,
 		PostalCode:      req.ShippingAddress.PostalCode,
+		Lat:             req.ShippingAddress.Lat,
+		Lon:             req.ShippingAddress.Lon,
 	}
 
 	var couponCode string
@@ -67,6 +69,8 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 		Items:           items,
 		ShippingAddress: shippingAddr,
 		CouponCode:      couponCode,
+		Remark:          req.Remark,
+		PaymentMethod:   req.PaymentMethod,
 		ClientIP:        "127.0.0.1",
 		DeviceID:        "unknown",
 	}
@@ -108,6 +112,8 @@ func (s *Server) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrderStatu
 		err = s.cmdService.CompleteOrder(ctx, &application.CompleteOrderCommand{UserID: req.UserId, OrderID: req.Id, Operator: req.Operator})
 	case pb.OrderStatus_CANCELLED:
 		err = s.cmdService.CancelOrder(ctx, &application.CancelOrderCommand{UserID: req.UserId, OrderID: req.Id, Operator: req.Operator, Reason: req.Remark})
+	case pb.OrderStatus_REFUNDED:
+		err = s.cmdService.ApproveRefund(ctx, &application.ApproveRefundCommand{UserID: req.UserId, OrderID: req.Id, Operator: req.Operator})
 	default:
 		return nil, status.Error(codes.InvalidArgument, "unsupported status transition via this API")
 	}
@@ -146,6 +152,7 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 	if pageSize < 1 {
 		pageSize = 10
 	}
+	offset := (page - 1) * pageSize
 
 	var statusPtr *int
 	if req.Status != pb.OrderStatus_ORDER_STATUS_UNSPECIFIED {
@@ -153,7 +160,27 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 		statusPtr = &st
 	}
 
-	orders, total, err := s.queryService.ListUserOrders(ctx, req.UserId, statusPtr, page, pageSize)
+	var startTime *time.Time
+	if req.StartTime != nil {
+		t := req.StartTime.AsTime()
+		startTime = &t
+	}
+	var endTime *time.Time
+	if req.EndTime != nil {
+		t := req.EndTime.AsTime()
+		endTime = &t
+	}
+
+	var (
+		orders []*domain.Order
+		total  int64
+		err    error
+	)
+	if req.UserId > 0 {
+		orders, total, err = s.queryService.ListUserOrders(ctx, req.UserId, statusPtr, offset, pageSize, startTime, endTime, req.SortBy)
+	} else {
+		orders, total, err = s.queryService.ListOrders(ctx, statusPtr, offset, pageSize, startTime, endTime, req.SortBy)
+	}
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list orders: %v", err))
 	}
@@ -179,26 +206,33 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 		UserID:        req.UserId,
 		OrderID:       req.OrderId,
 		PaymentMethod: req.PaymentMethod,
+		Amount:        req.Amount,
+		TransactionID: req.TransactionId,
 	})
 	if err != nil {
 		slog.Error("gRPC ProcessPayment failed", "order_id", req.OrderId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return &pb.PaymentResult{OrderId: req.OrderId, Status: pb.PaymentStatus_FAILED, Message: err.Error()}, nil
 	}
 	slog.Info("gRPC ProcessPayment successful", "order_id", req.OrderId, "user_id", req.UserId, "duration", time.Since(start))
+	transactionID := req.TransactionId
+	if transactionID == "" {
+		transactionID = "mock-txn-" + strconv.FormatUint(req.OrderId, 10)
+	}
 	return &pb.PaymentResult{
 		OrderId:       req.OrderId,
-		TransactionId: "mock-txn-" + strconv.FormatUint(req.OrderId, 10),
+		TransactionId: transactionID,
 		Status:        pb.PaymentStatus_SUCCESS,
 		PaidAt:        timestamppb.Now(),
 	}, nil
 }
 
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.OrderInfo, error) {
-	err := s.cmdService.CancelOrder(ctx, &application.CancelOrderCommand{
-		UserID:   req.UserId,
-		OrderID:  req.OrderId,
-		Operator: "User",
-		Reason:   req.Reason,
+	err := s.cmdService.RequestRefund(ctx, &application.RequestRefundCommand{
+		UserID:       req.UserId,
+		OrderID:      req.OrderId,
+		Operator:     "User",
+		RefundAmount: req.RefundAmount,
+		Reason:       req.Reason,
 	})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -229,9 +263,21 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 	var err error
 	switch req.NewShippingStatus {
 	case pb.ShippingStatus_SHIPPING_SHIPPED:
-		err = s.cmdService.ShipOrder(ctx, &application.ShipOrderCommand{UserID: req.UserId, OrderID: req.OrderId, Operator: req.Operator})
+		err = s.cmdService.ShipOrder(ctx, &application.ShipOrderCommand{
+			UserID:           req.UserId,
+			OrderID:          req.OrderId,
+			Operator:         req.Operator,
+			TrackingNumber:   req.TrackingNumber,
+			LogisticsCompany: req.LogisticsCompany,
+		})
 	case pb.ShippingStatus_SHIPPING_DELIVERED:
-		err = s.cmdService.DeliverOrder(ctx, &application.DeliverOrderCommand{UserID: req.UserId, OrderID: req.OrderId, Operator: req.Operator})
+		err = s.cmdService.DeliverOrder(ctx, &application.DeliverOrderCommand{
+			UserID:           req.UserId,
+			OrderID:          req.OrderId,
+			Operator:         req.Operator,
+			TrackingNumber:   req.TrackingNumber,
+			LogisticsCompany: req.LogisticsCompany,
+		})
 	default:
 		return nil, status.Error(codes.Unimplemented, "shipping status mapping not found")
 	}
@@ -280,18 +326,63 @@ func (s *Server) toProto(o *domain.Order) *pb.OrderInfo {
 			Lon:             o.ShippingAddress.Lon,
 		}
 	}
-	return &pb.OrderInfo{
-		Id:              uint64(o.ID),
-		OrderNo:         o.OrderNo,
-		UserId:          o.UserID,
-		Status:          o.Status,
-		TotalAmount:     o.TotalAmount,
-		ActualAmount:    o.ActualAmount,
-		CreatedAt:       timestamppb.New(o.CreatedAt),
-		UpdatedAt:       timestamppb.New(o.UpdatedAt),
-		Items:           items,
-		ShippingAddress: sa,
+	logs := make([]*pb.OrderLog, 0, len(o.Logs))
+	for _, log := range o.Logs {
+		if log == nil {
+			continue
+		}
+		logs = append(logs, &pb.OrderLog{
+			Id:        uint64(log.ID),
+			OrderId:   log.OrderID,
+			Operator:  log.Operator,
+			Action:    log.Action,
+			OldStatus: log.OldStatus,
+			NewStatus: log.NewStatus,
+			Remark:    log.Remark,
+			CreatedAt: timestamppb.New(log.CreatedAt),
+		})
 	}
+
+	info := &pb.OrderInfo{
+		Id:                   uint64(o.ID),
+		OrderNo:              o.OrderNo,
+		UserId:               o.UserID,
+		Status:               o.Status,
+		PaymentStatus:        paymentStatusFromOrder(o),
+		ShippingStatus:       shippingStatusFromOrder(o),
+		TotalAmount:          o.TotalAmount,
+		ActualAmount:         o.ActualAmount,
+		ShippingFee:          o.ShippingFee,
+		DiscountAmount:       o.DiscountAmount,
+		PaymentMethod:        o.PaymentMethod,
+		PaymentTransactionId: o.PaymentTransactionID,
+		Remark:               o.Remark,
+		TrackingNumber:       o.TrackingNumber,
+		LogisticsCompany:     o.LogisticsCompany,
+		RefundAmount:         o.RefundAmount,
+		RefundReason:         o.RefundReason,
+		CreatedAt:            timestamppb.New(o.CreatedAt),
+		UpdatedAt:            timestamppb.New(o.UpdatedAt),
+		Items:                items,
+		Logs:                 logs,
+		ShippingAddress:      sa,
+	}
+	if o.PaidAt != nil {
+		info.PaidAt = timestamppb.New(*o.PaidAt)
+	}
+	if o.ShippedAt != nil {
+		info.ShippedAt = timestamppb.New(*o.ShippedAt)
+	}
+	if o.DeliveredAt != nil {
+		info.DeliveredAt = timestamppb.New(*o.DeliveredAt)
+	}
+	if o.CompletedAt != nil {
+		info.CompletedAt = timestamppb.New(*o.CompletedAt)
+	}
+	if o.CancelledAt != nil {
+		info.CancelledAt = timestamppb.New(*o.CancelledAt)
+	}
+	return info
 }
 
 func (s *Server) itemToProto(item *domain.OrderItem) *pb.OrderItem {
@@ -299,14 +390,58 @@ func (s *Server) itemToProto(item *domain.OrderItem) *pb.OrderItem {
 		return nil
 	}
 	return &pb.OrderItem{
-		Id:          uint64(item.ID),
-		OrderId:     item.OrderID,
-		ProductId:   item.ProductID,
-		SkuId:       item.SkuID,
-		ProductName: item.ProductName,
-		SkuName:     item.SkuName,
-		Price:       item.Price,
-		Quantity:    item.Quantity,
-		TotalPrice:  item.Price * int64(item.Quantity),
+		Id:              uint64(item.ID),
+		OrderId:         item.OrderID,
+		ProductId:       item.ProductID,
+		SkuId:           item.SkuID,
+		ProductName:     item.ProductName,
+		SkuName:         item.SkuName,
+		ProductImageUrl: item.ProductImageURL,
+		Price:           item.Price,
+		Quantity:        item.Quantity,
+		TotalPrice:      item.TotalPrice,
+	}
+}
+
+func paymentStatusFromOrder(o *domain.Order) pb.PaymentStatus {
+	if o == nil {
+		return pb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED
+	}
+	switch o.Status {
+	case pb.OrderStatus_REFUND_REQUESTED:
+		return pb.PaymentStatus_REFUNDING
+	case pb.OrderStatus_REFUNDED:
+		return pb.PaymentStatus_REFUND_SUCCESS
+	case pb.OrderStatus_CANCELLED:
+		if o.PaidAt != nil {
+			return pb.PaymentStatus_REFUNDING
+		}
+		return pb.PaymentStatus_UNPAID
+	case pb.OrderStatus_PAID, pb.OrderStatus_SHIPPED, pb.OrderStatus_DELIVERED, pb.OrderStatus_COMPLETED:
+		return pb.PaymentStatus_SUCCESS
+	case pb.OrderStatus_PENDING_PAYMENT, pb.OrderStatus_ALLOCATING:
+		return pb.PaymentStatus_UNPAID
+	case pb.OrderStatus_CLOSED:
+		return pb.PaymentStatus_FAILED
+	default:
+		return pb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED
+	}
+}
+
+func shippingStatusFromOrder(o *domain.Order) pb.ShippingStatus {
+	if o == nil {
+		return pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED
+	}
+	switch o.Status {
+	case pb.OrderStatus_SHIPPED:
+		return pb.ShippingStatus_SHIPPING_SHIPPED
+	case pb.OrderStatus_DELIVERED, pb.OrderStatus_COMPLETED:
+		return pb.ShippingStatus_SHIPPING_DELIVERED
+	case pb.OrderStatus_CANCELLED, pb.OrderStatus_REFUND_REQUESTED, pb.OrderStatus_REFUNDED:
+		return pb.ShippingStatus_EXCEPTION
+	case pb.OrderStatus_PENDING_PAYMENT, pb.OrderStatus_ALLOCATING, pb.OrderStatus_PAID:
+		return pb.ShippingStatus_PENDING_SHIPMENT
+	default:
+		return pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED
 	}
 }
