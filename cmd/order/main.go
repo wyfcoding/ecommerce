@@ -16,7 +16,7 @@ import (
 	ordersearch "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/elasticsearch"
 	ordermysql "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/mysql"
 	orderredis "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/redis"
-	consumer "github.com/wyfcoding/ecommerce/internal/order/interfaces/event"
+	consumer "github.com/wyfcoding/ecommerce/internal/order/interfaces/consumer"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
 	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
@@ -49,6 +49,9 @@ const IdempotencyPrefix = "order:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		OrderIndex string `mapstructure:"order_index" toml:"order_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
@@ -228,7 +231,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("order event store init error: %w", err)
 	}
 	orderReadRepo := orderredis.NewOrderReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
-	orderSearchRepo := ordersearch.NewOrderSearchRepository(esClient)
+	orderSearchRepo := ordersearch.NewOrderSearchRepository(esClient, c.Search.OrderIndex)
 
 	// 6.2 Application (Service)
 	warehouseAddr := c.Services["warehouse"].GRPCAddr

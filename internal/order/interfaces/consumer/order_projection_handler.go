@@ -58,6 +58,13 @@ func (h *OrderProjectionHandler) Handle(ctx context.Context, msg kafka.Message) 
 			return err
 		}
 		return h.projector.OnOrderDelivered(ctx, &event)
+	case "order.shipping.updated":
+		var event domain.OrderShippingStatusUpdatedEvent
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			h.logger.ErrorContext(ctx, "failed to unmarshal order shipping status updated event", "error", err)
+			return err
+		}
+		return h.projector.OnOrderShippingStatusUpdated(ctx, &event)
 	case "order.completed":
 		var event domain.OrderCompletedEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {

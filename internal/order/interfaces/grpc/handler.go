@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
@@ -12,6 +14,8 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -71,8 +75,8 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 		CouponCode:      couponCode,
 		Remark:          req.Remark,
 		PaymentMethod:   req.PaymentMethod,
-		ClientIP:        "127.0.0.1",
-		DeviceID:        "unknown",
+		ClientIP:        clientIPFromContext(ctx),
+		DeviceID:        deviceIDFromContext(ctx),
 	}
 
 	order, err := s.cmdService.CreateOrder(ctx, cmd)
@@ -278,8 +282,17 @@ func (s *Server) UpdateOrderShippingStatus(ctx context.Context, req *pb.UpdateOr
 			TrackingNumber:   req.TrackingNumber,
 			LogisticsCompany: req.LogisticsCompany,
 		})
+	case pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED:
+		return nil, status.Error(codes.InvalidArgument, "shipping status is required")
 	default:
-		return nil, status.Error(codes.Unimplemented, "shipping status mapping not found")
+		err = s.cmdService.UpdateShippingStatus(ctx, &application.UpdateShippingStatusCommand{
+			UserID:           req.UserId,
+			OrderID:          req.OrderId,
+			Operator:         req.Operator,
+			NewStatus:        req.NewShippingStatus,
+			TrackingNumber:   req.TrackingNumber,
+			LogisticsCompany: req.LogisticsCompany,
+		})
 	}
 	if err != nil {
 		slog.Error("gRPC UpdateOrderShippingStatus failed", "order_id", req.OrderId, "status", req.NewShippingStatus, "error", err, "duration", time.Since(start))
@@ -407,6 +420,9 @@ func paymentStatusFromOrder(o *domain.Order) pb.PaymentStatus {
 	if o == nil {
 		return pb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED
 	}
+	if o.PaymentStatus != pb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED {
+		return o.PaymentStatus
+	}
 	switch o.Status {
 	case pb.OrderStatus_REFUND_REQUESTED:
 		return pb.PaymentStatus_REFUNDING
@@ -432,6 +448,9 @@ func shippingStatusFromOrder(o *domain.Order) pb.ShippingStatus {
 	if o == nil {
 		return pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED
 	}
+	if o.ShippingStatus != pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED {
+		return o.ShippingStatus
+	}
 	switch o.Status {
 	case pb.OrderStatus_SHIPPED:
 		return pb.ShippingStatus_SHIPPING_SHIPPED
@@ -444,4 +463,62 @@ func shippingStatusFromOrder(o *domain.Order) pb.ShippingStatus {
 	default:
 		return pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED
 	}
+}
+
+func clientIPFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		for _, key := range []string{"x-forwarded-for", "x-real-ip", "x-client-ip", "client-ip"} {
+			if ip := firstNonEmpty(md.Get(key)); ip != "" {
+				if parsed := extractFirstIP(ip); parsed != "" {
+					return parsed
+				}
+			}
+		}
+	}
+
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		if host, _, err := net.SplitHostPort(p.Addr.String()); err == nil {
+			return host
+		}
+		return p.Addr.String()
+	}
+	return "unknown"
+}
+
+func deviceIDFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		for _, key := range []string{"x-device-id", "device-id", "device_id"} {
+			if v := firstNonEmpty(md.Get(key)); v != "" {
+				return v
+			}
+		}
+		if ua := firstNonEmpty(md.Get("user-agent")); ua != "" {
+			return ua
+		}
+	}
+	return "unknown"
+}
+
+func firstNonEmpty(values []string) string {
+	for _, v := range values {
+		val := strings.TrimSpace(v)
+		if val != "" {
+			return val
+		}
+	}
+	return ""
+}
+
+func extractFirstIP(value string) string {
+	for _, part := range strings.Split(value, ",") {
+		ip := strings.TrimSpace(part)
+		if ip == "" {
+			continue
+		}
+		if host, _, err := net.SplitHostPort(ip); err == nil {
+			ip = host
+		}
+		return ip
+	}
+	return ""
 }

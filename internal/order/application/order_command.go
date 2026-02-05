@@ -48,6 +48,11 @@ type OrderCommandService struct {
 	orderCreatedCounter *prometheus.CounterVec
 }
 
+type lockedStock struct {
+	skuID    uint64
+	quantity int32
+}
+
 // NewOrderCommandService 构造函数。
 func NewOrderCommandService(
 	repo domain.OrderRepository,
@@ -140,6 +145,7 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 	}
 
 	// 3. 预锁库存 (乐观)
+	lockedStocks := make([]lockedStock, 0, len(items))
 	for _, item := range items {
 		_, err := s.inventoryCli.LockStock(ctx, &inventoryv1.LockStockRequest{
 			SkuId:    item.SkuID,
@@ -147,8 +153,10 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			Reason:   "Order " + orderNo,
 		})
 		if err != nil {
+			s.unlockLockedStocks(ctx, orderNo, lockedStocks)
 			return nil, fmt.Errorf("insufficient stock for SKU %d", item.SkuID)
 		}
+		lockedStocks = append(lockedStocks, lockedStock{skuID: item.SkuID, quantity: int32(item.Quantity)})
 	}
 
 	// 4. 事务：保存订单并发布事件 (EDA)
@@ -165,6 +173,8 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			OrderNo:              order.OrderNo,
 			UserID:               order.UserID,
 			Status:               order.Status,
+			PaymentStatus:        order.PaymentStatus,
+			ShippingStatus:       order.ShippingStatus,
 			TotalAmount:          order.TotalAmount,
 			ActualAmount:         order.ActualAmount,
 			ShippingFee:          order.ShippingFee,
@@ -192,12 +202,14 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 
 		// 发布领域事件
 		event := &domain.OrderCreatedEvent{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			TotalAmount: order.TotalAmount,
-			Status:      order.Status,
-			Timestamp:   time.Now(),
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			TotalAmount:    order.TotalAmount,
+			Status:         order.Status,
+			PaymentStatus:  order.PaymentStatus,
+			ShippingStatus: order.ShippingStatus,
+			Timestamp:      time.Now(),
 		}
 		if err := s.publisher.PublishInTx(ctx, tx, "order.created", order.OrderNo, event); err != nil {
 			return err
@@ -213,6 +225,7 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 		}
 		return s.publisher.PublishInTx(ctx, tx, "order.payment.timeout", order.OrderNo, timeoutEvent)
 	}); err != nil {
+		s.unlockLockedStocks(ctx, orderNo, lockedStocks)
 		return nil, err
 	}
 
@@ -245,6 +258,7 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 
 	if err := saga.Submit(ctx); err != nil {
 		s.logger.ErrorContext(ctx, "saga submission failed", "order_no", orderNo, "error", err)
+		s.unlockLockedStocks(ctx, orderNo, lockedStocks)
 		return nil, fmt.Errorf("distributed transaction submission failed: %w", err)
 	}
 
@@ -300,6 +314,7 @@ func (s *OrderCommandService) PayOrder(ctx context.Context, cmd *PayOrderCommand
 			PaymentTransactionID: order.PaymentTransactionID,
 			OldStatus:            oldStatus,
 			NewStatus:            order.Status,
+			PaymentStatus:        order.PaymentStatus,
 			PaidAt:               paidAt,
 			Log:                  buildEventLogFromOrder(order),
 		}
@@ -316,6 +331,7 @@ func (s *OrderCommandService) PayOrder(ctx context.Context, cmd *PayOrderCommand
 			ActualAmount:         order.ActualAmount,
 			PaymentMethod:        order.PaymentMethod,
 			PaymentTransactionID: order.PaymentTransactionID,
+			PaymentStatus:        order.PaymentStatus,
 			PaidAt:               *order.PaidAt,
 			Timestamp:            time.Now(),
 		})
@@ -351,6 +367,7 @@ func (s *OrderCommandService) ShipOrder(ctx context.Context, cmd *ShipOrderComma
 			NewStatus:        order.Status,
 			TrackingNumber:   order.TrackingNumber,
 			LogisticsCompany: order.LogisticsCompany,
+			ShippingStatus:   order.ShippingStatus,
 			ShippedAt:        shippedAt,
 			Log:              buildEventLogFromOrder(order),
 		}
@@ -366,6 +383,7 @@ func (s *OrderCommandService) ShipOrder(ctx context.Context, cmd *ShipOrderComma
 			UserID:           order.UserID,
 			TrackingNumber:   order.TrackingNumber,
 			LogisticsCompany: order.LogisticsCompany,
+			ShippingStatus:   order.ShippingStatus,
 			ShippedAt:        *order.ShippedAt,
 			Timestamp:        time.Now(),
 		})
@@ -394,13 +412,14 @@ func (s *OrderCommandService) DeliverOrder(ctx context.Context, cmd *DeliverOrde
 			deliveredAt = *order.DeliveredAt
 		}
 		deliveredPayload := &domain.OrderDeliveredPayload{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			OldStatus:   oldStatus,
-			NewStatus:   order.Status,
-			DeliveredAt: deliveredAt,
-			Log:         buildEventLogFromOrder(order),
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			OldStatus:      oldStatus,
+			NewStatus:      order.Status,
+			ShippingStatus: order.ShippingStatus,
+			DeliveredAt:    deliveredAt,
+			Log:            buildEventLogFromOrder(order),
 		}
 		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeDelivered, deliveredPayload); err != nil {
 			return err
@@ -414,6 +433,57 @@ func (s *OrderCommandService) DeliverOrder(ctx context.Context, cmd *DeliverOrde
 			UserID:      order.UserID,
 			DeliveredAt: *order.DeliveredAt,
 			Timestamp:   time.Now(),
+		})
+	})
+}
+
+// UpdateShippingStatus 手动更新物流状态（不改变订单主流程状态）。
+func (s *OrderCommandService) UpdateShippingStatus(ctx context.Context, cmd *UpdateShippingStatusCommand) error {
+	if cmd.NewStatus == orderv1.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED {
+		return errors.New("shipping status is required")
+	}
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
+		oldStatus := order.Status
+		oldShipping := order.ShippingStatus
+		if cmd.TrackingNumber != "" {
+			order.TrackingNumber = cmd.TrackingNumber
+		}
+		if cmd.LogisticsCompany != "" {
+			order.LogisticsCompany = cmd.LogisticsCompany
+		}
+		order.UpdateShippingStatus(cmd.NewStatus, cmd.Operator, cmd.Remark)
+
+		updatedPayload := &domain.OrderShippingStatusUpdatedPayload{
+			OrderID:           uint64(order.ID),
+			OrderNo:           order.OrderNo,
+			UserID:            order.UserID,
+			OldStatus:         oldStatus,
+			NewStatus:         order.Status,
+			OldShippingStatus: oldShipping,
+			NewShippingStatus: order.ShippingStatus,
+			TrackingNumber:    order.TrackingNumber,
+			LogisticsCompany:  order.LogisticsCompany,
+			UpdatedAt:         time.Now(),
+			Log:               buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeShippingStatusUpdated, updatedPayload); err != nil {
+			return err
+		}
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+		return s.publisher.PublishInTx(ctx, tx, "order.shipping.updated", order.OrderNo, &domain.OrderShippingStatusUpdatedEvent{
+			OrderID:          uint64(order.ID),
+			OrderNo:          order.OrderNo,
+			UserID:           order.UserID,
+			ShippingStatus:   order.ShippingStatus,
+			TrackingNumber:   order.TrackingNumber,
+			LogisticsCompany: order.LogisticsCompany,
+			Timestamp:        time.Now(),
 		})
 	})
 }
@@ -474,14 +544,16 @@ func (s *OrderCommandService) CancelOrder(ctx context.Context, cmd *CancelOrderC
 			cancelledAt = *order.CancelledAt
 		}
 		cancelledPayload := &domain.OrderCancelledPayload{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			OldStatus:   oldStatus,
-			NewStatus:   order.Status,
-			Reason:      cmd.Reason,
-			CancelledAt: cancelledAt,
-			Log:         buildEventLogFromOrder(order),
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			OldStatus:      oldStatus,
+			NewStatus:      order.Status,
+			PaymentStatus:  order.PaymentStatus,
+			ShippingStatus: order.ShippingStatus,
+			Reason:         cmd.Reason,
+			CancelledAt:    cancelledAt,
+			Log:            buildEventLogFromOrder(order),
 		}
 		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCancelled, cancelledPayload); err != nil {
 			return err
@@ -490,12 +562,14 @@ func (s *OrderCommandService) CancelOrder(ctx context.Context, cmd *CancelOrderC
 			return err
 		}
 		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, &domain.OrderCancelledEvent{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			Reason:      cmd.Reason,
-			CancelledAt: *order.CancelledAt,
-			Timestamp:   time.Now(),
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			Reason:         cmd.Reason,
+			PaymentStatus:  order.PaymentStatus,
+			ShippingStatus: order.ShippingStatus,
+			CancelledAt:    *order.CancelledAt,
+			Timestamp:      time.Now(),
 		})
 	})
 }
@@ -511,23 +585,29 @@ func (s *OrderCommandService) RequestRefund(ctx context.Context, cmd *RequestRef
 		if err := order.RequestRefund(ctx, cmd.Operator, cmd.Reason); err != nil {
 			return err
 		}
-		if cmd.RefundAmount > 0 {
-			order.RefundAmount = cmd.RefundAmount
+		refundAmount := cmd.RefundAmount
+		if refundAmount <= 0 {
+			refundAmount = order.ActualAmount
 		}
+		if refundAmount > order.ActualAmount {
+			return fmt.Errorf("refund amount exceeds actual amount: %d > %d", refundAmount, order.ActualAmount)
+		}
+		order.RefundAmount = refundAmount
 		if cmd.Reason != "" {
 			order.RefundReason = cmd.Reason
 		}
 		requestedAt := time.Now()
 		refundPayload := &domain.OrderRefundRequestedPayload{
-			OrderID:      uint64(order.ID),
-			OrderNo:      order.OrderNo,
-			UserID:       order.UserID,
-			OldStatus:    oldStatus,
-			NewStatus:    order.Status,
-			RefundAmount: order.RefundAmount,
-			RefundReason: order.RefundReason,
-			RequestedAt:  requestedAt,
-			Log:          buildEventLogFromOrder(order),
+			OrderID:       uint64(order.ID),
+			OrderNo:       order.OrderNo,
+			UserID:        order.UserID,
+			OldStatus:     oldStatus,
+			NewStatus:     order.Status,
+			PaymentStatus: order.PaymentStatus,
+			RefundAmount:  order.RefundAmount,
+			RefundReason:  order.RefundReason,
+			RequestedAt:   requestedAt,
+			Log:           buildEventLogFromOrder(order),
 		}
 		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeRefundRequested, refundPayload); err != nil {
 			return err
@@ -536,12 +616,13 @@ func (s *OrderCommandService) RequestRefund(ctx context.Context, cmd *RequestRef
 			return err
 		}
 		return s.publisher.PublishInTx(ctx, tx, "order.refund.requested", order.OrderNo, &domain.OrderRefundRequestedEvent{
-			OrderID:      uint64(order.ID),
-			OrderNo:      order.OrderNo,
-			UserID:       order.UserID,
-			RefundAmount: order.RefundAmount,
-			RefundReason: order.RefundReason,
-			Timestamp:    time.Now(),
+			OrderID:       uint64(order.ID),
+			OrderNo:       order.OrderNo,
+			UserID:        order.UserID,
+			RefundAmount:  order.RefundAmount,
+			RefundReason:  order.RefundReason,
+			PaymentStatus: order.PaymentStatus,
+			Timestamp:     time.Now(),
 		})
 	})
 }
@@ -559,13 +640,14 @@ func (s *OrderCommandService) ApproveRefund(ctx context.Context, cmd *ApproveRef
 		}
 		refundedAt := time.Now()
 		refundPayload := &domain.OrderRefundApprovedPayload{
-			OrderID:    uint64(order.ID),
-			OrderNo:    order.OrderNo,
-			UserID:     order.UserID,
-			OldStatus:  oldStatus,
-			NewStatus:  order.Status,
-			RefundedAt: refundedAt,
-			Log:        buildEventLogFromOrder(order),
+			OrderID:       uint64(order.ID),
+			OrderNo:       order.OrderNo,
+			UserID:        order.UserID,
+			OldStatus:     oldStatus,
+			NewStatus:     order.Status,
+			PaymentStatus: order.PaymentStatus,
+			RefundedAt:    refundedAt,
+			Log:           buildEventLogFromOrder(order),
 		}
 		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeRefundApproved, refundPayload); err != nil {
 			return err
@@ -574,91 +656,33 @@ func (s *OrderCommandService) ApproveRefund(ctx context.Context, cmd *ApproveRef
 			return err
 		}
 		return s.publisher.PublishInTx(ctx, tx, "order.refund.approved", order.OrderNo, &domain.OrderRefundApprovedEvent{
-			OrderID:   uint64(order.ID),
-			OrderNo:   order.OrderNo,
-			UserID:    order.UserID,
-			Timestamp: time.Now(),
+			OrderID:       uint64(order.ID),
+			OrderNo:       order.OrderNo,
+			UserID:        order.UserID,
+			PaymentStatus: order.PaymentStatus,
+			Timestamp:     time.Now(),
 		})
 	})
 }
 
-// SagaConfirmOrder Saga 确认。
-func (s *OrderCommandService) SagaConfirmOrder(ctx context.Context, userID, orderID uint64) error {
-	return s.repo.WithTx(ctx, userID, func(tx any) error {
-		order, err := s.repo.FindByID(ctx, userID, orderID)
-		if err != nil || order == nil {
-			return fmt.Errorf("order not found: %d", orderID)
-		}
-		if order.Status != orderv1.OrderStatus_ALLOCATING {
-			return nil
-		}
-		oldStatus := order.Status
-		if err := order.Trigger(ctx, "CONFIRM", "System", "Saga success"); err != nil {
-			return err
-		}
-		confirmedPayload := &domain.OrderConfirmedPayload{
-			OrderID:   uint64(order.ID),
-			OrderNo:   order.OrderNo,
-			UserID:    order.UserID,
-			OldStatus: oldStatus,
-			NewStatus: order.Status,
-			Confirmed: time.Now(),
-			Log:       buildEventLogFromOrder(order),
-		}
-		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeConfirmed, confirmedPayload); err != nil {
-			return err
-		}
-		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
-			return err
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.confirmed", order.OrderNo, &domain.OrderConfirmedEvent{
-			OrderID:   uint64(order.ID),
-			OrderNo:   order.OrderNo,
-			UserID:    order.UserID,
-			Timestamp: time.Now(),
-		})
-	})
-}
+func (s *OrderCommandService) unlockLockedStocks(ctx context.Context, orderNo string, locked []lockedStock) {
+	if s.inventoryCli == nil || len(locked) == 0 {
+		return
+	}
 
-// SagaCancelOrder Saga 取消。
-func (s *OrderCommandService) SagaCancelOrder(ctx context.Context, userID, orderID uint64, reason string) error {
-	return s.repo.WithTx(ctx, userID, func(tx any) error {
-		order, err := s.repo.FindByID(ctx, userID, orderID)
-		if err != nil || order == nil {
-			return nil
+	unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	reason := "Order " + orderNo + " rollback"
+	for _, item := range locked {
+		if _, err := s.inventoryCli.UnlockStock(unlockCtx, &inventoryv1.UnlockStockRequest{
+			SkuId:    item.skuID,
+			Quantity: item.quantity,
+			Reason:   reason,
+		}); err != nil {
+			s.logger.WarnContext(ctx, "failed to unlock stock", "order_no", orderNo, "sku_id", item.skuID, "error", err)
 		}
-		if order.Status == orderv1.OrderStatus_CANCELLED {
-			return nil
-		}
-		oldStatus := order.Status
-		if err := order.Cancel(ctx, "System", reason); err != nil {
-			return err
-		}
-		cancelledPayload := &domain.OrderCancelledPayload{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			OldStatus:   oldStatus,
-			NewStatus:   order.Status,
-			Reason:      reason,
-			CancelledAt: time.Now(),
-			Log:         buildEventLogFromOrder(order),
-		}
-		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCancelled, cancelledPayload); err != nil {
-			return err
-		}
-		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
-			return err
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.cancelled", order.OrderNo, &domain.OrderCancelledEvent{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			Reason:      reason,
-			CancelledAt: *order.CancelledAt,
-			Timestamp:   time.Now(),
-		})
-	})
+	}
 }
 
 // assessRisk 封装风控逻辑，集中处理 map[string]any 转换并严格处理错误。
@@ -718,20 +742,27 @@ func (s *OrderCommandService) HandleFlashsaleOrder(ctx context.Context, orderID,
 			return err
 		}
 		createdPayload := &domain.OrderCreatedPayload{
-			OrderID:         uint64(order.ID),
-			OrderNo:         order.OrderNo,
-			UserID:          order.UserID,
-			Status:          order.Status,
-			TotalAmount:     order.TotalAmount,
-			ActualAmount:    order.ActualAmount,
-			ShippingFee:     order.ShippingFee,
-			DiscountAmount:  order.DiscountAmount,
-			PaymentMethod:   order.PaymentMethod,
-			Remark:          order.Remark,
-			ShippingAddress: order.ShippingAddress,
-			Items:           order.Items,
-			CreatedAt:       time.Now(),
-			InitLog:         buildEventLogFromOrder(order),
+			OrderID:              uint64(order.ID),
+			OrderNo:              order.OrderNo,
+			UserID:               order.UserID,
+			Status:               order.Status,
+			PaymentStatus:        order.PaymentStatus,
+			ShippingStatus:       order.ShippingStatus,
+			TotalAmount:          order.TotalAmount,
+			ActualAmount:         order.ActualAmount,
+			ShippingFee:          order.ShippingFee,
+			DiscountAmount:       order.DiscountAmount,
+			PaymentMethod:        order.PaymentMethod,
+			PaymentTransactionID: order.PaymentTransactionID,
+			Remark:               order.Remark,
+			TrackingNumber:       order.TrackingNumber,
+			LogisticsCompany:     order.LogisticsCompany,
+			RefundAmount:         order.RefundAmount,
+			RefundReason:         order.RefundReason,
+			ShippingAddress:      order.ShippingAddress,
+			Items:                order.Items,
+			CreatedAt:            time.Now(),
+			InitLog:              buildEventLogFromOrder(order),
 		}
 		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCreated, createdPayload); err != nil {
 			return err
@@ -740,12 +771,14 @@ func (s *OrderCommandService) HandleFlashsaleOrder(ctx context.Context, orderID,
 			return err
 		}
 		return s.publisher.PublishInTx(ctx, tx, "order.created", order.OrderNo, &domain.OrderCreatedEvent{
-			OrderID:     uint64(order.ID),
-			OrderNo:     order.OrderNo,
-			UserID:      order.UserID,
-			TotalAmount: order.TotalAmount,
-			Status:      order.Status,
-			Timestamp:   time.Now(),
+			OrderID:        uint64(order.ID),
+			OrderNo:        order.OrderNo,
+			UserID:         order.UserID,
+			TotalAmount:    order.TotalAmount,
+			Status:         order.Status,
+			PaymentStatus:  order.PaymentStatus,
+			ShippingStatus: order.ShippingStatus,
+			Timestamp:      time.Now(),
 		})
 	})
 }

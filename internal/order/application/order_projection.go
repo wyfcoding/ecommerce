@@ -47,6 +47,11 @@ func (s *OrderProjectionService) OnOrderDelivered(ctx context.Context, event *do
 	return s.refreshReadModel(ctx, event.UserID, event.OrderID, event.OrderNo)
 }
 
+// OnOrderShippingStatusUpdated 处理订单物流状态更新事件。
+func (s *OrderProjectionService) OnOrderShippingStatusUpdated(ctx context.Context, event *domain.OrderShippingStatusUpdatedEvent) error {
+	return s.refreshReadModel(ctx, event.UserID, event.OrderID, event.OrderNo)
+}
+
 // OnOrderCompleted 处理订单完成事件。
 func (s *OrderProjectionService) OnOrderCompleted(ctx context.Context, event *domain.OrderCompletedEvent) error {
 	return s.refreshReadModel(ctx, event.UserID, event.OrderID, event.OrderNo)

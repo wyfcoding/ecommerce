@@ -16,6 +16,8 @@ type OrderModel struct {
 	Version              int64                `gorm:"not null;default:0;comment:事件版本号(用于事件溯源并发控制)"`
 	UserID               uint64               `gorm:"index;not null;comment:用户ID"`
 	Status               pb.OrderStatus       `gorm:"type:tinyint;not null;default:1;comment:订单状态"`
+	PaymentStatus        pb.PaymentStatus     `gorm:"type:tinyint;not null;default:1;comment:支付状态"`
+	ShippingStatus       pb.ShippingStatus    `gorm:"type:tinyint;not null;default:1;comment:物流状态"`
 	TotalAmount          int64                `gorm:"not null;comment:订单总金额(分)"`
 	ActualAmount         int64                `gorm:"not null;comment:实际支付金额(分)"`
 	ShippingFee          int64                `gorm:"not null;default:0;comment:运费(分)"`
@@ -102,6 +104,8 @@ func toOrderModel(order *domain.Order) *OrderModel {
 		Version:              order.Version,
 		UserID:               order.UserID,
 		Status:               order.Status,
+		PaymentStatus:        order.PaymentStatus,
+		ShippingStatus:       order.ShippingStatus,
 		TotalAmount:          order.TotalAmount,
 		ActualAmount:         order.ActualAmount,
 		ShippingFee:          order.ShippingFee,
@@ -193,6 +197,8 @@ func toDomainOrder(model *OrderModel) *domain.Order {
 		Version:              model.Version,
 		UserID:               model.UserID,
 		Status:               model.Status,
+		PaymentStatus:        model.PaymentStatus,
+		ShippingStatus:       model.ShippingStatus,
 		TotalAmount:          model.TotalAmount,
 		ActualAmount:         model.ActualAmount,
 		ShippingFee:          model.ShippingFee,
@@ -260,6 +266,7 @@ func toDomainOrder(model *OrderModel) *domain.Order {
 		})
 	}
 
+	fillDerivedStatuses(order)
 	order.InitFSM()
 	return order
 }
@@ -274,4 +281,43 @@ func hasShippingAddress(addr ShippingAddressModel) bool {
 		addr.PostalCode != "" ||
 		addr.Lat != 0 ||
 		addr.Lon != 0
+}
+
+func fillDerivedStatuses(order *domain.Order) {
+	if order == nil {
+		return
+	}
+	if order.PaymentStatus == pb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED {
+		switch order.Status {
+		case pb.OrderStatus_REFUND_REQUESTED:
+			order.PaymentStatus = pb.PaymentStatus_REFUNDING
+		case pb.OrderStatus_REFUNDED:
+			order.PaymentStatus = pb.PaymentStatus_REFUND_SUCCESS
+		case pb.OrderStatus_CANCELLED:
+			if order.PaidAt != nil {
+				order.PaymentStatus = pb.PaymentStatus_REFUNDING
+			} else {
+				order.PaymentStatus = pb.PaymentStatus_UNPAID
+			}
+		case pb.OrderStatus_PAID, pb.OrderStatus_SHIPPED, pb.OrderStatus_DELIVERED, pb.OrderStatus_COMPLETED:
+			order.PaymentStatus = pb.PaymentStatus_SUCCESS
+		case pb.OrderStatus_PENDING_PAYMENT, pb.OrderStatus_ALLOCATING:
+			order.PaymentStatus = pb.PaymentStatus_UNPAID
+		case pb.OrderStatus_CLOSED:
+			order.PaymentStatus = pb.PaymentStatus_FAILED
+		}
+	}
+
+	if order.ShippingStatus == pb.ShippingStatus_SHIPPING_STATUS_UNSPECIFIED {
+		switch order.Status {
+		case pb.OrderStatus_SHIPPED:
+			order.ShippingStatus = pb.ShippingStatus_SHIPPING_SHIPPED
+		case pb.OrderStatus_DELIVERED, pb.OrderStatus_COMPLETED:
+			order.ShippingStatus = pb.ShippingStatus_SHIPPING_DELIVERED
+		case pb.OrderStatus_CANCELLED, pb.OrderStatus_REFUND_REQUESTED, pb.OrderStatus_REFUNDED:
+			order.ShippingStatus = pb.ShippingStatus_EXCEPTION
+		case pb.OrderStatus_PENDING_PAYMENT, pb.OrderStatus_ALLOCATING, pb.OrderStatus_PAID:
+			order.ShippingStatus = pb.ShippingStatus_PENDING_SHIPMENT
+		}
+	}
 }

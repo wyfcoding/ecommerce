@@ -27,6 +27,8 @@ type Order struct {
 	Version              int64                        `json:"version"`
 	UserID               uint64                       `json:"user_id"`
 	Status               pb.OrderStatus               `json:"status"`
+	PaymentStatus        pb.PaymentStatus             `json:"payment_status"`
+	ShippingStatus       pb.ShippingStatus            `json:"shipping_status"`
 	TotalAmount          int64                        `json:"total_amount"`
 	ActualAmount         int64                        `json:"actual_amount"`
 	ShippingFee          int64                        `json:"shipping_fee"`
@@ -103,6 +105,8 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 		OrderNo:         orderNo,
 		UserID:          userID,
 		Status:          pb.OrderStatus_PENDING_PAYMENT,
+		PaymentStatus:   pb.PaymentStatus_UNPAID,
+		ShippingStatus:  pb.ShippingStatus_PENDING_SHIPMENT,
 		TotalAmount:     totalAmount,
 		ActualAmount:    totalAmount,
 		ShippingFee:     0,
@@ -178,6 +182,7 @@ func (o *Order) Pay(ctx context.Context, paymentMethod string, operator string) 
 		return err
 	}
 	o.PaymentMethod = paymentMethod
+	o.PaymentStatus = pb.PaymentStatus_SUCCESS
 	now := time.Now()
 	o.PaidAt = &now
 	return nil
@@ -188,6 +193,7 @@ func (o *Order) Ship(ctx context.Context, operator string) error {
 	if err := o.Trigger(ctx, "SHIP", operator, "Order has been shipped"); err != nil {
 		return err
 	}
+	o.ShippingStatus = pb.ShippingStatus_SHIPPING_SHIPPED
 	now := time.Now()
 	o.ShippedAt = &now
 	return nil
@@ -198,6 +204,7 @@ func (o *Order) Deliver(ctx context.Context, operator string) error {
 	if err := o.Trigger(ctx, "DELIVER", operator, "Order has been delivered"); err != nil {
 		return err
 	}
+	o.ShippingStatus = pb.ShippingStatus_SHIPPING_DELIVERED
 	now := time.Now()
 	o.DeliveredAt = &now
 	return nil
@@ -218,6 +225,12 @@ func (o *Order) Cancel(ctx context.Context, operator, reason string) error {
 	if err := o.Trigger(ctx, "CANCEL", operator, reason); err != nil {
 		return err
 	}
+	if o.PaidAt != nil {
+		o.PaymentStatus = pb.PaymentStatus_REFUNDING
+	} else {
+		o.PaymentStatus = pb.PaymentStatus_UNPAID
+	}
+	o.ShippingStatus = pb.ShippingStatus_EXCEPTION
 	now := time.Now()
 	o.CancelledAt = &now
 	return nil
@@ -225,12 +238,31 @@ func (o *Order) Cancel(ctx context.Context, operator, reason string) error {
 
 // RequestRefund 申请退款。
 func (o *Order) RequestRefund(ctx context.Context, operator, reason string) error {
-	return o.Trigger(ctx, "REFUND_REQ", operator, reason)
+	if err := o.Trigger(ctx, "REFUND_REQ", operator, reason); err != nil {
+		return err
+	}
+	o.PaymentStatus = pb.PaymentStatus_REFUNDING
+	o.ShippingStatus = pb.ShippingStatus_EXCEPTION
+	return nil
 }
 
 // ApproveRefund 批准退款。
 func (o *Order) ApproveRefund(ctx context.Context, operator string) error {
-	return o.Trigger(ctx, "REFUND_APPROVE", operator, "Refund has been approved")
+	if err := o.Trigger(ctx, "REFUND_APPROVE", operator, "Refund has been approved"); err != nil {
+		return err
+	}
+	o.PaymentStatus = pb.PaymentStatus_REFUND_SUCCESS
+	o.ShippingStatus = pb.ShippingStatus_EXCEPTION
+	return nil
+}
+
+// UpdateShippingStatus 手动更新物流状态（不改变订单主流程状态）。
+func (o *Order) UpdateShippingStatus(status pb.ShippingStatus, operator, remark string) {
+	o.ShippingStatus = status
+	if remark == "" {
+		remark = fmt.Sprintf("Shipping status updated to %s", status.String())
+	}
+	o.AddLog(operator, "Shipping Status Updated", o.Status.String(), o.Status.String(), remark)
 }
 
 // ApplyDiscount 应用折扣。

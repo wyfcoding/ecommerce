@@ -121,6 +121,9 @@ addresses = ["http://127.0.0.1:9200"]
 username = "elastic"
 password = "elastic_password"
 
+[search]
+order_index = "orders"
+
 [messagequeue.kafka]
 brokers = ["localhost:9092"]
 topic = "order-events"
