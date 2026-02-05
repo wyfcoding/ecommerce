@@ -52,6 +52,17 @@ type OrderDeliveredEvent struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
+// OrderPaymentStatusUpdatedEvent 订单支付状态更新事件
+type OrderPaymentStatusUpdatedEvent struct {
+	OrderID              uint64           `json:"order_id"`
+	OrderNo              string           `json:"order_no"`
+	UserID               uint64           `json:"user_id"`
+	PaymentStatus        pb.PaymentStatus `json:"payment_status"`
+	PaymentMethod        string           `json:"payment_method"`
+	PaymentTransactionID string           `json:"payment_transaction_id"`
+	Timestamp            time.Time        `json:"timestamp"`
+}
+
 // OrderShippingStatusUpdatedEvent 订单物流状态更新事件
 type OrderShippingStatusUpdatedEvent struct {
 	OrderID          uint64            `json:"order_id"`

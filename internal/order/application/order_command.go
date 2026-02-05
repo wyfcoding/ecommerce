@@ -267,16 +267,31 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 		go func() {
 			reqCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+			paymentMethod := cmd.PaymentMethod
+			if paymentMethod == "" {
+				paymentMethod = "WECHAT"
+			}
 			resp, err := s.paymentCli.InitiatePayment(reqCtx, &paymentv1.InitiatePaymentRequest{
 				OrderId:       uint64(order.ID),
 				UserId:        cmd.UserID,
-				PaymentMethod: "WECHAT",
+				PaymentMethod: paymentMethod,
 				Amount:        order.TotalAmount,
 				ClientIp:      cmd.ClientIP,
 			})
 			if err != nil {
 				s.logger.Error("failed to initiate payment in background", "order_id", order.ID, "error", err)
 				return
+			}
+			if err := s.UpdatePaymentStatus(reqCtx, &UpdatePaymentStatusCommand{
+				UserID:        cmd.UserID,
+				OrderID:       uint64(order.ID),
+				Operator:      "System",
+				Status:        orderv1.PaymentStatus_PROCESSING,
+				PaymentMethod: paymentMethod,
+				TransactionID: resp.TransactionNo,
+				Remark:        "payment initiated",
+			}); err != nil {
+				s.logger.Warn("failed to update payment status to processing", "order_id", order.ID, "error", err)
 			}
 			s.logger.Info("background payment initiation success", "order_id", order.ID, "transaction_no", resp.TransactionNo)
 		}()
@@ -333,6 +348,69 @@ func (s *OrderCommandService) PayOrder(ctx context.Context, cmd *PayOrderCommand
 			PaymentTransactionID: order.PaymentTransactionID,
 			PaymentStatus:        order.PaymentStatus,
 			PaidAt:               *order.PaidAt,
+			Timestamp:            time.Now(),
+		})
+	})
+}
+
+// UpdatePaymentStatus 手动更新支付状态（不改变订单主流程状态）。
+func (s *OrderCommandService) UpdatePaymentStatus(ctx context.Context, cmd *UpdatePaymentStatusCommand) error {
+	if cmd.Status == orderv1.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED {
+		return errors.New("payment status is required")
+	}
+	if cmd.Status == orderv1.PaymentStatus_SUCCESS || cmd.Status == orderv1.PaymentStatus_REFUND_SUCCESS {
+		return errors.New("use PayOrder or ApproveRefund to change payment success status")
+	}
+
+	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
+		if err != nil || order == nil {
+			return errors.New("order not found")
+		}
+
+		operator := cmd.Operator
+		if operator == "" {
+			operator = "System"
+		}
+
+		oldStatus := order.Status
+		oldPayment := order.PaymentStatus
+
+		if cmd.PaymentMethod != "" {
+			order.PaymentMethod = cmd.PaymentMethod
+		}
+		if cmd.TransactionID != "" {
+			order.PaymentTransactionID = cmd.TransactionID
+		}
+
+		order.UpdatePaymentStatus(cmd.Status, operator, cmd.Remark)
+
+		updatedPayload := &domain.OrderPaymentStatusUpdatedPayload{
+			OrderID:              uint64(order.ID),
+			OrderNo:              order.OrderNo,
+			UserID:               order.UserID,
+			OldStatus:            oldStatus,
+			NewStatus:            order.Status,
+			OldPaymentStatus:     oldPayment,
+			NewPaymentStatus:     order.PaymentStatus,
+			PaymentMethod:        order.PaymentMethod,
+			PaymentTransactionID: order.PaymentTransactionID,
+			UpdatedAt:            time.Now(),
+			Log:                  buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypePaymentStatusUpdated, updatedPayload); err != nil {
+			return err
+		}
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+		return s.publisher.PublishInTx(ctx, tx, "order.payment.status.updated", order.OrderNo, &domain.OrderPaymentStatusUpdatedEvent{
+			OrderID:              uint64(order.ID),
+			OrderNo:              order.OrderNo,
+			UserID:               order.UserID,
+			PaymentStatus:        order.PaymentStatus,
+			PaymentMethod:        order.PaymentMethod,
+			PaymentTransactionID: order.PaymentTransactionID,
 			Timestamp:            time.Now(),
 		})
 	})

@@ -20,6 +20,8 @@ const (
 	OrderEventTypeShipped = "order.es.shipped"
 	// OrderEventTypeDelivered 表示订单送达事件（事件溯源专用）。
 	OrderEventTypeDelivered = "order.es.delivered"
+	// OrderEventTypePaymentStatusUpdated 表示支付状态更新事件（事件溯源专用）。
+	OrderEventTypePaymentStatusUpdated = "order.es.payment_status_updated"
 	// OrderEventTypeShippingStatusUpdated 表示物流状态更新事件（事件溯源专用）。
 	OrderEventTypeShippingStatusUpdated = "order.es.shipping_status_updated"
 	// OrderEventTypeCompleted 表示订单完成事件（事件溯源专用）。
@@ -107,6 +109,21 @@ type OrderDeliveredPayload struct {
 	ShippingStatus pb.ShippingStatus `json:"shipping_status"`
 	DeliveredAt    time.Time         `json:"delivered_at"`
 	Log            *OrderEventLog    `json:"log"`
+}
+
+// OrderPaymentStatusUpdatedPayload 定义支付状态更新事件载荷。
+type OrderPaymentStatusUpdatedPayload struct {
+	OrderID              uint64           `json:"order_id"`
+	OrderNo              string           `json:"order_no"`
+	UserID               uint64           `json:"user_id"`
+	OldStatus            pb.OrderStatus   `json:"old_status"`
+	NewStatus            pb.OrderStatus   `json:"new_status"`
+	OldPaymentStatus     pb.PaymentStatus `json:"old_payment_status"`
+	NewPaymentStatus     pb.PaymentStatus `json:"new_payment_status"`
+	PaymentMethod        string           `json:"payment_method"`
+	PaymentTransactionID string           `json:"payment_transaction_id"`
+	UpdatedAt            time.Time        `json:"updated_at"`
+	Log                  *OrderEventLog   `json:"log"`
 }
 
 // OrderShippingStatusUpdatedPayload 定义物流状态更新事件载荷。
@@ -275,6 +292,20 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 			order.ShippingStatus = pb.ShippingStatus_SHIPPING_DELIVERED
 		}
 		order.DeliveredAt = &payload.DeliveredAt
+		appendEventLog(order, payload.OrderID, payload.Log)
+	case OrderEventTypePaymentStatusUpdated:
+		var payload OrderPaymentStatusUpdatedPayload
+		if err := decodeEventData(event, &payload); err != nil {
+			return err
+		}
+		order.Status = payload.NewStatus
+		order.PaymentStatus = payload.NewPaymentStatus
+		if payload.PaymentMethod != "" {
+			order.PaymentMethod = payload.PaymentMethod
+		}
+		if payload.PaymentTransactionID != "" {
+			order.PaymentTransactionID = payload.PaymentTransactionID
+		}
 		appendEventLog(order, payload.OrderID, payload.Log)
 	case OrderEventTypeShippingStatusUpdated:
 		var payload OrderShippingStatusUpdatedPayload

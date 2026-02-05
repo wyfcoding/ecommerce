@@ -206,28 +206,55 @@ func (s *Server) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentReque
 	start := time.Now()
 	slog.Info("gRPC ProcessPayment received", "order_id", req.OrderId, "user_id", req.UserId, "method", req.PaymentMethod)
 
-	err := s.cmdService.PayOrder(ctx, &application.PayOrderCommand{
-		UserID:        req.UserId,
-		OrderID:       req.OrderId,
-		PaymentMethod: req.PaymentMethod,
-		Amount:        req.Amount,
-		TransactionID: req.TransactionId,
-	})
-	if err != nil {
-		slog.Error("gRPC ProcessPayment failed", "order_id", req.OrderId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
-		return &pb.PaymentResult{OrderId: req.OrderId, Status: pb.PaymentStatus_FAILED, Message: err.Error()}, nil
+	paymentStatus := req.PaymentStatus
+	if paymentStatus == pb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED || paymentStatus == pb.PaymentStatus_SUCCESS {
+		err := s.cmdService.PayOrder(ctx, &application.PayOrderCommand{
+			UserID:        req.UserId,
+			OrderID:       req.OrderId,
+			PaymentMethod: req.PaymentMethod,
+			Amount:        req.Amount,
+			TransactionID: req.TransactionId,
+		})
+		if err != nil {
+			slog.Error("gRPC ProcessPayment failed", "order_id", req.OrderId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
+			return &pb.PaymentResult{OrderId: req.OrderId, Status: pb.PaymentStatus_FAILED, Message: err.Error()}, nil
+		}
+		slog.Info("gRPC ProcessPayment successful", "order_id", req.OrderId, "user_id", req.UserId, "duration", time.Since(start))
+		transactionID := req.TransactionId
+		if transactionID == "" {
+			transactionID = "mock-txn-" + strconv.FormatUint(req.OrderId, 10)
+		}
+		return &pb.PaymentResult{
+			OrderId:       req.OrderId,
+			TransactionId: transactionID,
+			Status:        pb.PaymentStatus_SUCCESS,
+			PaidAt:        timestamppb.Now(),
+		}, nil
 	}
-	slog.Info("gRPC ProcessPayment successful", "order_id", req.OrderId, "user_id", req.UserId, "duration", time.Since(start))
-	transactionID := req.TransactionId
-	if transactionID == "" {
-		transactionID = "mock-txn-" + strconv.FormatUint(req.OrderId, 10)
+
+	switch paymentStatus {
+	case pb.PaymentStatus_PROCESSING, pb.PaymentStatus_FAILED, pb.PaymentStatus_REFUND_FAILED:
+		err := s.cmdService.UpdatePaymentStatus(ctx, &application.UpdatePaymentStatusCommand{
+			UserID:        req.UserId,
+			OrderID:       req.OrderId,
+			Operator:      "System",
+			Status:        paymentStatus,
+			PaymentMethod: req.PaymentMethod,
+			TransactionID: req.TransactionId,
+		})
+		if err != nil {
+			slog.Error("gRPC ProcessPayment failed", "order_id", req.OrderId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
+			return &pb.PaymentResult{OrderId: req.OrderId, Status: pb.PaymentStatus_FAILED, Message: err.Error()}, nil
+		}
+		slog.Info("gRPC ProcessPayment successful", "order_id", req.OrderId, "user_id", req.UserId, "duration", time.Since(start))
+		return &pb.PaymentResult{
+			OrderId:       req.OrderId,
+			TransactionId: req.TransactionId,
+			Status:        paymentStatus,
+		}, nil
+	default:
+		return nil, status.Error(codes.InvalidArgument, "unsupported payment status")
 	}
-	return &pb.PaymentResult{
-		OrderId:       req.OrderId,
-		TransactionId: transactionID,
-		Status:        pb.PaymentStatus_SUCCESS,
-		PaidAt:        timestamppb.Now(),
-	}, nil
 }
 
 func (s *Server) RequestRefund(ctx context.Context, req *pb.RequestRefundRequest) (*pb.OrderInfo, error) {

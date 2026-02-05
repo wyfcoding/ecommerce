@@ -265,6 +265,15 @@ func (o *Order) UpdateShippingStatus(status pb.ShippingStatus, operator, remark 
 	o.AddLog(operator, "Shipping Status Updated", o.Status.String(), o.Status.String(), remark)
 }
 
+// UpdatePaymentStatus 手动更新支付状态（不改变订单主流程状态）。
+func (o *Order) UpdatePaymentStatus(status pb.PaymentStatus, operator, remark string) {
+	o.PaymentStatus = status
+	if remark == "" {
+		remark = fmt.Sprintf("Payment status updated to %s", status.String())
+	}
+	o.AddLog(operator, "Payment Status Updated", o.Status.String(), o.Status.String(), remark)
+}
+
 // ApplyDiscount 应用折扣。
 func (o *Order) ApplyDiscount(discountAmount int64, operator, reason string) error {
 	if discountAmount < 0 {

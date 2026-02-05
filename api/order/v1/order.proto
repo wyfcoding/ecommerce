@@ -352,6 +352,8 @@ message ProcessPaymentRequest {
   int64 amount = 4;
   // 外部流水号。
   string transaction_id = 5;
+  // 支付状态回传。
+  PaymentStatus payment_status = 6;
 }
 
 // 退款申请请求。

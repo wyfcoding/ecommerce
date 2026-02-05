@@ -284,6 +284,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		"order.paid",
 		"order.shipped",
 		"order.delivered",
+		"order.payment.status.updated",
+		"order.shipping.updated",
 		"order.completed",
 		"order.cancelled",
 		"order.confirmed",

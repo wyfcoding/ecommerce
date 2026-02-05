@@ -33,6 +33,16 @@ type PayOrderCommand struct {
 	TransactionID string
 }
 
+type UpdatePaymentStatusCommand struct {
+	UserID        uint64
+	OrderID       uint64
+	Operator      string
+	Status        pb.PaymentStatus
+	PaymentMethod string
+	TransactionID string
+	Remark        string
+}
+
 type ShipOrderCommand struct {
 	UserID           uint64
 	OrderID          uint64
