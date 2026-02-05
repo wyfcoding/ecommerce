@@ -1,4 +1,6 @@
-package persistence
+// 变更说明：迁移至 mysql 子目录，明确存储技术边界。
+// 假设：该仓储仅负责 MySQL 写模型，不直接承担读模型查询。
+package mysql
 
 import (
 	"context"

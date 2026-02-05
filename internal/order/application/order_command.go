@@ -1,3 +1,5 @@
+// 变更说明：引入事件溯源写入与版本控制，确保订单写模型与事件流一致。
+// 假设：事件流以订单ID作为聚合根ID，读模型由事件消费异步更新，存量订单不回补历史事件。
 package application
 
 import (
@@ -7,7 +9,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/shopspring/decimal"
 	advancedcouponv1 "github.com/wyfcoding/ecommerce/goapi/advancedcoupon/v1"
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
@@ -16,17 +17,21 @@ import (
 	warehousev1 "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"
-
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wyfcoding/pkg/dtm"
+	"github.com/wyfcoding/pkg/eventsourcing"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/security/risk"
+	"github.com/wyfcoding/pkg/tracing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/shopspring/decimal"
 )
 
 // OrderCommandService 处理所有订单相关的写入操作。
 type OrderCommandService struct {
 	repo              domain.OrderRepository
+	eventStore        domain.OrderEventStore
 	idGen             idgen.Generator
 	publisher         domain.EventPublisher
 	logger            *slog.Logger
@@ -46,6 +51,7 @@ type OrderCommandService struct {
 // NewOrderCommandService 构造函数。
 func NewOrderCommandService(
 	repo domain.OrderRepository,
+	eventStore domain.OrderEventStore,
 	idGen idgen.Generator,
 	publisher domain.EventPublisher,
 	logger *slog.Logger,
@@ -60,6 +66,7 @@ func NewOrderCommandService(
 
 	return &OrderCommandService{
 		repo:                repo,
+		eventStore:          eventStore,
 		idGen:               idGen,
 		publisher:           publisher,
 		logger:              logger,
@@ -140,7 +147,35 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 
 	// 4. 事务：保存订单并发布事件 (EDA)
 	if err := s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
+		// 初始化版本号 (事件溯源起点)
+		order.Version = 0
 		if err := s.repo.SaveInTx(ctx, tx, order); err != nil {
+			return err
+		}
+
+		// 事件溯源：记录订单创建事件
+		createdPayload := &domain.OrderCreatedPayload{
+			OrderID:         uint64(order.ID),
+			OrderNo:         order.OrderNo,
+			UserID:          order.UserID,
+			Status:          order.Status,
+			TotalAmount:     order.TotalAmount,
+			ActualAmount:    order.ActualAmount,
+			ShippingFee:     order.ShippingFee,
+			DiscountAmount:  order.DiscountAmount,
+			PaymentMethod:   order.PaymentMethod,
+			Remark:          order.Remark,
+			ShippingAddress: order.ShippingAddress,
+			Items:           order.Items,
+			CreatedAt:       order.CreatedAt,
+			InitLog:         buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCreated, createdPayload); err != nil {
+			return err
+		}
+
+		// 回写版本号到 MySQL（保持事件流与写模型一致）
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
 
@@ -232,7 +267,25 @@ func (s *OrderCommandService) PayOrder(ctx context.Context, cmd *PayOrderCommand
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
+		oldStatus := order.Status
 		if err := order.Pay(ctx, cmd.PaymentMethod, "User"); err != nil {
+			return err
+		}
+		paidAt := time.Now()
+		if order.PaidAt != nil {
+			paidAt = *order.PaidAt
+		}
+		paidPayload := &domain.OrderPaidPayload{
+			OrderID:       uint64(order.ID),
+			OrderNo:       order.OrderNo,
+			UserID:        order.UserID,
+			PaymentMethod: order.PaymentMethod,
+			OldStatus:     oldStatus,
+			NewStatus:     order.Status,
+			PaidAt:        paidAt,
+			Log:           buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypePaid, paidPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -257,7 +310,24 @@ func (s *OrderCommandService) ShipOrder(ctx context.Context, cmd *ShipOrderComma
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
+		oldStatus := order.Status
 		if err := order.Ship(ctx, cmd.Operator); err != nil {
+			return err
+		}
+		shippedAt := time.Now()
+		if order.ShippedAt != nil {
+			shippedAt = *order.ShippedAt
+		}
+		shippedPayload := &domain.OrderShippedPayload{
+			OrderID:   uint64(order.ID),
+			OrderNo:   order.OrderNo,
+			UserID:    order.UserID,
+			OldStatus: oldStatus,
+			NewStatus: order.Status,
+			ShippedAt: shippedAt,
+			Log:       buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeShipped, shippedPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -280,7 +350,24 @@ func (s *OrderCommandService) DeliverOrder(ctx context.Context, cmd *DeliverOrde
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
+		oldStatus := order.Status
 		if err := order.Deliver(ctx, cmd.Operator); err != nil {
+			return err
+		}
+		deliveredAt := time.Now()
+		if order.DeliveredAt != nil {
+			deliveredAt = *order.DeliveredAt
+		}
+		deliveredPayload := &domain.OrderDeliveredPayload{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			OldStatus:   oldStatus,
+			NewStatus:   order.Status,
+			DeliveredAt: deliveredAt,
+			Log:         buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeDelivered, deliveredPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -303,7 +390,24 @@ func (s *OrderCommandService) CompleteOrder(ctx context.Context, cmd *CompleteOr
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
+		oldStatus := order.Status
 		if err := order.Complete(ctx, cmd.Operator); err != nil {
+			return err
+		}
+		completedAt := time.Now()
+		if order.CompletedAt != nil {
+			completedAt = *order.CompletedAt
+		}
+		completedPayload := &domain.OrderCompletedPayload{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			OldStatus:   oldStatus,
+			NewStatus:   order.Status,
+			CompletedAt: completedAt,
+			Log:         buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCompleted, completedPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -326,7 +430,25 @@ func (s *OrderCommandService) CancelOrder(ctx context.Context, cmd *CancelOrderC
 		if err != nil || order == nil {
 			return errors.New("order not found")
 		}
+		oldStatus := order.Status
 		if err := order.Cancel(ctx, cmd.Operator, cmd.Reason); err != nil {
+			return err
+		}
+		cancelledAt := time.Now()
+		if order.CancelledAt != nil {
+			cancelledAt = *order.CancelledAt
+		}
+		cancelledPayload := &domain.OrderCancelledPayload{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			OldStatus:   oldStatus,
+			NewStatus:   order.Status,
+			Reason:      cmd.Reason,
+			CancelledAt: cancelledAt,
+			Log:         buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCancelled, cancelledPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -353,7 +475,20 @@ func (s *OrderCommandService) SagaConfirmOrder(ctx context.Context, userID, orde
 		if order.Status != orderv1.OrderStatus_ALLOCATING {
 			return nil
 		}
+		oldStatus := order.Status
 		if err := order.Trigger(ctx, "CONFIRM", "System", "Saga success"); err != nil {
+			return err
+		}
+		confirmedPayload := &domain.OrderConfirmedPayload{
+			OrderID:   uint64(order.ID),
+			OrderNo:   order.OrderNo,
+			UserID:    order.UserID,
+			OldStatus: oldStatus,
+			NewStatus: order.Status,
+			Confirmed: time.Now(),
+			Log:       buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeConfirmed, confirmedPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -378,7 +513,21 @@ func (s *OrderCommandService) SagaCancelOrder(ctx context.Context, userID, order
 		if order.Status == orderv1.OrderStatus_CANCELLED {
 			return nil
 		}
+		oldStatus := order.Status
 		if err := order.Cancel(ctx, "System", reason); err != nil {
+			return err
+		}
+		cancelledPayload := &domain.OrderCancelledPayload{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			OldStatus:   oldStatus,
+			NewStatus:   order.Status,
+			Reason:      reason,
+			CancelledAt: time.Now(),
+			Log:         buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCancelled, cancelledPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
@@ -447,5 +596,81 @@ func (s *OrderCommandService) HandleFlashsaleOrder(ctx context.Context, orderID,
 	order := domain.NewOrder(orderNo, userID, items, nil)
 	order.ID = uint(orderID)
 	order.Status = orderv1.OrderStatus_PENDING_PAYMENT
-	return s.repo.Save(ctx, order)
+	return s.repo.WithTx(ctx, userID, func(tx any) error {
+		if err := s.repo.SaveInTx(ctx, tx, order); err != nil {
+			return err
+		}
+		createdPayload := &domain.OrderCreatedPayload{
+			OrderID:         uint64(order.ID),
+			OrderNo:         order.OrderNo,
+			UserID:          order.UserID,
+			Status:          order.Status,
+			TotalAmount:     order.TotalAmount,
+			ActualAmount:    order.ActualAmount,
+			ShippingFee:     order.ShippingFee,
+			DiscountAmount:  order.DiscountAmount,
+			PaymentMethod:   order.PaymentMethod,
+			Remark:          order.Remark,
+			ShippingAddress: order.ShippingAddress,
+			Items:           order.Items,
+			CreatedAt:       time.Now(),
+			InitLog:         buildEventLogFromOrder(order),
+		}
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeCreated, createdPayload); err != nil {
+			return err
+		}
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+		return s.publisher.PublishInTx(ctx, tx, "order.created", order.OrderNo, &domain.OrderCreatedEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			TotalAmount: order.TotalAmount,
+			Status:      order.Status,
+			Timestamp:   time.Now(),
+		})
+	})
+}
+
+// appendEventInTx 在同一事务中追加事件并推进版本号。
+func (s *OrderCommandService) appendEventInTx(ctx context.Context, tx any, order *domain.Order, eventType string, payload any) error {
+	if s.eventStore == nil {
+		return errors.New("event store is not configured")
+	}
+
+	nextVersion := order.Version + 1
+	aggregateID := fmt.Sprintf("%d", order.ID)
+
+	metadata := eventsourcing.Metadata{
+		UserID:  fmt.Sprintf("%d", order.UserID),
+		TraceID: tracing.GetTraceID(ctx),
+		Extra:   map[string]string{"service": "order"},
+	}
+
+	base := eventsourcing.NewBaseEventWithMetadata(eventType, aggregateID, nextVersion, metadata)
+	base.Data = payload
+
+	if err := s.eventStore.SaveInTx(ctx, tx, order.UserID, aggregateID, []eventsourcing.DomainEvent{&base}, order.Version); err != nil {
+		return err
+	}
+
+	order.Version = nextVersion
+	return nil
+}
+
+// buildEventLogFromOrder 从订单日志中构建事件溯源日志载荷。
+func buildEventLogFromOrder(order *domain.Order) *domain.OrderEventLog {
+	if len(order.Logs) == 0 {
+		return nil
+	}
+	last := order.Logs[len(order.Logs)-1]
+	return &domain.OrderEventLog{
+		Operator:  last.Operator,
+		Action:    last.Action,
+		OldStatus: last.OldStatus,
+		NewStatus: last.NewStatus,
+		Remark:    last.Remark,
+		LoggedAt:  time.Now(),
+	}
 }

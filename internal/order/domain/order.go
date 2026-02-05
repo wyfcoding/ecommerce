@@ -1,3 +1,5 @@
+// 变更说明：新增订单事件版本字段 Version，用于事件溯源并发控制与读模型回放。
+// 假设：事件流以订单ID作为聚合根ID，版本从 0 递增。
 package domain
 
 import (
@@ -7,6 +9,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/pkg/fsm"
+
 	"gorm.io/gorm"
 )
 
@@ -21,6 +24,7 @@ type TimeoutScheduler interface {
 type Order struct {
 	gorm.Model
 	OrderNo         string                       `gorm:"type:varchar(64);uniqueIndex;not null;comment:订单编号" json:"order_no"`
+	Version         int64                        `gorm:"not null;default:0;comment:事件版本号(用于事件溯源并发控制)" json:"version"`
 	UserID          uint64                       `gorm:"index;not null;comment:用户ID" json:"user_id"`
 	Status          pb.OrderStatus               `gorm:"type:tinyint;not null;default:1;comment:订单状态" json:"status"`
 	TotalAmount     int64                        `gorm:"not null;comment:订单总金额(分)" json:"total_amount"`

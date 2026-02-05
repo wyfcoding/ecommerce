@@ -1,3 +1,5 @@
+// 变更说明：引入事件溯源与读模型（Redis/ES）装配，并新增订单事件投影消费。
+// 假设：Elasticsearch 可用且配置在 data.elasticsearch，订单事件主题按 order.* 划分。
 package main
 
 import (
@@ -6,16 +8,15 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
 	productv1 "github.com/wyfcoding/ecommerce/goapi/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/application"
 	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/messaging"
-	"github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence"
+	ordersearch "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/elasticsearch"
+	ordermysql "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/mysql"
+	orderredis "github.com/wyfcoding/ecommerce/internal/order/infrastructure/persistence/redis"
 	"github.com/wyfcoding/ecommerce/internal/order/interfaces/consumer"
 	ordergrpc "github.com/wyfcoding/ecommerce/internal/order/interfaces/grpc"
 	orderhttp "github.com/wyfcoding/ecommerce/internal/order/interfaces/http"
@@ -33,7 +34,11 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 	"github.com/wyfcoding/pkg/security/risk"
+
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 )
 
 // BootstrapName 服务唯一标识
@@ -140,6 +145,21 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		shardingManager.Close()
+		redisCache.Close()
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化消息队列 (Kafka Producer)
 	bootLog.Info("initializing kafka producer...")
 	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
@@ -191,7 +211,25 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 6.1 Infrastructure (Persistence)
-	orderRepo := persistence.NewOrderRepository(shardingManager)
+	orderRepo := ordermysql.NewOrderRepository(shardingManager)
+	orderEventStore, err := ordermysql.NewOrderEventStore(shardingManager, logger.Logger)
+	if err != nil {
+		for _, p := range outboxProcessors {
+			p.Stop()
+		}
+		if producer != nil {
+			producer.Close()
+		}
+		if redisCache != nil {
+			redisCache.Close()
+		}
+		if shardingManager != nil {
+			shardingManager.Close()
+		}
+		return nil, nil, fmt.Errorf("order event store init error: %w", err)
+	}
+	orderReadRepo := orderredis.NewOrderReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	orderSearchRepo := ordersearch.NewOrderSearchRepository(esClient)
 
 	// 6.2 Application (Service)
 	warehouseAddr := c.Services["warehouse"].GRPCAddr
@@ -206,6 +244,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	orderCommandService := application.NewOrderCommandService(
 		orderRepo,
+		orderEventStore,
 		idGenerator,
 		messaging.NewOutboxPublisher(defaultOutboxMgr),
 		logger.Logger,
@@ -224,7 +263,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		productv1.NewProductServiceClient(clients.Product),
 	)
 
-	orderQuery := application.NewOrderQueryService(orderRepo, redisCache, logger.Logger, m)
+	orderQuery := application.NewOrderQueryService(orderRepo, orderReadRepo, orderSearchRepo, orderEventStore, logger.Logger, m)
 
 	// --- 6.3 Event Handlers (Kafka Consumer) ---
 	bootLog.Info("initializing kafka consumer for flashsale events...")
@@ -235,6 +274,28 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	flashsaleConsumer := kafka.NewConsumer(&flashsaleConsumerCfg, logger, m)
 	flashsaleConsumer.Start(context.Background(), 5, flashsaleHandler.HandleFlashsaleOrder)
 
+	// --- 6.4 Projection Consumers (Order Events -> Read Model) ---
+	projectionService := application.NewOrderProjectionService(orderRepo, orderReadRepo, orderSearchRepo, logger.Logger)
+	projectionHandler := consumer.NewOrderProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		"order.created",
+		"order.paid",
+		"order.shipped",
+		"order.delivered",
+		"order.completed",
+		"order.cancelled",
+		"order.confirmed",
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
 	// 6.4 Interface (HTTP Handlers)
 	httpHandler := orderhttp.NewHandler(orderCommandService, orderQuery, logger.Logger)
 
@@ -243,6 +304,11 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		bootLog.Info("shutting down, releasing resources...")
 		if flashsaleConsumer != nil {
 			flashsaleConsumer.Close()
+		}
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
 		}
 		for _, p := range outboxProcessors {
 			p.Stop()

@@ -1,3 +1,5 @@
+# 变更说明：补充分片示例、Redis addrs 与 Elasticsearch 读模型说明。
+# 假设：分片与 ES/Redis 参数将在部署时替换为真实值。
 version = "1.0.0"
 
 [server]
@@ -72,6 +74,7 @@ default_expiration = "10s"
 max_retries = 3
 retry_delay = "100ms"
 
+# 单库配置（默认启用）。
 [data.database]
 driver = "mysql"
 dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_order?charset=utf8mb4&parseTime=True&loc=Local"
@@ -81,14 +84,42 @@ conn_max_lifetime = "1h"
 slow_threshold = "200ms"
 log_level = 4
 
+# 分片示例（按需启用，取消注释即可生效）。
+# [[data.shards]]
+# driver = "mysql"
+# dsn = "root:root@tcp(127.0.0.1:3307)/ecommerce_order_0?charset=utf8mb4&parseTime=True&loc=Local"
+# max_idle_conns = 10
+# max_open_conns = 100
+# conn_max_lifetime = "1h"
+# slow_threshold = "200ms"
+# log_level = 4
+#
+# [[data.shards]]
+# driver = "mysql"
+# dsn = "root:root@tcp(127.0.0.1:3308)/ecommerce_order_1?charset=utf8mb4&parseTime=True&loc=Local"
+# max_idle_conns = 10
+# max_open_conns = 100
+# conn_max_lifetime = "1h"
+# slow_threshold = "200ms"
+# log_level = 4
+
 [data.redis]
-addr = "127.0.0.1:6379"
+# 读模型缓存（订单详情与订单号映射），支持单机/哨兵/集群。
+# addr 为历史字段，推荐使用 addrs。
+# addr = "127.0.0.1:6379"
+addrs = ["127.0.0.1:6379"]
 password = "redis_password"
 db = 0
 pool_size = 10
 min_idle_conns = 5
 read_timeout = "0.2s"
 write_timeout = "0.2s"
+
+[data.elasticsearch]
+# 订单搜索读模型索引，默认索引名为 orders（在代码中定义）。
+addresses = ["http://127.0.0.1:9200"]
+username = "elastic"
+password = "elastic_password"
 
 [messagequeue.kafka]
 brokers = ["localhost:9092"]
