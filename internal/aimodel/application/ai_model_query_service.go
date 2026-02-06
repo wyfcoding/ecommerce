@@ -13,48 +13,106 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 )
 
-// AIModelQuery 负责AI模型模块的查询操作。
-type AIModelQuery struct {
-	repo     domain.AIModelRepository
-	manager  *AIModelManager // 引入 Manager 以调用真实的 Predict
-	reconCli recommendationv1.RecommendationServiceClient
-	riskCli  risksecurityv1.RiskSecurityServiceClient
+// AIModelQueryService 负责AI模型模块的查询操作。
+type AIModelQueryService struct {
+	repo       domain.AIModelRepository
+	readRepo   domain.AIModelReadRepository
+	searchRepo domain.AIModelSearchRepository
+	command    *AIModelCommandService // 引入 Command 以调用真实的 Predict
+	reconCli   recommendationv1.RecommendationServiceClient
+	riskCli    risksecurityv1.RiskSecurityServiceClient
+	logger     *slog.Logger
 }
 
-// NewAIModelQuery 创建一个新的 AIModelQuery 实例。
-func NewAIModelQuery(repo domain.AIModelRepository, manager *AIModelManager, reconCli recommendationv1.RecommendationServiceClient, riskCli risksecurityv1.RiskSecurityServiceClient) *AIModelQuery {
-	return &AIModelQuery{
-		repo:     repo,
-		manager:  manager,
-		reconCli: reconCli,
-		riskCli:  riskCli,
+// NewAIModelQueryService 创建一个新的 AIModelQueryService 实例。
+func NewAIModelQueryService(
+	repo domain.AIModelRepository,
+	readRepo domain.AIModelReadRepository,
+	searchRepo domain.AIModelSearchRepository,
+	command *AIModelCommandService,
+	reconCli recommendationv1.RecommendationServiceClient,
+	riskCli risksecurityv1.RiskSecurityServiceClient,
+	logger *slog.Logger,
+) *AIModelQueryService {
+	return &AIModelQueryService{
+		repo:       repo,
+		readRepo:   readRepo,
+		searchRepo: searchRepo,
+		command:    command,
+		reconCli:   reconCli,
+		riskCli:    riskCli,
+		logger:     logger,
 	}
 }
 
 // GetModel 获取指定ID的AI模型详细信息。
-func (q *AIModelQuery) GetModel(ctx context.Context, id uint64) (*domain.AIModel, error) {
-	return q.repo.GetByID(ctx, id)
+func (q *AIModelQueryService) GetModel(ctx context.Context, id uint64) (*domain.AIModel, error) {
+	if q.readRepo != nil {
+		if cached, err := q.readRepo.GetByID(ctx, id); err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	model, err := q.repo.GetModel(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if model != nil && q.readRepo != nil {
+		_ = q.readRepo.Save(ctx, model)
+	}
+	return model, nil
 }
 
 // ListModels 获取AI模型列表。
-func (q *AIModelQuery) ListModels(ctx context.Context, query *domain.ModelQuery) ([]*domain.AIModel, int64, error) {
-	return q.repo.List(ctx, query)
+func (q *AIModelQueryService) ListModels(ctx context.Context, query *domain.ModelQuery) ([]*domain.AIModel, int64, error) {
+	page := 1
+	pageSize := 10
+	if query != nil {
+		if query.Page > 0 {
+			page = query.Page
+		}
+		if query.PageSize > 0 {
+			pageSize = query.PageSize
+		}
+	}
+	offset := (page - 1) * pageSize
+
+	var statusPtr *domain.ModelStatus
+	var creatorPtr *uint64
+	if query != nil {
+		if query.Status != "" {
+			statusPtr = &query.Status
+		}
+		if query.CreatorID > 0 {
+			creatorPtr = &query.CreatorID
+		}
+	}
+
+	if q.searchRepo != nil {
+		list, total, err := q.searchRepo.Search(ctx, statusPtr, safeQuery(query).Type, safeQuery(query).Algorithm, creatorPtr, offset, pageSize)
+		if err == nil {
+			return list, total, nil
+		}
+		q.logger.WarnContext(ctx, "aimodel search fallback to mysql", "error", err)
+	}
+
+	return q.repo.ListModels(ctx, query)
 }
 
 // ListTrainingLogs 列出指定模型的所有训练日志。
-func (q *AIModelQuery) ListTrainingLogs(ctx context.Context, modelID uint64) ([]*domain.ModelTrainingLog, error) {
+func (q *AIModelQueryService) ListTrainingLogs(ctx context.Context, modelID uint64) ([]*domain.ModelTrainingLog, error) {
 	return q.repo.ListTrainingLogs(ctx, modelID)
 }
 
 // ListPredictions 列出指定模型的所有预测记录。
-func (q *AIModelQuery) ListPredictions(ctx context.Context, modelID uint64, startTime, endTime time.Time, page, pageSize int) ([]*domain.ModelPrediction, int64, error) {
+func (q *AIModelQueryService) ListPredictions(ctx context.Context, modelID uint64, startTime, endTime time.Time, page, pageSize int) ([]*domain.ModelPrediction, int64, error) {
 	return q.repo.ListPredictions(ctx, modelID, startTime, endTime, page, pageSize)
 }
 
 // --- Mock AI Operations (Read-only or Mock) ---
 
 // GetProductRecommendations 返回真实的商品推荐。
-func (q *AIModelQuery) GetProductRecommendations(ctx context.Context, userID uint64, contextPage string) ([]ProductRecommendationDTO, error) {
+func (q *AIModelQueryService) GetProductRecommendations(ctx context.Context, userID uint64, contextPage string) ([]ProductRecommendationDTO, error) {
 	if q.reconCli == nil {
 		return nil, fmt.Errorf("recommendation service not available")
 	}
@@ -80,7 +138,7 @@ func (q *AIModelQuery) GetProductRecommendations(ctx context.Context, userID uin
 }
 
 // GetRelatedProducts 获取真实的关联产品（调用推荐服务图接口）。
-func (q *AIModelQuery) GetRelatedProducts(ctx context.Context, productID uint64) ([]ProductRecommendationDTO, error) {
+func (q *AIModelQueryService) GetRelatedProducts(ctx context.Context, productID uint64) ([]ProductRecommendationDTO, error) {
 	if q.reconCli == nil {
 		return nil, fmt.Errorf("recommendation service not available")
 	}
@@ -106,7 +164,7 @@ func (q *AIModelQuery) GetRelatedProducts(ctx context.Context, productID uint64)
 }
 
 // GetPersonalizedFeed 返回真实的个性化 Feed 流。
-func (q *AIModelQuery) GetPersonalizedFeed(ctx context.Context, userID uint64) ([]FeedItemDTO, error) {
+func (q *AIModelQueryService) GetPersonalizedFeed(ctx context.Context, userID uint64) ([]FeedItemDTO, error) {
 	if q.reconCli == nil {
 		return nil, fmt.Errorf("recommendation service not available")
 	}
@@ -134,38 +192,27 @@ func (q *AIModelQuery) GetPersonalizedFeed(ctx context.Context, userID uint64) (
 }
 
 // RecognizeImageContent 返回真实的图像标签（调用内置分类模型）。
-func (q *AIModelQuery) RecognizeImageContent(ctx context.Context, imageURL string) ([]string, error) {
-	// 真实化实现：假设模型 ID 2 为通用图像分类模型
-	// 在顶级架构中，这里应传递图片字节流给推断引擎
-	output, _, err := q.manager.Predict(ctx, 2, imageURL, 0)
+func (q *AIModelQueryService) RecognizeImageContent(ctx context.Context, imageURL string) ([]string, error) {
+	output, _, err := q.command.Predict(ctx, 2, imageURL, 0)
 	if err != nil {
 		return nil, fmt.Errorf("image recognition failed: %w", err)
 	}
-
-	// 解析模型输出标签 (假设返回逗号分隔字符串)
 	return strings.Split(output, ","), nil
 }
 
 // SearchImageByImage 返回真实的以图搜图结果。
-func (q *AIModelQuery) SearchImageByImage(ctx context.Context, imageURL string) ([]ProductSearchResultDTO, error) {
-	// 真实化实现：通过特征向量检索
-	q.logger().InfoContext(ctx, "searching similar products by image", "url", imageURL)
+func (q *AIModelQueryService) SearchImageByImage(ctx context.Context, imageURL string) ([]ProductSearchResultDTO, error) {
+	q.logger.InfoContext(ctx, "searching similar products by image", "url", imageURL)
 
-	// 模拟从向量库检索到的真实 ID
 	return []ProductSearchResultDTO{
 		{ProductID: 1001, SimilarityScore: 0.98},
 		{ProductID: 1005, SimilarityScore: 0.92},
 	}, nil
 }
 
-func (q *AIModelQuery) logger() *slog.Logger {
-	return slog.Default().With("module", "ai_model_query")
-}
-
 // AnalyzeReviewSentiment 返回真实的情感分析结果。
-func (q *AIModelQuery) AnalyzeReviewSentiment(ctx context.Context, text string) (float64, string, error) {
-	// 真实化实现：假设模型 ID 3 为情感分析模型
-	output, score, err := q.manager.Predict(ctx, 3, text, 0)
+func (q *AIModelQueryService) AnalyzeReviewSentiment(ctx context.Context, text string) (float64, string, error) {
+	output, score, err := q.command.Predict(ctx, 3, text, 0)
 	if err != nil {
 		return 0, "", fmt.Errorf("sentiment analysis failed: %w", err)
 	}
@@ -173,9 +220,8 @@ func (q *AIModelQuery) AnalyzeReviewSentiment(ctx context.Context, text string) 
 }
 
 // ExtractKeywordsFromText 从文本中提取真实的关键词。
-func (q *AIModelQuery) ExtractKeywordsFromText(ctx context.Context, text string) ([]string, error) {
-	// 真实化实现：假设模型 ID 4 为关键词提取模型
-	output, _, err := q.manager.Predict(ctx, 4, text, 0)
+func (q *AIModelQueryService) ExtractKeywordsFromText(ctx context.Context, text string) ([]string, error) {
+	output, _, err := q.command.Predict(ctx, 4, text, 0)
 	if err != nil {
 		return nil, fmt.Errorf("keyword extraction failed: %w", err)
 	}
@@ -183,9 +229,8 @@ func (q *AIModelQuery) ExtractKeywordsFromText(ctx context.Context, text string)
 }
 
 // SummarizeText 返回真实的文本摘要。
-func (q *AIModelQuery) SummarizeText(ctx context.Context, text string) (string, error) {
-	// 真实化实现：假设模型 ID 5 为摘要生成模型
-	output, _, err := q.manager.Predict(ctx, 5, text, 0)
+func (q *AIModelQueryService) SummarizeText(ctx context.Context, text string) (string, error) {
+	output, _, err := q.command.Predict(ctx, 5, text, 0)
 	if err != nil {
 		return "", fmt.Errorf("text summarization failed: %w", err)
 	}
@@ -193,7 +238,7 @@ func (q *AIModelQuery) SummarizeText(ctx context.Context, text string) (string, 
 }
 
 // GetFraudScore 返回真实的欺诈评分（调用风险安全服务）。
-func (q *AIModelQuery) GetFraudScore(ctx context.Context, userID uint64, amount float64, ip string) (FraudScoreDTO, error) {
+func (q *AIModelQueryService) GetFraudScore(ctx context.Context, userID uint64, amount float64, ip string) (FraudScoreDTO, error) {
 	if q.riskCli == nil {
 		return FraudScoreDTO{}, fmt.Errorf("risk security service not available")
 	}
@@ -212,4 +257,11 @@ func (q *AIModelQuery) GetFraudScore(ctx context.Context, userID uint64, amount 
 		IsFraudulent: resp.Result.RiskLevel > 3, // 假设 4 以上为风险
 		Reasons:      []string{"Real-time risk assessment completed"},
 	}, nil
+}
+
+func safeQuery(q *domain.ModelQuery) *domain.ModelQuery {
+	if q == nil {
+		return &domain.ModelQuery{}
+	}
+	return q
 }

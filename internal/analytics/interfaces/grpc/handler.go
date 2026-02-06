@@ -21,13 +21,14 @@ import (
 
 // Server 结构体实现了 Analytics 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedAnalyticsServiceServer                        // 嵌入生成的UnimplementedAnalyticsServiceServer。
-	app                                    *application.Analytics // 依赖Analytics应用服务 facade。
+	pb.UnimplementedAnalyticsServiceServer
+	command *application.AnalyticsCommandService
+	query   *application.AnalyticsQueryService
 }
 
 // NewServer 创建并返回一个新的 Analytics gRPC 服务端实例。
-func NewServer(app *application.Analytics) *Server {
-	return &Server{app: app}
+func NewServer(command *application.AnalyticsCommandService, query *application.AnalyticsQueryService) *Server {
+	return &Server{command: command, query: query}
 }
 
 // TrackEvent 处理跟踪单个事件的gRPC请求。
@@ -36,7 +37,7 @@ func (s *Server) TrackEvent(ctx context.Context, req *pb.TrackEventRequest) (*em
 		return nil, status.Error(codes.InvalidArgument, "event is required")
 	}
 
-	err := s.app.RecordMetric(
+	err := s.command.RecordMetric(
 		ctx,
 		domain.MetricType("event"),
 		req.Event.EventName,
@@ -55,7 +56,7 @@ func (s *Server) TrackEvent(ctx context.Context, req *pb.TrackEventRequest) (*em
 // BatchTrackEvents 处理批量跟踪事件的gRPC请求。
 func (s *Server) BatchTrackEvents(ctx context.Context, req *pb.BatchTrackEventsRequest) (*emptypb.Empty, error) {
 	for _, event := range req.Events {
-		err := s.app.RecordMetric(
+			err := s.command.RecordMetric(
 			ctx,
 			domain.MetricType("event"),
 			event.EventName,
@@ -78,7 +79,7 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 		StartTime:  req.StartDate.AsTime(),
 		EndTime:    req.EndDate.AsTime(),
 	}
-	salesMetrics, _, err := s.app.QueryMetrics(ctx, salesQuery)
+	salesMetrics, _, err := s.query.SearchMetrics(ctx, salesQuery)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to query sales metrics: %v", err))
 	}
@@ -88,7 +89,7 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 		StartTime:  req.StartDate.AsTime(),
 		EndTime:    req.EndDate.AsTime(),
 	}
-	ordersMetrics, _, err := s.app.QueryMetrics(ctx, ordersQuery)
+	ordersMetrics, _, err := s.query.SearchMetrics(ctx, ordersQuery)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to query orders metrics: %v", err))
 	}
@@ -120,7 +121,7 @@ func (s *Server) GetSalesOverviewReport(ctx context.Context, req *pb.GetSalesOve
 
 // GetUserActivityReport 获取用户活动报告。
 func (s *Server) GetUserActivityReport(ctx context.Context, req *pb.GetUserActivityReportRequest) (*pb.UserActivityReportResponse, error) {
-	data, err := s.app.GetUserActivityReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
+	data, err := s.query.GetUserActivityReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get activity report: %v", err))
 	}
@@ -137,7 +138,7 @@ func (s *Server) GetUserActivityReport(ctx context.Context, req *pb.GetUserActiv
 
 // GetProductPerformanceReport 获取产品性能报告。
 func (s *Server) GetProductPerformanceReport(ctx context.Context, req *pb.GetProductPerformanceReportRequest) (*pb.ProductPerformanceReportResponse, error) {
-	data, err := s.app.GetProductPerformanceReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
+	data, err := s.query.GetProductPerformanceReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get product performance report: %v", err))
 	}
@@ -168,7 +169,7 @@ func (s *Server) GetProductPerformanceReport(ctx context.Context, req *pb.GetPro
 
 // GetConversionFunnelReport 获取转化漏斗报告。
 func (s *Server) GetConversionFunnelReport(ctx context.Context, req *pb.GetConversionFunnelReportRequest) (*pb.ConversionFunnelReportResponse, error) {
-	data, err := s.app.GetConversionFunnelReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
+	data, err := s.query.GetConversionFunnelReport(ctx, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get conversion funnel report: %v", err))
 	}
@@ -219,7 +220,7 @@ func (s *Server) GetUserSegments(ctx context.Context, req *pb.GetUserSegmentsReq
 
 // GetRealtimeVisitors 获取实时访客数据。
 func (s *Server) GetRealtimeVisitors(ctx context.Context, _ *emptypb.Empty) (*pb.RealtimeVisitorsResponse, error) {
-	count, pages, err := s.app.GetRealtimeVisitors(ctx)
+	count, pages, err := s.query.GetRealtimeVisitors(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get realtime visitors: %v", err))
 	}
@@ -241,7 +242,7 @@ func (s *Server) GetUnifiedWealthDashboard(ctx context.Context, req *pb.GetUnifi
 
 	logging.Info(ctx, "grpc request: GetUnifiedWealthDashboard", "user_id", req.UserId)
 
-	resp, err := s.app.GetUnifiedWealthDashboard(ctx, req.UserId)
+	resp, err := s.query.GetUnifiedWealthDashboard(ctx, req.UserId)
 	if err != nil {
 		logging.Error(ctx, "failed to get wealth dashboard", "user_id", req.UserId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get wealth dashboard: %v", err))
@@ -254,7 +255,7 @@ func (s *Server) GetUnifiedWealthDashboard(ctx context.Context, req *pb.GetUnifi
 
 // CreateDashboard 创建仪表板。
 func (s *Server) CreateDashboard(ctx context.Context, req *pb.CreateDashboardRequest) (*pb.DashboardResponse, error) {
-	dashboard, err := s.app.CreateDashboard(ctx, req.Name, req.Description, req.UserId)
+	dashboard, err := s.command.CreateDashboard(ctx, req.Name, req.Description, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create dashboard: %v", err))
 	}
@@ -271,7 +272,7 @@ func (s *Server) CreateDashboard(ctx context.Context, req *pb.CreateDashboardReq
 
 // GetDashboard 获取仪表板详情。
 func (s *Server) GetDashboard(ctx context.Context, req *pb.GetDashboardRequest) (*pb.DashboardResponse, error) {
-	dashboard, err := s.app.GetDashboard(ctx, req.Id)
+	dashboard, err := s.query.GetDashboardByID(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get dashboard: %v", err))
 	}
@@ -291,7 +292,7 @@ func (s *Server) GetDashboard(ctx context.Context, req *pb.GetDashboardRequest) 
 
 // UpdateDashboard 更新仪表板。
 func (s *Server) UpdateDashboard(ctx context.Context, req *pb.UpdateDashboardRequest) (*pb.DashboardResponse, error) {
-	dashboard, err := s.app.UpdateDashboard(ctx, req.Id, req.Name, req.Description)
+	dashboard, err := s.command.UpdateDashboard(ctx, req.Id, req.Name, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update dashboard: %v", err))
 	}
@@ -308,7 +309,7 @@ func (s *Server) UpdateDashboard(ctx context.Context, req *pb.UpdateDashboardReq
 
 // DeleteDashboard 删除仪表板。
 func (s *Server) DeleteDashboard(ctx context.Context, req *pb.DeleteDashboardRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeleteDashboard(ctx, req.Id); err != nil {
+	if err := s.command.DeleteDashboard(ctx, req.Id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete dashboard: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -322,7 +323,7 @@ func (s *Server) ListDashboards(ctx context.Context, req *pb.ListDashboardsReque
 		pageSize = 10
 	}
 
-	dashboards, total, err := s.app.ListDashboards(ctx, req.UserId, page, pageSize)
+	dashboards, total, err := s.query.ListUserDashboards(ctx, req.UserId, (page-1)*pageSize, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list dashboards: %v", err))
 	}
@@ -346,7 +347,7 @@ func (s *Server) ListDashboards(ctx context.Context, req *pb.ListDashboardsReque
 
 // CreateReport 创建报告。
 func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) (*pb.ReportResponse, error) {
-	report, err := s.app.CreateReport(ctx, req.Title, req.Description, req.UserId, req.ReportType)
+	report, err := s.command.CreateReport(ctx, req.Title, req.Description, req.UserId, req.ReportType)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create report: %v", err))
 	}
@@ -364,7 +365,7 @@ func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) 
 
 // GetReport 获取报告详情。
 func (s *Server) GetReport(ctx context.Context, req *pb.GetReportRequest) (*pb.ReportResponse, error) {
-	report, err := s.app.GetReport(ctx, req.Id)
+	report, err := s.query.GetReportByID(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get report: %v", err))
 	}
@@ -385,7 +386,7 @@ func (s *Server) GetReport(ctx context.Context, req *pb.GetReportRequest) (*pb.R
 
 // UpdateReport 更新报告。
 func (s *Server) UpdateReport(ctx context.Context, req *pb.UpdateReportRequest) (*pb.ReportResponse, error) {
-	report, err := s.app.UpdateReport(ctx, req.Id, req.Title, req.Description)
+	report, err := s.command.UpdateReport(ctx, req.Id, req.Title, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update report: %v", err))
 	}
@@ -403,7 +404,7 @@ func (s *Server) UpdateReport(ctx context.Context, req *pb.UpdateReportRequest) 
 
 // DeleteReport 删除报告。
 func (s *Server) DeleteReport(ctx context.Context, req *pb.DeleteReportRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeleteReport(ctx, req.Id); err != nil {
+	if err := s.command.DeleteReport(ctx, req.Id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete report: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -417,7 +418,7 @@ func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*
 		pageSize = 10
 	}
 
-	reports, total, err := s.app.ListReports(ctx, req.UserId, page, pageSize)
+	reports, total, err := s.query.ListUserReports(ctx, req.UserId, (page-1)*pageSize, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list reports: %v", err))
 	}

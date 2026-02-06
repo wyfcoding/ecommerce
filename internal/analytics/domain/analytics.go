@@ -1,10 +1,6 @@
 package domain
 
-import (
-	"time"
-
-	"gorm.io/gorm" // 导入GORM库。
-)
+import "time"
 
 // MetricType 定义了可用的指标类型。
 type MetricType string
@@ -35,72 +31,84 @@ const (
 // Metric 实体代表一个聚合根，用于存储具体的业务指标数据。
 // 这些指标可以是销售额、订单数等，支持按时间粒度和维度进行记录。
 type Metric struct {
-	gorm.Model                   // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	MetricType   MetricType      `gorm:"type:varchar(32);not null;index;comment:指标类型" json:"metric_type"` // 指标类型，索引字段，不允许为空。
-	MetricName   string          `gorm:"type:varchar(128);not null;comment:指标名称" json:"metric_name"`      // 指标名称。
-	Value        float64         `gorm:"type:decimal(16,4);not null;comment:数值" json:"value"`             // 指标的具体数值。
-	Timestamp    time.Time       `gorm:"not null;index;comment:时间戳" json:"timestamp"`                     // 指标记录的时间戳，索引字段。
-	Granularity  TimeGranularity `gorm:"type:varchar(32);not null;comment:时间粒度" json:"granularity"`       // 指标的时间粒度。
-	Dimension    string          `gorm:"type:varchar(64);comment:维度" json:"dimension"`                    // 指标的维度名称，例如“地区”、“渠道”。
-	DimensionVal string          `gorm:"type:varchar(128);comment:维度值" json:"dimension_val"`              // 指标的维度值，例如“华东”、“App”。
+	ID           uint            `json:"id"`           // 主键ID
+	CreatedAt    time.Time       `json:"created_at"`   // 创建时间
+	UpdatedAt    time.Time       `json:"updated_at"`   // 更新时间
+	MetricType   MetricType      `json:"metric_type"`  // 指标类型
+	MetricName   string          `json:"metric_name"`  // 指标名称
+	Value        float64         `json:"value"`        // 指标的具体数值
+	Timestamp    time.Time       `json:"timestamp"`    // 指标记录的时间戳
+	Granularity  TimeGranularity `json:"granularity"`  // 时间粒度
+	Dimension    string          `json:"dimension"`    // 维度名称
+	DimensionVal string          `json:"dimension_val"`// 维度值
 }
 
 // Dashboard 实体代表一个聚合根，用于组织和展示多个指标的图表。
 // 用户可以创建和定制自己的仪表板来监控关键业务数据。
 type Dashboard struct {
-	gorm.Model                     // 嵌入gorm.Model。
-	Name        string             `gorm:"type:varchar(128);not null;comment:名称" json:"name"` // 仪表板名称。
-	Description string             `gorm:"type:text;comment:描述" json:"description"`           // 仪表板描述。
-	UserID      uint64             `gorm:"not null;index;comment:用户ID" json:"user_id"`        // 创建仪表板的用户ID，索引字段。
-	IsPublic    bool               `gorm:"default:false;comment:是否公开" json:"is_public"`       // 仪表板是否公开，默认为不公开。
-	Metrics     []*DashboardMetric `gorm:"foreignKey:DashboardID" json:"metrics"`             // 仪表板上包含的指标图表列表，一对多关系。
-	Filters     []*DashboardFilter `gorm:"foreignKey:DashboardID" json:"filters"`             // 仪表板上应用的过滤器列表，一对多关系。
+	ID          uint               `json:"id"`          // 主键ID
+	CreatedAt   time.Time          `json:"created_at"`  // 创建时间
+	UpdatedAt   time.Time          `json:"updated_at"`  // 更新时间
+	Name        string             `json:"name"`        // 仪表板名称
+	Description string             `json:"description"` // 仪表板描述
+	UserID      uint64             `json:"user_id"`     // 创建仪表板的用户ID
+	IsPublic    bool               `json:"is_public"`   // 是否公开
+	Metrics     []*DashboardMetric `json:"metrics"`     // 指标图表列表
+	Filters     []*DashboardFilter `json:"filters"`     // 过滤器列表
 }
 
 // DashboardMetric 实体代表仪表板上显示的一个指标图表。
 type DashboardMetric struct {
-	gorm.Model             // 嵌入gorm.Model。
-	DashboardID uint64     `gorm:"not null;index;comment:仪表板ID" json:"dashboard_id"`          // 关联的仪表板ID，索引字段。
-	MetricType  MetricType `gorm:"type:varchar(32);not null;comment:指标类型" json:"metric_type"` // 显示的指标类型。
-	Title       string     `gorm:"type:varchar(128);not null;comment:标题" json:"title"`        // 图表的标题。
-	ChartType   string     `gorm:"type:varchar(32);not null;comment:图表类型" json:"chart_type"`  // 图表的类型，例如“折线图”、“柱状图”。
-	Position    int32      `gorm:"not null;comment:位置" json:"position"`                       // 图表在仪表板中的显示位置或顺序。
+	ID          uint      `json:"id"`           // 主键ID
+	CreatedAt   time.Time `json:"created_at"`   // 创建时间
+	UpdatedAt   time.Time `json:"updated_at"`   // 更新时间
+	DashboardID uint64    `json:"dashboard_id"` // 关联的仪表板ID
+	MetricType  MetricType `json:"metric_type"` // 指标类型
+	Title       string     `json:"title"`       // 图表标题
+	ChartType   string     `json:"chart_type"`  // 图表类型
+	Position    int32      `json:"position"`    // 显示位置或顺序
 }
 
 // DashboardFilter 实体代表仪表板上的一个过滤器。
 type DashboardFilter struct {
-	gorm.Model         // 嵌入gorm.Model。
-	DashboardID uint64 `gorm:"not null;index;comment:仪表板ID" json:"dashboard_id"`            // 关联的仪表板ID，索引字段。
-	FilterName  string `gorm:"type:varchar(64);not null;comment:过滤器名称" json:"filter_name"`  // 过滤器名称。
-	FilterType  string `gorm:"type:varchar(32);not null;comment:过滤器类型" json:"filter_type"`  // 过滤器类型，例如“时间范围”、“地区选择”。
-	FilterValue string `gorm:"type:varchar(255);not null;comment:过滤器值" json:"filter_value"` // 过滤器的值。
+	ID          uint      `json:"id"`           // 主键ID
+	CreatedAt   time.Time `json:"created_at"`   // 创建时间
+	UpdatedAt   time.Time `json:"updated_at"`   // 更新时间
+	DashboardID uint64    `json:"dashboard_id"` // 关联的仪表板ID
+	FilterName  string    `json:"filter_name"`  // 过滤器名称
+	FilterType  string    `json:"filter_type"`  // 过滤器类型
+	FilterValue string    `json:"filter_value"` // 过滤器值
 }
 
 // Report 实体代表一个聚合根，用于存储生成的数据分析报告。
 // 报告可以是定期生成的，也可以是按需生成的，通常包含对业务数据的深入分析。
 type Report struct {
-	gorm.Model                  // 嵌入gorm.Model。
-	ReportNo    string          `gorm:"type:varchar(64);uniqueIndex;not null;comment:报告编号" json:"report_no"` // 报告的唯一编号，唯一索引，不允许为空。
-	Title       string          `gorm:"type:varchar(128);not null;comment:标题" json:"title"`                  // 报告标题。
-	Description string          `gorm:"type:text;comment:描述" json:"description"`                             // 报告描述。
-	UserID      uint64          `gorm:"not null;index;comment:用户ID" json:"user_id"`                          // 创建报告的用户ID，索引字段。
-	ReportType  string          `gorm:"type:varchar(32);not null;comment:报告类型" json:"report_type"`           // 报告类型，例如“周报”、“月报”、“专项分析报告”。
-	StartDate   time.Time       `gorm:"comment:开始日期" json:"start_date"`                                      // 报告涵盖的开始日期。
-	EndDate     time.Time       `gorm:"comment:结束日期" json:"end_date"`                                        // 报告涵盖的结束日期。
-	Status      string          `gorm:"type:varchar(32);not null;default:'draft';comment:状态" json:"status"`  // 报告状态，例如“draft”（草稿）、“published”（已发布）。
-	Content     string          `gorm:"type:longtext;comment:内容" json:"content"`                             // 报告的详细内容，可以存储HTML或Markdown等格式。
-	PublishedAt *time.Time      `gorm:"comment:发布时间" json:"published_at"`                                    // 报告发布时间。
-	Metrics     []*ReportMetric `gorm:"foreignKey:ReportID" json:"metrics"`                                  // 报告中包含的指标列表，一对多关系。
+	ID          uint           `json:"id"`           // 主键ID
+	CreatedAt   time.Time      `json:"created_at"`   // 创建时间
+	UpdatedAt   time.Time      `json:"updated_at"`   // 更新时间
+	ReportNo    string         `json:"report_no"`    // 报告编号
+	Title       string         `json:"title"`        // 报告标题
+	Description string         `json:"description"`  // 报告描述
+	UserID      uint64         `json:"user_id"`      // 创建报告的用户ID
+	ReportType  string         `json:"report_type"`  // 报告类型
+	StartDate   time.Time      `json:"start_date"`   // 报告开始日期
+	EndDate     time.Time      `json:"end_date"`     // 报告结束日期
+	Status      string         `json:"status"`       // 报告状态
+	Content     string         `json:"content"`      // 报告内容
+	PublishedAt *time.Time     `json:"published_at"` // 发布时间
+	Metrics     []*ReportMetric `json:"metrics"`     // 报告指标列表
 }
 
 // ReportMetric 实体代表报告中的一个指标数据。
 type ReportMetric struct {
-	gorm.Model         // 嵌入gorm.Model。
-	ReportID   uint64  `gorm:"not null;index;comment:报告ID" json:"report_id"`        // 关联的报告ID，索引字段。
-	Metric     string  `gorm:"type:varchar(128);not null;comment:指标" json:"metric"` // 指标名称。
-	Value      float64 `gorm:"type:decimal(16,4);not null;comment:数值" json:"value"` // 指标值。
-	Change     float64 `gorm:"type:decimal(10,4);comment:变化率" json:"change"`        // 指标的变化率。
-	Trend      string  `gorm:"type:varchar(32);comment:趋势" json:"trend"`            // 指标的趋势，例如“上升”、“下降”。
+	ID        uint      `json:"id"`         // 主键ID
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
+	ReportID  uint64    `json:"report_id"`  // 关联的报告ID
+	Metric    string    `json:"metric"`     // 指标名称
+	Value     float64   `json:"value"`      // 指标值
+	Change    float64   `json:"change"`     // 变化率
+	Trend     string    `json:"trend"`      // 趋势
 }
 
 // NewMetric 创建并返回一个新的 Metric 实体实例。
@@ -128,6 +136,8 @@ func NewDashboard(name, description string, userID uint64) *Dashboard {
 		Description: description,
 		UserID:      userID,
 		IsPublic:    false, // 默认不公开。
+		Metrics:     []*DashboardMetric{},
+		Filters:     []*DashboardFilter{},
 	}
 }
 
@@ -156,6 +166,7 @@ func NewReport(reportNo, title, description string, userID uint64, reportType st
 		UserID:      userID,
 		ReportType:  reportType,
 		Status:      "draft", // 默认状态为草稿。
+		Metrics:     []*ReportMetric{},
 	}
 }
 

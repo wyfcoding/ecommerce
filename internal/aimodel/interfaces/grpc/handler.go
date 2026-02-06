@@ -16,22 +16,23 @@ import (
 // Server 结构体实现了 AIModelService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedAIModelServiceServer
-	app *application.AIModelService
+	command *application.AIModelCommandService
+	query   *application.AIModelQueryService
 }
 
 // NewServer 创建并返回一个新的 AIModel gRPC 服务端实例。
-func NewServer(app *application.AIModelService) *Server {
-	return &Server{app: app}
+func NewServer(command *application.AIModelCommandService, query *application.AIModelQueryService) *Server {
+	return &Server{command: command, query: query}
 }
 
 // DeployModel 处理部署AI模型的gRPC请求。
 func (s *Server) DeployModel(ctx context.Context, req *pb.DeployModelRequest) (*pb.DeployModelResponse, error) {
-	model, err := s.app.CreateModel(ctx, req.ModelName, "Deployed via gRPC", "generic", "unknown", 0)
+	model, err := s.command.CreateModel(ctx, req.ModelName, "Deployed via gRPC", "generic", "unknown", 0)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create model for deployment: %v", err))
 	}
 
-	if err := s.app.Deploy(ctx, uint64(model.ID)); err != nil {
+	if err := s.command.Deploy(ctx, uint64(model.ID)); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to deploy model: %v", err))
 	}
 
@@ -48,7 +49,7 @@ func (s *Server) GetModelStatus(ctx context.Context, req *pb.GetModelStatusReque
 		return nil, status.Error(codes.InvalidArgument, "invalid deployment_id")
 	}
 
-	model, err := s.app.GetModelDetails(ctx, id)
+	model, err := s.query.GetModel(ctx, id)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("model not found: %v", err))
 	}
@@ -75,7 +76,7 @@ func (s *Server) RetrainModel(ctx context.Context, req *pb.RetrainModelRequest) 
 		return nil, status.Error(codes.InvalidArgument, "model_name must be a valid ID for retraining")
 	}
 
-	if err := s.app.StartTraining(ctx, id); err != nil {
+	if err := s.command.StartTraining(ctx, id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to start model training: %v", err))
 	}
 
@@ -87,7 +88,7 @@ func (s *Server) RetrainModel(ctx context.Context, req *pb.RetrainModelRequest) 
 
 // GetProductRecommendations 获取产品推荐。
 func (s *Server) GetProductRecommendations(ctx context.Context, req *pb.GetProductRecommendationsRequest) (*pb.GetProductRecommendationsResponse, error) {
-	recs, err := s.app.GetProductRecommendations(ctx, req.UserId, req.GetContextPage())
+	recs, err := s.query.GetProductRecommendations(ctx, req.UserId, req.GetContextPage())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get product recommendations: %v", err))
 	}
@@ -105,7 +106,7 @@ func (s *Server) GetProductRecommendations(ctx context.Context, req *pb.GetProdu
 
 // GetRelatedProducts 获取相关商品。
 func (s *Server) GetRelatedProducts(ctx context.Context, req *pb.GetRelatedProductsRequest) (*pb.GetRelatedProductsResponse, error) {
-	recs, err := s.app.GetRelatedProducts(ctx, req.ProductId)
+	recs, err := s.query.GetRelatedProducts(ctx, req.ProductId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get related products: %v", err))
 	}
@@ -123,7 +124,7 @@ func (s *Server) GetRelatedProducts(ctx context.Context, req *pb.GetRelatedProdu
 
 // GetPersonalizedFeed 获取个性化内容流。
 func (s *Server) GetPersonalizedFeed(ctx context.Context, req *pb.GetPersonalizedFeedRequest) (*pb.GetPersonalizedFeedResponse, error) {
-	items, err := s.app.GetPersonalizedFeed(ctx, req.UserId)
+	items, err := s.query.GetPersonalizedFeed(ctx, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get personalized feed: %v", err))
 	}
@@ -144,7 +145,7 @@ func (s *Server) GetPersonalizedFeed(ctx context.Context, req *pb.GetPersonalize
 
 // RecognizeImageContent 识别图片内容。
 func (s *Server) RecognizeImageContent(ctx context.Context, req *pb.RecognizeImageContentRequest) (*pb.RecognizeImageContentResponse, error) {
-	labels, err := s.app.RecognizeImageContent(ctx, req.ImageUrl)
+	labels, err := s.query.RecognizeImageContent(ctx, req.ImageUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to recognize image content: %v", err))
 	}
@@ -159,7 +160,7 @@ func (s *Server) RecognizeImageContent(ctx context.Context, req *pb.RecognizeIma
 
 // SearchImageByImage 通过图片搜索相似商品。
 func (s *Server) SearchImageByImage(ctx context.Context, req *pb.SearchImageByImageRequest) (*pb.SearchImageByImageResponse, error) {
-	results, err := s.app.SearchImageByImage(ctx, req.ImageUrl)
+	results, err := s.query.SearchImageByImage(ctx, req.ImageUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to search image by image: %v", err))
 	}
@@ -174,7 +175,7 @@ func (s *Server) SearchImageByImage(ctx context.Context, req *pb.SearchImageByIm
 
 // AnalyzeReviewSentiment 分析用户评论情感。
 func (s *Server) AnalyzeReviewSentiment(ctx context.Context, req *pb.AnalyzeReviewSentimentRequest) (*pb.AnalyzeReviewSentimentResponse, error) {
-	score, explanation, err := s.app.AnalyzeReviewSentiment(ctx, req.ReviewText)
+	score, explanation, err := s.query.AnalyzeReviewSentiment(ctx, req.ReviewText)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to analyze review sentiment: %v", err))
 	}
@@ -197,7 +198,7 @@ func (s *Server) AnalyzeReviewSentiment(ctx context.Context, req *pb.AnalyzeRevi
 
 // ExtractKeywordsFromText 从文本中提取关键词。
 func (s *Server) ExtractKeywordsFromText(ctx context.Context, req *pb.ExtractKeywordsFromTextRequest) (*pb.ExtractKeywordsFromTextResponse, error) {
-	keywords, err := s.app.ExtractKeywordsFromText(ctx, req.Text)
+	keywords, err := s.query.ExtractKeywordsFromText(ctx, req.Text)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to extract keywords: %v", err))
 	}
@@ -206,7 +207,7 @@ func (s *Server) ExtractKeywordsFromText(ctx context.Context, req *pb.ExtractKey
 
 // SummarizeText 总结长文本内容。
 func (s *Server) SummarizeText(ctx context.Context, req *pb.SummarizeTextRequest) (*pb.SummarizeTextResponse, error) {
-	summary, err := s.app.SummarizeText(ctx, req.Text)
+	summary, err := s.query.SummarizeText(ctx, req.Text)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to summarize text: %v", err))
 	}
@@ -215,7 +216,7 @@ func (s *Server) SummarizeText(ctx context.Context, req *pb.SummarizeTextRequest
 
 // GetFraudScore 获取欺诈评分。
 func (s *Server) GetFraudScore(ctx context.Context, req *pb.GetFraudScoreRequest) (*pb.GetFraudScoreResponse, error) {
-	result, err := s.app.GetFraudScore(ctx, req.UserId, req.TransactionAmount, req.IpAddress)
+	result, err := s.query.GetFraudScore(ctx, req.UserId, req.TransactionAmount, req.IpAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get fraud score: %v", err))
 	}

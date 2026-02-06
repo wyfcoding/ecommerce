@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -15,7 +16,11 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
 	"github.com/wyfcoding/ecommerce/internal/analytics/application"
-	"github.com/wyfcoding/ecommerce/internal/analytics/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
+	analyticssearch "github.com/wyfcoding/ecommerce/internal/analytics/infrastructure/persistence/elasticsearch"
+	analyticsmysql "github.com/wyfcoding/ecommerce/internal/analytics/infrastructure/persistence/mysql"
+	analyticsredis "github.com/wyfcoding/ecommerce/internal/analytics/infrastructure/persistence/redis"
+	analyticsconsumer "github.com/wyfcoding/ecommerce/internal/analytics/interfaces/consumer"
 	analyticsgrpc "github.com/wyfcoding/ecommerce/internal/analytics/interfaces/grpc"
 	analyticshttp "github.com/wyfcoding/ecommerce/internal/analytics/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -26,8 +31,11 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -39,12 +47,16 @@ const IdempotencyPrefix = "analytics:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		MetricIndex string `mapstructure:"metric_index" toml:"metric_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Analytics   *application.Analytics
+	Command     *application.AnalyticsCommandService
+	Query       *application.AnalyticsQueryService
 	Clients     *ServiceClients
 	Handler     *analyticshttp.Handler
 	Metrics     *metrics.Metrics
@@ -77,7 +89,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterAnalyticsServiceServer(s, analyticsgrpc.NewServer(ctx.Analytics))
+	pb.RegisterAnalyticsServiceServer(s, analyticsgrpc.NewServer(ctx.Command, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -141,6 +153,23 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
@@ -155,10 +184,28 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("id generator init error: %w", err)
 	}
 
+	// 3.1 初始化消息队列与 Outbox
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	if err := db.RawDB().AutoMigrate(&outbox.Message{}); err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
+		producer.Close()
 		redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
@@ -170,26 +217,63 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	analyticsRepo := persistence.NewAnalyticsRepository(db.RawDB())
+	analyticsRepo := analyticsmysql.NewAnalyticsRepository(db.RawDB())
+	metricReadRepo := analyticsredis.NewMetricReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	dashboardReadRepo := analyticsredis.NewDashboardReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	reportReadRepo := analyticsredis.NewReportReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	metricSearchRepo := analyticssearch.NewMetricSearchRepository(esClient, c.Search.MetricIndex)
 
 	// 5.2 Application (Service)
-	query := application.NewAnalyticsQuery(analyticsRepo, redisCache.GetClient())
-	// 显式转换并注入 Cross-Project 客户端
+	publisher := outbox.NewPublisher(outboxMgr)
+	command := application.NewAnalyticsCommandService(analyticsRepo, publisher, idGenerator, redisCache.GetClient(), logger.Logger)
+	query := application.NewAnalyticsQueryService(analyticsRepo, metricReadRepo, dashboardReadRepo, reportReadRepo, metricSearchRepo, redisCache.GetClient(), logger.Logger)
+
 	if clients.AccountConn != nil && clients.PositionConn != nil {
 		query.SetFinancialClients(
 			accountv1.NewAccountServiceClient(clients.AccountConn),
 			positionv1.NewPositionServiceClient(clients.PositionConn),
 		)
 	}
-	manager := application.NewAnalyticsManager(analyticsRepo, redisCache.GetClient(), logger.Logger)
-	analyticsService := application.NewAnalytics(manager, query, idGenerator)
 
-	// 5.3 Interface (HTTP Handlers)
-	handler := analyticshttp.NewHandler(analyticsService, logger.Logger)
+	// 5.3 Projection Consumers (Analytics Events -> Read Model)
+	projectionService := application.NewAnalyticsProjectionService(analyticsRepo, metricReadRepo, dashboardReadRepo, reportReadRepo, metricSearchRepo, logger.Logger)
+	projectionHandler := analyticsconsumer.NewAnalyticsProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.MetricRecordedEventType,
+		domain.MetricDeletedEventType,
+		domain.DashboardCreatedEventType,
+		domain.DashboardUpdatedEventType,
+		domain.DashboardDeletedEventType,
+		domain.ReportCreatedEventType,
+		domain.ReportUpdatedEventType,
+		domain.ReportPublishedEventType,
+		domain.ReportDeletedEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 5.4 Interface (HTTP Handlers)
+	handler := analyticshttp.NewHandler(command, query, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
+		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -206,7 +290,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Analytics:   analyticsService,
+		Command:     command,
+		Query:       query,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,

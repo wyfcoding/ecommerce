@@ -13,19 +13,21 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 )
 
-// AIModelManager 负责AI模型模块的写操作和业务逻辑。
-type AIModelManager struct {
+// AIModelCommandService 负责AI模型模块的写操作和业务逻辑。
+type AIModelCommandService struct {
 	repo         domain.AIModelRepository
+	publisher    domain.EventPublisher
 	idGenerator  idgen.Generator
 	logger       *slog.Logger
 	loadedModels map[uint64]*algorithm.NaiveBayes
 	modelsMu     sync.RWMutex
 }
 
-// NewAIModelManager 创建一个新的 AIModelManager 实例。
-func NewAIModelManager(repo domain.AIModelRepository, idGenerator idgen.Generator, logger *slog.Logger) *AIModelManager {
-	return &AIModelManager{
+// NewAIModelCommandService 创建一个新的 AIModelCommandService 实例。
+func NewAIModelCommandService(repo domain.AIModelRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *AIModelCommandService {
+	return &AIModelCommandService{
 		repo:         repo,
+		publisher:    publisher,
 		idGenerator:  idGenerator,
 		logger:       logger,
 		loadedModels: make(map[uint64]*algorithm.NaiveBayes),
@@ -33,11 +35,26 @@ func NewAIModelManager(repo domain.AIModelRepository, idGenerator idgen.Generato
 }
 
 // CreateModel 创建一个新的AI模型记录。
-func (m *AIModelManager) CreateModel(ctx context.Context, name, description, modelType, algorithm string, creatorID uint64) (*domain.AIModel, error) {
+func (m *AIModelCommandService) CreateModel(ctx context.Context, name, description, modelType, algorithmName string, creatorID uint64) (*domain.AIModel, error) {
 	modelNo := fmt.Sprintf("AIM%d", m.idGenerator.Generate())
-	model := domain.NewAIModel(modelNo, name, description, modelType, algorithm, creatorID)
+	model := domain.NewAIModel(modelNo, name, description, modelType, algorithmName, creatorID)
 
-	if err := m.repo.Create(ctx, model); err != nil {
+	err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		event := &domain.AIModelCreatedEvent{
+			ModelID:   uint64(model.ID),
+			ModelNo:   model.ModelNo,
+			Status:    model.Status,
+			Timestamp: time.Now(),
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AIModelCreatedEventType, fmt.Sprintf("%d", model.ID), event)
+	})
+	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to create model", "name", name, "error", err)
 		return nil, err
 	}
@@ -47,13 +64,20 @@ func (m *AIModelManager) CreateModel(ctx context.Context, name, description, mod
 }
 
 // StartTraining 启动训练。
-func (m *AIModelManager) StartTraining(ctx context.Context, id uint64) error {
-	model, err := m.repo.GetByID(ctx, id)
+func (m *AIModelCommandService) StartTraining(ctx context.Context, id uint64) error {
+	model, err := m.repo.GetModel(ctx, id)
 	if err != nil {
 		return err
 	}
+	oldStatus := model.Status
 	model.StartTraining()
-	if err := m.repo.Update(ctx, model); err != nil {
+
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, model.ID, oldStatus, model.Status)
+	}); err != nil {
 		return err
 	}
 
@@ -63,7 +87,7 @@ func (m *AIModelManager) StartTraining(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (m *AIModelManager) runTrainingTask(modelID uint64) {
+func (m *AIModelCommandService) runTrainingTask(modelID uint64) {
 	bgCtx := context.Background()
 	m.logger.Info("starting iterative training pipeline", "model_id", modelID)
 
@@ -108,58 +132,93 @@ func (m *AIModelManager) runTrainingTask(modelID uint64) {
 }
 
 // CompleteTraining 完成训练。
-func (m *AIModelManager) CompleteTraining(ctx context.Context, id uint64, accuracy float64, modelPath string) error {
-	model, err := m.repo.GetByID(ctx, id)
+func (m *AIModelCommandService) CompleteTraining(ctx context.Context, id uint64, accuracy float64, modelPath string) error {
+	model, err := m.repo.GetModel(ctx, id)
 	if err != nil {
 		return err
 	}
+	oldStatus := model.Status
 	model.CompleteTraining(accuracy, modelPath)
-	return m.repo.Update(ctx, model)
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, model.ID, oldStatus, model.Status)
+	})
 }
 
 // FailTraining 训练失败。
-func (m *AIModelManager) FailTraining(ctx context.Context, id uint64, reason string) error {
-	model, err := m.repo.GetByID(ctx, id)
+func (m *AIModelCommandService) FailTraining(ctx context.Context, id uint64, reason string) error {
+	model, err := m.repo.GetModel(ctx, id)
 	if err != nil {
 		return err
 	}
+	oldStatus := model.Status
 	model.FailTraining(reason)
-	return m.repo.Update(ctx, model)
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, model.ID, oldStatus, model.Status)
+	})
 }
 
 // Deploy 部署模型。
-func (m *AIModelManager) Deploy(ctx context.Context, id uint64) error {
-	model, err := m.repo.GetByID(ctx, id)
+func (m *AIModelCommandService) Deploy(ctx context.Context, id uint64) error {
+	model, err := m.repo.GetModel(ctx, id)
 	if err != nil {
 		return err
 	}
+	oldStatus := model.Status
 	model.Deploy()
-	return m.repo.Update(ctx, model)
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, model.ID, oldStatus, model.Status)
+	})
 }
 
 // CompleteDeployment 完成部署。
-func (m *AIModelManager) CompleteDeployment(ctx context.Context, id uint64) error {
-	model, err := m.repo.GetByID(ctx, id)
+func (m *AIModelCommandService) CompleteDeployment(ctx context.Context, id uint64) error {
+	model, err := m.repo.GetModel(ctx, id)
 	if err != nil {
 		return err
 	}
+	oldStatus := model.Status
 	model.CompleteDeployment()
-	return m.repo.Update(ctx, model)
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, model.ID, oldStatus, model.Status)
+	})
 }
 
 // Archive 归档模型。
-func (m *AIModelManager) Archive(ctx context.Context, id uint64) error {
-	model, err := m.repo.GetByID(ctx, id)
+func (m *AIModelCommandService) Archive(ctx context.Context, id uint64) error {
+	model, err := m.repo.GetModel(ctx, id)
 	if err != nil {
 		return err
 	}
+	oldStatus := model.Status
 	model.Archive()
-	return m.repo.Update(ctx, model)
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveModelInTx(ctx, tx, model); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, model.ID, oldStatus, model.Status)
+	})
 }
 
 // AddTrainingLog 添加训练日志。
-func (m *AIModelManager) AddTrainingLog(ctx context.Context, modelID uint64, iteration int32, loss, accuracy, valLoss, valAccuracy float64) error {
-	log := &domain.ModelTrainingLog{
+func (m *AIModelCommandService) AddTrainingLog(ctx context.Context, modelID uint64, iteration int32, loss, accuracy, valLoss, valAccuracy float64) error {
+	logEntry := &domain.ModelTrainingLog{
 		ModelID:            modelID,
 		Iteration:          iteration,
 		Loss:               loss,
@@ -167,12 +226,12 @@ func (m *AIModelManager) AddTrainingLog(ctx context.Context, modelID uint64, ite
 		ValidationLoss:     valLoss,
 		ValidationAccuracy: valAccuracy,
 	}
-	return m.repo.CreateTrainingLog(ctx, log)
+	return m.repo.SaveTrainingLog(ctx, logEntry)
 }
 
 // Predict 预测。
-func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input string, userID uint64) (string, float64, error) {
-	modelMeta, err := m.repo.GetByID(ctx, modelID)
+func (m *AIModelCommandService) Predict(ctx context.Context, modelID uint64, input string, userID uint64) (string, float64, error) {
+	modelMeta, err := m.repo.GetModel(ctx, modelID)
 	if err != nil {
 		return "", 0, err
 	}
@@ -223,41 +282,22 @@ func (m *AIModelManager) Predict(ctx context.Context, modelID uint64, input stri
 		PredictionTime: time.Now(),
 	}
 
-	if err := m.repo.CreatePrediction(ctx, prediction); err != nil {
+	if err := m.repo.SavePrediction(ctx, prediction); err != nil {
 		m.logger.WarnContext(ctx, "failed to save prediction record", "model_id", modelID, "error", err)
 	}
 
 	return output, confidence, nil
 }
 
-// --- 模块分段 ---
-
-// ProductRecommendationDTO 结构体定义。
-type ProductRecommendationDTO struct {
-	ProductID uint64
-	Score     float64
-	Reason    string
-}
-
-// FeedItemDTO 结构体定义。
-type FeedItemDTO struct {
-	ItemType  string
-	ItemID    string
-	Title     string
-	ImageURL  string
-	TargetURL string
-	Score     float64
-}
-
-// ProductSearchResultDTO 结构体定义。
-type ProductSearchResultDTO struct {
-	ProductID       uint64
-	SimilarityScore float64
-}
-
-// FraudScoreDTO 结构体定义。
-type FraudScoreDTO struct {
-	FraudScore   float64
-	IsFraudulent bool
-	Reasons      []string
+func (m *AIModelCommandService) publishStatusUpdated(ctx context.Context, tx any, modelID uint, oldStatus, newStatus domain.ModelStatus) error {
+	if m.publisher == nil {
+		return nil
+	}
+	event := &domain.AIModelStatusUpdatedEvent{
+		ModelID:   uint64(modelID),
+		OldStatus: oldStatus,
+		NewStatus: newStatus,
+		Timestamp: time.Now(),
+	}
+	return m.publisher.PublishInTx(ctx, tx, domain.AIModelStatusUpdatedEventType, fmt.Sprintf("%d", modelID), event)
 }

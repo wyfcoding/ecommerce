@@ -14,14 +14,16 @@ import (
 )
 
 type Handler struct {
-	app    *application.Analytics
-	logger *slog.Logger
+	command *application.AnalyticsCommandService
+	query   *application.AnalyticsQueryService
+	logger  *slog.Logger
 }
 
-func NewHandler(app *application.Analytics, logger *slog.Logger) *Handler {
+func NewHandler(command *application.AnalyticsCommandService, query *application.AnalyticsQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		command: command,
+		query:   query,
+		logger:  logger,
 	}
 }
 
@@ -41,7 +43,7 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 		return
 	}
 
-	err := h.app.RecordMetric(c.Request.Context(), domain.MetricType(req.MetricType), req.Name, req.Value, domain.TimeGranularity(req.Granularity), req.Dimension, req.DimensionVal)
+	err := h.command.RecordMetric(c.Request.Context(), domain.MetricType(req.MetricType), req.Name, req.Value, domain.TimeGranularity(req.Granularity), req.Dimension, req.DimensionVal)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to record metric", "metric_type", req.MetricType, "error", err)
 		response.Error(c, err)
@@ -93,7 +95,7 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 		PageSize:    pageSize,
 	}
 
-	list, total, err := h.app.QueryMetrics(c.Request.Context(), query)
+	list, total, err := h.query.SearchMetrics(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to query metrics", "error", err)
 		response.Error(c, err)
@@ -116,7 +118,7 @@ func (h *Handler) CreateDashboard(c *gin.Context) {
 		return
 	}
 
-	dashboard, err := h.app.CreateDashboard(c.Request.Context(), req.Name, req.Description, req.UserID)
+	dashboard, err := h.command.CreateDashboard(c.Request.Context(), req.Name, req.Description, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create dashboard", "user_id", req.UserID, "error", err)
 		response.Error(c, err)
@@ -134,10 +136,14 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 		return
 	}
 
-	dashboard, err := h.app.GetDashboard(c.Request.Context(), id)
+	dashboard, err := h.query.GetDashboardByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get dashboard", "dashboard_id", id, "error", err)
 		response.Error(c, err)
+		return
+	}
+	if dashboard == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "dashboard not found", "")
 		return
 	}
 
@@ -163,7 +169,7 @@ func (h *Handler) AddMetricToDashboard(c *gin.Context) {
 		return
 	}
 
-	err = h.app.AddMetricToDashboard(c.Request.Context(), id, domain.MetricType(req.MetricType), req.Title, req.ChartType)
+	err = h.command.AddMetricToDashboard(c.Request.Context(), id, domain.MetricType(req.MetricType), req.Title, req.ChartType)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to add metric to dashboard", "dashboard_id", id, "error", err)
 		response.Error(c, err)
@@ -190,7 +196,7 @@ func (h *Handler) UpdateDashboard(c *gin.Context) {
 		return
 	}
 
-	dashboard, err := h.app.UpdateDashboard(c.Request.Context(), id, req.Name, req.Description)
+	dashboard, err := h.command.UpdateDashboard(c.Request.Context(), id, req.Name, req.Description)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to update dashboard", "dashboard_id", id, "error", err)
 		response.Error(c, err)
@@ -208,7 +214,7 @@ func (h *Handler) DeleteDashboard(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.DeleteDashboard(c.Request.Context(), id); err != nil {
+	if err := h.command.DeleteDashboard(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to delete dashboard", "dashboard_id", id, "error", err)
 		response.Error(c, err)
 		return
@@ -235,7 +241,7 @@ func (h *Handler) ListDashboards(c *gin.Context) {
 		return
 	}
 
-	dashboards, total, err := h.app.ListDashboards(c.Request.Context(), userID, page, pageSize)
+	dashboards, total, err := h.query.ListUserDashboards(c.Request.Context(), userID, (page-1)*pageSize, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list dashboards", "user_id", userID, "error", err)
 		response.Error(c, err)
@@ -253,7 +259,7 @@ func (h *Handler) PublishDashboard(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.PublishDashboard(c.Request.Context(), id); err != nil {
+	if err := h.command.PublishDashboard(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to publish dashboard", "dashboard_id", id, "error", err)
 		response.Error(c, err)
 		return
@@ -276,7 +282,7 @@ func (h *Handler) CreateReport(c *gin.Context) {
 		return
 	}
 
-	report, err := h.app.CreateReport(c.Request.Context(), req.Title, req.Description, req.UserID, req.ReportType)
+	report, err := h.command.CreateReport(c.Request.Context(), req.Title, req.Description, req.UserID, req.ReportType)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create report", "user_id", req.UserID, "error", err)
 		response.Error(c, err)
@@ -294,7 +300,7 @@ func (h *Handler) GetReport(c *gin.Context) {
 		return
 	}
 
-	report, err := h.app.GetReport(c.Request.Context(), id)
+	report, err := h.query.GetReportByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get report", "report_id", id, "error", err)
 		response.Error(c, err)
@@ -326,7 +332,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 		return
 	}
 
-	reports, total, err := h.app.ListReports(c.Request.Context(), userID, page, pageSize)
+	reports, total, err := h.query.ListUserReports(c.Request.Context(), userID, (page-1)*pageSize, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list reports", "user_id", userID, "error", err)
 		response.Error(c, err)

@@ -13,14 +13,16 @@ import (
 )
 
 type Handler struct {
-	app    *application.AIModelService
-	logger *slog.Logger
+	command *application.AIModelCommandService
+	query   *application.AIModelQueryService
+	logger  *slog.Logger
 }
 
-func NewHandler(app *application.AIModelService, logger *slog.Logger) *Handler {
+func NewHandler(command *application.AIModelCommandService, query *application.AIModelQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		command: command,
+		query:   query,
+		logger:  logger,
 	}
 }
 
@@ -38,7 +40,7 @@ func (h *Handler) CreateModel(c *gin.Context) {
 		return
 	}
 
-	model, err := h.app.CreateModel(c.Request.Context(), req.Name, req.Description, req.Type, req.Algorithm, req.CreatorID)
+	model, err := h.command.CreateModel(c.Request.Context(), req.Name, req.Description, req.Type, req.Algorithm, req.CreatorID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create model", "name", req.Name, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -80,7 +82,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 		PageSize:  pageSize,
 	}
 
-	list, total, err := h.app.ListModels(c.Request.Context(), query)
+	list, total, err := h.query.ListModels(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list models", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -102,7 +104,7 @@ func (h *Handler) GetModelDetails(c *gin.Context) {
 		return
 	}
 
-	model, err := h.app.GetModelDetails(c.Request.Context(), id)
+	model, err := h.query.GetModel(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get model details", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -119,7 +121,7 @@ func (h *Handler) StartTraining(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.StartTraining(c.Request.Context(), id); err != nil {
+	if err := h.command.StartTraining(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to start training", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
@@ -145,7 +147,7 @@ func (h *Handler) Predict(c *gin.Context) {
 		return
 	}
 
-	output, confidence, err := h.app.Predict(c.Request.Context(), id, req.Input, req.UserID)
+	output, confidence, err := h.command.Predict(c.Request.Context(), id, req.Input, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to predict", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
