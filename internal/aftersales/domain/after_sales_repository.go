@@ -8,18 +8,26 @@ import (
 // 它定义了对售后申请实体及其关联日志进行数据持久化操作的契约。
 // 仓储接口属于领域层，旨在将领域逻辑与数据存储的实现细节解耦。
 type AfterSalesRepository interface {
+	// 事务管理
+	BeginTx(ctx context.Context) any
+	CommitTx(tx any) error
+	RollbackTx(tx any) error
+	WithTx(ctx context.Context, fn func(tx any) error) error
+
 	// --- AfterSales methods ---
 
 	// Create 在数据存储中创建一个新的售后申请实体。
 	// ctx: 上下文。
 	// afterSales: 待创建的售后申请实体。
 	Create(ctx context.Context, afterSales *AfterSales) error
+	CreateInTx(ctx context.Context, tx any, afterSales *AfterSales) error
 	// GetByID 根据ID获取售后申请实体，并预加载其关联的商品和日志。
 	GetByID(ctx context.Context, id uint64) (*AfterSales, error)
 	// GetByNo 根据售后单号获取售后申请实体，并预加载其关联的商品和日志。
 	GetByNo(ctx context.Context, no string) (*AfterSales, error)
 	// Update 更新售后申请实体的信息。
 	Update(ctx context.Context, afterSales *AfterSales) error
+	UpdateInTx(ctx context.Context, tx any, afterSales *AfterSales) error
 	// List 列出所有售后申请实体，支持通过查询条件进行过滤和分页。
 	List(ctx context.Context, query *AfterSalesQuery) ([]*AfterSales, int64, error)
 
@@ -27,20 +35,26 @@ type AfterSalesRepository interface {
 
 	// CreateLog 在数据存储中创建一个新的售后操作日志记录。
 	CreateLog(ctx context.Context, log *AfterSalesLog) error
+	CreateLogInTx(ctx context.Context, tx any, log *AfterSalesLog) error
 	// ListLogs 列出指定售后申请的所有操作日志。
 	ListLogs(ctx context.Context, afterSalesID uint64) ([]*AfterSalesLog, error)
 
 	// --- Support Ticket methods ---
 	CreateSupportTicket(ctx context.Context, ticket *SupportTicket) error
+	CreateSupportTicketInTx(ctx context.Context, tx any, ticket *SupportTicket) error
 	GetSupportTicket(ctx context.Context, id uint64) (*SupportTicket, error)
 	UpdateSupportTicket(ctx context.Context, ticket *SupportTicket) error
+	UpdateSupportTicketInTx(ctx context.Context, tx any, ticket *SupportTicket) error
 	ListSupportTickets(ctx context.Context, userID uint64, status *int, page, pageSize int) ([]*SupportTicket, int64, error)
 	CreateSupportTicketMessage(ctx context.Context, msg *SupportTicketMessage) error
+	CreateSupportTicketMessageInTx(ctx context.Context, tx any, msg *SupportTicketMessage) error
+	GetSupportTicketMessage(ctx context.Context, id uint64) (*SupportTicketMessage, error)
 	ListSupportTicketMessages(ctx context.Context, ticketID uint64) ([]*SupportTicketMessage, error)
 
 	// --- Config methods ---
 	GetConfig(ctx context.Context, key string) (*AfterSalesConfig, error)
 	SetConfig(ctx context.Context, config *AfterSalesConfig) error
+	SetConfigInTx(ctx context.Context, tx any, config *AfterSalesConfig) error
 }
 
 // AfterSalesQuery 结构体定义了查询售后申请的条件。

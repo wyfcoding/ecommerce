@@ -63,13 +63,33 @@ func (m *AfterSalesCommandService) CreateAfterSales(ctx context.Context, orderID
 		afterSales.Items = append(afterSales.Items, item)
 	}
 
-	if err := m.repo.Create(ctx, afterSales); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create after-sales", "order_id", orderID, "user_id", userID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.CreateInTx(ctx, tx, afterSales); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create after-sales", "order_id", orderID, "user_id", userID, "error", err)
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, uint64(afterSales.ID), "User", "Create", "", domain.AfterSalesStatusPending.String(), "Created after-sales request"); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.AfterSalesCreatedEvent{
+				AfterSalesID: afterSales.ID,
+				AfterSalesNo: afterSales.AfterSalesNo,
+				OrderID:      afterSales.OrderID,
+				UserID:       afterSales.UserID,
+				Type:         afterSales.Type,
+				Status:       afterSales.Status,
+				Timestamp:    time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.AfterSalesCreatedEventType, fmt.Sprintf("%d", afterSales.ID), event); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "after-sales request created successfully", "after_sales_id", afterSales.ID, "order_id", orderID)
-
-	m.LogOperation(ctx, uint64(afterSales.ID), "User", "Create", "", domain.AfterSalesStatusPending.String(), "Created after-sales request")
 
 	return afterSales, nil
 }
@@ -79,20 +99,27 @@ func (m *AfterSalesCommandService) Approve(ctx context.Context, id uint64, opera
 	if err != nil {
 		return err
 	}
+	if afterSales == nil {
+		return domain.ErrAfterSalesNotFound
+	}
 
 	if afterSales.Status != domain.AfterSalesStatusPending {
 		return fmt.Errorf("invalid status: %v", afterSales.Status)
 	}
 
-	oldStatus := afterSales.Status.String()
+	oldStatus := afterSales.Status
+	oldStatusStr := oldStatus.String()
 	afterSales.Approve(operator, amount)
 
-	if err := m.repo.Update(ctx, afterSales); err != nil {
-		return err
-	}
-
-	m.LogOperation(ctx, id, operator, "Approve", oldStatus, afterSales.Status.String(), fmt.Sprintf("Approved amount: %d", amount))
-	return nil
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, operator, "Approve", oldStatusStr, afterSales.Status.String(), fmt.Sprintf("Approved amount: %d", amount)); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
+	})
 }
 
 func (m *AfterSalesCommandService) Reject(ctx context.Context, id uint64, operator, reason string) error {
@@ -100,20 +127,27 @@ func (m *AfterSalesCommandService) Reject(ctx context.Context, id uint64, operat
 	if err != nil {
 		return err
 	}
+	if afterSales == nil {
+		return domain.ErrAfterSalesNotFound
+	}
 
 	if afterSales.Status != domain.AfterSalesStatusPending {
 		return fmt.Errorf("invalid status: %v", afterSales.Status)
 	}
 
-	oldStatus := afterSales.Status.String()
+	oldStatus := afterSales.Status
+	oldStatusStr := oldStatus.String()
 	afterSales.Reject(operator, reason)
 
-	if err := m.repo.Update(ctx, afterSales); err != nil {
-		return err
-	}
-
-	m.LogOperation(ctx, id, operator, "Reject", oldStatus, afterSales.Status.String(), reason)
-	return nil
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, operator, "Reject", oldStatusStr, afterSales.Status.String(), reason); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
+	})
 }
 
 // Saga 状态回调实现
@@ -128,10 +162,16 @@ func (m *AfterSalesCommandService) SagaMarkRefundCompleted(ctx context.Context, 
 		return nil
 	}
 
+	oldStatus := afterSales.Status
 	afterSales.Status = domain.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now
-	return m.repo.Update(ctx, afterSales)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, "System")
+	})
 }
 
 // SagaMarkRefundFailed 补偿标记失败
@@ -141,15 +181,26 @@ func (m *AfterSalesCommandService) SagaMarkRefundFailed(ctx context.Context, id 
 		return err
 	}
 
+	oldStatus := afterSales.Status
 	afterSales.Status = domain.AfterSalesStatusRejected
-	m.LogOperation(ctx, id, "System", "SagaCompensation", "", "FAILED", reason)
-	return m.repo.Update(ctx, afterSales)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, "System", "SagaCompensation", oldStatus.String(), "FAILED", reason); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, "System")
+	})
 }
 
 // ProcessRefund 执行退款 (生产级 100% 可靠编排)
 func (m *AfterSalesCommandService) ProcessRefund(ctx context.Context, id uint64) error {
 	afterSales, err := m.repo.GetByID(ctx, id)
-	if err != nil || afterSales.Status != domain.AfterSalesStatusApproved {
+	if err != nil || afterSales == nil {
+		return err
+	}
+	if afterSales.Status != domain.AfterSalesStatusApproved {
 		return fmt.Errorf("request not ready for refund")
 	}
 
@@ -195,20 +246,27 @@ func (m *AfterSalesCommandService) ProcessExchange(ctx context.Context, id uint6
 	if err != nil {
 		return err
 	}
+	if afterSales == nil {
+		return domain.ErrAfterSalesNotFound
+	}
 	if afterSales.Status != domain.AfterSalesStatusApproved {
 		return fmt.Errorf("invalid status for exchange: %v", afterSales.Status)
 	}
 
+	oldStatus := afterSales.Status
 	afterSales.Status = domain.AfterSalesStatusCompleted
 	now := time.Now()
 	afterSales.CompletedAt = &now
 
-	if err := m.repo.Update(ctx, afterSales); err != nil {
-		return err
-	}
-
-	m.LogOperation(ctx, id, "System", "ProcessExchange", "Approved", "Completed", "Exchange processed successfully")
-	return nil
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, "System", "ProcessExchange", "Approved", "Completed", "Exchange processed successfully"); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, "System")
+	})
 }
 
 func (m *AfterSalesCommandService) CreateSupportTicket(ctx context.Context, userID, orderID uint64, subject, description, category string, priority int8) (*domain.SupportTicket, error) {
@@ -225,7 +283,24 @@ func (m *AfterSalesCommandService) CreateSupportTicket(ctx context.Context, user
 		Messages:    []*domain.SupportTicketMessage{},
 	}
 
-	if err := m.repo.CreateSupportTicket(ctx, ticket); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.CreateSupportTicketInTx(ctx, tx, ticket); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.SupportTicketCreatedEvent{
+				TicketID:  ticket.ID,
+				TicketNo:  ticket.TicketNo,
+				UserID:    ticket.UserID,
+				OrderID:   ticket.OrderID,
+				Timestamp: time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.AfterSalesSupportTicketCreatedType, fmt.Sprintf("%d", ticket.ID), event); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return ticket, nil
@@ -241,7 +316,20 @@ func (m *AfterSalesCommandService) UpdateSupportTicketStatus(ctx context.Context
 	}
 
 	ticket.Status = status
-	return m.repo.UpdateSupportTicket(ctx, ticket)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateSupportTicketInTx(ctx, tx, ticket); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.SupportTicketUpdatedEvent{
+				TicketID:  ticket.ID,
+				Status:    ticket.Status,
+				Timestamp: time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.AfterSalesSupportTicketUpdatedType, fmt.Sprintf("%d", ticket.ID), event)
+		}
+		return nil
+	})
 }
 
 func (m *AfterSalesCommandService) CreateSupportTicketMessage(ctx context.Context, ticketID, senderID uint64, senderType, content string) (*domain.SupportTicketMessage, error) {
@@ -252,7 +340,21 @@ func (m *AfterSalesCommandService) CreateSupportTicketMessage(ctx context.Contex
 		Content:    content,
 		IsRead:     false,
 	}
-	if err := m.repo.CreateSupportTicketMessage(ctx, msg); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.CreateSupportTicketMessageInTx(ctx, tx, msg); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.SupportTicketMessageCreatedEvent{
+				MessageID: msg.ID,
+				TicketID:  msg.TicketID,
+				SenderID:  msg.SenderID,
+				Timestamp: time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.AfterSalesSupportTicketMessageType, fmt.Sprintf("%d", msg.ID), event)
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return msg, nil
@@ -264,7 +366,19 @@ func (m *AfterSalesCommandService) SetConfig(ctx context.Context, key, value, de
 		Value:       value,
 		Description: description,
 	}
-	if err := m.repo.SetConfig(ctx, config); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SetConfigInTx(ctx, tx, config); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.AfterSalesConfigUpdatedEvent{
+				Key:       config.Key,
+				Timestamp: time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.AfterSalesConfigUpdatedEventType, config.Key, event)
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return config, nil
@@ -282,4 +396,31 @@ func (m *AfterSalesCommandService) LogOperation(ctx context.Context, asID uint64
 	if err := m.repo.CreateLog(ctx, log); err != nil {
 		m.logger.WarnContext(ctx, "failed to create after-sales log", "after_sales_id", asID, "error", err)
 	}
+}
+
+func (m *AfterSalesCommandService) logOperationInTx(ctx context.Context, tx any, asID uint64, operator, action, oldStatus, newStatus, remark string) error {
+	log := &domain.AfterSalesLog{
+		AfterSalesID: asID,
+		Operator:     operator,
+		Action:       action,
+		OldStatus:    oldStatus,
+		NewStatus:    newStatus,
+		Remark:       remark,
+	}
+	return m.repo.CreateLogInTx(ctx, tx, log)
+}
+
+func (m *AfterSalesCommandService) publishStatusUpdated(ctx context.Context, tx any, afterSales *domain.AfterSales, oldStatus domain.AfterSalesStatus, operator string) error {
+	if m.publisher == nil || afterSales == nil {
+		return nil
+	}
+	event := &domain.AfterSalesStatusUpdatedEvent{
+		AfterSalesID: afterSales.ID,
+		AfterSalesNo: afterSales.AfterSalesNo,
+		OldStatus:    oldStatus,
+		NewStatus:    afterSales.Status,
+		Operator:     operator,
+		Timestamp:    time.Now(),
+	}
+	return m.publisher.PublishInTx(ctx, tx, domain.AfterSalesStatusUpdatedEventType, fmt.Sprintf("%d", afterSales.ID), event)
 }

@@ -13,14 +13,16 @@ import (
 )
 
 type Handler struct {
-	service *application.AfterSalesService
-	logger  *slog.Logger
+	cmd    *application.AfterSalesCommandService
+	query  *application.AfterSalesQueryService
+	logger *slog.Logger
 }
 
-func NewHandler(service *application.AfterSalesService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.AfterSalesCommandService, query *application.AfterSalesQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		cmd:    cmd,
+		query:  query,
+		logger: logger,
 	}
 }
 
@@ -41,7 +43,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	afterSales, err := h.service.CreateAfterSales(c.Request.Context(), req.OrderID, req.OrderNo, req.UserID, req.Type, req.Reason, req.Description, req.Images, req.Items)
+	afterSales, err := h.cmd.CreateAfterSales(c.Request.Context(), req.OrderID, req.OrderNo, req.UserID, req.Type, req.Reason, req.Description, req.Images, req.Items)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create after-sales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -68,7 +70,7 @@ func (h *Handler) Approve(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Approve(c.Request.Context(), id, req.Operator, req.Amount); err != nil {
+	if err := h.cmd.Approve(c.Request.Context(), id, req.Operator, req.Amount); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to approve after-sales", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
@@ -94,7 +96,7 @@ func (h *Handler) Reject(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Reject(c.Request.Context(), id, req.Operator, req.Reason); err != nil {
+	if err := h.cmd.Reject(c.Request.Context(), id, req.Operator, req.Reason); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to reject after-sales", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
@@ -129,7 +131,7 @@ func (h *Handler) List(c *gin.Context) {
 		UserID:   userID,
 	}
 
-	list, total, err := h.service.List(c.Request.Context(), query)
+	list, total, err := h.query.List(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list after-sales", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -151,7 +153,7 @@ func (h *Handler) GetDetails(c *gin.Context) {
 		return
 	}
 
-	details, err := h.service.GetDetails(c.Request.Context(), id)
+	details, err := h.query.GetDetails(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get after-sales details", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")

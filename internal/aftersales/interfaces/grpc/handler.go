@@ -16,13 +16,14 @@ import (
 // Server 结构体实现了 Aftersales 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedAftersalesServiceServer                                // 嵌入生成的UnimplementedAftersalesServiceServer，确保前向兼容性。
-	app                                     *application.AfterSalesService // 依赖AfterSales应用服务，处理核心业务逻辑。
+	pb.UnimplementedAftersalesServiceServer
+	cmd   *application.AfterSalesCommandService
+	query *application.AfterSalesQueryService
 }
 
 // NewServer 创建并返回一个新的 AfterSales gRPC 服务端实例。
-func NewServer(app *application.AfterSalesService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.AfterSalesCommandService, query *application.AfterSalesQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // CreateReturnRequest 处理创建退货（售后）申请的gRPC请求。
@@ -48,7 +49,7 @@ func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRe
 	items := []*domain.AfterSalesItem{}
 
 	// 调用应用服务层创建售后申请。
-	as, err := s.app.CreateAfterSales(ctx, req.OrderId, "UNKNOWN", req.UserId, entityType, req.Reason, req.GetDescription(), req.ImageUrls, items)
+	as, err := s.cmd.CreateAfterSales(ctx, req.OrderId, "UNKNOWN", req.UserId, entityType, req.Reason, req.GetDescription(), req.ImageUrls, items)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create return request: %v", err))
 	}
@@ -63,7 +64,7 @@ func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRe
 // req: 包含售后申请ID的请求体。
 // 返回售后申请响应和可能发生的gRPC错误。
 func (s *Server) GetReturnRequest(ctx context.Context, req *pb.GetReturnRequestRequest) (*pb.ReturnRequestResponse, error) {
-	as, err := s.app.GetDetails(ctx, req.Id)
+	as, err := s.query.GetDetails(ctx, req.Id)
 	if err != nil {
 		// 如果售后记录未找到，返回NotFound状态码。
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("return request not found: %v", err))
@@ -82,7 +83,7 @@ func (s *Server) UpdateReturnRequestStatus(ctx context.Context, req *pb.UpdateRe
 	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_APPROVED:
 		// 如果是批准操作，需要获取退款金额（Proto中以元为单位，转换为分）。
 		amount := int64(req.GetRefundAmount() * 100)
-		if err := s.app.Approve(ctx, req.Id, "admin", amount); err != nil {
+		if err := s.cmd.Approve(ctx, req.Id, "admin", amount); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to approve return request: %v", err))
 		}
 	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REJECTED:
@@ -91,7 +92,7 @@ func (s *Server) UpdateReturnRequestStatus(ctx context.Context, req *pb.UpdateRe
 		if reason == "" {
 			reason = "Rejected by admin" // 提供默认拒绝原因。
 		}
-		if err := s.app.Reject(ctx, req.Id, "admin", reason); err != nil {
+		if err := s.cmd.Reject(ctx, req.Id, "admin", reason); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to reject return request: %v", err))
 		}
 	default:
@@ -100,7 +101,7 @@ func (s *Server) UpdateReturnRequestStatus(ctx context.Context, req *pb.UpdateRe
 	}
 
 	// 获取更新后的售后申请详情，以便在响应中返回最新状态。
-	as, err := s.app.GetDetails(ctx, req.Id)
+	as, err := s.query.GetDetails(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get updated return request details: %v", err))
 	}
@@ -144,7 +145,7 @@ func (s *Server) ListReturnRequests(ctx context.Context, req *pb.ListReturnReque
 	}
 
 	// 调用应用服务层获取售后申请列表。
-	list, total, err := s.app.List(ctx, query)
+	list, total, err := s.query.List(ctx, query)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list return requests: %v", err))
 	}
@@ -163,7 +164,7 @@ func (s *Server) ListReturnRequests(ctx context.Context, req *pb.ListReturnReque
 
 // ProcessRefund 处理退款流程的gRPC请求。
 func (s *Server) ProcessRefund(ctx context.Context, req *pb.ProcessRefundRequest) (*pb.RefundResponse, error) {
-	if err := s.app.ProcessRefund(ctx, req.ReturnRequestId); err != nil {
+	if err := s.cmd.ProcessRefund(ctx, req.ReturnRequestId); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process refund: %v", err))
 	}
 	return &pb.RefundResponse{
@@ -175,7 +176,7 @@ func (s *Server) ProcessRefund(ctx context.Context, req *pb.ProcessRefundRequest
 
 // ProcessExchange 处理换货流程的gRPC请求。
 func (s *Server) ProcessExchange(ctx context.Context, req *pb.ProcessExchangeRequest) (*pb.ExchangeResponse, error) {
-	if err := s.app.ProcessExchange(ctx, req.ReturnRequestId); err != nil {
+	if err := s.cmd.ProcessExchange(ctx, req.ReturnRequestId); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process exchange: %v", err))
 	}
 	return &pb.ExchangeResponse{
@@ -210,7 +211,7 @@ func (s *Server) CreateSupportTicket(ctx context.Context, req *pb.CreateSupportT
 
 	// 应用服务需要 Description，将 InitialMessage 映射给它。
 	// proto 中缺少 Category，传递空值。
-	ticket, err := s.app.CreateSupportTicket(ctx, req.UserId, orderID, req.Subject, req.InitialMessage, "", priority)
+	ticket, err := s.cmd.CreateSupportTicket(ctx, req.UserId, orderID, req.Subject, req.InitialMessage, "", priority)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create support ticket: %v", err))
 	}
@@ -221,7 +222,7 @@ func (s *Server) CreateSupportTicket(ctx context.Context, req *pb.CreateSupportT
 
 // GetSupportTicket 获取客服工单详情。
 func (s *Server) GetSupportTicket(ctx context.Context, req *pb.GetSupportTicketRequest) (*pb.SupportTicketResponse, error) {
-	ticket, err := s.app.GetSupportTicket(ctx, req.Id)
+	ticket, err := s.query.GetSupportTicket(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get support ticket: %v", err))
 	}
@@ -249,11 +250,11 @@ func (s *Server) UpdateSupportTicketStatus(ctx context.Context, req *pb.UpdateSu
 		st = domain.SupportTicketStatusOpen
 	}
 
-	if err := s.app.UpdateSupportTicketStatus(ctx, req.Id, st); err != nil {
+	if err := s.cmd.UpdateSupportTicketStatus(ctx, req.Id, st); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update support ticket status: %v", err))
 	}
 	// 返回更新后的工单
-	ticket, err := s.app.GetSupportTicket(ctx, req.Id)
+	ticket, err := s.query.GetSupportTicket(ctx, req.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get updated ticket: %v", err))
 	}
@@ -268,7 +269,7 @@ func (s *Server) AddSupportTicketMessage(ctx context.Context, req *pb.AddSupport
 	if req.IsAdminSender {
 		senderType = "Agent"
 	}
-	msg, err := s.app.CreateSupportTicketMessage(ctx, req.TicketId, req.SenderId, senderType, req.Content)
+	msg, err := s.cmd.CreateSupportTicketMessage(ctx, req.TicketId, req.SenderId, senderType, req.Content)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add message: %v", err))
 	}
@@ -309,7 +310,7 @@ func (s *Server) ListSupportTickets(ctx context.Context, req *pb.ListSupportTick
 		userID = *req.UserId
 	}
 
-	list, total, err := s.app.ListSupportTickets(ctx, userID, statusPtr, page, pageSize)
+	list, total, err := s.query.ListSupportTickets(ctx, userID, statusPtr, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list tickets: %v", err))
 	}
@@ -327,7 +328,7 @@ func (s *Server) ListSupportTickets(ctx context.Context, req *pb.ListSupportTick
 
 // ListSupportTicketMessages 列出客服工单消息。
 func (s *Server) ListSupportTicketMessages(ctx context.Context, req *pb.ListSupportTicketMessagesRequest) (*pb.ListSupportTicketMessagesResponse, error) {
-	list, err := s.app.ListSupportTicketMessages(ctx, req.TicketId)
+	list, err := s.query.ListSupportTicketMessages(ctx, req.TicketId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list messages: %v", err))
 	}
@@ -344,7 +345,7 @@ func (s *Server) ListSupportTicketMessages(ctx context.Context, req *pb.ListSupp
 
 // GetAftersalesConfig 获取售后配置。
 func (s *Server) GetAftersalesConfig(ctx context.Context, req *pb.GetAftersalesConfigRequest) (*pb.AftersalesConfigResponse, error) {
-	config, err := s.app.GetConfig(ctx, req.Key)
+	config, err := s.query.GetConfig(ctx, req.Key)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get config: %v", err))
 	}
@@ -362,7 +363,7 @@ func (s *Server) GetAftersalesConfig(ctx context.Context, req *pb.GetAftersalesC
 
 // SetAftersalesConfig 设置售后配置。
 func (s *Server) SetAftersalesConfig(ctx context.Context, req *pb.SetAftersalesConfigRequest) (*pb.AftersalesConfigResponse, error) {
-	config, err := s.app.SetConfig(ctx, req.Key, req.Value, req.Description)
+	config, err := s.cmd.SetConfig(ctx, req.Key, req.Value, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to set config: %v", err))
 	}
@@ -377,7 +378,7 @@ func (s *Server) SetAftersalesConfig(ctx context.Context, req *pb.SetAftersalesC
 
 // SagaMarkRefundCompleted Saga 正向: 确认退款成功
 func (s *Server) SagaMarkRefundCompleted(ctx context.Context, req *pb.SagaAftersalesRequest) (*pb.SagaAftersalesResponse, error) {
-	if err := s.app.SagaMarkRefundCompleted(ctx, req.AftersalesId); err != nil {
+	if err := s.cmd.SagaMarkRefundCompleted(ctx, req.AftersalesId); err != nil {
 		return nil, status.Errorf(codes.Internal, "SagaMarkRefundCompleted failed: %v", err)
 	}
 	return &pb.SagaAftersalesResponse{Success: true}, nil
@@ -385,7 +386,7 @@ func (s *Server) SagaMarkRefundCompleted(ctx context.Context, req *pb.SagaAfters
 
 // SagaMarkRefundFailed Saga 补偿: 标记退款失败
 func (s *Server) SagaMarkRefundFailed(ctx context.Context, req *pb.SagaAftersalesRequest) (*pb.SagaAftersalesResponse, error) {
-	if err := s.app.SagaMarkRefundFailed(ctx, req.AftersalesId, req.Reason); err != nil {
+	if err := s.cmd.SagaMarkRefundFailed(ctx, req.AftersalesId, req.Reason); err != nil {
 		return nil, status.Errorf(codes.Internal, "SagaMarkRefundFailed failed: %v", err)
 	}
 	return &pb.SagaAftersalesResponse{Success: true}, nil
