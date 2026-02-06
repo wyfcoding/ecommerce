@@ -16,14 +16,16 @@ import (
 // Handler 结构体定义了Notification模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	app    *application.Notification // 依赖Notification应用服务，处理核心业务逻辑。
-	logger *slog.Logger              // 日志记录器，用于记录请求处理过程中的信息和错误。
+	cmd    *application.NotificationCommandService
+	query  *application.NotificationQueryService
+	logger *slog.Logger // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Notification HTTP Handler 实例。
-func NewHandler(app *application.Notification, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.NotificationCommandService, query *application.NotificationQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -49,7 +51,7 @@ func (h *Handler) SendNotification(c *gin.Context) {
 	}
 
 	// 调用应用服务层发送通知.
-	notification, err := h.app.SendNotification(c.Request.Context(), req.UserID, domain.NotificationType(req.NotifType), domain.NotificationChannel(req.Channel), req.Title, req.Content, req.Data)
+	notification, err := h.cmd.SendNotification(c.Request.Context(), req.UserID, domain.NotificationType(req.NotifType), domain.NotificationChannel(req.Channel), req.Title, req.Content, req.Data)
 	if err != nil {
 		h.logger.Error("Failed to send notification", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to send notification", err.Error())
@@ -79,7 +81,7 @@ func (h *Handler) SendNotificationByTemplate(c *gin.Context) {
 	}
 
 	// 调用应用服务层使用模板发送通知.
-	notification, err := h.app.SendNotificationByTemplate(c.Request.Context(), req.UserID, req.TemplateCode, req.Variables, req.Data)
+	notification, err := h.cmd.SendNotificationByTemplate(c.Request.Context(), req.UserID, req.TemplateCode, req.Variables, req.Data)
 	if err != nil {
 		h.logger.Error("Failed to send notification by template", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to send notification by template", err.Error())
@@ -123,7 +125,7 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取通知列表.
-	list, total, err := h.app.ListNotifications(c.Request.Context(), userID, status, page, pageSize)
+	list, total, err := h.query.ListNotifications(c.Request.Context(), userID, status, page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list notifications", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list notifications", err.Error())
@@ -161,7 +163,7 @@ func (h *Handler) MarkAsRead(c *gin.Context) {
 	}
 
 	// 调用应用服务层标记通知为已读.
-	if err := h.app.MarkAsRead(c.Request.Context(), id, req.UserID); err != nil {
+	if err := h.cmd.MarkAsRead(c.Request.Context(), id, req.UserID); err != nil {
 		h.logger.Error("Failed to mark notification as read", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to mark notification as read", err.Error())
 		return
@@ -183,7 +185,7 @@ func (h *Handler) GetUnreadCount(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取未读通知数量.
-	count, err := h.app.GetUnreadCount(c.Request.Context(), userID)
+	count, err := h.query.GetUnreadCount(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.Error("Failed to get unread count", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get unread count", err.Error())
@@ -207,7 +209,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	}
 
 	// 调用应用服务层创建通知模板.
-	if err := h.app.CreateTemplate(c.Request.Context(), &req); err != nil {
+	if err := h.cmd.CreateTemplate(c.Request.Context(), &req); err != nil {
 		h.logger.Error("Failed to create template", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create template", err.Error())
 		return
@@ -225,7 +227,7 @@ func (h *Handler) GetNotification(c *gin.Context) {
 		return
 	}
 
-	notification, err := h.app.GetNotification(c.Request.Context(), id)
+	notification, err := h.query.GetNotification(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get notification", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get notification", err.Error())
@@ -247,7 +249,7 @@ func (h *Handler) DeleteNotification(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.DeleteNotification(c.Request.Context(), id); err != nil {
+	if err := h.cmd.DeleteNotification(c.Request.Context(), id); err != nil {
 		h.logger.Error("Failed to delete notification", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete notification", err.Error())
 		return
@@ -267,7 +269,7 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListTemplates(c.Request.Context(), page, pageSize)
+	list, total, err := h.query.ListTemplates(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list templates", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list templates", err.Error())

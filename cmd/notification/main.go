@@ -1,31 +1,37 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/wyfcoding/pkg/database"
-	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/notification/v1"
 	"github.com/wyfcoding/ecommerce/internal/notification/application"
-	"github.com/wyfcoding/ecommerce/internal/notification/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/notification/domain"
+	notificationsearch "github.com/wyfcoding/ecommerce/internal/notification/infrastructure/persistence/elasticsearch"
+	notificationmysql "github.com/wyfcoding/ecommerce/internal/notification/infrastructure/persistence/mysql"
+	notificationredis "github.com/wyfcoding/ecommerce/internal/notification/infrastructure/persistence/redis"
+	notificationconsumer "github.com/wyfcoding/ecommerce/internal/notification/interfaces/consumer"
 	notificationgrpc "github.com/wyfcoding/ecommerce/internal/notification/interfaces/grpc"
 	notificationhttp "github.com/wyfcoding/ecommerce/internal/notification/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/response"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -37,17 +43,22 @@ const IdempotencyPrefix = "notification:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		NotificationIndex string `mapstructure:"notification_index" toml:"notification_index"`
+		TemplateIndex     string `mapstructure:"template_index" toml:"template_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
-	Config       *Config
-	Notification *application.Notification
-	Clients      *ServiceClients
-	Handler      *notificationhttp.Handler
-	Metrics      *metrics.Metrics
-	Limiter      limiter.Limiter
-	Idempotency  idempotency.Manager
+	Config      *Config
+	Cmd         *application.NotificationCommandService
+	Query       *application.NotificationQueryService
+	Clients     *ServiceClients
+	Handler     *notificationhttp.Handler
+	Metrics     *metrics.Metrics
+	Limiter     limiter.Limiter
+	Idempotency idempotency.Manager
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -63,8 +74,8 @@ func main() {
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
 		WithGinMiddleware(
-			middleware.CORS(), // 跨域处理
-			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
+			middleware.CORS(),
+			middleware.TimeoutMiddleware(30*time.Second),
 		).
 		Build().
 		Run(); err != nil {
@@ -74,17 +85,15 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterNotificationServiceServer(s, notificationgrpc.NewServer(ctx.Notification))
+	pb.RegisterNotificationServiceServer(s, notificationgrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
 func registerGin(e *gin.Engine, ctx *AppContext) {
-	// 根据环境设置 Gin 模式
 	if ctx.Config.Server.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 系统检查接口
 	sys := e.Group("/sys")
 	{
 		sys.GET("/health", func(c *gin.Context) {
@@ -99,15 +108,12 @@ func registerGin(e *gin.Engine, ctx *AppContext) {
 		})
 	}
 
-	// 指标暴露
 	if ctx.Config.Metrics.Enabled {
 		e.GET(ctx.Config.Metrics.Path, gin.WrapH(ctx.Metrics.Handler()))
 	}
 
-	// 全局限流中间件
 	e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
 
-	// 业务 API 路由 v1
 	api := e.Group("/api/v1")
 	{
 		ctx.Handler.RegisterRoutes(api)
@@ -118,9 +124,8 @@ func registerGin(e *gin.Engine, ctx *AppContext) {
 func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	c := cfg
 	bootLog := slog.With("module", "bootstrap")
-	logger := logging.Default() // 获取全局 Logger
+	logger := logging.Default()
 
-	// 打印脱敏配置
 	configpkg.PrintWithMask(c)
 
 	// 1. 初始化数据库 (MySQL)
@@ -138,14 +143,49 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+
+	// 3.1 初始化消息队列与 Outbox
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	if err := db.RawDB().AutoMigrate(&outbox.Message{}); err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
 
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
+		producer.Close()
 		redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
@@ -157,24 +197,53 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence & Senders)
-	notificationRepo := persistence.NewNotificationRepository(db.RawDB())
+	notificationRepo := notificationmysql.NewNotificationRepository(db.RawDB())
+	notificationReadRepo := notificationredis.NewNotificationReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	templateReadRepo := notificationredis.NewNotificationTemplateReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	notificationSearchRepo := notificationsearch.NewNotificationSearchRepository(esClient, c.Search.NotificationIndex)
+	templateSearchRepo := notificationsearch.NewNotificationTemplateSearchRepository(esClient, c.Search.TemplateIndex)
 
 	// 初始化真实 Kafka 发送器
-	kafkaProducer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
-	emailSender := kafka.NewNotificationSender(kafkaProducer, "notification.email")
-	smsSender := kafka.NewNotificationSender(kafkaProducer, "notification.sms")
+	emailSender := kafka.NewNotificationSender(producer, "notification.email")
+	smsSender := kafka.NewNotificationSender(producer, "notification.sms")
+	webhookSender := application.NewWebhookSender()
 
 	// 5.2 Application (Service)
-	notificationService := application.NewNotification(notificationRepo, emailSender, smsSender, logger.Logger)
+	commandSvc := application.NewNotificationCommandService(notificationRepo, templateReadRepo, outbox.NewPublisher(outboxMgr), emailSender, smsSender, webhookSender, logger.Logger)
+	querySvc := application.NewNotificationQueryService(notificationRepo, notificationReadRepo, templateReadRepo, notificationSearchRepo, templateSearchRepo, logger.Logger)
 
-	// 5.3 Interface (HTTP Handlers)
-	handler := notificationhttp.NewHandler(notificationService, logger.Logger)
+	// 5.3 Projection Consumers (Notification Events -> Read Model)
+	projectionService := application.NewNotificationProjectionService(notificationRepo, notificationReadRepo, templateReadRepo, notificationSearchRepo, templateSearchRepo, logger.Logger)
+	projectionHandler := notificationconsumer.NewNotificationProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.NotificationCreatedEventType,
+		domain.NotificationReadEventType,
+		domain.NotificationDeletedEventType,
+		domain.NotificationTemplateCreatedEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
 
-	// 定义资源清理函数
+	// 5.4 Interface (HTTP Handlers)
+	handler := notificationhttp.NewHandler(commandSvc, querySvc, logger.Logger)
+
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
-		if kafkaProducer != nil {
-			kafkaProducer.Close()
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
+		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
 		}
 		clientCleanup()
 		if redisCache != nil {
@@ -189,14 +258,14 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		}
 	}
 
-	// 返回应用上下文与清理函数
 	return &AppContext{
-		Config:       c,
-		Notification: notificationService,
-		Clients:      clients,
-		Handler:      handler,
-		Metrics:      m,
-		Limiter:      rateLimiter,
-		Idempotency:  idemManager,
+		Config:      c,
+		Cmd:         commandSvc,
+		Query:       querySvc,
+		Clients:     clients,
+		Handler:     handler,
+		Metrics:     m,
+		Limiter:     rateLimiter,
+		Idempotency: idemManager,
 	}, cleanup, nil
 }

@@ -1,34 +1,29 @@
 package domain
 
-import (
-	"context"
-)
+import "context"
 
 // NotificationRepository 是通知模块的仓储接口。
 // 它定义了对通知和通知模板实体进行数据持久化操作的契约。
 // 仓储接口属于领域层，旨在将领域逻辑与数据存储的实现细节解耦。
 type NotificationRepository interface {
-	// --- 通知 (Notification methods) ---
+	// 事务管理
+	BeginTx(ctx context.Context) any
+	CommitTx(tx any) error
+	RollbackTx(tx any) error
+	WithTx(ctx context.Context, fn func(tx any) error) error
 
-	// SaveNotification 将通知实体保存到数据存储中。
-	// ctx: 上下文。
-	// notification: 待保存的通知实体。
+	// --- 通知 (Notification methods) ---
 	SaveNotification(ctx context.Context, notification *Notification) error
-	// GetNotification 根据ID获取通知实体。
+	SaveNotificationInTx(ctx context.Context, tx any, notification *Notification) error
 	GetNotification(ctx context.Context, id uint64) (*Notification, error)
-	// ListNotifications 列出指定用户ID的所有通知实体，支持通过状态过滤和分页。
 	ListNotifications(ctx context.Context, userID uint64, status *NotificationStatus, offset, limit int) ([]*Notification, int64, error)
-	// CountUnreadNotifications 统计指定用户ID的未读通知数量。
 	CountUnreadNotifications(ctx context.Context, userID uint64) (int64, error)
-	// DeleteNotification 删除指定ID的通知。
 	DeleteNotification(ctx context.Context, id uint64) error
+	DeleteNotificationInTx(ctx context.Context, tx any, id uint64) error
 
 	// --- 模板 (NotificationTemplate methods) ---
-
-	// SaveTemplate 将通知模板实体保存到数据存储中。
 	SaveTemplate(ctx context.Context, template *NotificationTemplate) error
-	// GetTemplateByCode 根据模板代码获取通知模板实体。
+	SaveTemplateInTx(ctx context.Context, tx any, template *NotificationTemplate) error
 	GetTemplateByCode(ctx context.Context, code string) (*NotificationTemplate, error)
-	// ListTemplates 列出所有通知模板实体，支持分页。
 	ListTemplates(ctx context.Context, offset, limit int) ([]*NotificationTemplate, int64, error)
 }

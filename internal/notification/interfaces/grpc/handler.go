@@ -16,13 +16,14 @@ import (
 // Server 结构体实现了 Notification 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedNotificationServiceServer                           // 嵌入生成的UnimplementedNotificationServiceServer，确保前向兼容性。
-	app                                       *application.Notification // 依赖Notification应用服务，处理核心业务逻辑。
+	pb.UnimplementedNotificationServiceServer
+	cmd   *application.NotificationCommandService
+	query *application.NotificationQueryService
 }
 
 // NewServer 创建并返回一个新的 Notification gRPC 服务端实例。
-func NewServer(app *application.Notification) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.NotificationCommandService, query *application.NotificationQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // SendNotification 处理发送通知的gRPC请求。
@@ -35,7 +36,7 @@ func (s *Server) SendNotification(ctx context.Context, req *pb.SendNotificationR
 	// Proto请求中没有明确的通知渠道字段。这里默认使用应用内通知渠道。
 	channel := domain.NotificationChannelApp
 	// Proto请求中没有附加数据（data）字段。这里传递nil.
-	notif, err := s.app.SendNotification(ctx, req.UserId, nType, channel, req.Title, req.Content, nil)
+	notif, err := s.cmd.SendNotification(ctx, req.UserId, nType, channel, req.Title, req.Content, nil)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send notification: %v", err))
 	}
@@ -65,7 +66,7 @@ func (s *Server) ListNotifications(ctx context.Context, req *pb.ListNotification
 	}
 
 	// 调用应用服务层获取通知列表。
-	notifs, total, err := s.app.ListNotifications(ctx, req.UserId, filterStatus, page, pageSize)
+	notifs, total, err := s.query.ListNotifications(ctx, req.UserId, filterStatus, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list notifications: %v", err))
 	}
@@ -86,7 +87,7 @@ func (s *Server) ListNotifications(ctx context.Context, req *pb.ListNotification
 // req: 包含通知ID和用户ID的请求体。
 // 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) MarkNotificationAsRead(ctx context.Context, req *pb.MarkNotificationAsReadRequest) (*pb.MarkNotificationAsReadResponse, error) {
-	if err := s.app.MarkAsRead(ctx, req.NotificationId, req.UserId); err != nil {
+	if err := s.cmd.MarkAsRead(ctx, req.NotificationId, req.UserId); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to mark notification as read: %v", err))
 	}
 	return &pb.MarkNotificationAsReadResponse{}, nil
@@ -106,4 +107,11 @@ func convertNotificationToProto(n *domain.Notification) *pb.Notification {
 		IsRead:         n.Status == domain.NotificationStatusRead, // 是否已读。
 		CreatedAt:      timestamppb.New(n.CreatedAt),              // 创建时间。
 	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
