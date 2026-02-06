@@ -14,14 +14,16 @@ import (
 )
 
 type Handler struct {
-	app    *application.Audit
-	logger *slog.Logger
+	command *application.AuditCommandService
+	query   *application.AuditQueryService
+	logger  *slog.Logger
 }
 
-func NewHandler(app *application.Audit, logger *slog.Logger) *Handler {
+func NewHandler(command *application.AuditCommandService, query *application.AuditQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		command: command,
+		query:   query,
+		logger:  logger,
 	}
 }
 
@@ -77,7 +79,7 @@ func (h *Handler) QueryLogs(c *gin.Context) {
 		PageSize:     pageSize,
 	}
 
-	list, total, err := h.app.QueryLogs(c.Request.Context(), query)
+	list, total, err := h.query.ListLogs(c.Request.Context(), query)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to query audit logs", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -103,7 +105,7 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.app.CreatePolicy(c.Request.Context(), req.Name, req.Description)
+	policy, err := h.command.CreatePolicy(c.Request.Context(), req.Name, req.Description)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create audit policy", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -125,7 +127,7 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 		return
 	}
 
-	list, total, err := h.app.ListPolicies(c.Request.Context(), page, pageSize)
+	list, total, err := h.query.ListPolicies(c.Request.Context(), (page-1)*pageSize, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list audit policies", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -157,7 +159,7 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.UpdatePolicy(c.Request.Context(), id, req.EventTypes, req.Modules, req.Enabled); err != nil {
+	if err := h.command.UpdatePolicy(c.Request.Context(), id, req.EventTypes, req.Modules, req.Enabled); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to update audit policy", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return

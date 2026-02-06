@@ -3,8 +3,6 @@ package domain
 import (
 	"slices"
 	"time"
-
-	"gorm.io/gorm" // 导入GORM库。
 )
 
 // AuditEventType 定义了审计事件的类型。
@@ -36,50 +34,56 @@ const (
 // AuditLog 实体是审计模块的聚合根。
 // 它代表一个完整的审计日志记录，包含了操作用户、事件类型、模块、操作详情、状态、时间戳等信息。
 type AuditLog struct {
-	gorm.Model                  // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	AuditNo      string         `gorm:"type:varchar(64);uniqueIndex;not null;comment:审计编号" json:"audit_no"`   // 审计事件的唯一编号，唯一索引，不允许为空。
-	UserID       uint64         `gorm:"not null;index;comment:用户ID" json:"user_id"`                           // 执行操作的用户ID，索引字段。
-	Username     string         `gorm:"type:varchar(64);not null;comment:用户名" json:"username"`                // 执行操作的用户名。
-	EventType    AuditEventType `gorm:"type:varchar(32);not null;index;comment:事件类型" json:"event_type"`       // 审计事件类型，索引字段。
-	Level        AuditLevel     `gorm:"type:varchar(32);not null;default:'info';comment:级别" json:"level"`     // 审计事件的级别，默认为信息级别。
-	Module       string         `gorm:"type:varchar(64);not null;index;comment:模块" json:"module"`             // 事件所属的模块，索引字段。
-	Action       string         `gorm:"type:varchar(64);not null;comment:操作" json:"action"`                   // 执行的具体操作。
-	ResourceType string         `gorm:"type:varchar(64);comment:资源类型" json:"resource_type"`                   // 操作影响的资源类型。
-	ResourceID   string         `gorm:"type:varchar(64);comment:资源ID" json:"resource_id"`                     // 操作影响的资源ID。
-	OldValue     string         `gorm:"type:text;comment:旧值" json:"old_value"`                                // 资源变更前的旧值（通常为JSON字符串）。
-	NewValue     string         `gorm:"type:text;comment:新值" json:"new_value"`                                // 资源变更后的新值（通常为JSON字符串）。
-	IP           string         `gorm:"type:varchar(64);comment:IP地址" json:"ip"`                              // 操作发生时的IP地址。
-	UserAgent    string         `gorm:"type:varchar(255);comment:用户代理" json:"user_agent"`                     // 操作发生时的User-Agent字符串。
-	Status       string         `gorm:"type:varchar(32);not null;default:'success';comment:状态" json:"status"` // 操作的状态，例如“success”（成功）或“failure”（失败）。
-	ErrorMsg     string         `gorm:"type:text;comment:错误信息" json:"error_msg"`                              // 错误信息（如果操作失败）。
-	Duration     int64          `gorm:"comment:耗时(ms)" json:"duration"`                                       // 操作的总耗时（毫秒）。
-	Timestamp    time.Time      `gorm:"not null;index;comment:时间戳" json:"timestamp"`                          // 事件发生的时间戳，索引字段。
+	ID           uint           `json:"id"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	AuditNo      string         `json:"audit_no"`      // 审计事件的唯一编号
+	UserID       uint64         `json:"user_id"`       // 执行操作的用户ID
+	Username     string         `json:"username"`      // 执行操作的用户名
+	EventType    AuditEventType `json:"event_type"`    // 审计事件类型
+	Level        AuditLevel     `json:"level"`         // 审计事件的级别
+	Module       string         `json:"module"`        // 事件所属模块
+	Action       string         `json:"action"`        // 执行操作
+	ResourceType string         `json:"resource_type"` // 资源类型
+	ResourceID   string         `json:"resource_id"`   // 资源ID
+	OldValue     string         `json:"old_value"`     // 变更前旧值
+	NewValue     string         `json:"new_value"`     // 变更后新值
+	IP           string         `json:"ip"`            // IP地址
+	UserAgent    string         `json:"user_agent"`    // User-Agent
+	Status       string         `json:"status"`        // 状态 success/failure
+	ErrorMsg     string         `json:"error_msg"`     // 错误信息
+	Duration     int64          `json:"duration"`      // 耗时(ms)
+	Timestamp    time.Time      `json:"timestamp"`     // 事件发生时间
 }
 
 // AuditPolicy 实体是审计模块的聚合根，定义了审计日志的收集和保留策略。
 type AuditPolicy struct {
-	gorm.Model             // 嵌入gorm.Model。
-	Name          string   `gorm:"type:varchar(128);not null;comment:策略名称" json:"name"`         // 策略名称。
-	Description   string   `gorm:"type:text;comment:描述" json:"description"`                     // 策略描述。
-	EventTypes    []string `gorm:"type:json;serializer:json;comment:事件类型列表" json:"event_types"` // 策略关注的事件类型列表（JSON存储）。
-	Modules       []string `gorm:"type:json;serializer:json;comment:模块列表" json:"modules"`       // 策略关注的模块列表（JSON存储）。
-	Enabled       bool     `gorm:"default:true;comment:是否启用" json:"enabled"`                    // 策略是否启用，默认为启用。
-	RetentionDays int32    `gorm:"default:90;comment:保留天数" json:"retention_days"`               // 审计日志的保留天数，过期将被删除，默认为90天。
+	ID            uint      `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	Name          string    `json:"name"`           // 策略名称
+	Description   string    `json:"description"`    // 策略描述
+	EventTypes    []string  `json:"event_types"`    // 事件类型列表
+	Modules       []string  `json:"modules"`        // 模块列表
+	Enabled       bool      `json:"enabled"`        // 是否启用
+	RetentionDays int32     `json:"retention_days"` // 保留天数
 }
 
 // AuditReport 实体是审计模块的聚合根，代表一个生成的审计报告。
 type AuditReport struct {
-	gorm.Model             // 嵌入gorm.Model。
-	ReportNo    string     `gorm:"type:varchar(64);uniqueIndex;not null;comment:报告编号" json:"report_no"` // 报告的唯一编号，唯一索引，不允许为空。
-	Title       string     `gorm:"type:varchar(128);not null;comment:标题" json:"title"`                  // 报告标题。
-	Description string     `gorm:"type:text;comment:描述" json:"description"`                             // 报告描述。
-	StartDate   time.Time  `gorm:"comment:开始日期" json:"start_date"`                                      // 报告涵盖的开始日期。
-	EndDate     time.Time  `gorm:"comment:结束日期" json:"end_date"`                                        // 报告涵盖的结束日期。
-	EventTypes  []string   `gorm:"type:json;serializer:json;comment:事件类型列表" json:"event_types"`         // 报告包含的事件类型列表（JSON存储）。
-	Modules     []string   `gorm:"type:json;serializer:json;comment:模块列表" json:"modules"`               // 报告包含的模块列表（JSON存储）。
-	Status      string     `gorm:"type:varchar(32);not null;default:'draft';comment:状态" json:"status"`  // 报告状态，例如“draft”（草稿）、“generated”（已生成）、“published”（已发布）。
-	Content     string     `gorm:"type:longtext;comment:内容" json:"content"`                             // 报告的详细内容，可以存储为文本或HTML。
-	GeneratedAt *time.Time `gorm:"comment:生成时间" json:"generated_at"`                                    // 报告生成时间。
+	ID          uint       `json:"id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	ReportNo    string     `json:"report_no"`    // 报告编号
+	Title       string     `json:"title"`        // 报告标题
+	Description string     `json:"description"`  // 报告描述
+	StartDate   time.Time  `json:"start_date"`   // 报告开始日期
+	EndDate     time.Time  `json:"end_date"`     // 报告结束日期
+	EventTypes  []string   `json:"event_types"`  // 事件类型列表
+	Modules     []string   `json:"modules"`      // 模块列表
+	Status      string     `json:"status"`       // 状态
+	Content     string     `json:"content"`      // 报告内容
+	GeneratedAt *time.Time `json:"generated_at"` // 生成时间
 }
 
 // NewAuditLog 创建并返回一个新的 AuditLog 实体实例。

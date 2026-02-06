@@ -17,12 +17,13 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedAuditServiceServer
-	app *application.Audit
+	command *application.AuditCommandService
+	query   *application.AuditQueryService
 }
 
 // NewServer 创建并返回一个新的 Audit gRPC 服务端实例。
-func NewServer(app *application.Audit) *Server {
-	return &Server{app: app}
+func NewServer(command *application.AuditCommandService, query *application.AuditQueryService) *Server {
+	return &Server{command: command, query: query}
 }
 
 // LogEvent 处理记录审计事件的gRPC请求。
@@ -44,7 +45,7 @@ func (s *Server) LogEvent(ctx context.Context, req *pb.LogEventRequest) (*emptyp
 		opts = append(opts, application.WithError(req.ErrorMsg))
 	}
 
-	err := s.app.LogEvent(
+	err := s.command.LogEvent(
 		ctx,
 		req.UserId,
 		req.Username,
@@ -78,7 +79,7 @@ func (s *Server) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest) (*pb.Q
 		query.PageSize = 10
 	}
 
-	logs, total, err := s.app.QueryLogs(ctx, query)
+	logs, total, err := s.query.ListLogs(ctx, query)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to query audit logs: %v", err))
 	}
@@ -96,7 +97,7 @@ func (s *Server) QueryLogs(ctx context.Context, req *pb.QueryLogsRequest) (*pb.Q
 
 // CreatePolicy 处理创建审计策略的gRPC请求。
 func (s *Server) CreatePolicy(ctx context.Context, req *pb.CreatePolicyRequest) (*pb.CreatePolicyResponse, error) {
-	policy, err := s.app.CreatePolicy(ctx, req.Name, req.Description)
+	policy, err := s.command.CreatePolicy(ctx, req.Name, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create audit policy: %v", err))
 	}
@@ -107,7 +108,7 @@ func (s *Server) CreatePolicy(ctx context.Context, req *pb.CreatePolicyRequest) 
 
 // UpdatePolicy 处理更新审计策略的gRPC请求。
 func (s *Server) UpdatePolicy(ctx context.Context, req *pb.UpdatePolicyRequest) (*emptypb.Empty, error) {
-	if err := s.app.UpdatePolicy(ctx, req.Id, req.EventTypes, req.Modules, req.Enabled); err != nil {
+	if err := s.command.UpdatePolicy(ctx, req.Id, req.EventTypes, req.Modules, req.Enabled); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update audit policy: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -121,7 +122,7 @@ func (s *Server) ListPolicies(ctx context.Context, req *pb.ListPoliciesRequest) 
 		pageSize = 10
 	}
 
-	policies, total, err := s.app.ListPolicies(ctx, page, pageSize)
+	policies, total, err := s.query.ListPolicies(ctx, (page-1)*pageSize, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list audit policies: %v", err))
 	}
@@ -139,7 +140,7 @@ func (s *Server) ListPolicies(ctx context.Context, req *pb.ListPoliciesRequest) 
 
 // CreateReport 处理创建审计报告的gRPC请求。
 func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) (*pb.CreateReportResponse, error) {
-	report, err := s.app.CreateReport(ctx, req.Title, req.Description)
+	report, err := s.command.CreateReport(ctx, req.Title, req.Description)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create audit report: %v", err))
 	}
@@ -150,7 +151,7 @@ func (s *Server) CreateReport(ctx context.Context, req *pb.CreateReportRequest) 
 
 // GenerateReport 处理生成审计报告内容的gRPC请求。
 func (s *Server) GenerateReport(ctx context.Context, req *pb.GenerateReportRequest) (*emptypb.Empty, error) {
-	if err := s.app.GenerateReport(ctx, req.Id); err != nil {
+	if err := s.command.GenerateReport(ctx, req.Id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to generate audit report: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -164,7 +165,7 @@ func (s *Server) ListReports(ctx context.Context, req *pb.ListReportsRequest) (*
 		pageSize = 10
 	}
 
-	reports, total, err := s.app.ListReports(ctx, page, pageSize)
+	reports, total, err := s.query.ListReports(ctx, (page-1)*pageSize, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list audit reports: %v", err))
 	}
@@ -237,4 +238,11 @@ func convertAuditReportToProto(r *domain.AuditReport) *pb.AuditReport {
 		resp.GeneratedAt = timestamppb.New(*r.GeneratedAt)
 	}
 	return resp
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

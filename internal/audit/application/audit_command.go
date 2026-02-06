@@ -68,11 +68,24 @@ func (m *AuditCommandService) LogEvent(ctx context.Context, userID uint64, usern
 		opt(log)
 	}
 
-	if err := m.repo.CreateLog(ctx, log); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create audit log", "user_id", userID, "event_type", eventType, "error", err)
-		return err
-	}
-	return nil
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveLogInTx(ctx, tx, log); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create audit log", "user_id", userID, "event_type", eventType, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditLogCreatedEvent{
+			AuditID:   uint64(log.ID),
+			AuditNo:   log.AuditNo,
+			EventType: string(log.EventType),
+			Module:    log.Module,
+			Action:    log.Action,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditLogCreatedEventType, fmt.Sprintf("%d", log.ID), event)
+	})
 }
 
 // LogOption 定义了用于配置审计日志的函数式选项类型。
@@ -116,8 +129,21 @@ func WithDuration(duration int64) LogOption {
 // CreatePolicy 创建一个新的审计策略。
 func (m *AuditCommandService) CreatePolicy(ctx context.Context, name, description string) (*domain.AuditPolicy, error) {
 	policy := domain.NewAuditPolicy(name, description)
-	if err := m.repo.CreatePolicy(ctx, policy); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create audit policy", "name", name, "error", err)
+	err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SavePolicyInTx(ctx, tx, policy); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create audit policy", "name", name, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditPolicyCreatedEvent{
+			PolicyID:  uint64(policy.ID),
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditPolicyCreatedEventType, fmt.Sprintf("%d", policy.ID), event)
+	})
+	if err != nil {
 		return nil, err
 	}
 	return policy, nil
@@ -135,12 +161,36 @@ func (m *AuditCommandService) UpdatePolicy(ctx context.Context, id uint64, event
 	policy.Enabled = enabled
 	policy.UpdatedAt = time.Now()
 
-	return m.repo.UpdatePolicy(ctx, policy)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SavePolicyInTx(ctx, tx, policy); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditPolicyUpdatedEvent{
+			PolicyID:  uint64(policy.ID),
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditPolicyUpdatedEventType, fmt.Sprintf("%d", policy.ID), event)
+	})
 }
 
 // DeletePolicy 删除审计策略。
 func (m *AuditCommandService) DeletePolicy(ctx context.Context, id uint64) error {
-	return m.repo.DeletePolicy(ctx, id)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.DeletePolicyInTx(ctx, tx, id); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditPolicyDeletedEvent{
+			PolicyID:  id,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditPolicyDeletedEventType, fmt.Sprintf("%d", id), event)
+	})
 }
 
 // CreateReport 创建一个新的审计报告。
@@ -148,8 +198,21 @@ func (m *AuditCommandService) CreateReport(ctx context.Context, title, descripti
 	reportNo := fmt.Sprintf("AUDRPT%d", m.idGenerator.Generate())
 	report := domain.NewAuditReport(reportNo, title, description)
 
-	if err := m.repo.CreateReport(ctx, report); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create audit report", "title", title, "error", err)
+	err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveReportInTx(ctx, tx, report); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create audit report", "title", title, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditReportCreatedEvent{
+			ReportID:  uint64(report.ID),
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditReportCreatedEventType, fmt.Sprintf("%d", report.ID), event)
+	})
+	if err != nil {
 		return nil, err
 	}
 	return report, nil
@@ -165,12 +228,36 @@ func (m *AuditCommandService) GenerateReport(ctx context.Context, id uint64) err
 	content := fmt.Sprintf("Audit Report for %s generated at %s", report.Title, time.Now().Format(time.RFC3339))
 	report.Generate(content)
 
-	return m.repo.UpdateReport(ctx, report)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveReportInTx(ctx, tx, report); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditReportGeneratedEvent{
+			ReportID:  uint64(report.ID),
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditReportGeneratedEventType, fmt.Sprintf("%d", report.ID), event)
+	})
 }
 
 // DeleteReport 删除审计报告。
 func (m *AuditCommandService) DeleteReport(ctx context.Context, id uint64) error {
-	return m.repo.DeleteReport(ctx, id)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.DeleteReportInTx(ctx, tx, id); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.AuditReportDeletedEvent{
+			ReportID:  id,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AuditReportDeletedEventType, fmt.Sprintf("%d", id), event)
+	})
 }
 
 // DeleteLogsBefore 清理历史日志。
