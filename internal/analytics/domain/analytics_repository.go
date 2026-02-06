@@ -21,6 +21,7 @@ type AnalyticsRepository interface {
 	GetMetric(ctx context.Context, id uint64) (*Metric, error)
 	ListMetrics(ctx context.Context, query *MetricQuery) ([]*Metric, int64, error)
 	DeleteMetric(ctx context.Context, id uint64) error
+	DeleteMetricInTx(ctx context.Context, tx any, id uint64) error
 
 	// --- Dashboard methods ---
 	SaveDashboard(ctx context.Context, dashboard *Dashboard) error
@@ -28,6 +29,7 @@ type AnalyticsRepository interface {
 	GetDashboard(ctx context.Context, id uint64) (*Dashboard, error)
 	ListDashboards(ctx context.Context, userID uint64, offset, limit int) ([]*Dashboard, int64, error)
 	DeleteDashboard(ctx context.Context, id uint64) error
+	DeleteDashboardInTx(ctx context.Context, tx any, id uint64) error
 
 	// --- Report methods ---
 	SaveReport(ctx context.Context, report *Report) error
@@ -35,6 +37,7 @@ type AnalyticsRepository interface {
 	GetReport(ctx context.Context, id uint64) (*Report, error)
 	ListReports(ctx context.Context, userID uint64, offset, limit int) ([]*Report, int64, error)
 	DeleteReport(ctx context.Context, id uint64) error
+	DeleteReportInTx(ctx context.Context, tx any, id uint64) error
 
 	// GetActivePages 获取最近活跃页面。
 	GetActivePages(ctx context.Context, limit int) ([]string, error)

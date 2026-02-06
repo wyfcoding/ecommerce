@@ -126,7 +126,7 @@ func (m *AnalyticsCommandService) RecordMetric(ctx context.Context, metricType d
 // DeleteMetric 删除指标。
 func (m *AnalyticsCommandService) DeleteMetric(ctx context.Context, id uint64) error {
 	return m.repo.WithTx(ctx, func(tx any) error {
-		if err := m.repo.DeleteMetric(ctx, id); err != nil {
+		if err := m.repo.DeleteMetricInTx(ctx, tx, id); err != nil {
 			return err
 		}
 		if m.publisher == nil {
@@ -225,7 +225,7 @@ func (m *AnalyticsCommandService) PublishDashboard(ctx context.Context, id uint6
 // DeleteDashboard 删除仪表板。
 func (m *AnalyticsCommandService) DeleteDashboard(ctx context.Context, id uint64) error {
 	return m.repo.WithTx(ctx, func(tx any) error {
-		if err := m.repo.DeleteDashboard(ctx, id); err != nil {
+		if err := m.repo.DeleteDashboardInTx(ctx, tx, id); err != nil {
 			m.logger.ErrorContext(ctx, "failed to delete dashboard", "error", err, "id", id)
 			return err
 		}
@@ -304,7 +304,7 @@ func (m *AnalyticsCommandService) PublishReport(ctx context.Context, id uint64) 
 // DeleteReport 删除报告。
 func (m *AnalyticsCommandService) DeleteReport(ctx context.Context, id uint64) error {
 	return m.repo.WithTx(ctx, func(tx any) error {
-		if err := m.repo.DeleteReport(ctx, id); err != nil {
+		if err := m.repo.DeleteReportInTx(ctx, tx, id); err != nil {
 			m.logger.ErrorContext(ctx, "failed to delete report", "error", err, "id", id)
 			return err
 		}

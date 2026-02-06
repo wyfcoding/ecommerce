@@ -123,7 +123,15 @@ func (r *analyticsRepository) ListMetrics(ctx context.Context, query *domain.Met
 }
 
 func (r *analyticsRepository) DeleteMetric(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&MetricModel{}, id).Error
+	return r.deleteMetricWithTx(ctx, r.db, id)
+}
+
+func (r *analyticsRepository) DeleteMetricInTx(ctx context.Context, tx any, id uint64) error {
+	gormTx, ok := tx.(*gorm.DB)
+	if !ok || gormTx == nil {
+		return errors.New("invalid transaction")
+	}
+	return r.deleteMetricWithTx(ctx, gormTx, id)
 }
 
 // --- Dashboard methods ---
@@ -173,7 +181,15 @@ func (r *analyticsRepository) ListDashboards(ctx context.Context, userID uint64,
 }
 
 func (r *analyticsRepository) DeleteDashboard(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Select("Metrics", "Filters").Delete(&DashboardModel{}, id).Error
+	return r.deleteDashboardWithTx(ctx, r.db, id)
+}
+
+func (r *analyticsRepository) DeleteDashboardInTx(ctx context.Context, tx any, id uint64) error {
+	gormTx, ok := tx.(*gorm.DB)
+	if !ok || gormTx == nil {
+		return errors.New("invalid transaction")
+	}
+	return r.deleteDashboardWithTx(ctx, gormTx, id)
 }
 
 // --- Report methods ---
@@ -223,7 +239,15 @@ func (r *analyticsRepository) ListReports(ctx context.Context, userID uint64, of
 }
 
 func (r *analyticsRepository) DeleteReport(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Select("Metrics").Delete(&ReportModel{}, id).Error
+	return r.deleteReportWithTx(ctx, r.db, id)
+}
+
+func (r *analyticsRepository) DeleteReportInTx(ctx context.Context, tx any, id uint64) error {
+	gormTx, ok := tx.(*gorm.DB)
+	if !ok || gormTx == nil {
+		return errors.New("invalid transaction")
+	}
+	return r.deleteReportWithTx(ctx, gormTx, id)
 }
 
 // GetActivePages 从指标数据中聚合最近活跃的页面名称。
@@ -285,4 +309,16 @@ func (r *analyticsRepository) saveReportWithTx(ctx context.Context, tx *gorm.DB,
 		*report = *synced
 	}
 	return nil
+}
+
+func (r *analyticsRepository) deleteMetricWithTx(ctx context.Context, tx *gorm.DB, id uint64) error {
+	return tx.WithContext(ctx).Delete(&MetricModel{}, id).Error
+}
+
+func (r *analyticsRepository) deleteDashboardWithTx(ctx context.Context, tx *gorm.DB, id uint64) error {
+	return tx.WithContext(ctx).Select("Metrics", "Filters").Delete(&DashboardModel{}, id).Error
+}
+
+func (r *analyticsRepository) deleteReportWithTx(ctx context.Context, tx *gorm.DB, id uint64) error {
+	return tx.WithContext(ctx).Select("Metrics").Delete(&ReportModel{}, id).Error
 }
