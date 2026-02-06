@@ -34,7 +34,7 @@ type DashboardModel struct {
 // DashboardMetricModel 仪表板指标写模型。
 type DashboardMetricModel struct {
 	gorm.Model
-	DashboardID uint64           `gorm:"column:dashboard_id;not null;index;comment:仪表板ID"`
+	DashboardID uint64            `gorm:"column:dashboard_id;not null;index;comment:仪表板ID"`
 	MetricType  domain.MetricType `gorm:"column:metric_type;type:varchar(32);not null;comment:指标类型"`
 	Title       string            `gorm:"column:title;type:varchar(128);not null;comment:标题"`
 	ChartType   string            `gorm:"column:chart_type;type:varchar(32);not null;comment:图表类型"`
@@ -77,8 +77,8 @@ type ReportMetricModel struct {
 	Trend    string  `gorm:"column:trend;type:varchar(32);comment:趋势"`
 }
 
-func (MetricModel) TableName() string         { return "metrics" }
-func (DashboardModel) TableName() string      { return "dashboards" }
+func (MetricModel) TableName() string          { return "metrics" }
+func (DashboardModel) TableName() string       { return "dashboards" }
 func (DashboardMetricModel) TableName() string { return "dashboard_metrics" }
 func (DashboardFilterModel) TableName() string { return "dashboard_filters" }
 func (ReportModel) TableName() string          { return "reports" }

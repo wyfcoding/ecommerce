@@ -56,7 +56,7 @@ func (s *Server) TrackEvent(ctx context.Context, req *pb.TrackEventRequest) (*em
 // BatchTrackEvents 处理批量跟踪事件的gRPC请求。
 func (s *Server) BatchTrackEvents(ctx context.Context, req *pb.BatchTrackEventsRequest) (*emptypb.Empty, error) {
 	for _, event := range req.Events {
-			err := s.command.RecordMetric(
+		err := s.command.RecordMetric(
 			ctx,
 			domain.MetricType("event"),
 			event.EventName,

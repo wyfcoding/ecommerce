@@ -31,16 +31,16 @@ const (
 // Metric 实体代表一个聚合根，用于存储具体的业务指标数据。
 // 这些指标可以是销售额、订单数等，支持按时间粒度和维度进行记录。
 type Metric struct {
-	ID           uint            `json:"id"`           // 主键ID
-	CreatedAt    time.Time       `json:"created_at"`   // 创建时间
-	UpdatedAt    time.Time       `json:"updated_at"`   // 更新时间
-	MetricType   MetricType      `json:"metric_type"`  // 指标类型
-	MetricName   string          `json:"metric_name"`  // 指标名称
-	Value        float64         `json:"value"`        // 指标的具体数值
-	Timestamp    time.Time       `json:"timestamp"`    // 指标记录的时间戳
-	Granularity  TimeGranularity `json:"granularity"`  // 时间粒度
-	Dimension    string          `json:"dimension"`    // 维度名称
-	DimensionVal string          `json:"dimension_val"`// 维度值
+	ID           uint            `json:"id"`            // 主键ID
+	CreatedAt    time.Time       `json:"created_at"`    // 创建时间
+	UpdatedAt    time.Time       `json:"updated_at"`    // 更新时间
+	MetricType   MetricType      `json:"metric_type"`   // 指标类型
+	MetricName   string          `json:"metric_name"`   // 指标名称
+	Value        float64         `json:"value"`         // 指标的具体数值
+	Timestamp    time.Time       `json:"timestamp"`     // 指标记录的时间戳
+	Granularity  TimeGranularity `json:"granularity"`   // 时间粒度
+	Dimension    string          `json:"dimension"`     // 维度名称
+	DimensionVal string          `json:"dimension_val"` // 维度值
 }
 
 // Dashboard 实体代表一个聚合根，用于组织和展示多个指标的图表。
@@ -59,14 +59,14 @@ type Dashboard struct {
 
 // DashboardMetric 实体代表仪表板上显示的一个指标图表。
 type DashboardMetric struct {
-	ID          uint      `json:"id"`           // 主键ID
-	CreatedAt   time.Time `json:"created_at"`   // 创建时间
-	UpdatedAt   time.Time `json:"updated_at"`   // 更新时间
-	DashboardID uint64    `json:"dashboard_id"` // 关联的仪表板ID
-	MetricType  MetricType `json:"metric_type"` // 指标类型
-	Title       string     `json:"title"`       // 图表标题
-	ChartType   string     `json:"chart_type"`  // 图表类型
-	Position    int32      `json:"position"`    // 显示位置或顺序
+	ID          uint       `json:"id"`           // 主键ID
+	CreatedAt   time.Time  `json:"created_at"`   // 创建时间
+	UpdatedAt   time.Time  `json:"updated_at"`   // 更新时间
+	DashboardID uint64     `json:"dashboard_id"` // 关联的仪表板ID
+	MetricType  MetricType `json:"metric_type"`  // 指标类型
+	Title       string     `json:"title"`        // 图表标题
+	ChartType   string     `json:"chart_type"`   // 图表类型
+	Position    int32      `json:"position"`     // 显示位置或顺序
 }
 
 // DashboardFilter 实体代表仪表板上的一个过滤器。
@@ -83,20 +83,20 @@ type DashboardFilter struct {
 // Report 实体代表一个聚合根，用于存储生成的数据分析报告。
 // 报告可以是定期生成的，也可以是按需生成的，通常包含对业务数据的深入分析。
 type Report struct {
-	ID          uint           `json:"id"`           // 主键ID
-	CreatedAt   time.Time      `json:"created_at"`   // 创建时间
-	UpdatedAt   time.Time      `json:"updated_at"`   // 更新时间
-	ReportNo    string         `json:"report_no"`    // 报告编号
-	Title       string         `json:"title"`        // 报告标题
-	Description string         `json:"description"`  // 报告描述
-	UserID      uint64         `json:"user_id"`      // 创建报告的用户ID
-	ReportType  string         `json:"report_type"`  // 报告类型
-	StartDate   time.Time      `json:"start_date"`   // 报告开始日期
-	EndDate     time.Time      `json:"end_date"`     // 报告结束日期
-	Status      string         `json:"status"`       // 报告状态
-	Content     string         `json:"content"`      // 报告内容
-	PublishedAt *time.Time     `json:"published_at"` // 发布时间
-	Metrics     []*ReportMetric `json:"metrics"`     // 报告指标列表
+	ID          uint            `json:"id"`           // 主键ID
+	CreatedAt   time.Time       `json:"created_at"`   // 创建时间
+	UpdatedAt   time.Time       `json:"updated_at"`   // 更新时间
+	ReportNo    string          `json:"report_no"`    // 报告编号
+	Title       string          `json:"title"`        // 报告标题
+	Description string          `json:"description"`  // 报告描述
+	UserID      uint64          `json:"user_id"`      // 创建报告的用户ID
+	ReportType  string          `json:"report_type"`  // 报告类型
+	StartDate   time.Time       `json:"start_date"`   // 报告开始日期
+	EndDate     time.Time       `json:"end_date"`     // 报告结束日期
+	Status      string          `json:"status"`       // 报告状态
+	Content     string          `json:"content"`      // 报告内容
+	PublishedAt *time.Time      `json:"published_at"` // 发布时间
+	Metrics     []*ReportMetric `json:"metrics"`      // 报告指标列表
 }
 
 // ReportMetric 实体代表报告中的一个指标数据。

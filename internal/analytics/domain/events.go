@@ -3,15 +3,15 @@ package domain
 import "time"
 
 const (
-	MetricRecordedEventType     = "analytics.metric.recorded"
-	MetricDeletedEventType      = "analytics.metric.deleted"
-	DashboardCreatedEventType   = "analytics.dashboard.created"
-	DashboardUpdatedEventType   = "analytics.dashboard.updated"
-	DashboardDeletedEventType   = "analytics.dashboard.deleted"
-	ReportCreatedEventType      = "analytics.report.created"
-	ReportUpdatedEventType      = "analytics.report.updated"
-	ReportPublishedEventType    = "analytics.report.published"
-	ReportDeletedEventType      = "analytics.report.deleted"
+	MetricRecordedEventType   = "analytics.metric.recorded"
+	MetricDeletedEventType    = "analytics.metric.deleted"
+	DashboardCreatedEventType = "analytics.dashboard.created"
+	DashboardUpdatedEventType = "analytics.dashboard.updated"
+	DashboardDeletedEventType = "analytics.dashboard.deleted"
+	ReportCreatedEventType    = "analytics.report.created"
+	ReportUpdatedEventType    = "analytics.report.updated"
+	ReportPublishedEventType  = "analytics.report.published"
+	ReportDeletedEventType    = "analytics.report.deleted"
 )
 
 // MetricRecordedEvent 指标记录事件。
