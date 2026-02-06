@@ -18,13 +18,14 @@ import (
 // Server 结构体实现了 Logistics 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedLogisticsServiceServer                        // 嵌入生成的UnimplementedLogisticsServiceServer，确保前向兼容性。
-	app                                    *application.Logistics // 依赖Logistics应用服务，处理核心业务逻辑。
+	pb.UnimplementedLogisticsServiceServer
+	cmdService   *application.LogisticsCommandService
+	queryService *application.LogisticsQueryService
 }
 
 // NewServer 创建并返回一个新的 Logistics gRPC 服务端实例。
-func NewServer(app *application.Logistics) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.LogisticsCommandService, query *application.LogisticsQueryService) *Server {
+	return &Server{cmdService: cmd, queryService: query}
 }
 
 // CreateLogistics 处理创建物流单的gRPC请求。
@@ -32,7 +33,7 @@ func NewServer(app *application.Logistics) *Server {
 // 返回created successfully的物流单响应和可能发生的gRPC错误。
 func (s *Server) CreateLogistics(ctx context.Context, req *pb.CreateLogisticsRequest) (*pb.CreateLogisticsResponse, error) {
 	// 调用应用服务层创建物流单.
-	logistics, err := s.app.CreateLogistics(
+	logistics, err := s.cmdService.CreateLogistics(
 		ctx,
 		req.OrderId,
 		req.OrderNo,
@@ -64,10 +65,13 @@ func (s *Server) CreateLogistics(ctx context.Context, req *pb.CreateLogisticsReq
 // req: 包含物流单ID的请求体。
 // 返回物流单响应和可能发生的gRPC错误。
 func (s *Server) GetLogistics(ctx context.Context, req *pb.GetLogisticsRequest) (*pb.GetLogisticsResponse, error) {
-	logistics, err := s.app.GetLogistics(ctx, req.Id)
+	logistics, err := s.queryService.GetLogistics(ctx, req.Id)
 	if err != nil {
 		// 如果物流单未找到,返回NotFound状态码。
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("logistics not found: %v", err))
+	}
+	if logistics == nil {
+		return nil, status.Error(codes.NotFound, "logistics not found")
 	}
 	return &pb.GetLogisticsResponse{
 		Logistics: convertLogisticsToProto(logistics),
@@ -78,10 +82,13 @@ func (s *Server) GetLogistics(ctx context.Context, req *pb.GetLogisticsRequest) 
 // req: 包含运单号的请求体。
 // 返回物流单响应和可能发生的gRPC错误。
 func (s *Server) GetLogisticsByTrackingNo(ctx context.Context, req *pb.GetLogisticsByTrackingNoRequest) (*pb.GetLogisticsResponse, error) {
-	logistics, err := s.app.GetLogisticsByTrackingNo(ctx, req.TrackingNo)
+	logistics, err := s.queryService.GetLogisticsByTrackingNo(ctx, req.TrackingNo)
 	if err != nil {
 		// 如果物流单未找到,返回NotFound状态码。
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("logistics not found by tracking no: %v", err))
+	}
+	if logistics == nil {
+		return nil, status.Error(codes.NotFound, "logistics not found by tracking no")
 	}
 	return &pb.GetLogisticsResponse{
 		Logistics: convertLogisticsToProto(logistics),
@@ -93,7 +100,7 @@ func (s *Server) GetLogisticsByTrackingNo(ctx context.Context, req *pb.GetLogist
 // 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) UpdateStatus(ctx context.Context, req *pb.UpdateStatusRequest) (*emptypb.Empty, error) {
 	// 将Proto的Status（int32）转换为实体LogisticsStatus。
-	if err := s.app.UpdateStatus(ctx, req.Id, domain.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
+	if err := s.cmdService.UpdateStatus(ctx, req.Id, domain.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update logistics status: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -103,7 +110,7 @@ func (s *Server) UpdateStatus(ctx context.Context, req *pb.UpdateStatusRequest) 
 // req: 包含物流单ID、位置、描述和状态的请求体。
 // 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) AddTrace(ctx context.Context, req *pb.AddTraceRequest) (*emptypb.Empty, error) {
-	if err := s.app.AddTrace(ctx, req.Id, req.Location, req.Description, req.Status); err != nil {
+	if err := s.cmdService.AddTrace(ctx, req.Id, req.Location, req.Description, req.Status); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add trace: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -113,7 +120,7 @@ func (s *Server) AddTrace(ctx context.Context, req *pb.AddTraceRequest) (*emptyp
 // req: 包含物流单ID和预计时间的请求体。
 // 返回一个空响应和可能发生的gRPC错误。
 func (s *Server) SetEstimatedTime(ctx context.Context, req *pb.SetEstimatedTimeRequest) (*emptypb.Empty, error) {
-	if err := s.app.SetEstimatedTime(ctx, req.Id, req.EstimatedTime.AsTime()); err != nil {
+	if err := s.cmdService.SetEstimatedTime(ctx, req.Id, req.EstimatedTime.AsTime()); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to set estimated time: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -131,7 +138,7 @@ func (s *Server) ListLogistics(ctx context.Context, req *pb.ListLogisticsRequest
 	}
 
 	// 调用应用服务层获取物流单列表。
-	logisticsList, total, err := s.app.ListLogistics(ctx, page, pageSize)
+	logisticsList, total, err := s.queryService.ListLogistics(ctx, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list logistics: %v", err))
 	}
@@ -162,7 +169,7 @@ func (s *Server) OptimizeDeliveryRoute(ctx context.Context, req *pb.OptimizeDeli
 		}
 	}
 
-	route, err := s.app.OptimizeDeliveryRoute(ctx, req.LogisticsId, destinations)
+	route, err := s.cmdService.OptimizeDeliveryRoute(ctx, req.LogisticsId, destinations)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to optimize delivery route: %v", err))
 	}

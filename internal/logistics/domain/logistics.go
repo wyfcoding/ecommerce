@@ -3,8 +3,6 @@ package domain
 import (
 	"errors" // 导入标准错误处理库。
 	"time"   // 导入时间库。
-
-	"gorm.io/gorm" // 导入GORM库。
 )
 
 // 定义Logistics模块的业务错误。
@@ -30,47 +28,53 @@ const (
 // Logistics 实体是物流模块的聚合根。
 // 它代表一个物流单的完整信息，包含了订单、商品发收件人信息、物流状态、轨迹和预计时间。
 type Logistics struct {
-	gorm.Model                        // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	OrderID         uint64            `gorm:"not null;index;comment:订单ID" json:"order_id"`                  // 关联的订单ID，索引字段。
-	OrderNo         string            `gorm:"type:varchar(64);not null;comment:订单号" json:"order_no"`        // 关联的订单号。
-	TrackingNo      string            `gorm:"type:varchar(64);uniqueIndex;comment:物流单号" json:"tracking_no"` // 物流单号，唯一索引。
-	Carrier         string            `gorm:"type:varchar(64);comment:承运商" json:"carrier"`                  // 承运物流公司的名称。
-	CarrierCode     string            `gorm:"type:varchar(32);comment:承运商编码" json:"carrier_code"`           // 承运物流公司的编码。
-	SenderName      string            `gorm:"type:varchar(64);comment:发件人姓名" json:"sender_name"`            // 发件人姓名。
-	SenderPhone     string            `gorm:"type:varchar(20);comment:发件人电话" json:"sender_phone"`           // 发件人电话。
-	SenderAddress   string            `gorm:"type:varchar(255);comment:发件人地址" json:"sender_address"`        // 发件人地址。
-	ReceiverName    string            `gorm:"type:varchar(64);comment:收件人姓名" json:"receiver_name"`          // 收件人姓名。
-	ReceiverPhone   string            `gorm:"type:varchar(20);comment:收件人电话" json:"receiver_phone"`         // 收件人电话。
-	ReceiverAddress string            `gorm:"type:varchar(255);comment:收件人地址" json:"receiver_address"`      // 收件人地址。
-	SenderLat       float64           `gorm:"type:decimal(10,6);comment:发件人纬度" json:"sender_lat"`           // 发件人地址的纬度。
-	SenderLon       float64           `gorm:"type:decimal(10,6);comment:发件人经度" json:"sender_lon"`           // 发件人地址的经度。
-	ReceiverLat     float64           `gorm:"type:decimal(10,6);comment:收件人纬度" json:"receiver_lat"`         // 收件人地址的纬度。
-	ReceiverLon     float64           `gorm:"type:decimal(10,6);comment:收件人经度" json:"receiver_lon"`         // 收件人地址的经度。
-	Status          LogisticsStatus   `gorm:"default:0;comment:状态" json:"status"`                           // 物流单状态，默认为待发货。
-	CurrentLocation string            `gorm:"type:varchar(255);comment:当前位置" json:"current_location"`       // 物流单当前所在位置。
-	EstimatedTime   *time.Time        `gorm:"comment:预计送达时间" json:"estimated_time"`                         // 预计送达时间。
-	DeliveredAt     *time.Time        `gorm:"comment:签收时间" json:"delivered_at"`                             // 实际签收时间。
-	Traces          []*LogisticsTrace `gorm:"foreignKey:LogisticsID" json:"traces"`                         // 关联的物流轨迹记录列表，一对多关系。
-	Route           *DeliveryRoute    `gorm:"foreignKey:LogisticsID" json:"route"`                          // 关联的配送路线信息，一对一关系。
-	RiderID         string            `gorm:"type:varchar(64);comment:骑手ID" json:"rider_id"`                // 负责配送的骑手ID。
+	ID              uint              `json:"id"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
+	OrderID         uint64            `json:"order_id"`         // 关联的订单ID，索引字段。
+	OrderNo         string            `json:"order_no"`         // 关联的订单号。
+	TrackingNo      string            `json:"tracking_no"`      // 物流单号，唯一索引。
+	Carrier         string            `json:"carrier"`          // 承运物流公司的名称。
+	CarrierCode     string            `json:"carrier_code"`     // 承运物流公司的编码。
+	SenderName      string            `json:"sender_name"`      // 发件人姓名。
+	SenderPhone     string            `json:"sender_phone"`     // 发件人电话。
+	SenderAddress   string            `json:"sender_address"`   // 发件人地址。
+	ReceiverName    string            `json:"receiver_name"`    // 收件人姓名。
+	ReceiverPhone   string            `json:"receiver_phone"`   // 收件人电话。
+	ReceiverAddress string            `json:"receiver_address"` // 收件人地址。
+	SenderLat       float64           `json:"sender_lat"`       // 发件人地址的纬度。
+	SenderLon       float64           `json:"sender_lon"`       // 发件人地址的经度。
+	ReceiverLat     float64           `json:"receiver_lat"`     // 收件人地址的纬度。
+	ReceiverLon     float64           `json:"receiver_lon"`     // 收件人地址的经度。
+	Status          LogisticsStatus   `json:"status"`           // 物流单状态，默认为待发货。
+	CurrentLocation string            `json:"current_location"` // 物流单当前所在位置。
+	EstimatedTime   *time.Time        `json:"estimated_time"`   // 预计送达时间。
+	DeliveredAt     *time.Time        `json:"delivered_at"`     // 实际签收时间。
+	Traces          []*LogisticsTrace `json:"traces"`           // 关联的物流轨迹记录列表，一对多关系。
+	Route           *DeliveryRoute    `json:"route"`            // 关联的配送路线信息，一对一关系。
+	RiderID         string            `json:"rider_id"`         // 负责配送的骑手ID。
 }
 
 // LogisticsTrace 实体代表物流单的一条轨迹记录。
 type LogisticsTrace struct {
-	gorm.Model         // 嵌入gorm.Model。
-	LogisticsID uint64 `gorm:"not null;index;comment:物流ID" json:"logistics_id"`           // 关联的物流单ID，索引字段。
-	TrackingNo  string `gorm:"type:varchar(64);not null;comment:物流单号" json:"tracking_no"` // 关联的物流单号。
-	Location    string `gorm:"type:varchar(255);comment:位置" json:"location"`              // 轨迹发生的位置。
-	Description string `gorm:"type:text;comment:描述" json:"description"`                   // 轨迹描述，例如“您的包裹已出库”。
-	Status      string `gorm:"type:varchar(32);comment:状态描述" json:"status"`               // 轨迹发生时的物流状态描述。
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	LogisticsID uint64    `json:"logistics_id"` // 关联的物流单ID，索引字段。
+	TrackingNo  string    `json:"tracking_no"`  // 关联的物流单号。
+	Location    string    `json:"location"`     // 轨迹发生的位置。
+	Description string    `json:"description"`  // 轨迹描述，例如“您的包裹已出库”。
+	Status      string    `json:"status"`       // 轨迹发生时的物流状态描述。
 }
 
 // DeliveryRoute 实体代表一个物流单的配送路线规划信息。
 type DeliveryRoute struct {
-	gorm.Model          // 嵌入gorm.Model。
-	LogisticsID uint64  `gorm:"not null;uniqueIndex;comment:物流ID" json:"logistics_id"` // 关联的物流单ID，唯一索引。
-	RouteData   string  `gorm:"type:text;comment:路线数据(JSON)" json:"route_data"`        // 配送路线数据，通常为JSON格式的地理坐标点序列。
-	Distance    float64 `gorm:"type:decimal(10,2);comment:总距离(米)" json:"distance"`     // 配送路线的总距离（米）。
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	LogisticsID uint64    `json:"logistics_id"` // 关联的物流单ID，唯一索引。
+	RouteData   string    `json:"route_data"`   // 配送路线数据，通常为JSON格式的地理坐标点序列。
+	Distance    float64   `json:"distance"`     // 配送路线的总距离（米）。
 }
 
 // NewLogistics 创建并返回一个新的 Logistics 实体实例。

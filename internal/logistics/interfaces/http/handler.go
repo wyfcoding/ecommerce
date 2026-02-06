@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"net/http" // 导入HTTP状态码。
 	"strconv"  // 导入字符串和数字转换工具。
 	"time"     // 导入时间包，用于时间解析。
@@ -18,15 +19,17 @@ import (
 // Handler 结构体定义了Logistics模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	app    *application.Logistics // 依赖Logistics应用服务，处理核心业务逻辑。
-	logger *slog.Logger           // 日志记录器，用于记录请求处理过程中的信息和错误。
+	cmdService   *application.LogisticsCommandService
+	queryService *application.LogisticsQueryService
+	logger       *slog.Logger // 日志记录器，用于记录请求处理过程中的信息和错误。
 }
 
 // NewHandler 创建并返回一个新的 Logistics HTTP Handler 实例。
-func NewHandler(app *application.Logistics, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.LogisticsCommandService, query *application.LogisticsQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -60,7 +63,7 @@ func (h *Handler) CreateLogistics(c *gin.Context) {
 	}
 
 	// 调用应用服务层创建物流单。
-	logistics, err := h.app.CreateLogistics(c.Request.Context(), req.OrderID, req.OrderNo, req.TrackingNo, req.Carrier, req.CarrierCode,
+	logistics, err := h.cmdService.CreateLogistics(c.Request.Context(), req.OrderID, req.OrderNo, req.TrackingNo, req.Carrier, req.CarrierCode,
 		req.SenderName, req.SenderPhone, req.SenderAddress, req.SenderLat, req.SenderLon,
 		req.ReceiverName, req.ReceiverPhone, req.ReceiverAddress, req.ReceiverLat, req.ReceiverLon)
 	if err != nil {
@@ -85,10 +88,18 @@ func (h *Handler) GetLogistics(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取物流单详情。
-	logistics, err := h.app.GetLogistics(c.Request.Context(), id)
+	logistics, err := h.queryService.GetLogistics(c.Request.Context(), id)
 	if err != nil {
+		if errors.Is(err, domain.ErrLogisticsNotFound) {
+			response.ErrorWithStatus(c, http.StatusNotFound, "Logistics not found", "")
+			return
+		}
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logistics", err.Error())
+		return
+	}
+	if logistics == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Logistics not found", "")
 		return
 	}
 
@@ -121,7 +132,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	// 调用应用服务层更新物流状态。
-	if err := h.app.UpdateStatus(c.Request.Context(), id, domain.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
+	if err := h.cmdService.UpdateStatus(c.Request.Context(), id, domain.LogisticsStatus(req.Status), req.Location, req.Description); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to update status", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update status", err.Error())
 		return
@@ -156,7 +167,7 @@ func (h *Handler) AddTrace(c *gin.Context) {
 	}
 
 	// 调用应用服务层添加物流轨迹。
-	if err := h.app.AddTrace(c.Request.Context(), id, req.Location, req.Description, req.Status); err != nil {
+	if err := h.cmdService.AddTrace(c.Request.Context(), id, req.Location, req.Description, req.Status); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to add trace", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add trace", err.Error())
 		return
@@ -189,7 +200,7 @@ func (h *Handler) SetEstimatedTime(c *gin.Context) {
 	}
 
 	// 调用应用服务层设置预计送达时间。
-	if err := h.app.SetEstimatedTime(c.Request.Context(), id, req.EstimatedTime); err != nil {
+	if err := h.cmdService.SetEstimatedTime(c.Request.Context(), id, req.EstimatedTime); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to set estimated time", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to set estimated time", err.Error())
 		return
@@ -212,7 +223,7 @@ func (h *Handler) ListLogistics(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取物流单列表。
-	list, total, err := h.app.ListLogistics(c.Request.Context(), page, pageSize)
+	list, total, err := h.queryService.ListLogistics(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list logistics", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list logistics", err.Error())
@@ -236,10 +247,18 @@ func (h *Handler) GetByTrackingNo(c *gin.Context) {
 		return
 	}
 
-	logistics, err := h.app.GetLogisticsByTrackingNo(c.Request.Context(), trackingNo)
+	logistics, err := h.queryService.GetLogisticsByTrackingNo(c.Request.Context(), trackingNo)
 	if err != nil {
+		if errors.Is(err, domain.ErrLogisticsNotFound) {
+			response.ErrorWithStatus(c, http.StatusNotFound, "Logistics not found", "")
+			return
+		}
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get logistics by tracking no", "tracking_no", trackingNo, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logistics", err.Error())
+		return
+	}
+	if logistics == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "Logistics not found", "")
 		return
 	}
 
@@ -263,7 +282,7 @@ func (h *Handler) OptimizeRoute(c *gin.Context) {
 		return
 	}
 
-	route, err := h.app.OptimizeDeliveryRoute(c.Request.Context(), id, req.Destinations)
+	route, err := h.cmdService.OptimizeDeliveryRoute(c.Request.Context(), id, req.Destinations)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to optimize route", "id", id, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to optimize route", err.Error())

@@ -4,6 +4,14 @@ import (
 	"time"
 )
 
+// Event types
+const (
+	LogisticsCreatedEventType       = "logistics.created"
+	LogisticsStatusUpdatedEventType = "logistics.status_updated"
+	LogisticsTraceAddedEventType    = "logistics.trace_added"
+	LogisticsRiderAssignedEventType = "logistics.rider_assigned"
+)
+
 // LogisticsCreatedEvent 物流单创建事件
 type LogisticsCreatedEvent struct {
 	LogisticsID uint      `json:"logistics_id"`

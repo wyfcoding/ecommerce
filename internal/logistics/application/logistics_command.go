@@ -11,14 +11,12 @@ import (
 	"github.com/wyfcoding/pkg/algorithm/graph"
 	"github.com/wyfcoding/pkg/algorithm/math"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
-	"gorm.io/gorm"
 )
 
 // LogisticsCommandService 处理物流的写操作（创建、状态更新、轨迹追踪、路线优化）。
 type LogisticsCommandService struct {
 	repo             domain.LogisticsRepository
 	publisher        domain.EventPublisher
-	db               *gorm.DB
 	optimizer        *algorithm.RouteOptimizer
 	packingOptimizer *algorithm.BinPackingOptimizer
 	logger           *slog.Logger
@@ -42,13 +40,11 @@ type OrderInfo struct {
 func NewLogisticsCommandService(
 	repo domain.LogisticsRepository,
 	publisher domain.EventPublisher,
-	db *gorm.DB,
 	logger *slog.Logger,
 ) *LogisticsCommandService {
 	return &LogisticsCommandService{
 		repo:             repo,
 		publisher:        publisher,
-		db:               db,
 		optimizer:        algorithm.NewRouteOptimizer(),
 		packingOptimizer: algorithm.NewBinPackingOptimizer(1000.0),
 		logger:           logger,
@@ -64,7 +60,7 @@ func (s *LogisticsCommandService) CreateLogistics(ctx context.Context, orderID u
 		senderName, senderPhone, senderAddress, senderLat, senderLon,
 		receiverName, receiverPhone, receiverAddress, receiverLat, receiverLon)
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := s.repo.WithTx(ctx, func(tx any) error {
 		if err := s.repo.SaveInTx(ctx, tx, logistics); err != nil {
 			return err
 		}
@@ -76,7 +72,7 @@ func (s *LogisticsCommandService) CreateLogistics(ctx context.Context, orderID u
 			TrackingNo:  trackingNo,
 			Timestamp:   time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "logistics.created", fmt.Sprintf("%d", orderID), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.LogisticsCreatedEventType, fmt.Sprintf("%d", orderID), event)
 	})
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create logistics", "order_id", orderID, "error", err)
@@ -139,7 +135,7 @@ func (s *LogisticsCommandService) AssignRidersToOrders(ctx context.Context, ride
 			riderID := riders[rIdx].ID
 			logistics := logisticsList[oIdx]
 
-			err := s.db.Transaction(func(tx *gorm.DB) error {
+			err := s.repo.WithTx(ctx, func(tx any) error {
 				logistics.AssignRider(riderID)
 				logistics.Status = domain.LogisticsStatusPickedUp
 				if err := s.repo.SaveInTx(ctx, tx, logistics); err != nil {
@@ -152,7 +148,7 @@ func (s *LogisticsCommandService) AssignRidersToOrders(ctx context.Context, ride
 					RiderID:     riderID,
 					Timestamp:   time.Now(),
 				}
-				return s.publisher.PublishInTx(ctx, tx, "logistics.rider_assigned", fmt.Sprintf("%d", logistics.ID), event)
+				return s.publisher.PublishInTx(ctx, tx, domain.LogisticsRiderAssignedEventType, fmt.Sprintf("%d", logistics.ID), event)
 			})
 			if err != nil {
 				s.logger.ErrorContext(ctx, "failed to assign rider", "logistics_id", logistics.ID, "rider_id", riderID, "error", err)
@@ -173,7 +169,7 @@ func (s *LogisticsCommandService) UpdateStatus(ctx context.Context, id uint64, s
 		return err
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.repo.WithTx(ctx, func(tx any) error {
 		switch status {
 		case domain.LogisticsStatusPickedUp:
 			logistics.PickUp()
@@ -207,7 +203,7 @@ func (s *LogisticsCommandService) UpdateStatus(ctx context.Context, id uint64, s
 			Description: description,
 			Timestamp:   time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "logistics.status_updated", fmt.Sprintf("%d", id), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.LogisticsStatusUpdatedEventType, fmt.Sprintf("%d", id), event)
 	})
 }
 
@@ -218,7 +214,7 @@ func (s *LogisticsCommandService) AddTrace(ctx context.Context, id uint64, locat
 		return err
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.repo.WithTx(ctx, func(tx any) error {
 		logistics.AddTrace(location, description, status)
 		logistics.UpdateLocation(location)
 
@@ -234,7 +230,7 @@ func (s *LogisticsCommandService) AddTrace(ctx context.Context, id uint64, locat
 			Status:      status,
 			Timestamp:   time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "logistics.trace_added", fmt.Sprintf("%d", id), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.LogisticsTraceAddedEventType, fmt.Sprintf("%d", id), event)
 	})
 }
 

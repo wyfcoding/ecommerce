@@ -23,4 +23,7 @@ type LogisticsRepository interface {
 
 	// List 列出所有物流实体，支持分页。
 	List(ctx context.Context, offset, limit int) ([]*Logistics, int64, error)
+
+	// WithTx 在事务中执行。
+	WithTx(ctx context.Context, fn func(tx any) error) error
 }
