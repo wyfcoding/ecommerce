@@ -17,6 +17,8 @@ type WishlistRepository interface {
 	Delete(ctx context.Context, userID, id uint64) error
 	// DeleteByProduct 从数据存储中删除指定用户ID和商品ID（SKUID）的记录。
 	DeleteByProduct(ctx context.Context, userID, skuID uint64) error
+	// GetByID 获取指定用户ID和收藏夹条目ID的实体。
+	GetByID(ctx context.Context, userID, id uint64) (*Wishlist, error)
 	// Get 获取指定用户ID和SKUID的收藏夹实体。
 	Get(ctx context.Context, userID, skuID uint64) (*Wishlist, error)
 	// List 列出指定用户ID的所有收藏夹实体，支持分页。

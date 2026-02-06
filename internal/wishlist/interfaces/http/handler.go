@@ -14,14 +14,16 @@ import (
 
 // Handler 结构体定义了Wishlist模块的HTTP处理层。
 type Handler struct {
-	app    *application.Wishlist // 依赖Wishlist应用服务 (Facade)。
-	logger *slog.Logger          // 日志记录器。
+	cmd    *application.WishlistCommandService
+	query  *application.WishlistQueryService
+	logger *slog.Logger // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Wishlist HTTP Handler 实例。
-func NewHandler(app *application.Wishlist, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.WishlistCommandService, query *application.WishlistQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -43,7 +45,7 @@ func (h *Handler) Add(c *gin.Context) {
 		return
 	}
 
-	wishlist, err := h.app.Add(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.ImageURL)
+	wishlist, err := h.cmd.AddToWishlist(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.ImageURL, req.Price)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to add to wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add to wishlist", err.Error())
@@ -66,7 +68,7 @@ func (h *Handler) Remove(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.Remove(c.Request.Context(), userID, id); err != nil {
+	if err := h.cmd.RemoveFromWishlistByID(c.Request.Context(), userID, id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to remove from wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to remove from wishlist", err.Error())
 		return
@@ -91,7 +93,7 @@ func (h *Handler) List(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.List(c.Request.Context(), userID, page, pageSize)
+	list, total, err := h.query.GetWishlist(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list wishlist", err.Error())
@@ -119,7 +121,7 @@ func (h *Handler) CheckStatus(c *gin.Context) {
 		return
 	}
 
-	exists, err := h.app.CheckStatus(c.Request.Context(), userID, skuID)
+	exists, err := h.query.IsInWishlist(c.Request.Context(), userID, skuID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to check status", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to check status", err.Error())
@@ -137,7 +139,7 @@ func (h *Handler) Clear(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.Clear(c.Request.Context(), userID); err != nil {
+	if err := h.cmd.ClearWishlist(c.Request.Context(), userID); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to clear wishlist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to clear wishlist", err.Error())
 		return
@@ -159,7 +161,7 @@ func (h *Handler) RemoveByProduct(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.RemoveByProduct(c.Request.Context(), userID, skuID); err != nil {
+	if err := h.cmd.RemoveFromWishlist(c.Request.Context(), userID, skuID); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to remove from wishlist by product", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to remove from wishlist by product", err.Error())
 		return

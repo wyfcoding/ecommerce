@@ -15,14 +15,16 @@ import (
 
 // Handler 结构体定义了Recommendation模块的HTTP处理层。
 type Handler struct {
-	app    *application.RecommendationService // 依赖Recommendation应用服务 (Facade)。
-	logger *slog.Logger                       // 日志记录器。
+	cmd    *application.RecommendationCommandService // 写服务。
+	query  *application.RecommendationQueryService   // 读服务。
+	logger *slog.Logger                              // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Recommendation HTTP Handler 实例。
-func NewHandler(app *application.RecommendationService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.RecommendationCommandService, query *application.RecommendationQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -41,7 +43,12 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 		limit = 10
 	}
 
-	recs, err := h.app.GetRecommendations(c.Request.Context(), userID, recType, limit)
+	var t *domain.RecommendationType
+	if recType != "" {
+		rt := domain.RecommendationType(recType)
+		t = &rt
+	}
+	recs, err := h.query.GetUserRecommendations(c.Request.Context(), userID, t, limit)
 	if err != nil {
 		h.logger.Error("Failed to get recommendations", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get recommendations", err.Error())
@@ -64,7 +71,7 @@ func (h *Handler) TrackBehavior(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.TrackBehavior(c.Request.Context(), req.UserID, req.ProductID, req.Action); err != nil {
+	if err := h.cmd.TrackBehavior(c.Request.Context(), req.UserID, req.ProductID, req.Action); err != nil {
 		h.logger.Error("Failed to track behavior", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to track behavior", err.Error())
 		return
@@ -81,7 +88,7 @@ func (h *Handler) UpdatePreference(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.UpdateUserPreference(c.Request.Context(), &req); err != nil {
+	if err := h.cmd.UpsertUserPreference(c.Request.Context(), &req); err != nil {
 		h.logger.Error("Failed to update preference", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update preference", err.Error())
 		return
@@ -103,7 +110,7 @@ func (h *Handler) GetSimilarProducts(c *gin.Context) {
 		limit = 10
 	}
 
-	sims, err := h.app.GetSimilarProducts(c.Request.Context(), productID, limit)
+	sims, err := h.query.GetSimilarProducts(c.Request.Context(), productID, limit)
 	if err != nil {
 		h.logger.Error("Failed to get similar products", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get similar products", err.Error())
@@ -124,7 +131,7 @@ func (h *Handler) GenerateRecommendations(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.GenerateRecommendations(c.Request.Context(), req.UserID); err != nil {
+	if err := h.cmd.GenerateRecommendationsSimple(c.Request.Context(), req.UserID); err != nil {
 		h.logger.Error("Failed to generate recommendations", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to generate recommendations", err.Error())
 		return

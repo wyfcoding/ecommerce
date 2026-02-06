@@ -8,6 +8,12 @@ import (
 // 它定义了对推荐结果、用户偏好、商品相似度和用户行为实体进行数据持久化操作的契约。
 // 仓储接口属于领域层，旨在将领域逻辑与数据存储的实现细节解耦。
 type RecommendationRepository interface {
+	// 事务支持
+	BeginTx(ctx context.Context) any
+	CommitTx(tx any) error
+	RollbackTx(tx any) error
+	WithTx(ctx context.Context, fn func(tx any) error) error
+
 	// --- 推荐结果 (Recommendation methods) ---
 
 	// SaveRecommendation 将推荐结果实体保存到数据存储中。

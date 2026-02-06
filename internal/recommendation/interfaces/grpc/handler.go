@@ -16,15 +16,17 @@ import (
 
 // Server 结构体实现了 RecommendationService 的 gRPC 服务端接口。
 type Server struct {
-	pb.UnimplementedRecommendationServiceServer                                    // 嵌入生成的UnimplementedRecommendationServiceServer，确保前向兼容性。
-	app                                         *application.RecommendationService // 依赖Recommendation应用服务，处理核心业务逻辑。
-	logger                                      *slog.Logger
+	pb.UnimplementedRecommendationServiceServer
+	cmd    *application.RecommendationCommandService
+	query  *application.RecommendationQueryService
+	logger *slog.Logger
 }
 
 // NewServer 创建并返回一个新的 Recommendation gRPC 服务端实例。
-func NewServer(app *application.RecommendationService, logger *slog.Logger) *Server {
+func NewServer(cmd *application.RecommendationCommandService, query *application.RecommendationQueryService, logger *slog.Logger) *Server {
 	return &Server{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -41,11 +43,11 @@ func (s *Server) GetRecommendedProducts(ctx context.Context, req *pb.GetRecommen
 		limit = 10
 	}
 
-	if err := s.app.GenerateRecommendations(ctx, userID); err != nil {
+	if err := s.cmd.GenerateRecommendationsSimple(ctx, userID); err != nil {
 		s.logger.ErrorContext(ctx, "failed to generate recommendations", "user_id", userID, "error", err)
 	}
 
-	recs, err := s.app.GetRecommendations(ctx, userID, "", limit)
+	recs, err := s.query.GetUserRecommendations(ctx, userID, nil, limit)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get recommendations: %v", err))
 	}
@@ -83,7 +85,7 @@ func (s *Server) GetGraphRecommendedProducts(ctx context.Context, req *pb.GetGra
 		limit = 10
 	}
 
-	sims, err := s.app.GetSimilarProducts(ctx, productID, limit)
+	sims, err := s.query.GetSimilarProducts(ctx, productID, limit)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get similar products: %v", err))
 	}

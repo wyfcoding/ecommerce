@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain"
 )
@@ -58,6 +59,7 @@ func (m *WishlistCommandService) AddToWishlist(ctx context.Context, userID, prod
 		m.logger.Error("failed to add to wishlist", "error", err, "user_id", userID, "sku_id", skuID)
 		return nil, err
 	}
+	m.publishItemAdded(ctx, item)
 
 	return item, nil
 }
@@ -68,6 +70,23 @@ func (m *WishlistCommandService) RemoveFromWishlist(ctx context.Context, userID,
 		m.logger.Error("failed to remove from wishlist", "error", err, "user_id", userID, "sku_id", skuID)
 		return err
 	}
+	m.publishItemRemoved(ctx, userID, skuID)
+	return nil
+}
+
+// RemoveFromWishlistByID 从收藏夹中移除指定条目ID。
+func (m *WishlistCommandService) RemoveFromWishlistByID(ctx context.Context, userID, id uint64) error {
+	item, err := m.repo.GetByID(ctx, userID, id)
+	if err != nil {
+		return err
+	}
+	if err := m.repo.Delete(ctx, userID, id); err != nil {
+		m.logger.Error("failed to remove from wishlist by id", "error", err, "user_id", userID, "id", id)
+		return err
+	}
+	if item != nil {
+		m.publishItemRemoved(ctx, userID, item.SkuID)
+	}
 	return nil
 }
 
@@ -77,5 +96,41 @@ func (m *WishlistCommandService) ClearWishlist(ctx context.Context, userID uint6
 		m.logger.Error("failed to clear wishlist", "error", err, "user_id", userID)
 		return err
 	}
+	m.publishCleared(ctx, userID)
 	return nil
+}
+
+func (m *WishlistCommandService) publishItemAdded(ctx context.Context, item *domain.Wishlist) {
+	if m.publisher == nil || item == nil {
+		return
+	}
+	event := &domain.WishlistItemAddedEvent{
+		UserID:    item.UserID,
+		SkuID:     item.SkuID,
+		Timestamp: time.Now(),
+	}
+	_ = m.publisher.Publish(ctx, domain.WishlistItemAddedEventType, fmt.Sprintf("%d", item.UserID), event)
+}
+
+func (m *WishlistCommandService) publishItemRemoved(ctx context.Context, userID, skuID uint64) {
+	if m.publisher == nil {
+		return
+	}
+	event := &domain.WishlistItemRemovedEvent{
+		UserID:    userID,
+		SkuID:     skuID,
+		Timestamp: time.Now(),
+	}
+	_ = m.publisher.Publish(ctx, domain.WishlistItemRemovedEventType, fmt.Sprintf("%d", userID), event)
+}
+
+func (m *WishlistCommandService) publishCleared(ctx context.Context, userID uint64) {
+	if m.publisher == nil {
+		return
+	}
+	event := &domain.WishlistClearedEvent{
+		UserID:    userID,
+		Timestamp: time.Now(),
+	}
+	_ = m.publisher.Publish(ctx, domain.WishlistClearedEventType, fmt.Sprintf("%d", userID), event)
 }

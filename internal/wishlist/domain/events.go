@@ -2,18 +2,28 @@ package domain
 
 import "time"
 
-// WishlistItemAddedEvent 添加商品到收藏夹事件。
+const (
+	WishlistItemAddedEventType   = "wishlist.item.added"
+	WishlistItemRemovedEventType = "wishlist.item.removed"
+	WishlistClearedEventType     = "wishlist.cleared"
+)
+
+// WishlistItemAddedEvent 收藏夹新增事件。
 type WishlistItemAddedEvent struct {
 	UserID    uint64    `json:"user_id"`
-	ProductID uint64    `json:"product_id"`
-	SKUID     uint64    `json:"sku_id"`
+	SkuID     uint64    `json:"sku_id"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// WishlistItemRemovedEvent 从收藏夹移除商品事件。
+// WishlistItemRemovedEvent 收藏夹移除事件。
 type WishlistItemRemovedEvent struct {
 	UserID    uint64    `json:"user_id"`
-	ProductID uint64    `json:"product_id"`
-	SKUID     uint64    `json:"sku_id"`
+	SkuID     uint64    `json:"sku_id"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// WishlistClearedEvent 收藏夹清空事件。
+type WishlistClearedEvent struct {
+	UserID    uint64    `json:"user_id"`
 	Timestamp time.Time `json:"timestamp"`
 }

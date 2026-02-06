@@ -5,8 +5,6 @@ import (
 	"encoding/json"       // 导入JSON编码/解码库。
 	"errors"              // 导入标准错误处理库。
 	"time"                // 导入时间包。
-
-	"gorm.io/gorm" // 导入GORM库。
 )
 
 // RecommendationType 定义了推荐的类型。
@@ -22,12 +20,14 @@ const (
 // Recommendation 实体代表一个推荐结果。
 // 它包含了推荐给哪个用户、推荐类型、推荐的商品、推荐分数和理由。
 type Recommendation struct {
-	gorm.Model                            // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	UserID             uint64             `gorm:"not null;index;comment:用户ID" json:"user_id"`                        // 接收推荐的用户ID，索引字段。
-	RecommendationType RecommendationType `gorm:"type:varchar(32);not null;comment:推荐类型" json:"recommendation_type"` // 推荐类型。
-	ProductID          uint64             `gorm:"not null;index;comment:商品ID" json:"product_id"`                     // 推荐的商品ID，索引字段。
-	Score              float64            `gorm:"type:decimal(10,4);not null;comment:推荐分数" json:"score"`             // 推荐的得分，用于排序。
-	Reason             string             `gorm:"type:varchar(255);comment:推荐理由" json:"reason"`                      // 推荐给用户的理由。
+	ID                 uint64             `json:"id"`
+	CreatedAt          time.Time          `json:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at"`
+	UserID             uint64             `json:"user_id"`             // 接收推荐的用户ID。
+	RecommendationType RecommendationType `json:"recommendation_type"` // 推荐类型。
+	ProductID          uint64             `json:"product_id"`          // 推荐的商品ID。
+	Score              float64            `json:"score"`               // 推荐的得分，用于排序。
+	Reason             string             `json:"reason"`              // 推荐给用户的理由。
 }
 
 // StringArray 定义了一个字符串切片类型，实现了 sql.Scanner 和 driver.Valuer 接口，
@@ -58,32 +58,38 @@ func (a *StringArray) Scan(value any) error {
 // UserPreference 实体代表用户的个性化偏好设置。
 // 它可以用于指导个性化推荐的生成。
 type UserPreference struct {
-	gorm.Model             // 嵌入gorm.Model。
-	UserID     uint64      `gorm:"uniqueIndex;not null;comment:用户ID" json:"user_id"`                 // 用户ID，唯一索引，不允许为空。
-	CategoryID uint64      `gorm:"index;comment:偏好类目ID" json:"category_id"`                          // 用户偏好的商品类目ID，索引字段。
-	BrandID    uint64      `gorm:"index;comment:偏好品牌ID" json:"brand_id"`                             // 用户偏好的商品品牌ID，索引字段。
-	PriceMin   uint64      `gorm:"comment:价格区间下限(分)" json:"price_min"`                               // 用户偏好的价格区间下限。
-	PriceMax   uint64      `gorm:"comment:价格区间上限(分)" json:"price_max"`                               // 用户偏好的价格区间上限。
-	Tags       StringArray `gorm:"type:json;comment:偏好标签" json:"tags"`                               // 用户偏好的商品标签列表，存储为JSON。
-	Weight     float64     `gorm:"type:decimal(10,4);not null;default:1.0;comment:权重" json:"weight"` // 用户偏好的权重，用于影响推荐算法。
+	ID         uint64      `json:"id"`
+	CreatedAt  time.Time   `json:"created_at"`
+	UpdatedAt  time.Time   `json:"updated_at"`
+	UserID     uint64      `json:"user_id"`     // 用户ID。
+	CategoryID uint64      `json:"category_id"` // 用户偏好的商品类目ID。
+	BrandID    uint64      `json:"brand_id"`    // 用户偏好的商品品牌ID。
+	PriceMin   uint64      `json:"price_min"`   // 用户偏好的价格区间下限。
+	PriceMax   uint64      `json:"price_max"`   // 用户偏好的价格区间上限。
+	Tags       StringArray `json:"tags"`        // 用户偏好的商品标签列表，存储为JSON。
+	Weight     float64     `json:"weight"`      // 用户偏好的权重，用于影响推荐算法。
 }
 
 // ProductSimilarity 实体记录了商品之间的相似度。
 // 用于实现相似商品推荐功能。
 type ProductSimilarity struct {
-	gorm.Model               // 嵌入gorm.Model。
-	ProductID        uint64  `gorm:"uniqueIndex:idx_product_similar;not null;comment:商品ID" json:"product_id"`           // 商品ID，与SimilarProductID共同构成唯一索引。
-	SimilarProductID uint64  `gorm:"uniqueIndex:idx_product_similar;not null;comment:相似商品ID" json:"similar_product_id"` // 相似商品ID，与ProductID共同构成唯一索引。
-	Similarity       float64 `gorm:"type:decimal(10,4);not null;comment:相似度" json:"similarity"`                         // 两个商品之间的相似度分数。
+	ID               uint64    `json:"id"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	ProductID        uint64    `json:"product_id"`         // 商品ID。
+	SimilarProductID uint64    `json:"similar_product_id"` // 相似商品ID。
+	Similarity       float64   `json:"similarity"`         // 两个商品之间的相似度分数。
 }
 
 // UserBehavior 实体记录了用户的行为数据。
 // 这些数据是推荐系统生成推荐的基石。
 type UserBehavior struct {
-	gorm.Model           // 嵌入gorm.Model。
-	UserID     uint64    `gorm:"index;not null;comment:用户ID" json:"user_id"`                                // 用户ID，索引字段。
-	ProductID  uint64    `gorm:"index;not null;comment:商品ID" json:"product_id"`                             // 发生行为的商品ID，索引字段。
-	Action     string    `gorm:"type:varchar(32);not null;comment:行为类型(view,click,cart,buy)" json:"action"` // 行为类型，例如“view”（浏览）、“click”（点击）、“cart”（加入购物车）、“buy”（购买）。
-	Weight     float64   `gorm:"type:decimal(10,4);not null;default:1.0;comment:权重" json:"weight"`          // 行为权重，用于推荐算法。
-	Timestamp  time.Time `gorm:"not null;comment:发生时间" json:"timestamp"`                                    // 行为发生的时间。
+	ID        uint64    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UserID    uint64    `json:"user_id"`    // 用户ID。
+	ProductID uint64    `json:"product_id"` // 发生行为的商品ID。
+	Action    string    `json:"action"`     // 行为类型，例如“view”“click”“cart”“buy”。
+	Weight    float64   `json:"weight"`     // 行为权重，用于推荐算法。
+	Timestamp time.Time `json:"timestamp"`  // 行为发生的时间。
 }

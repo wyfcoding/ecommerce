@@ -17,13 +17,14 @@ import (
 // Server 结构体实现了 Wishlist 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedWishlistServiceServer                       // 嵌入生成的UnimplementedWishlistServiceServer，确保前向兼容性。
-	app                                   *application.Wishlist // 依赖Wishlist应用服务，处理核心业务逻辑。
+	pb.UnimplementedWishlistServiceServer
+	cmd   *application.WishlistCommandService
+	query *application.WishlistQueryService
 }
 
 // NewServer 创建并返回一个新的 Wishlist gRPC 服务端实例。
-func NewServer(app *application.Wishlist) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.WishlistCommandService, query *application.WishlistQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // AddItemToWishlist 处理将商品添加到收藏夹的gRPC请求。
@@ -43,7 +44,7 @@ func (s *Server) AddItemToWishlist(ctx context.Context, req *pb.AddItemToWishlis
 	// 映射 Proto 字段到应用服务层.
 	// Proto 暂时不包含 SkuID/ProductName/Price/ImageURL, 此处传默认值.
 	skuID := productID
-	item, err := s.app.Add(ctx, userID, productID, skuID, "Unknown Product", "Unknown SKU", 0, "") // Price 默认为 0，ImageURL 默认为空。
+	item, err := s.cmd.AddToWishlist(ctx, userID, productID, skuID, "Unknown Product", "Unknown SKU", "", 0) // Price 默认为 0，ImageURL 默认为空。
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add item to wishlist: %v", err))
 	}
@@ -68,7 +69,7 @@ func (s *Server) RemoveItemFromWishlist(ctx context.Context, req *pb.RemoveItemF
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid product_id for removal: %v", err))
 	}
 
-	err = s.app.RemoveByProduct(ctx, userID, skuID)
+	err = s.cmd.RemoveFromWishlist(ctx, userID, skuID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove item from wishlist: %v", err))
 	}
@@ -97,7 +98,7 @@ func (s *Server) ListWishlistItems(ctx context.Context, req *pb.ListWishlistItem
 	}
 
 	// 调用应用服务层获取收藏夹列表。
-	items, total, err := s.app.List(ctx, userID, page, pageSize)
+	items, total, err := s.query.GetWishlist(ctx, userID, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list wishlist items: %v", err))
 	}
