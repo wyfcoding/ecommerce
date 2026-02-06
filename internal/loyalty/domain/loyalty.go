@@ -3,8 +3,6 @@ package domain
 import (
 	"errors"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 var (
@@ -25,13 +23,15 @@ const (
 
 // MemberAccount 结构体定义。
 type MemberAccount struct {
-	gorm.Model
-	UserID          uint64      `gorm:"not null;uniqueIndex;comment:用户ID" json:"user_id"`
-	Level           MemberLevel `gorm:"type:varchar(32);default:'BRONZE';comment:会员等级" json:"level"`
-	TotalPoints     int64       `gorm:"not null;default:0;comment:总积分" json:"total_points"`
-	AvailablePoints int64       `gorm:"not null;default:0;comment:可用积分" json:"available_points"`
-	FrozenPoints    int64       `gorm:"not null;default:0;comment:冻结积分" json:"frozen_points"`
-	TotalSpent      uint64      `gorm:"not null;default:0;comment:总消费金额" json:"total_spent"`
+	ID              uint64      `json:"id"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+	UserID          uint64      `json:"user_id"`
+	Level           MemberLevel `json:"level"`
+	TotalPoints     int64       `json:"total_points"`
+	AvailablePoints int64       `json:"available_points"`
+	FrozenPoints    int64       `json:"frozen_points"`
+	TotalSpent      uint64      `json:"total_spent"`
 }
 
 // NewMemberAccount 函数。
@@ -97,14 +97,16 @@ func (a *MemberAccount) checkLevelUpgrade() {
 
 // PointsTransaction 结构体定义。
 type PointsTransaction struct {
-	gorm.Model
-	UserID          uint64     `gorm:"not null;index;comment:用户ID" json:"user_id"`
-	TransactionType string     `gorm:"type:varchar(32);not null;comment:交易类型" json:"transaction_type"`
-	Points          int64      `gorm:"not null;comment:积分变动" json:"points"`
-	Balance         int64      `gorm:"not null;comment:变动后余额" json:"balance"`
-	OrderID         uint64     `gorm:"index;comment:关联订单ID" json:"order_id"`
-	Description     string     `gorm:"type:varchar(255);comment:描述" json:"description"`
-	ExpireAt        *time.Time `gorm:"comment:过期时间" json:"expire_at"`
+	ID              uint64     `json:"id"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	UserID          uint64     `json:"user_id"`
+	TransactionType string     `json:"transaction_type"`
+	Points          int64      `json:"points"`
+	Balance         int64      `json:"balance"`
+	OrderID         uint64     `json:"order_id"`
+	Description     string     `json:"description"`
+	ExpireAt        *time.Time `json:"expire_at"`
 }
 
 // NewPointsTransaction 函数。
@@ -132,14 +134,16 @@ type CategoryMultipliers map[string]float64
 
 // MemberBenefit 结构体定义。
 type MemberBenefit struct {
-	gorm.Model
-	Level        MemberLevel         `gorm:"type:varchar(32);not null;index;comment:会员等级" json:"level"`
-	Name         string              `gorm:"type:varchar(64);not null;comment:权益名称" json:"name"`
-	Description  string              `gorm:"type:text;comment:权益描述" json:"description"`
-	DiscountRate float64             `gorm:"type:decimal(5,2);default:1.00;comment:折扣率" json:"discount_rate"`
-	PointsRate   float64             `gorm:"type:decimal(5,2);default:1.00;comment:积分倍率" json:"points_rate"`
-	Multipliers  CategoryMultipliers `gorm:"type:json;serializer:json;comment:类目特定倍率" json:"multipliers"`
-	Enabled      bool                `gorm:"default:true;comment:是否启用" json:"enabled"`
+	ID           uint64              `json:"id"`
+	CreatedAt    time.Time           `json:"created_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	Level        MemberLevel         `json:"level"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description"`
+	DiscountRate float64             `json:"discount_rate"`
+	PointsRate   float64             `json:"points_rate"`
+	Multipliers  CategoryMultipliers `json:"multipliers"`
+	Enabled      bool                `json:"enabled"`
 }
 
 // NewMemberBenefit 函数。

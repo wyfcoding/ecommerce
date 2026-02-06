@@ -18,17 +18,18 @@ import (
 // Server 结构体实现了 Loyalty 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedLoyaltyServiceServer
-	app *application.Loyalty
+	cmd   *application.LoyaltyCommandService
+	query *application.LoyaltyQueryService
 }
 
 // NewServer 创建并返回一个新的 Loyalty gRPC 服务端实例。
-func NewServer(app *application.Loyalty) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.LoyaltyCommandService, query *application.LoyaltyQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // GetMemberAccount 处理获取会员账户信息的gRPC请求。
 func (s *Server) GetMemberAccount(ctx context.Context, req *pb.GetMemberAccountRequest) (*pb.GetMemberAccountResponse, error) {
-	account, err := s.app.GetOrCreateAccount(ctx, req.UserId)
+	account, err := s.query.GetOrCreateAccount(ctx, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get or create member account: %v", err))
 	}
@@ -40,7 +41,7 @@ func (s *Server) GetMemberAccount(ctx context.Context, req *pb.GetMemberAccountR
 
 // AddPoints 处理增加用户积分的gRPC请求。
 func (s *Server) AddPoints(ctx context.Context, req *pb.AddPointsRequest) (*emptypb.Empty, error) {
-	if err := s.app.AddPoints(ctx, req.UserId, req.Points, req.TransactionType, req.Description, req.OrderId); err != nil {
+	if err := s.cmd.AddPoints(ctx, req.UserId, req.Points, req.TransactionType, req.Description, req.OrderId); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add points: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -48,7 +49,7 @@ func (s *Server) AddPoints(ctx context.Context, req *pb.AddPointsRequest) (*empt
 
 // DeductPoints 处理扣减用户积分的gRPC请求。
 func (s *Server) DeductPoints(ctx context.Context, req *pb.DeductPointsRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeductPoints(ctx, req.UserId, req.Points, req.TransactionType, req.Description, req.OrderId); err != nil {
+	if err := s.cmd.DeductPoints(ctx, req.UserId, req.Points, req.TransactionType, req.Description, req.OrderId); err != nil {
 		if errors.Is(err, domain.ErrInsufficientPoints) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -59,7 +60,7 @@ func (s *Server) DeductPoints(ctx context.Context, req *pb.DeductPointsRequest) 
 
 // AddSpent 处理增加用户消费金额的gRPC请求。
 func (s *Server) AddSpent(ctx context.Context, req *pb.AddSpentRequest) (*emptypb.Empty, error) {
-	if err := s.app.AddSpent(ctx, req.UserId, req.Amount); err != nil {
+	if err := s.cmd.AddSpent(ctx, req.UserId, req.Amount); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add spent amount: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -73,7 +74,7 @@ func (s *Server) ListPointsTransactions(ctx context.Context, req *pb.ListPointsT
 		pageSize = 10
 	}
 
-	transactions, total, err := s.app.GetPointsTransactions(ctx, req.UserId, page, pageSize)
+	transactions, total, err := s.query.GetPointsTransactions(ctx, req.UserId, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list points transactions: %v", err))
 	}
@@ -91,7 +92,7 @@ func (s *Server) ListPointsTransactions(ctx context.Context, req *pb.ListPointsT
 
 // AddBenefit 处理添加会员权益的gRPC请求。
 func (s *Server) AddBenefit(ctx context.Context, req *pb.AddBenefitRequest) (*pb.AddBenefitResponse, error) {
-	benefit, err := s.app.AddBenefit(ctx, domain.MemberLevel(req.Level), req.Name, req.Description, req.DiscountRate, req.PointsRate)
+	benefit, err := s.cmd.AddBenefit(ctx, domain.MemberLevel(req.Level), req.Name, req.Description, req.DiscountRate, req.PointsRate)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add benefit: %v", err))
 	}
@@ -103,7 +104,7 @@ func (s *Server) AddBenefit(ctx context.Context, req *pb.AddBenefitRequest) (*pb
 
 // ListBenefits 处理列出会员权益的gRPC请求。
 func (s *Server) ListBenefits(ctx context.Context, req *pb.ListBenefitsRequest) (*pb.ListBenefitsResponse, error) {
-	benefits, err := s.app.ListBenefits(ctx, domain.MemberLevel(req.Level))
+	benefits, err := s.query.ListBenefits(ctx, domain.MemberLevel(req.Level))
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list benefits: %v", err))
 	}
@@ -120,7 +121,7 @@ func (s *Server) ListBenefits(ctx context.Context, req *pb.ListBenefitsRequest) 
 
 // DeleteBenefit 处理删除会员权益的gRPC请求。
 func (s *Server) DeleteBenefit(ctx context.Context, req *pb.DeleteBenefitRequest) (*emptypb.Empty, error) {
-	if err := s.app.DeleteBenefit(ctx, req.Id); err != nil {
+	if err := s.cmd.DeleteBenefit(ctx, req.Id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete benefit: %v", err))
 	}
 	return &emptypb.Empty{}, nil
