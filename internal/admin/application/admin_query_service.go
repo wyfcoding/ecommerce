@@ -8,11 +8,14 @@ import (
 
 // AdminQueryService 处理所有读操作（Query）
 type AdminQueryService struct {
-	userRepo     domain.AdminRepository
-	roleRepo     domain.RoleRepository
-	auditRepo    domain.AuditRepository
-	settingRepo  domain.SettingRepository
-	approvalRepo domain.ApprovalRepository
+	userRepo        domain.AdminRepository
+	roleRepo        domain.RoleRepository
+	auditRepo       domain.AuditRepository
+	settingRepo     domain.SettingRepository
+	approvalRepo    domain.ApprovalRepository
+	userReadRepo    domain.AdminUserReadRepository
+	settingReadRepo domain.SettingReadRepository
+	auditSearchRepo domain.AuditLogSearchRepository
 }
 
 func NewAdminQueryService(
@@ -21,20 +24,38 @@ func NewAdminQueryService(
 	auditRepo domain.AuditRepository,
 	settingRepo domain.SettingRepository,
 	approvalRepo domain.ApprovalRepository,
+	userReadRepo domain.AdminUserReadRepository,
+	settingReadRepo domain.SettingReadRepository,
+	auditSearchRepo domain.AuditLogSearchRepository,
 ) *AdminQueryService {
 	return &AdminQueryService{
-		userRepo:     userRepo,
-		roleRepo:     roleRepo,
-		auditRepo:    auditRepo,
-		settingRepo:  settingRepo,
-		approvalRepo: approvalRepo,
+		userRepo:        userRepo,
+		roleRepo:        roleRepo,
+		auditRepo:       auditRepo,
+		settingRepo:     settingRepo,
+		approvalRepo:    approvalRepo,
+		userReadRepo:    userReadRepo,
+		settingReadRepo: settingReadRepo,
+		auditSearchRepo: auditSearchRepo,
 	}
 }
 
 // --- Admin Queries ---
 
 func (q *AdminQueryService) GetAdminProfile(ctx context.Context, id uint) (*domain.AdminUser, error) {
-	return q.userRepo.GetByID(ctx, id)
+	if q.userReadRepo != nil {
+		if cached, err := q.userReadRepo.GetByID(ctx, id); err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+	user, err := q.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user != nil && q.userReadRepo != nil {
+		_ = q.userReadRepo.Save(ctx, user)
+	}
+	return user, nil
 }
 
 func (q *AdminQueryService) ListAdmins(ctx context.Context, page, pageSize int) ([]*domain.AdminUser, int64, error) {
@@ -83,7 +104,19 @@ func (q *AdminQueryService) ListPermissions(ctx context.Context) ([]*domain.Perm
 // --- Setting Queries ---
 
 func (q *AdminQueryService) GetSystemSetting(ctx context.Context, key string) (*domain.SystemSetting, error) {
-	return q.settingRepo.GetByKey(ctx, key)
+	if q.settingReadRepo != nil {
+		if cached, err := q.settingReadRepo.GetByKey(ctx, key); err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+	setting, err := q.settingRepo.GetByKey(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	if setting != nil && q.settingReadRepo != nil {
+		_ = q.settingReadRepo.Save(ctx, setting)
+	}
+	return setting, nil
 }
 
 // --- Audit Queries ---
@@ -92,6 +125,16 @@ func (q *AdminQueryService) ListAuditLogs(ctx context.Context, adminID uint, pag
 	filter := make(map[string]any)
 	if adminID > 0 {
 		filter["user_id"] = adminID
+	}
+	if q.auditSearchRepo != nil {
+		var userID *uint
+		if adminID > 0 {
+			userID = &adminID
+		}
+		list, total, err := q.auditSearchRepo.Search(ctx, userID, nil, nil, (page-1)*pageSize, pageSize)
+		if err == nil {
+			return list, total, nil
+		}
 	}
 	return q.auditRepo.Find(ctx, filter, page, pageSize)
 }

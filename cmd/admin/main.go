@@ -14,7 +14,11 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/admin/v1"
 	"github.com/wyfcoding/ecommerce/internal/admin/application"
-	"github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence/mysql"
+	"github.com/wyfcoding/ecommerce/internal/admin/domain"
+	admes "github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence/elasticsearch"
+	admysql "github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence/mysql"
+	adredis "github.com/wyfcoding/ecommerce/internal/admin/infrastructure/persistence/redis"
+	adminconsumer "github.com/wyfcoding/ecommerce/internal/admin/interfaces/consumer"
 	admingrpc "github.com/wyfcoding/ecommerce/internal/admin/interfaces/grpc"
 	adminhttp "github.com/wyfcoding/ecommerce/internal/admin/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -24,9 +28,11 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 	"github.com/wyfcoding/pkg/storage"
 )
 
@@ -39,12 +45,16 @@ const IdempotencyPrefix = "admin:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		AuditLogIndex string `mapstructure:"audit_log_index" toml:"audit_log_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Admin       *application.AdminService
+	Command     *application.AdminCommandService
+	Query       *application.AdminQueryService
 	Clients     *ServiceClients
 	Handler     *adminhttp.AdminHandler
 	Metrics     *metrics.Metrics
@@ -78,7 +88,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterAdminServiceServer(s, admingrpc.NewServer(ctx.Admin))
+	pb.RegisterAdminServiceServer(s, admingrpc.NewServer(ctx.Command, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -143,9 +153,42 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (审计日志搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+
+	// 3.1 初始化消息队列与 Outbox
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	if err := db.RawDB().AutoMigrate(&outbox.Message{}); err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
 
 	// 4. 初始化存储基础设施 (MinIO)
 	// 注意: 作为通用能力注入到 Service，而非作为 Repository
@@ -164,6 +207,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
+		producer.Close()
 		redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
@@ -171,27 +216,19 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. 初始化 Outbox 管理器与发布者
-	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := outbox.NewPublisher(outboxMgr)
-
-	// 启动 Outbox 处理器 (定时扫描并推送消息)
-	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
-		// TODO: 生产环境应在此处投递到真实的 Kafka 集群
-		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
-		return nil
-	}, 100, 5*time.Second)
-	outboxProcessor.Start()
-
 	// 6. DDD 分层装配 (Infrastructure -> Domain -> Application -> Interface)
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 6.1 Infrastructure (Persistence)
-	adminRepo := mysql.NewAdminRepository(db.RawDB())
-	roleRepo := mysql.NewRoleRepository(db.RawDB())
-	auditRepo := mysql.NewAuditRepository(db.RawDB())
-	approvalRepo := mysql.NewApprovalRepository(db.RawDB())
-	settingRepo := mysql.NewSettingRepository(db.RawDB())
+	adminRepo := admysql.NewAdminRepository(db.RawDB())
+	roleRepo := admysql.NewRoleRepository(db.RawDB())
+	auditRepo := admysql.NewAuditRepository(db.RawDB())
+	approvalRepo := admysql.NewApprovalRepository(db.RawDB())
+	settingRepo := admysql.NewSettingRepository(db.RawDB())
+
+	adminReadRepo := adredis.NewAdminUserReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	settingReadRepo := adredis.NewSettingReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	auditSearchRepo := admes.NewAuditLogSearchRepository(esClient, c.Search.AuditLogIndex)
 
 	// 6.2 Application (Service)
 	// 注入外部依赖 (Parameter Object Pattern)
@@ -202,24 +239,63 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		Storage:       store,
 	}
 
-	adminService := application.NewAdminService(
+	commandSvc := application.NewAdminCommandService(
 		adminRepo,
 		roleRepo,
 		auditRepo,
 		settingRepo,
 		approvalRepo,
 		opsDeps,
-		outboxPublisher,
+		outbox.NewPublisher(outboxMgr),
 		logger.Logger,
 	)
+	querySvc := application.NewAdminQueryService(
+		adminRepo,
+		roleRepo,
+		auditRepo,
+		settingRepo,
+		approvalRepo,
+		adminReadRepo,
+		settingReadRepo,
+		auditSearchRepo,
+	)
 
-	// 6.3 Interface (HTTP Handlers)
-	handler := adminhttp.NewAdminHandler(adminService, logger.Logger)
+	// 6.3 Projection Consumers (Admin Events -> Read Model)
+	projectionService := application.NewAdminProjectionService(adminRepo, adminReadRepo, settingRepo, settingReadRepo, auditRepo, auditSearchRepo, logger.Logger)
+	projectionHandler := adminconsumer.NewAdminProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.AdminUserCreatedEventType,
+		domain.AdminUserUpdatedEventType,
+		domain.AdminUserDisabledEventType,
+		domain.RoleAssignedEventType,
+		domain.SystemSettingUpdatedEventType,
+		domain.AuditLogCreatedEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 6.4 Interface (HTTP Handlers)
+	handler := adminhttp.NewAdminHandler(commandSvc, querySvc, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
 		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -236,7 +312,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Admin:       adminService,
+		Command:     commandSvc,
+		Query:       querySvc,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,

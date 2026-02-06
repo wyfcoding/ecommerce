@@ -15,14 +15,16 @@ import (
 
 // AdminHandler 统一处理管理后台相关的 HTTP 请求。
 type AdminHandler struct {
-	svc    *application.AdminService
+	cmd    *application.AdminCommandService
+	query  *application.AdminQueryService
 	logger *slog.Logger
 }
 
 // NewAdminHandler 创建 AdminHandler 实例。
-func NewAdminHandler(svc *application.AdminService, logger *slog.Logger) *AdminHandler {
+func NewAdminHandler(cmd *application.AdminCommandService, query *application.AdminQueryService, logger *slog.Logger) *AdminHandler {
 	return &AdminHandler{
-		svc:    svc,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -60,7 +62,7 @@ func (h *AdminHandler) Login(c *gin.Context) {
 	}
 
 	// 执行登录验证逻辑
-	token, user, err := h.svc.Command.Login(
+	token, user, err := h.cmd.Login(
 		c.Request.Context(),
 		req.Username,
 		req.Password,
@@ -93,7 +95,7 @@ func (h *AdminHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Command.RegisterAdmin(c.Request.Context(), &req)
+	user, err := h.cmd.RegisterAdmin(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "admin registration failed", "username", req.Username, "error", err)
 		response.Error(c, err)
@@ -133,7 +135,7 @@ func (h *AdminHandler) Apply(c *gin.Context) {
 		Payload:     req.Payload,
 	}
 
-	if err := h.svc.Command.CreateRequest(c.Request.Context(), domainReq); err != nil {
+	if err := h.cmd.CreateRequest(c.Request.Context(), domainReq); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create approval request", "user_id", requesterID, "type", req.ActionType, "error", err)
 		response.Error(c, err)
 		return
@@ -165,9 +167,9 @@ func (h *AdminHandler) Action(c *gin.Context) {
 	}
 
 	if req.Action == "approve" {
-		err = h.svc.Command.ApproveRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
+		err = h.cmd.ApproveRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
 	} else {
-		err = h.svc.Command.RejectRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
+		err = h.cmd.RejectRequest(c.Request.Context(), uint(id), uint(approverID), req.Comment)
 	}
 
 	if err != nil {

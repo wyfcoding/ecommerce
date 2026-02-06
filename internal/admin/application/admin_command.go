@@ -73,25 +73,39 @@ func (m *AdminCommandService) RegisterAdmin(ctx context.Context, req *CreateUser
 	}
 	admin.ID = uint(idgen.GenID())
 
-	if err := m.userRepo.Create(ctx, admin); err != nil {
+	if err := m.userRepo.WithTx(ctx, func(tx any) error {
+		if err := m.userRepo.CreateInTx(ctx, tx, admin); err != nil {
+			return err
+		}
+		// 发布领域事件
+		if err := m.publisher.PublishInTx(ctx, tx, domain.AdminUserCreatedEventType, fmt.Sprintf("%d", admin.ID), &domain.AdminUserCreatedEvent{
+			UserID:    admin.ID,
+			Username:  admin.Username,
+			Email:     admin.Email,
+			Timestamp: time.Now(),
+		}); err != nil {
+			return err
+		}
+
+		if len(req.Roles) > 0 {
+			if err := m.userRepo.AssignRoleInTx(ctx, tx, admin.ID, req.Roles); err != nil {
+				return err
+			}
+			_ = m.publisher.PublishInTx(ctx, tx, domain.RoleAssignedEventType, fmt.Sprintf("%d", admin.ID), &domain.RoleAssignedEvent{
+				UserID:    admin.ID,
+				RoleIDs:   req.Roles,
+				Operator:  admin.Username,
+				Timestamp: time.Now(),
+			})
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	// 发布领域事件
-	_ = m.publisher.Publish(ctx, "admin_user_created", fmt.Sprintf("%d", admin.ID), &domain.AdminUserCreatedEvent{
-		UserID:    admin.ID,
-		Username:  admin.Username,
-		Email:     admin.Email,
-		Timestamp: time.Now(),
-	})
-
 	if len(req.Roles) > 0 {
-		if err := m.userRepo.AssignRole(ctx, admin.ID, req.Roles); err != nil {
-			return nil, err
-		}
 		return m.userRepo.GetByID(ctx, admin.ID)
 	}
-
 	return admin, nil
 }
 
@@ -159,25 +173,65 @@ func (m *AdminCommandService) UpdateAdmin(ctx context.Context, id uint, email, f
 	if fullName != "" {
 		user.FullName = fullName
 	}
-	if err := m.userRepo.Update(ctx, user); err != nil {
+	if err := m.userRepo.WithTx(ctx, func(tx any) error {
+		if err := m.userRepo.UpdateInTx(ctx, tx, user); err != nil {
+			return err
+		}
+		if err := m.publisher.PublishInTx(ctx, tx, domain.AdminUserUpdatedEventType, fmt.Sprintf("%d", user.ID), &domain.AdminUserUpdatedEvent{
+			UserID:    user.ID,
+			Username:  user.Username,
+			Timestamp: time.Now(),
+		}); err != nil {
+			return err
+		}
+		if roleIDs != nil {
+			if err := m.userRepo.AssignRoleInTx(ctx, tx, id, roleIDs); err != nil {
+				return err
+			}
+			_ = m.publisher.PublishInTx(ctx, tx, domain.RoleAssignedEventType, fmt.Sprintf("%d", user.ID), &domain.RoleAssignedEvent{
+				UserID:    user.ID,
+				RoleIDs:   roleIDs,
+				Operator:  user.Username,
+				Timestamp: time.Now(),
+			})
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	if roleIDs != nil {
-		if err := m.userRepo.AssignRole(ctx, id, roleIDs); err != nil {
-			return nil, err
-		}
 		return m.userRepo.GetByID(ctx, id)
 	}
 	return user, nil
 }
 
 func (m *AdminCommandService) DeleteAdmin(ctx context.Context, id uint) error {
-	return m.userRepo.Delete(ctx, id)
+	return m.userRepo.WithTx(ctx, func(tx any) error {
+		if err := m.userRepo.DeleteInTx(ctx, tx, id); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.AdminUserDisabledEventType, fmt.Sprintf("%d", id), &domain.AdminUserDisabledEvent{
+			UserID:    id,
+			Username:  "",
+			Reason:    "deleted",
+			Timestamp: time.Now(),
+		})
+	})
 }
 
 func (m *AdminCommandService) CreateRole(ctx context.Context, name, code, description string) (*domain.Role, error) {
 	role := &domain.Role{Name: name, Code: code, Description: description}
-	if err := m.roleRepo.CreateRole(ctx, role); err != nil {
+	if err := m.roleRepo.WithTx(ctx, func(tx any) error {
+		if err := m.roleRepo.CreateRoleInTx(ctx, tx, role); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.RoleCreatedEventType, fmt.Sprintf("%d", role.ID), &domain.RoleCreatedEvent{
+			RoleID:    role.ID,
+			Name:      role.Name,
+			Code:      role.Code,
+			Timestamp: time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 	return role, nil
@@ -197,37 +251,92 @@ func (m *AdminCommandService) UpdateRole(ctx context.Context, id uint, name, des
 	if description != "" {
 		role.Description = description
 	}
-	if err := m.roleRepo.UpdateRole(ctx, role); err != nil {
+	if err := m.roleRepo.WithTx(ctx, func(tx any) error {
+		if err := m.roleRepo.UpdateRoleInTx(ctx, tx, role); err != nil {
+			return err
+		}
+		if permissionIDs != nil {
+			if err := m.roleRepo.AssignPermissionsInTx(ctx, tx, id, permissionIDs); err != nil {
+				return err
+			}
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.RoleUpdatedEventType, fmt.Sprintf("%d", role.ID), &domain.RoleUpdatedEvent{
+			RoleID:    role.ID,
+			Name:      role.Name,
+			Code:      role.Code,
+			Timestamp: time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 	if permissionIDs != nil {
-		if err := m.roleRepo.AssignPermissions(ctx, id, permissionIDs); err != nil {
-			return nil, err
-		}
 		return m.roleRepo.GetRoleByID(ctx, id)
 	}
 	return role, nil
 }
 
 func (m *AdminCommandService) DeleteRole(ctx context.Context, id uint) error {
-	return m.roleRepo.DeleteRole(ctx, id)
+	return m.roleRepo.WithTx(ctx, func(tx any) error {
+		if err := m.roleRepo.DeleteRoleInTx(ctx, tx, id); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.RoleDeletedEventType, fmt.Sprintf("%d", id), &domain.RoleDeletedEvent{
+			RoleID:    id,
+			Timestamp: time.Now(),
+		})
+	})
 }
 
 func (m *AdminCommandService) CreatePermission(ctx context.Context, name, code, permType, resource, action string, parentID uint) (*domain.Permission, error) {
 	perm := &domain.Permission{Name: name, Code: code, Type: permType, Resource: resource, Action: action, ParentID: parentID}
-	if err := m.roleRepo.CreatePermission(ctx, perm); err != nil {
+	if err := m.roleRepo.WithTx(ctx, func(tx any) error {
+		if err := m.roleRepo.CreatePermissionInTx(ctx, tx, perm); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.PermissionCreatedEventType, fmt.Sprintf("%d", perm.ID), &domain.PermissionCreatedEvent{
+			PermissionID: perm.ID,
+			Name:         perm.Name,
+			Code:         perm.Code,
+			Timestamp:    time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 	return perm, nil
 }
 
 func (m *AdminCommandService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint) error {
-	return m.roleRepo.AssignPermissions(ctx, roleID, []uint{permissionID})
+	return m.roleRepo.WithTx(ctx, func(tx any) error {
+		if err := m.roleRepo.AssignPermissionsInTx(ctx, tx, roleID, []uint{permissionID}); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.RoleUpdatedEventType, fmt.Sprintf("%d", roleID), &domain.RoleUpdatedEvent{
+			RoleID:    roleID,
+			Name:      "",
+			Code:      "",
+			Timestamp: time.Now(),
+		})
+	})
 }
 
 func (m *AdminCommandService) UpdateSystemSetting(ctx context.Context, key, value, description string) (*domain.SystemSetting, error) {
+	var oldValue string
+	if current, err := m.settingRepo.GetByKey(ctx, key); err == nil && current != nil {
+		oldValue = current.Value
+	}
 	setting := &domain.SystemSetting{Key: key, Value: value, Description: description}
-	if err := m.settingRepo.Save(ctx, setting); err != nil {
+	if err := m.settingRepo.WithTx(ctx, func(tx any) error {
+		if err := m.settingRepo.SaveInTx(ctx, tx, setting); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SystemSettingUpdatedEventType, key, &domain.SystemSettingUpdatedEvent{
+			Key:       key,
+			OldValue:  oldValue,
+			NewValue:  value,
+			Operator:  "",
+			Timestamp: time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 	return setting, nil
@@ -236,7 +345,18 @@ func (m *AdminCommandService) UpdateSystemSetting(ctx context.Context, key, valu
 func (m *AdminCommandService) LogAction(ctx context.Context, log *domain.AuditLog) {
 	go func() {
 		bgCtx := context.Background()
-		if err := m.auditRepo.Save(bgCtx, log); err != nil {
+		if err := m.auditRepo.WithTx(bgCtx, func(tx any) error {
+			if err := m.auditRepo.SaveInTx(bgCtx, tx, log); err != nil {
+				return err
+			}
+			return m.publisher.PublishInTx(bgCtx, tx, domain.AuditLogCreatedEventType, fmt.Sprintf("%d", log.ID), &domain.AuditLogCreatedEvent{
+				LogID:     log.ID,
+				UserID:    log.UserID,
+				Action:    log.Action,
+				Resource:  log.Resource,
+				Timestamp: time.Now(),
+			})
+		}); err != nil {
 			m.logger.Error("failed to save audit log", "error", err)
 		}
 	}()
@@ -251,17 +371,19 @@ func (m *AdminCommandService) CreateRequest(ctx context.Context, req *domain.App
 		return err
 	}
 
-	if err := m.approvalRepo.CreateRequest(ctx, req); err != nil {
+	if err := m.approvalRepo.WithTx(ctx, func(tx any) error {
+		if err := m.approvalRepo.CreateRequestInTx(ctx, tx, req); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ApprovalRequestCreatedEventType, fmt.Sprintf("%d", req.ID), &domain.ApprovalRequestCreatedEvent{
+			RequestID:   req.ID,
+			RequesterID: req.RequesterID,
+			ActionType:  req.ActionType,
+			Timestamp:   time.Now(),
+		})
+	}); err != nil {
 		return err
 	}
-
-	// 发布领域事件
-	_ = m.publisher.Publish(ctx, "approval_request_created", fmt.Sprintf("%d", req.ID), &domain.ApprovalRequestCreatedEvent{
-		RequestID:   req.ID,
-		RequesterID: req.RequesterID,
-		ActionType:  req.ActionType,
-		Timestamp:   time.Now(),
-	})
 
 	m.LogAction(ctx, &domain.AuditLog{
 		UserID:   req.RequesterID,
@@ -329,29 +451,46 @@ func (m *AdminCommandService) ApproveRequest(ctx context.Context, requestID, app
 		Action:     domain.ApprovalActionApprove,
 		Comment:    comment,
 	}
-	if err := m.approvalRepo.AddLog(ctx, logEntry); err != nil {
-		return err
-	}
 
-	// 判断是否还有后续步骤
-	if req.CurrentStep < req.TotalSteps {
-		req.CurrentStep++
-		// 计算下一步的审批角色
-		req.ApproverRole = m.calculateNextApprover(req)
-		// 状态保持 Pending
-		if err := m.approvalRepo.UpdateRequest(ctx, req); err != nil {
+	var approvedFinal bool
+	if err := m.approvalRepo.WithTx(ctx, func(tx any) error {
+		if err := m.approvalRepo.AddLogInTx(ctx, tx, logEntry); err != nil {
 			return err
 		}
-		m.logger.InfoContext(ctx, "approval request moved to next step", "req_id", req.ID, "next_step", req.CurrentStep, "next_role", req.ApproverRole)
-		return nil
+
+		// 判断是否还有后续步骤
+		if req.CurrentStep < req.TotalSteps {
+			req.CurrentStep++
+			// 计算下一步的审批角色
+			req.ApproverRole = m.calculateNextApprover(req)
+			// 状态保持 Pending
+			if err := m.approvalRepo.UpdateRequestInTx(ctx, tx, req); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// 最后一步完成，更新为已通过
+		req.Status = domain.ApprovalStatusApproved
+		now := time.Now()
+		req.FinalizedAt = &now
+		if err := m.approvalRepo.UpdateRequestInTx(ctx, tx, req); err != nil {
+			return err
+		}
+		approvedFinal = true
+		return m.publisher.PublishInTx(ctx, tx, domain.ApprovalRequestApprovedEventType, fmt.Sprintf("%d", req.ID), &domain.ApprovalRequestApprovedEvent{
+			RequestID:  req.ID,
+			ApproverID: approverID,
+			Comment:    comment,
+			Timestamp:  time.Now(),
+		})
+	}); err != nil {
+		return err
 	}
 
-	// 最后一步完成，更新为已通过
-	req.Status = domain.ApprovalStatusApproved
-	now := time.Now()
-	req.FinalizedAt = &now
-	if err := m.approvalRepo.UpdateRequest(ctx, req); err != nil {
-		return err
+	if !approvedFinal {
+		m.logger.InfoContext(ctx, "approval request moved to next step", "req_id", req.ID, "next_step", req.CurrentStep, "next_role", req.ApproverRole)
+		return nil
 	}
 
 	// 异步执行具体的业务操作
@@ -406,13 +545,23 @@ func (m *AdminCommandService) RejectRequest(ctx context.Context, requestID, appr
 		return errors.New("request is not pending")
 	}
 	logEntry := &domain.ApprovalLog{RequestID: req.ID, ApproverID: approverID, Action: domain.ApprovalActionReject, Comment: comment}
-	if err := m.approvalRepo.AddLog(ctx, logEntry); err != nil {
-		return err
-	}
-	req.Status = domain.ApprovalStatusRejected
-	now := time.Now()
-	req.FinalizedAt = &now
-	return m.approvalRepo.UpdateRequest(ctx, req)
+	return m.approvalRepo.WithTx(ctx, func(tx any) error {
+		if err := m.approvalRepo.AddLogInTx(ctx, tx, logEntry); err != nil {
+			return err
+		}
+		req.Status = domain.ApprovalStatusRejected
+		now := time.Now()
+		req.FinalizedAt = &now
+		if err := m.approvalRepo.UpdateRequestInTx(ctx, tx, req); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ApprovalRequestRejectedEventType, fmt.Sprintf("%d", req.ID), &domain.ApprovalRequestRejectedEvent{
+			RequestID:  req.ID,
+			ApproverID: approverID,
+			Reason:     comment,
+			Timestamp:  time.Now(),
+		})
+	})
 }
 
 func (m *AdminCommandService) executeOperation(ctx context.Context, req *domain.ApprovalRequest) error {
