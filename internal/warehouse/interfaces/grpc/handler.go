@@ -20,12 +20,13 @@ import (
 // Server 结构体实现了 WarehouseService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedWarehouseServiceServer
-	app *application.WarehouseService
+	cmdService   *application.WarehouseCommandService
+	queryService *application.WarehouseQueryService
 }
 
 // NewServer 创建并返回一个新的 Warehouse gRPC 服务端实例。
-func NewServer(app *application.WarehouseService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.WarehouseCommandService, query *application.WarehouseQueryService) *Server {
+	return &Server{cmdService: cmd, queryService: query}
 }
 
 // CreateWarehouse 处理创建仓库的gRPC请求。
@@ -33,7 +34,10 @@ func (s *Server) CreateWarehouse(ctx context.Context, req *pb.CreateWarehouseReq
 	start := time.Now()
 	slog.Info("gRPC CreateWarehouse received", "code", req.Code, "name", req.Name)
 
-	warehouse, err := s.app.CreateWarehouse(ctx, req.Code, req.Name)
+	warehouse, err := s.cmdService.CreateWarehouse(ctx, &domain.Warehouse{
+		Code: req.Code,
+		Name: req.Name,
+	})
 	if err != nil {
 		slog.Error("gRPC CreateWarehouse failed", "code", req.Code, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create warehouse: %v", err))
@@ -56,7 +60,7 @@ func (s *Server) ListWarehouses(ctx context.Context, req *pb.ListWarehousesReque
 		pageSize = 10
 	}
 
-	warehouses, total, err := s.app.Query.ListWarehouses(ctx, page, pageSize)
+	warehouses, total, err := s.queryService.ListWarehouses(ctx, page, pageSize)
 	if err != nil {
 		slog.Error("gRPC ListWarehouses failed", "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list warehouses: %v", err))
@@ -79,7 +83,7 @@ func (s *Server) UpdateStock(ctx context.Context, req *pb.UpdateStockRequest) (*
 	start := time.Now()
 	slog.Info("gRPC UpdateStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	if err := s.app.Command.AdjustStock(ctx, req.WarehouseId, req.SkuId, req.Quantity, "gRPC UpdateStock"); err != nil {
+	if err := s.cmdService.AdjustStock(ctx, req.WarehouseId, req.SkuId, req.Quantity, "gRPC UpdateStock"); err != nil {
 		slog.Error("gRPC UpdateStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update stock: %v", err))
 	}
@@ -93,7 +97,7 @@ func (s *Server) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.Get
 	start := time.Now()
 	slog.Debug("gRPC GetStock received", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId)
 
-	stock, err := s.app.Query.GetStock(ctx, req.WarehouseId, req.SkuId)
+	stock, err := s.queryService.GetStock(ctx, req.WarehouseId, req.SkuId)
 	if err != nil {
 		slog.Error("gRPC GetStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get stock: %v", err))
@@ -110,7 +114,7 @@ func (s *Server) CreateTransfer(ctx context.Context, req *pb.CreateTransferReque
 	start := time.Now()
 	slog.Info("gRPC CreateTransfer received", "from", req.FromWarehouseId, "to", req.ToWarehouseId, "sku_id", req.SkuId)
 
-	transfer, err := s.app.CreateTransfer(ctx, req.FromWarehouseId, req.ToWarehouseId, req.SkuId, req.Quantity, req.CreatedBy)
+	transfer, err := s.cmdService.CreateTransfer(ctx, req.FromWarehouseId, req.ToWarehouseId, req.SkuId, req.Quantity, req.CreatedBy)
 	if err != nil {
 		slog.Error("gRPC CreateTransfer failed", "from", req.FromWarehouseId, "to", req.ToWarehouseId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create transfer: %v", err))
@@ -127,7 +131,7 @@ func (s *Server) CompleteTransfer(ctx context.Context, req *pb.CompleteTransferR
 	start := time.Now()
 	slog.Info("gRPC CompleteTransfer received", "transfer_id", req.TransferId)
 
-	if err := s.app.CompleteTransfer(ctx, req.TransferId); err != nil {
+	if err := s.cmdService.CompleteTransfer(ctx, req.TransferId); err != nil {
 		slog.Error("gRPC CompleteTransfer failed", "transfer_id", req.TransferId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to complete transfer: %v", err))
 	}
@@ -143,7 +147,7 @@ func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*
 
 	barrier, _ := dtmgrpc.BarrierFromGrpc(ctx)
 
-	if err := s.app.DeductStock(ctx, barrier, req.OrderId, req.SkuId, req.WarehouseId, int32(req.Quantity)); err != nil {
+	if err := s.cmdService.DeductStock(ctx, barrier, req.OrderId, req.SkuId, req.WarehouseId, int32(req.Quantity)); err != nil {
 		slog.Error("gRPC DeductStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("failed to deduct stock for saga: %v", err))
 	}
@@ -159,7 +163,7 @@ func (s *Server) RevertStock(ctx context.Context, req *pb.RevertStockRequest) (*
 
 	barrier, _ := dtmgrpc.BarrierFromGrpc(ctx)
 
-	if err := s.app.RevertStock(ctx, barrier, req.OrderId, req.SkuId, req.WarehouseId, int32(req.Quantity)); err != nil {
+	if err := s.cmdService.RevertStock(ctx, barrier, req.OrderId, req.SkuId, req.WarehouseId, int32(req.Quantity)); err != nil {
 		slog.Error("gRPC RevertStock failed", "warehouse_id", req.WarehouseId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to revert stock for saga: %v", err))
 	}
@@ -173,7 +177,7 @@ func (s *Server) GetOptimalWarehouse(ctx context.Context, req *pb.GetOptimalWare
 	start := time.Now()
 	slog.Info("gRPC GetOptimalWarehouse received", "sku_id", req.SkuId, "quantity", req.Quantity, "lat", req.Latitude, "lon", req.Longitude)
 
-	warehouse, dist, stock, err := s.app.GetOptimalWarehouse(ctx, req.SkuId, req.Quantity, req.Latitude, req.Longitude)
+	warehouse, dist, stock, err := s.queryService.GetOptimalWarehouse(ctx, req.SkuId, req.Quantity, req.Latitude, req.Longitude)
 	if err != nil {
 		slog.Error("gRPC GetOptimalWarehouse failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.FailedPrecondition, fmt.Sprintf("failed to find optimal warehouse: %v", err))

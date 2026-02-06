@@ -60,7 +60,7 @@ func (s *WarehouseCommandService) DeductStock(ctx context.Context, barrier any, 
 			WarehouseID: warehouseID,
 			Timestamp:   time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "warehouse.stock.deducted", fmt.Sprintf("%d-%d", orderID, skuID), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.StockDeductedEventType, fmt.Sprintf("%d-%d", orderID, skuID), event)
 	})
 }
 
@@ -88,7 +88,7 @@ func (s *WarehouseCommandService) RevertStock(ctx context.Context, barrier any, 
 			WarehouseID: warehouseID,
 			Timestamp:   time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "warehouse.stock.reverted", fmt.Sprintf("%d-%d", orderID, skuID), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.StockRevertedEventType, fmt.Sprintf("%d-%d", orderID, skuID), event)
 	})
 }
 
@@ -97,7 +97,7 @@ func (s *WarehouseCommandService) CreateWarehouse(ctx context.Context, w *domain
 	if err := s.repo.Save(ctx, w); err != nil {
 		return nil, err
 	}
-	err := s.publisher.Publish(ctx, "warehouse.created", w.Code, &domain.WarehouseCreatedEvent{
+	err := s.publisher.Publish(ctx, domain.WarehouseCreatedEventType, w.Code, &domain.WarehouseCreatedEvent{
 		WarehouseID: uint64(w.ID),
 		Code:        w.Code,
 		Name:        w.Name,
@@ -131,7 +131,7 @@ func (s *WarehouseCommandService) AdjustStock(ctx context.Context, warehouseID, 
 			}
 		}
 
-		return s.publisher.PublishInTx(ctx, tx, "warehouse.stock.adjusted", fmt.Sprintf("%d-%d", warehouseID, skuID), &domain.StockAdjustedEvent{
+		return s.publisher.PublishInTx(ctx, tx, domain.StockAdjustedEventType, fmt.Sprintf("%d-%d", warehouseID, skuID), &domain.StockAdjustedEvent{
 			WarehouseID: warehouseID,
 			SkuID:       skuID,
 			OldQty:      oldQty,
@@ -153,7 +153,23 @@ func (s *WarehouseCommandService) CreateTransfer(ctx context.Context, fromID, to
 		Status:          domain.StockTransferStatusPending,
 		CreatedBy:       createdBy,
 	}
-	if err := s.repo.SaveTransfer(ctx, transfer); err != nil {
+	if err := s.repo.WithTx(ctx, func(tx any) error {
+		if err := s.repo.SaveTransferInTx(ctx, tx, transfer); err != nil {
+			return err
+		}
+		event := &domain.StockTransferCreatedEvent{
+			TransferID:      uint64(transfer.ID),
+			TransferNo:      transfer.TransferNo,
+			FromWarehouseID: transfer.FromWarehouseID,
+			ToWarehouseID:   transfer.ToWarehouseID,
+			SkuID:           transfer.SkuID,
+			Quantity:        transfer.Quantity,
+			Status:          transfer.Status,
+			CreatedBy:       transfer.CreatedBy,
+			Timestamp:       time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.StockTransferCreatedEventType, fmt.Sprintf("%d", transfer.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 	return transfer, nil
@@ -162,7 +178,7 @@ func (s *WarehouseCommandService) CreateTransfer(ctx context.Context, fromID, to
 // CompleteTransfer 完成调拨。
 func (s *WarehouseCommandService) CompleteTransfer(ctx context.Context, id uint64) error {
 	return s.repo.WithTx(ctx, func(tx any) error {
-		transfer, err := s.repo.FindTransferByNo(ctx, fmt.Sprintf("%d", id))
+		transfer, err := s.repo.FindTransferByID(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -172,6 +188,16 @@ func (s *WarehouseCommandService) CompleteTransfer(ctx context.Context, id uint6
 		transfer.Status = domain.StockTransferStatusCompleted
 		now := time.Now()
 		transfer.CompletedAt = &now
-		return s.repo.UpdateTransfer(ctx, transfer)
+		if err := s.repo.UpdateTransferInTx(ctx, tx, transfer); err != nil {
+			return err
+		}
+		event := &domain.StockTransferCompletedEvent{
+			TransferID:  uint64(transfer.ID),
+			TransferNo:  transfer.TransferNo,
+			Status:      transfer.Status,
+			CompletedAt: now,
+			Timestamp:   time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.StockTransferCompletedEventType, fmt.Sprintf("%d", transfer.ID), event)
 	})
 }

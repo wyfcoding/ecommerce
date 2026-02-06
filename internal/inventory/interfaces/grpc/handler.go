@@ -6,27 +6,28 @@ import (
 	"log/slog"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"          // 导入库存模块的protobuf定义。
-	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
-	"github.com/wyfcoding/ecommerce/internal/inventory/domain"      // 导入库存模块的领域层。
+	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
+	"github.com/wyfcoding/ecommerce/internal/inventory/application"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 
-	"google.golang.org/grpc/codes"                       // gRPC状态码。
-	"google.golang.org/grpc/status"                      // gRPC状态处理。
-	"google.golang.org/protobuf/types/known/emptypb"     // 导入空消息类型。
-	"google.golang.org/protobuf/types/known/timestamppb" // 导入时间戳消息类型。
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Server 结构体实现了 Inventory 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedInventoryServiceServer                        // 嵌入生成的UnimplementedInventoryServiceServer，确保前向兼容性。
-	app                                    *application.Inventory // 依赖Inventory应用服务，处理核心业务逻辑。
+	pb.UnimplementedInventoryServiceServer
+	cmdService   *application.InventoryCommandService
+	queryService *application.InventoryQueryService
 }
 
 // NewServer 创建并返回一个新的 Inventory gRPC 服务端实例。
-func NewServer(app *application.Inventory) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.InventoryCommandService, query *application.InventoryQueryService) *Server {
+	return &Server{cmdService: cmd, queryService: query}
 }
 
 // CreateInventory 处理创建库存记录的gRPC请求。
@@ -34,13 +35,13 @@ func (s *Server) CreateInventory(ctx context.Context, req *pb.CreateInventoryReq
 	start := time.Now()
 	slog.Info("gRPC CreateInventory received", "sku_id", req.SkuId, "product_id", req.ProductId, "warehouse_id", req.WarehouseId)
 
-	inventory, err := s.app.CreateInventory(ctx, req.SkuId, req.ProductId, req.WarehouseId, req.TotalStock, req.WarningThreshold)
+	inventory, err := s.cmdService.CreateInventory(ctx, req.SkuId, req.ProductId, req.WarehouseId, req.TotalStock, req.WarningThreshold)
 	if err != nil {
 		slog.Error("gRPC CreateInventory failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create inventory: %v", err))
 	}
 
-	slog.Info("gRPC CreateInventory successful", "sku_id", req.SkuId, "inventory_id", inventory.Model.ID, "duration", time.Since(start))
+	slog.Info("gRPC CreateInventory successful", "sku_id", req.SkuId, "inventory_id", inventory.ID, "duration", time.Since(start))
 	return &pb.CreateInventoryResponse{
 		Inventory: convertInventoryToProto(inventory),
 	}, nil
@@ -51,7 +52,7 @@ func (s *Server) GetInventory(ctx context.Context, req *pb.GetInventoryRequest) 
 	start := time.Now()
 	slog.Debug("gRPC GetInventory received", "sku_id", req.SkuId)
 
-	inventory, err := s.app.GetInventory(ctx, req.SkuId)
+	inventory, err := s.queryService.GetInventory(ctx, req.SkuId)
 	if err != nil {
 		slog.Error("gRPC GetInventory failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("failed to get inventory for sku %d: %v", req.SkuId, err))
@@ -72,7 +73,7 @@ func (s *Server) AddStock(ctx context.Context, req *pb.AddStockRequest) (*emptyp
 	start := time.Now()
 	slog.Info("gRPC AddStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
 
-	if err := s.app.AddStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+	if err := s.cmdService.AddStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
 		slog.Error("gRPC AddStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add stock: %v", err))
 	}
@@ -86,7 +87,7 @@ func (s *Server) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*
 	start := time.Now()
 	slog.Info("gRPC DeductStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
 
-	if err := s.app.DeductStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+	if err := s.cmdService.DeductStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
 		slog.Error("gRPC DeductStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to deduct stock: %v", err))
 	}
@@ -100,7 +101,7 @@ func (s *Server) LockStock(ctx context.Context, req *pb.LockStockRequest) (*empt
 	start := time.Now()
 	slog.Info("gRPC LockStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
 
-	if err := s.app.LockStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+	if err := s.cmdService.LockStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
 		slog.Error("gRPC LockStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to lock stock: %v", err))
 	}
@@ -114,7 +115,7 @@ func (s *Server) UnlockStock(ctx context.Context, req *pb.UnlockStockRequest) (*
 	start := time.Now()
 	slog.Info("gRPC UnlockStock received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
 
-	if err := s.app.UnlockStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+	if err := s.cmdService.UnlockStock(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
 		slog.Error("gRPC UnlockStock failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to unlock stock: %v", err))
 	}
@@ -128,7 +129,7 @@ func (s *Server) ConfirmDeduction(ctx context.Context, req *pb.ConfirmDeductionR
 	start := time.Now()
 	slog.Info("gRPC ConfirmDeduction received", "sku_id", req.SkuId, "quantity", req.Quantity, "reason", req.Reason)
 
-	if err := s.app.ConfirmDeduction(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
+	if err := s.cmdService.ConfirmDeduction(ctx, req.SkuId, req.Quantity, req.Reason); err != nil {
 		slog.Error("gRPC ConfirmDeduction failed", "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to confirm deduction: %v", err))
 	}
@@ -148,7 +149,7 @@ func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesReq
 		pageSize = 10
 	}
 
-	inventories, total, err := s.app.ListInventories(ctx, page, pageSize)
+	inventories, total, err := s.queryService.ListInventories(ctx, page, pageSize)
 	if err != nil {
 		slog.Error("gRPC ListInventories failed", "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list inventories: %v", err))
@@ -162,7 +163,7 @@ func (s *Server) ListInventories(ctx context.Context, req *pb.ListInventoriesReq
 	slog.Debug("gRPC ListInventories successful", "count", len(pbInventories), "duration", time.Since(start))
 	return &pb.ListInventoriesResponse{
 		Inventories: pbInventories,
-		TotalCount:  uint64(total), // 总记录数。
+		TotalCount:  uint64(total),
 	}, nil
 }
 
@@ -177,8 +178,7 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 		pageSize = 10
 	}
 
-	// 直接使用请求中的 SkuId 进行分片路由，不再使用 0 占位
-	logs, total, err := s.app.GetInventoryLogs(ctx, req.SkuId, req.InventoryId, page, pageSize)
+	logs, total, err := s.queryService.GetInventoryLogs(ctx, req.SkuId, req.InventoryId, page, pageSize)
 	if err != nil {
 		slog.Error("gRPC GetInventoryLogs failed", "inventory_id", req.InventoryId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get inventory logs: %v", err))
@@ -192,7 +192,7 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 	slog.Debug("gRPC GetInventoryLogs successful", "inventory_id", req.InventoryId, "count", len(pbLogs), "duration", time.Since(start))
 	return &pb.GetInventoryLogsResponse{
 		Logs:       pbLogs,
-		TotalCount: uint64(total), // 总记录数。
+		TotalCount: uint64(total),
 	}, nil
 }
 
@@ -208,7 +208,7 @@ func (s *Server) AllocateOrderStock(ctx context.Context, req *pb.AllocateOrderSt
 	}
 
 	// 调用应用服务层（已有的分配逻辑）
-	results, err := s.app.AllocateStock(ctx, req.UserLat, req.UserLon, algoItems)
+	results, err := s.cmdService.AllocateStock(ctx, req.UserLat, req.UserLon, algoItems)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to allocate stock: %v", err))
 	}
@@ -243,17 +243,17 @@ func convertInventoryToProto(inv *domain.Inventory) *pb.Inventory {
 		return nil
 	}
 	return &pb.Inventory{
-		Id:               uint64(inv.Model.ID),           // 使用 Model.ID
-		SkuId:            inv.SkuID,                      // SKU ID。
-		ProductId:        inv.ProductID,                  // 商品ID。
-		WarehouseId:      inv.WarehouseID,                // 仓库ID。
-		AvailableStock:   inv.AvailableStock,             // 可用库存。
-		LockedStock:      inv.LockedStock,                // 锁定库存。
-		TotalStock:       inv.TotalStock,                 // 总库存。
-		Status:           int32(inv.Status),              // 状态。
-		WarningThreshold: inv.WarningThreshold,           // 预警阈值。
-		CreatedAt:        timestamppb.New(inv.CreatedAt), // 创建时间。
-		UpdatedAt:        timestamppb.New(inv.UpdatedAt), // 更新时间。
+		Id:               uint64(inv.ID),
+		SkuId:            inv.SkuID,
+		ProductId:        inv.ProductID,
+		WarehouseId:      inv.WarehouseID,
+		AvailableStock:   inv.AvailableStock,
+		LockedStock:      inv.LockedStock,
+		TotalStock:       inv.TotalStock,
+		Status:           int32(inv.Status),
+		WarningThreshold: inv.WarningThreshold,
+		CreatedAt:        timestamppb.New(inv.CreatedAt),
+		UpdatedAt:        timestamppb.New(inv.UpdatedAt),
 	}
 }
 
@@ -263,15 +263,15 @@ func convertLogToProto(log *domain.InventoryLog) *pb.InventoryLog {
 		return nil
 	}
 	return &pb.InventoryLog{
-		Id:             uint64(log.Model.ID),           // 使用 Model.ID
-		InventoryId:    log.InventoryID,                // 库存ID。
-		Action:         log.Action,                     // 操作类型。
-		ChangeQuantity: log.ChangeQuantity,             // 变更数量。
-		OldAvailable:   log.OldAvailable,               // 变更前可用库存。
-		NewAvailable:   log.NewAvailable,               // 变更后可用库存。
-		OldLocked:      log.OldLocked,                  // 变更前锁定库存。
-		NewLocked:      log.NewLocked,                  // 变更后锁定库存。
-		Reason:         log.Reason,                     // 原因。
-		CreatedAt:      timestamppb.New(log.CreatedAt), // 创建时间。
+		Id:             uint64(log.ID),
+		InventoryId:    log.InventoryID,
+		Action:         log.Action,
+		ChangeQuantity: log.ChangeQuantity,
+		OldAvailable:   log.OldAvailable,
+		NewAvailable:   log.NewAvailable,
+		OldLocked:      log.OldLocked,
+		NewLocked:      log.NewLocked,
+		Reason:         log.Reason,
+		CreatedAt:      timestamppb.New(log.CreatedAt),
 	}
 }

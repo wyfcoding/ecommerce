@@ -1,29 +1,29 @@
 package http
 
 import (
-	"net/http" // 导入HTTP状态码。
-	"strconv"  // 导入字符串和数字转换工具。
+	"log/slog"
+	"net/http"
+	"strconv"
 
-	"github.com/wyfcoding/ecommerce/internal/inventory/application" // 导入库存模块的应用服务。
-	"github.com/wyfcoding/pkg/response"                             // 导入统一的响应处理工具。
-
-	"log/slog" // 导入结构化日志库。
-
-	"github.com/gin-gonic/gin" // 导入Gin Web框架。
+	"github.com/gin-gonic/gin"
+	"github.com/wyfcoding/ecommerce/internal/inventory/application"
+	"github.com/wyfcoding/pkg/response"
 )
 
 // Handler 结构体定义了Inventory模块的HTTP处理层。
 // 它是DDD分层架构中的接口层，负责接收HTTP请求，调用应用服务处理业务逻辑，并将结果封装为HTTP响应。
 type Handler struct {
-	app    *application.Inventory // 依赖Inventory应用服务，处理核心业务逻辑。
-	logger *slog.Logger           // 日志记录器，用于记录请求处理过程中的信息和错误。
+	cmdService   *application.InventoryCommandService
+	queryService *application.InventoryQueryService
+	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Inventory HTTP Handler 实例。
-func NewHandler(app *application.Inventory, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.InventoryCommandService, query *application.InventoryQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -47,7 +47,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 	}
 
 	// 调用应用服务层创建库存。
-	inventory, err := h.app.CreateInventory(c.Request.Context(), req.SkuID, req.ProductID, req.WarehouseID, req.TotalStock, req.WarningThreshold)
+	inventory, err := h.cmdService.CreateInventory(c.Request.Context(), req.SkuID, req.ProductID, req.WarehouseID, req.TotalStock, req.WarningThreshold)
 	if err != nil {
 		h.logger.Error("Failed to create inventory", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create inventory", err.Error())
@@ -70,7 +70,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取库存信息。
-	inventory, err := h.app.GetInventory(c.Request.Context(), skuID)
+	inventory, err := h.queryService.GetInventory(c.Request.Context(), skuID)
 	if err != nil {
 		h.logger.Error("Failed to get inventory", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get inventory", err.Error())
@@ -116,15 +116,15 @@ func (h *Handler) UpdateStock(c *gin.Context) {
 	// 根据操作类型调用应用服务层的相应方法。
 	switch req.Action {
 	case "add":
-		opErr = h.app.AddStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.cmdService.AddStock(ctx, skuID, req.Quantity, req.Reason)
 	case "deduct":
-		opErr = h.app.DeductStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.cmdService.DeductStock(ctx, skuID, req.Quantity, req.Reason)
 	case "lock":
-		opErr = h.app.LockStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.cmdService.LockStock(ctx, skuID, req.Quantity, req.Reason)
 	case "unlock":
-		opErr = h.app.UnlockStock(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.cmdService.UnlockStock(ctx, skuID, req.Quantity, req.Reason)
 	case "confirm":
-		opErr = h.app.ConfirmDeduction(ctx, skuID, req.Quantity, req.Reason)
+		opErr = h.cmdService.ConfirmDeduction(ctx, skuID, req.Quantity, req.Reason)
 	}
 
 	if opErr != nil {
@@ -152,7 +152,7 @@ func (h *Handler) ListInventories(c *gin.Context) {
 	}
 
 	// 调用应用服务层获取库存列表。
-	list, total, err := h.app.ListInventories(c.Request.Context(), page, pageSize)
+	list, total, err := h.queryService.ListInventories(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list inventories", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list inventories", err.Error())
@@ -176,7 +176,7 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.DeleteInventory(c.Request.Context(), skuID); err != nil {
+	if err := h.cmdService.DeleteInventory(c.Request.Context(), skuID); err != nil {
 		h.logger.Error("Failed to delete inventory", "sku_id", skuID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete inventory", err.Error())
 		return
@@ -206,13 +206,13 @@ func (h *Handler) GetInventoryLogs(c *gin.Context) {
 	// 但 domain.Inventory 模型中 sku_id 已经是 key。
 	// 这里假设 GetInventoryLogs 接受的第一个参数是 inventory_id (uint64)，
 	// 我们可以先获取 inventory 实体。
-	inv, err := h.app.GetInventory(c.Request.Context(), skuID)
+	inv, err := h.queryService.GetInventory(c.Request.Context(), skuID)
 	if err != nil || inv == nil {
 		response.ErrorWithStatus(c, http.StatusNotFound, "Inventory not found", "")
 		return
 	}
 
-	list, total, err := h.app.GetInventoryLogs(c.Request.Context(), skuID, uint64(inv.Model.ID), page, pageSize)
+	list, total, err := h.queryService.GetInventoryLogs(c.Request.Context(), skuID, uint64(inv.ID), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to get inventory logs", "sku_id", skuID, "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get logs", err.Error())

@@ -14,7 +14,11 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
-	"github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
+	warehousesearch "github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence/elasticsearch"
+	warehousemysql "github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence/mysql"
+	warehouseredis "github.com/wyfcoding/ecommerce/internal/warehouse/infrastructure/persistence/redis"
+	warehouseconsumer "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/consumer"
 	warehousegrpc "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/grpc"
 	warehousehttp "github.com/wyfcoding/ecommerce/internal/warehouse/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -24,9 +28,11 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -38,12 +44,17 @@ const IdempotencyPrefix = "warehouse:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		WarehouseIndex         string `mapstructure:"warehouse_index" toml:"warehouse_index"`
+		WarehouseTransferIndex string `mapstructure:"warehouse_transfer_index" toml:"warehouse_transfer_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Warehouse   *application.WarehouseService
+	Cmd         *application.WarehouseCommandService
+	Query       *application.WarehouseQueryService
 	Clients     *ServiceClients
 	Handler     *warehousehttp.Handler
 	Metrics     *metrics.Metrics
@@ -71,7 +82,7 @@ func main() {
 }
 
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterWarehouseServiceServer(s, warehousegrpc.NewServer(ctx.Warehouse))
+	pb.RegisterWarehouseServiceServer(s, warehousegrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 func registerGin(e *gin.Engine, ctx *AppContext) {
@@ -119,38 +130,88 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		if redisCache != nil {
+			redisCache.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
 
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		if redisCache != nil {
+			redisCache.Close()
+		}
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// Outbox initialization
-	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := outbox.NewPublisher(outboxMgr)
-
-	// 这里通常需要一个 MQ Pusher，暂设空或从配置初始化
-	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
-		// 实际应投递到 Kafka
-		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
-		return nil
+	// Kafka & Outbox initialization
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	masterDB := db.RawDB()
+	if err := masterDB.AutoMigrate(&outbox.Message{}); err != nil {
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(masterDB, logger.Logger)
+	outboxProc := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
 	}, 100, 5*time.Second)
-	outboxProcessor.Start()
+	outboxProc.Start()
 
-	warehouseRepo := persistence.NewWarehouseRepository(db.RawDB())
+	warehouseRepo := warehousemysql.NewWarehouseRepository(db.RawDB())
+	warehouseReadRepo := warehouseredis.NewWarehouseReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	warehouseSearchRepo := warehousesearch.NewWarehouseSearchRepository(esClient, c.Search.WarehouseIndex, c.Search.WarehouseTransferIndex)
 
-	cmdService := application.NewWarehouseCommandService(warehouseRepo, outboxPublisher, logger.Logger)
-	queryService := application.NewWarehouseQueryService(warehouseRepo)
-	warehouseService := application.NewWarehouseService(cmdService, queryService)
+	publisher := outbox.NewPublisher(outboxMgr)
+	cmdService := application.NewWarehouseCommandService(warehouseRepo, publisher, logger.Logger)
+	queryService := application.NewWarehouseQueryService(warehouseRepo, warehouseReadRepo, warehouseSearchRepo, logger.Logger)
 
-	handler := warehousehttp.NewHandler(warehouseService, logger.Logger)
+	// Projection consumers
+	projectionService := application.NewWarehouseProjectionService(warehouseRepo, warehouseReadRepo, warehouseSearchRepo, logger.Logger)
+	projectionHandler := warehouseconsumer.NewWarehouseProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.WarehouseCreatedEventType,
+		domain.StockAdjustedEventType,
+		domain.StockDeductedEventType,
+		domain.StockRevertedEventType,
+		domain.StockTransferCreatedEventType,
+		domain.StockTransferCompletedEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		projectionConsumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		projectionConsumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, projectionConsumer)
+	}
+
+	handler := warehousehttp.NewHandler(cmdService, queryService, logger.Logger)
 
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
-		outboxProcessor.Stop()
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
+		outboxProc.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			redisCache.Close()
@@ -162,7 +223,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	return &AppContext{
 		Config:      c,
-		Warehouse:   warehouseService,
+		Cmd:         cmdService,
+		Query:       queryService,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,

@@ -24,52 +24,98 @@ func NewInventoryRepository(sharding *sharding.Manager) domain.InventoryReposito
 
 // Save 将库存实体保存到对应分片。
 func (r *inventoryRepository) Save(ctx context.Context, inventory *domain.Inventory) error {
-	db := r.sharding.GetDB(inventory.SkuID)
-	return db.WithContext(ctx).Save(inventory).Error
+	if inventory == nil {
+		return nil
+	}
+	db := r.sharding.GetDB(inventory.SkuID).WithContext(ctx)
+	return db.Transaction(func(tx *gorm.DB) error {
+		return r.saveInTx(ctx, tx, inventory, false)
+	})
 }
 
 // SaveWithOptimisticLock 使用乐观锁保存。
 func (r *inventoryRepository) SaveWithOptimisticLock(ctx context.Context, inventory *domain.Inventory) error {
-	db := r.sharding.GetDB(inventory.SkuID)
-	if inventory.Model.ID == 0 {
-		return db.WithContext(ctx).Create(inventory).Error
+	if inventory == nil {
+		return nil
+	}
+	db := r.sharding.GetDB(inventory.SkuID).WithContext(ctx)
+	return db.Transaction(func(tx *gorm.DB) error {
+		return r.saveInTx(ctx, tx, inventory, true)
+	})
+}
+
+func (r *inventoryRepository) saveInTx(ctx context.Context, tx *gorm.DB, inventory *domain.Inventory, optimistic bool) error {
+	model := toInventoryModel(inventory)
+	if model == nil {
+		return nil
+	}
+	gormTx := tx.WithContext(ctx)
+
+	if optimistic {
+		currentVersion := inventory.PersistenceVer
+		inventory.PersistenceVer++
+		model.Version = inventory.PersistenceVer
+
+		res := gormTx.Model(&InventoryModel{}).
+			Where("id = ? AND version = ?", model.ID, currentVersion).
+			Select("*").
+			Updates(model)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errors.New("optimistic lock failed")
+		}
+	} else {
+		if model.ID == 0 {
+			if err := gormTx.Create(model).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := gormTx.Save(model).Error; err != nil {
+				return err
+			}
+		}
 	}
 
-	currentVersion := inventory.PersistenceVer
-	inventory.PersistenceVer++
-
-	res := db.WithContext(ctx).Model(inventory).
-		Where("id = ? AND version = ?", inventory.Model.ID, currentVersion).
-		Updates(inventory)
-
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return errors.New("optimistic lock failed")
+	if inventory != nil {
+		if synced := toDomainInventory(model); synced != nil {
+			*inventory = *synced
+		}
 	}
 	return nil
 }
 
 // SaveLog 保存库存日志到对应分片。
 func (r *inventoryRepository) SaveLog(ctx context.Context, log *domain.InventoryLog) error {
+	if log == nil {
+		return nil
+	}
 	db := r.sharding.GetDB(log.SkuID)
-	return db.WithContext(ctx).Create(log).Error
+	model := toInventoryLogModel(log)
+	if model == nil {
+		return nil
+	}
+	if err := db.WithContext(ctx).Create(model).Error; err != nil {
+		return err
+	}
+	if synced := toDomainInventoryLog(model); synced != nil {
+		*log = *synced
+	}
+	return nil
 }
 
 // GetBySkuID 定向查询分片。
 func (r *inventoryRepository) GetBySkuID(ctx context.Context, skuID uint64) (*domain.Inventory, error) {
 	db := r.sharding.GetDB(skuID)
-	var inventory domain.Inventory
+	var inventory InventoryModel
 	if err := db.WithContext(ctx).Where("sku_id = ?", skuID).First(&inventory).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	// 恢复 AggregateRoot ID
-	inventory.SetID(fmt.Sprintf("%d", inventory.SkuID))
-	return &inventory, nil
+	return toDomainInventory(&inventory), nil
 }
 
 // GetBySkuIDs 执行跨分片的批量查询。
@@ -94,9 +140,9 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 	var totalCount int64
 
 	for _, db := range dbs {
-		var list []*domain.Inventory
+		var list []InventoryModel
 		var count int64
-		query := db.WithContext(ctx).Model(&domain.Inventory{})
+		query := db.WithContext(ctx).Model(&InventoryModel{})
 		if err := query.Count(&count).Error; err != nil {
 			return nil, 0, err
 		}
@@ -105,10 +151,12 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 		if err := query.Offset(offset).Limit(limit).Order("created_at desc").Find(&list).Error; err != nil {
 			return nil, 0, err
 		}
-		for _, inv := range list {
-			inv.SetID(fmt.Sprintf("%d", inv.SkuID))
+		for i := range list {
+			inv := toDomainInventory(&list[i])
+			if inv != nil {
+				allList = append(allList, inv)
+			}
 		}
-		allList = append(allList, list...)
 	}
 
 	if len(allList) > limit {
@@ -121,16 +169,16 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 // Delete 从对应分片删除。
 func (r *inventoryRepository) Delete(ctx context.Context, skuID uint64) error {
 	db := r.sharding.GetDB(skuID)
-	return db.WithContext(ctx).Where("sku_id = ?", skuID).Delete(&domain.Inventory{}).Error
+	return db.WithContext(ctx).Where("sku_id = ?", skuID).Delete(&InventoryModel{}).Error
 }
 
 // GetLogs 获取指定分片下的日志。
 func (r *inventoryRepository) GetLogs(ctx context.Context, skuID uint64, inventoryID uint64, offset, limit int) ([]*domain.InventoryLog, int64, error) {
 	db := r.sharding.GetDB(skuID)
-	var list []*domain.InventoryLog
+	var list []InventoryLogModel
 	var total int64
 
-	query := db.WithContext(ctx).Model(&domain.InventoryLog{}).Where("inventory_id = ?", inventoryID)
+	query := db.WithContext(ctx).Model(&InventoryLogModel{}).Where("inventory_id = ?", inventoryID)
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -139,7 +187,15 @@ func (r *inventoryRepository) GetLogs(ctx context.Context, skuID uint64, invento
 		return nil, 0, err
 	}
 
-	return list, total, nil
+	logs := make([]*domain.InventoryLog, 0, len(list))
+	for i := range list {
+		log := toDomainInventoryLog(&list[i])
+		if log != nil {
+			logs = append(logs, log)
+		}
+	}
+
+	return logs, total, nil
 }
 
 // ExecWithBarrier 实现 ExecWithBarrier 接口。

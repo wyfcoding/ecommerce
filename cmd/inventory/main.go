@@ -16,7 +16,10 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
+	inventorysearch "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/elasticsearch"
 	persistence "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/mysql"
+	inventoryredis "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/redis"
+	consumer "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/consumer"
 	inventorygrpc "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/grpc"
 	inventoryhttp "github.com/wyfcoding/ecommerce/internal/inventory/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -31,6 +34,7 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -42,12 +46,16 @@ const IdempotencyPrefix = "inventory:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		InventoryIndex string `mapstructure:"inventory_index" toml:"inventory_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Inventory   *application.Inventory
+	Cmd         *application.InventoryCommandService
+	Query       *application.InventoryQueryService
 	Clients     *ServiceClients
 	Handler     *inventoryhttp.Handler
 	Metrics     *metrics.Metrics
@@ -81,7 +89,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterInventoryServiceServer(s, inventorygrpc.NewServer(ctx.Inventory))
+	pb.RegisterInventoryServiceServer(s, inventorygrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -152,6 +160,21 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		shardingMgr.Close()
+		redisCache.Close()
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
@@ -175,14 +198,33 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5.1 Infrastructure (Persistence & Messaging)
 	inventoryRepo := persistence.NewInventoryRepository(shardingMgr)
 	warehouseRepo := persistence.NewWarehouseRepository(shardingMgr.GetDB(0))
+	eventStore := persistence.NewEventStore(shardingMgr)
+	inventoryReadRepo := inventoryredis.NewInventoryReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	inventorySearchRepo := inventorysearch.NewInventorySearchRepository(esClient, c.Search.InventoryIndex)
 
-	// 初始化可靠消息发布者 (Outbox) - 注意：分片场景下 Outbox Manager 通常绑定主库或第一个分片库
-	// 这里使用第一个分片库作为消息基座
-	outboxMgr := outbox.NewManager(shardingMgr.GetDB(0), logger.Logger)
-	publisher := outbox.NewPublisher(outboxMgr)
+	// 初始化 Kafka Producer 与 Outbox 处理器
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	allDBs := shardingMgr.GetAllDBs()
+	outboxProcessors := make([]*outbox.Processor, 0, len(allDBs))
+	defaultOutboxMgr := outbox.NewManager(shardingMgr.GetDB(0), logger.Logger)
+
+	for i, dbNode := range allDBs {
+		bootLog.Info("syncing outbox schema and starting processor for shard", "shard_index", i)
+		if err := dbNode.AutoMigrate(&outbox.Message{}); err != nil {
+			return nil, nil, fmt.Errorf("failed to migrate outbox table on shard %d: %w", i, err)
+		}
+		shardMgr := outbox.NewManager(dbNode, logger.Logger)
+		proc := outbox.NewProcessor(shardMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+			return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+		}, 100, 5*time.Second)
+		proc.Start()
+		outboxProcessors = append(outboxProcessors, proc)
+	}
+
+	publisher := outbox.NewPublisher(defaultOutboxMgr)
 
 	// 5.2 Application (Service)
-	cmdService, err := application.NewInventoryCommandService(inventoryRepo, warehouseRepo, publisher, logger.Logger)
+	cmdService, err := application.NewInventoryCommandService(inventoryRepo, warehouseRepo, publisher, eventStore, logger.Logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create inventory command service: %w", err)
 	}
@@ -190,10 +232,27 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		cmdService.SetRemoteOrderClient(clients.Order)
 	}
 
-	queryService := application.NewInventoryQuery(inventoryRepo, warehouseRepo, logger.Logger)
+	queryService := application.NewInventoryQueryService(inventoryRepo, inventoryReadRepo, inventorySearchRepo, eventStore, logger.Logger)
 
-	// 门面服务组装
-	inventoryService := application.NewInventory(cmdService, queryService)
+	// 5.3 Projection Consumers (Inventory Events -> Read Model)
+	projectionService := application.NewInventoryProjectionService(inventoryRepo, inventoryReadRepo, inventorySearchRepo, logger.Logger)
+	projectionHandler := consumer.NewInventoryProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		"inventory.stock.locked",
+		"inventory.stock.unlocked",
+		"inventory.stock.deducted",
+		"inventory.stock.added",
+		"inventory.stock.warning",
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		projectionConsumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		projectionConsumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, projectionConsumer)
+	}
 
 	// 5. 启动可靠库存自动释放消费者
 	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
@@ -224,11 +283,24 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	})
 
 	// 6. 接口层
-	handler := inventoryhttp.NewHandler(inventoryService, logger.Logger)
+	handler := inventoryhttp.NewHandler(cmdService, queryService, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
+		for _, p := range outboxProcessors {
+			if p != nil {
+				p.Stop()
+			}
+		}
+		if producer != nil {
+			producer.Close()
+		}
 		if consumer != nil {
 			consumer.Close()
 		}
@@ -248,7 +320,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Inventory:   inventoryService,
+		Cmd:         cmdService,
+		Query:       queryService,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,

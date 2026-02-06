@@ -1,11 +1,11 @@
 package domain
 
 import (
-	"errors" // 导入标准错误处理库。
-	"fmt"    // 导入格式化库。
+	"errors"
+	"fmt"
+	"time"
 
 	"github.com/wyfcoding/pkg/eventsourcing"
-	"gorm.io/gorm" // 导入GORM库。
 )
 
 // 定义Inventory模块的业务错误。
@@ -26,17 +26,20 @@ const (
 
 // Inventory 实体是库存模块的聚合根。
 type Inventory struct {
-	gorm.Model
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
 	eventsourcing.AggregateRoot
-	SkuID            uint64          `gorm:"column:sku_id;not null;index;comment:SKU ID" json:"sku_id"`
-	ProductID        uint64          `gorm:"column:product_id;not null;index;comment:商品ID" json:"product_id"`
-	WarehouseID      uint64          `gorm:"column:warehouse_id;not null;index;comment:仓库ID" json:"warehouse_id"`
-	AvailableStock   int32           `gorm:"column:available_stock;not null;default:0;comment:可用库存" json:"available_stock"`
-	LockedStock      int32           `gorm:"column:locked_stock;not null;default:0;comment:锁定库存" json:"locked_stock"`
-	TotalStock       int32           `gorm:"column:total_stock;not null;default:0;comment:总库存" json:"total_stock"`
-	Status           InventoryStatus `gorm:"column:status;default:1;comment:状态" json:"status"`
-	WarningThreshold int32           `gorm:"column:warning_threshold;default:10;comment:预警阈值" json:"warning_threshold"`
-	PersistenceVer   int64           `gorm:"column:version;default:1;comment:乐观锁版本号" json:"version"` // 改名为 PersistenceVer 避免与 AggregateRoot.Version() 冲突
+	SkuID            uint64          `json:"sku_id"`
+	ProductID        uint64          `json:"product_id"`
+	WarehouseID      uint64          `json:"warehouse_id"`
+	AvailableStock   int32           `json:"available_stock"`
+	LockedStock      int32           `json:"locked_stock"`
+	TotalStock       int32           `json:"total_stock"`
+	Status           InventoryStatus `json:"status"`
+	WarningThreshold int32           `json:"warning_threshold"`
+	PersistenceVer   int64           `json:"version"` // 改名为 PersistenceVer 避免与 AggregateRoot.Version() 冲突
 }
 
 // GetID 返回聚合标识。
@@ -66,16 +69,18 @@ func (inv *Inventory) Apply(event eventsourcing.DomainEvent) {
 
 // InventoryLog 实体代表库存的一次操作日志。
 type InventoryLog struct {
-	gorm.Model
-	InventoryID    uint64 `gorm:"column:inventory_id;not null;index;comment:库存ID" json:"inventory_id"`
-	SkuID          uint64 `gorm:"column:sku_id;not null;index;comment:SKU ID" json:"sku_id"`
-	Action         string `gorm:"column:action;type:varchar(32);not null;comment:操作类型" json:"action"`
-	ChangeQuantity int32  `gorm:"column:change_quantity;not null;comment:变更数量" json:"change_quantity"`
-	OldAvailable   int32  `gorm:"column:old_available;not null;comment:变更前可用" json:"old_available"`
-	NewAvailable   int32  `gorm:"column:new_available;not null;comment:变更后可用" json:"new_available"`
-	OldLocked      int32  `gorm:"column:old_locked;not null;comment:变更前锁定" json:"old_locked"`
-	NewLocked      int32  `gorm:"column:new_locked;not null;comment:变更后锁定" json:"new_locked"`
-	Reason         string `gorm:"column:reason;type:varchar(255);comment:原因" json:"reason"`
+	ID             uint      `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	InventoryID    uint64    `json:"inventory_id"`
+	SkuID          uint64    `json:"sku_id"`
+	Action         string    `json:"action"`
+	ChangeQuantity int32     `json:"change_quantity"`
+	OldAvailable   int32     `json:"old_available"`
+	NewAvailable   int32     `json:"new_available"`
+	OldLocked      int32     `json:"old_locked"`
+	NewLocked      int32     `json:"new_locked"`
+	Reason         string    `json:"reason"`
 }
 
 // NewInventory 创建并返回一个新的 Inventory 实体实例。
@@ -105,11 +110,13 @@ func (inv *Inventory) Deduct(quantity int32, reason string) (*InventoryLog, erro
 		return nil, fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
 	}
 
+	base := eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version())
 	event := &StockDeductedEvent{
-		BaseEvent: eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		BaseEvent: base,
 		SkuID:     inv.SkuID,
 		Quantity:  quantity,
 		Reason:    reason,
+		Timestamp: base.Timestamp,
 	}
 	inv.ApplyChange(event)
 	inv.Apply(event)
@@ -126,11 +133,13 @@ func (inv *Inventory) Lock(quantity int32, reason string) (*InventoryLog, error)
 		return nil, fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
 	}
 
+	base := eventsourcing.NewBaseEvent(StockLockedEventType, inv.GetID(), inv.AggregateRoot.Version())
 	event := &StockLockedEvent{
-		BaseEvent: eventsourcing.NewBaseEvent(StockLockedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		BaseEvent: base,
 		SkuID:     inv.SkuID,
 		Quantity:  quantity,
 		Reason:    reason,
+		Timestamp: base.Timestamp,
 	}
 	inv.ApplyChange(event)
 	inv.Apply(event)
@@ -147,11 +156,13 @@ func (inv *Inventory) Unlock(quantity int32, reason string) (*InventoryLog, erro
 		return nil, fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
 	}
 
+	base := eventsourcing.NewBaseEvent(StockUnlockedEventType, inv.GetID(), inv.AggregateRoot.Version())
 	event := &StockUnlockedEvent{
-		BaseEvent: eventsourcing.NewBaseEvent(StockUnlockedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		BaseEvent: base,
 		SkuID:     inv.SkuID,
 		Quantity:  quantity,
 		Reason:    reason,
+		Timestamp: base.Timestamp,
 	}
 	inv.ApplyChange(event)
 	inv.Apply(event)
@@ -168,11 +179,13 @@ func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) (*Inventor
 		return nil, fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
 	}
 
+	base := eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version())
 	event := &StockDeductedEvent{
-		BaseEvent: eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		BaseEvent: base,
 		SkuID:     inv.SkuID,
 		Quantity:  quantity,
 		Reason:    reason,
+		Timestamp: base.Timestamp,
 	}
 	inv.ApplyChange(event)
 	inv.Apply(event)
@@ -186,11 +199,13 @@ func (inv *Inventory) Add(quantity int32, reason string) (*InventoryLog, error) 
 		return nil, ErrNegativeQuantity
 	}
 
+	base := eventsourcing.NewBaseEvent(StockAddedEventType, inv.GetID(), inv.AggregateRoot.Version())
 	event := &StockAddedEvent{
-		BaseEvent: eventsourcing.NewBaseEvent(StockAddedEventType, inv.GetID(), inv.AggregateRoot.Version()),
+		BaseEvent: base,
 		SkuID:     inv.SkuID,
 		Quantity:  quantity,
 		Reason:    reason,
+		Timestamp: base.Timestamp,
 	}
 	inv.ApplyChange(event)
 	inv.Apply(event)
@@ -211,8 +226,8 @@ func (inv *Inventory) updateStatus() {
 
 // createLog 创建一条库存操作日志对象。
 func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, newAvailable, oldLocked, newLocked int32, reason string) *InventoryLog {
-	return &InventoryLog{
-		InventoryID:    uint64(inv.Model.ID),
+	log := &InventoryLog{
+		InventoryID:    uint64(inv.ID),
 		SkuID:          inv.SkuID,
 		Action:         action,
 		ChangeQuantity: changeQuantity,
@@ -222,16 +237,19 @@ func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, new
 		NewLocked:      newLocked,
 		Reason:         reason,
 	}
+	return log
 }
 
 // Warehouse 实体代表一个仓库。
 type Warehouse struct {
-	gorm.Model
-	Name     string  `gorm:"column:name;type:varchar(255);not null;comment:仓库名称" json:"name"`
-	Lat      float64 `gorm:"column:lat;type:decimal(10,6);not null;comment:纬度" json:"lat"`
-	Lon      float64 `gorm:"column:lon;type:decimal(10,6);not null;comment:经度" json:"lon"`
-	Priority int     `gorm:"column:priority;not null;default:0;comment:优先级" json:"priority"`
-	ShipCost int64   `gorm:"column:ship_cost;not null;default:0;comment:基础配送成本(分)" json:"ship_cost"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Lat       float64   `json:"lat"`
+	Lon       float64   `json:"lon"`
+	Priority  int       `json:"priority"`
+	ShipCost  int64     `json:"ship_cost"`
 }
 
 func NewWarehouse(name string, lat, lon float64, priority int, shipCost int64) *Warehouse {

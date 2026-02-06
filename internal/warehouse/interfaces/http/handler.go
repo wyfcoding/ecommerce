@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
+	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
 	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -13,15 +14,17 @@ import (
 
 // Handler 结构体定义了Warehouse模块的HTTP处理层。
 type Handler struct {
-	app    *application.WarehouseService
-	logger *slog.Logger
+	cmdService   *application.WarehouseCommandService
+	queryService *application.WarehouseQueryService
+	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Warehouse HTTP Handler 实例。
-func NewHandler(app *application.WarehouseService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.WarehouseCommandService, query *application.WarehouseQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -37,7 +40,10 @@ func (h *Handler) CreateWarehouse(c *gin.Context) {
 		return
 	}
 
-	warehouse, err := h.app.CreateWarehouse(c.Request.Context(), req.Code, req.Name)
+	warehouse, err := h.cmdService.CreateWarehouse(c.Request.Context(), &domain.Warehouse{
+		Code: req.Code,
+		Name: req.Name,
+	})
 	if err != nil {
 		h.logger.Error("Failed to create warehouse", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create warehouse", err.Error())
@@ -58,7 +64,7 @@ func (h *Handler) ListWarehouses(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.Query.ListWarehouses(c.Request.Context(), page, pageSize)
+	list, total, err := h.queryService.ListWarehouses(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list warehouses", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list warehouses", err.Error())
@@ -81,7 +87,7 @@ func (h *Handler) GetWarehouse(c *gin.Context) {
 		return
 	}
 
-	warehouse, err := h.app.Query.GetWarehouse(c.Request.Context(), id)
+	warehouse, err := h.queryService.GetWarehouse(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get warehouse", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get warehouse", err.Error())
@@ -108,7 +114,7 @@ func (h *Handler) UpdateStock(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.Command.AdjustStock(c.Request.Context(), req.WarehouseID, req.SkuID, req.Quantity, "HTTP Update"); err != nil {
+	if err := h.cmdService.AdjustStock(c.Request.Context(), req.WarehouseID, req.SkuID, req.Quantity, "HTTP Update"); err != nil {
 		h.logger.Error("Failed to update stock", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to update stock", err.Error())
 		return
@@ -130,7 +136,7 @@ func (h *Handler) GetStock(c *gin.Context) {
 		return
 	}
 
-	stock, err := h.app.Query.GetStock(c.Request.Context(), warehouseID, skuID)
+	stock, err := h.queryService.GetStock(c.Request.Context(), warehouseID, skuID)
 	if err != nil {
 		h.logger.Error("Failed to get stock", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get stock", err.Error())
@@ -159,7 +165,7 @@ func (h *Handler) CreateTransfer(c *gin.Context) {
 		return
 	}
 
-	transfer, err := h.app.CreateTransfer(c.Request.Context(), req.FromID, req.ToID, req.SkuID, req.Quantity, req.CreatedBy)
+	transfer, err := h.cmdService.CreateTransfer(c.Request.Context(), req.FromID, req.ToID, req.SkuID, req.Quantity, req.CreatedBy)
 	if err != nil {
 		h.logger.Error("Failed to create transfer", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create transfer", err.Error())
@@ -177,7 +183,7 @@ func (h *Handler) CompleteTransfer(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.CompleteTransfer(c.Request.Context(), id); err != nil {
+	if err := h.cmdService.CompleteTransfer(c.Request.Context(), id); err != nil {
 		h.logger.Error("Failed to complete transfer", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to complete transfer", err.Error())
 		return
@@ -194,7 +200,7 @@ func (h *Handler) GetTransfer(c *gin.Context) {
 		return
 	}
 
-	transfer, err := h.app.GetTransfer(c.Request.Context(), id)
+	transfer, err := h.queryService.GetTransfer(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get transfer", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get transfer", err.Error())
@@ -211,9 +217,10 @@ func (h *Handler) GetTransfer(c *gin.Context) {
 // ListTransfers 处理获取调拨单列表的HTTP请求。
 func (h *Handler) ListTransfers(c *gin.Context) {
 	var (
-		fromID uint64
-		toID   uint64
-		err    error
+		fromID    uint64
+		toID      uint64
+		statusStr string
+		err       error
 	)
 	if fromStr := c.Query("from_warehouse_id"); fromStr != "" {
 		fromID, err = strconv.ParseUint(fromStr, 10, 64)
@@ -229,6 +236,9 @@ func (h *Handler) ListTransfers(c *gin.Context) {
 			return
 		}
 	}
+	if status := c.Query("status"); status != "" {
+		statusStr = status
+	}
 
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil || page <= 0 {
@@ -239,7 +249,11 @@ func (h *Handler) ListTransfers(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListTransfers(c.Request.Context(), fromID, toID, nil, page, pageSize)
+	var statusPtr *string
+	if statusStr != "" {
+		statusPtr = &statusStr
+	}
+	list, total, err := h.queryService.ListTransfers(c.Request.Context(), fromID, toID, statusPtr, page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list transfers", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list transfers", err.Error())

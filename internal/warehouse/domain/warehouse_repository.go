@@ -24,8 +24,12 @@ type WarehouseRepository interface {
 
 	// 调拨操作
 	SaveTransfer(ctx context.Context, transfer *StockTransfer) error
+	SaveTransferInTx(ctx context.Context, tx any, transfer *StockTransfer) error
+	FindTransferByID(ctx context.Context, id uint64) (*StockTransfer, error)
 	FindTransferByNo(ctx context.Context, transferNo string) (*StockTransfer, error)
 	UpdateTransfer(ctx context.Context, transfer *StockTransfer) error
+	UpdateTransferInTx(ctx context.Context, tx any, transfer *StockTransfer) error
+	ListTransfers(ctx context.Context, fromID, toID uint64, status *string, offset, limit int) ([]*StockTransfer, int64, error)
 
 	// 事务与 Barrier 管理
 	BeginTx(ctx context.Context) any

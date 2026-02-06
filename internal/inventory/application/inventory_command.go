@@ -12,6 +12,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/algorithm/structures"
+	"github.com/wyfcoding/pkg/eventsourcing"
 )
 
 // InventoryCommandService 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及领域事件发布。
@@ -19,6 +20,7 @@ type InventoryCommandService struct {
 	repo           domain.InventoryRepository                    // 库存仓储
 	warehouseRepo  domain.WarehouseRepository                    // 仓库仓储
 	publisher      domain.EventPublisher                         // 事件发布者
+	eventStore     domain.EventStore                             // 事件存储
 	allocator      *algorithm.WarehouseAllocator                 // 最优库存分配算法引擎
 	logger         *slog.Logger                                  // 日志记录器
 	soldOutFilter  *structures.CuckooFilter[structures.ByteHash] // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
@@ -31,6 +33,7 @@ func NewInventoryCommandService(
 	repo domain.InventoryRepository,
 	warehouseRepo domain.WarehouseRepository,
 	publisher domain.EventPublisher,
+	eventStore domain.EventStore,
 	logger *slog.Logger,
 ) (*InventoryCommandService, error) {
 	filter, err := structures.NewCuckooFilter[structures.ByteHash](100000)
@@ -42,6 +45,7 @@ func NewInventoryCommandService(
 		repo:          repo,
 		warehouseRepo: warehouseRepo,
 		publisher:     publisher,
+		eventStore:    eventStore,
 		allocator:     algorithm.NewWarehouseAllocator(),
 		logger:        logger,
 		soldOutFilter: filter,
@@ -67,7 +71,7 @@ func (m *InventoryCommandService) CreateInventory(ctx context.Context, skuID, pr
 		m.logger.ErrorContext(ctx, "failed to save inventory", "sku_id", skuID, "error", err)
 		return nil, err
 	}
-	m.logger.InfoContext(ctx, "inventory created successfully", "inventory_id", inventory.Model.ID, "sku_id", skuID)
+	m.logger.InfoContext(ctx, "inventory created successfully", "inventory_id", inventory.ID, "sku_id", skuID)
 	return inventory, nil
 }
 
@@ -106,6 +110,16 @@ func (m *InventoryCommandService) executeWithRetry(ctx context.Context, skuID ui
 			if log != nil {
 				if logErr := m.repo.SaveLog(ctx, log); logErr != nil {
 					m.logger.WarnContext(ctx, "failed to save inventory log", "log", log, "error", logErr)
+				}
+			}
+			// 持久化事件
+			if m.eventStore != nil {
+				events := inventory.GetUncommittedEvents()
+				if len(events) > 0 {
+					if saveErr := m.eventStore.Save(ctx, events); saveErr != nil {
+						m.logger.WarnContext(ctx, "failed to save inventory events", "sku_id", skuID, "error", saveErr)
+					}
+					inventory.MarkCommitted()
 				}
 			}
 			// 发布事件
@@ -196,10 +210,13 @@ func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64,
 
 		// 检查预警 (这也可以由领域层抛出事件，但在此保留应用层检查逻辑)
 		if inv.AvailableStock < inv.WarningThreshold {
+			base := eventsourcing.NewBaseEvent(domain.StockWarningEventType, inv.GetID(), inv.AggregateRoot.Version())
 			warningEvent := &domain.StockWarningEvent{
+				BaseEvent:      base,
 				SkuID:          skuID,
 				AvailableStock: inv.AvailableStock,
 				Threshold:      inv.WarningThreshold,
+				Timestamp:      base.Timestamp,
 			}
 			_ = m.publisher.Publish(ctx, "inventory.stock.warning", fmt.Sprintf("%d", skuID), warningEvent)
 		}
