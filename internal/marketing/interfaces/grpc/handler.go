@@ -20,12 +20,16 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedMarketingServiceServer
-	app *application.Marketing
+	cmd   *application.MarketingCommandService
+	query *application.MarketingQueryService
 }
 
 // NewServer 函数。
-func NewServer(app *application.Marketing) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.MarketingCommandService, query *application.MarketingQueryService) *Server {
+	return &Server{
+		cmd:   cmd,
+		query: query,
+	}
 }
 
 func (s *Server) CreateCampaign(ctx context.Context, req *pb.CreateCampaignRequest) (*pb.CreateCampaignResponse, error) {
@@ -40,7 +44,7 @@ func (s *Server) CreateCampaign(ctx context.Context, req *pb.CreateCampaignReque
 		}
 	}
 
-	campaign, err := s.app.CreateCampaign(ctx, req.Name, domain.CampaignType(req.CampaignType), req.Description, req.StartTime.AsTime(), req.EndTime.AsTime(), req.Budget, rules)
+	campaign, err := s.cmd.CreateCampaign(ctx, req.Name, domain.CampaignType(req.CampaignType), req.Description, req.StartTime.AsTime(), req.EndTime.AsTime(), req.Budget, rules)
 	if err != nil {
 		slog.Error("gRPC CreateCampaign failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create campaign: %v", err))
@@ -56,7 +60,7 @@ func (s *Server) GetCampaign(ctx context.Context, req *pb.GetCampaignRequest) (*
 	start := time.Now()
 	slog.Debug("gRPC GetCampaign received", "id", req.Id)
 
-	campaign, err := s.app.GetCampaign(ctx, req.Id)
+	campaign, err := s.query.GetCampaign(ctx, req.Id)
 	if err != nil {
 		slog.Error("gRPC GetCampaign failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("campaign not found: %v", err))
@@ -72,7 +76,7 @@ func (s *Server) UpdateCampaignStatus(ctx context.Context, req *pb.UpdateCampaig
 	start := time.Now()
 	slog.Info("gRPC UpdateCampaignStatus received", "id", req.Id, "status", req.Status)
 
-	if err := s.app.UpdateCampaignStatus(ctx, req.Id, domain.CampaignStatus(req.Status)); err != nil {
+	if err := s.cmd.UpdateCampaignStatus(ctx, req.Id, domain.CampaignStatus(req.Status)); err != nil {
 		slog.Error("gRPC UpdateCampaignStatus failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update campaign status: %v", err))
 	}
@@ -91,7 +95,7 @@ func (s *Server) ListCampaigns(ctx context.Context, req *pb.ListCampaignsRequest
 		pageSize = 10
 	}
 
-	campaigns, total, err := s.app.ListCampaigns(ctx, domain.CampaignStatus(req.Status), page, pageSize)
+	campaigns, total, err := s.query.ListCampaigns(ctx, domain.CampaignStatus(req.Status), page, pageSize)
 	if err != nil {
 		slog.Error("gRPC ListCampaigns failed", "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list campaigns: %v", err))
@@ -113,7 +117,7 @@ func (s *Server) RecordParticipation(ctx context.Context, req *pb.RecordParticip
 	start := time.Now()
 	slog.Info("gRPC RecordParticipation received", "campaign_id", req.CampaignId, "user_id", req.UserId, "order_id", req.OrderId)
 
-	if err := s.app.RecordParticipation(ctx, req.CampaignId, req.UserId, req.OrderId, req.Discount); err != nil {
+	if err := s.cmd.RecordParticipation(ctx, req.CampaignId, req.UserId, req.OrderId, req.Discount); err != nil {
 		slog.Error("gRPC RecordParticipation failed", "campaign_id", req.CampaignId, "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to record participation: %v", err))
 	}
@@ -126,7 +130,7 @@ func (s *Server) CreateBanner(ctx context.Context, req *pb.CreateBannerRequest) 
 	start := time.Now()
 	slog.Info("gRPC CreateBanner received", "title", req.Title, "position", req.Position)
 
-	banner, err := s.app.CreateBanner(ctx, req.Title, req.ImageUrl, req.LinkUrl, req.Position, req.Priority, req.StartTime.AsTime(), req.EndTime.AsTime())
+	banner, err := s.cmd.CreateBanner(ctx, req.Title, req.ImageUrl, req.LinkUrl, req.Position, req.Priority, req.StartTime.AsTime(), req.EndTime.AsTime())
 	if err != nil {
 		slog.Error("gRPC CreateBanner failed", "title", req.Title, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create banner: %v", err))
@@ -142,7 +146,7 @@ func (s *Server) ListBanners(ctx context.Context, req *pb.ListBannersRequest) (*
 	start := time.Now()
 	slog.Debug("gRPC ListBanners received", "position", req.Position)
 
-	banners, err := s.app.ListBanners(ctx, req.Position, req.ActiveOnly)
+	banners, err := s.query.ListBanners(ctx, req.Position, req.ActiveOnly)
 	if err != nil {
 		slog.Error("gRPC ListBanners failed", "position", req.Position, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list banners: %v", err))
@@ -163,7 +167,7 @@ func (s *Server) DeleteBanner(ctx context.Context, req *pb.DeleteBannerRequest) 
 	start := time.Now()
 	slog.Info("gRPC DeleteBanner received", "id", req.Id)
 
-	if err := s.app.DeleteBanner(ctx, req.Id); err != nil {
+	if err := s.cmd.DeleteBanner(ctx, req.Id); err != nil {
 		slog.Error("gRPC DeleteBanner failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete banner: %v", err))
 	}
@@ -176,7 +180,7 @@ func (s *Server) ClickBanner(ctx context.Context, req *pb.ClickBannerRequest) (*
 	start := time.Now()
 	slog.Debug("gRPC ClickBanner received", "id", req.Id)
 
-	if err := s.app.ClickBanner(ctx, req.Id); err != nil {
+	if err := s.cmd.ClickBanner(ctx, req.Id); err != nil {
 		slog.Error("gRPC ClickBanner failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to record banner click: %v", err))
 	}
@@ -194,7 +198,7 @@ func convertCampaignToProto(c *domain.Campaign) *pb.Campaign {
 		rulesJSON = []byte("{}")
 	}
 	return &pb.Campaign{
-		Id:           uint64(c.ID),
+		Id:           c.ID,
 		Name:         c.Name,
 		CampaignType: string(c.CampaignType),
 		Description:  c.Description,
@@ -216,7 +220,7 @@ func convertBannerToProto(b *domain.Banner) *pb.Banner {
 		return nil
 	}
 	return &pb.Banner{
-		Id:         uint64(b.ID),
+		Id:         b.ID,
 		Title:      b.Title,
 		ImageUrl:   b.ImageURL,
 		LinkUrl:    b.LinkURL,

@@ -58,7 +58,7 @@ func (s *MarketingCommandService) CreateCampaign(ctx context.Context, name strin
 			EndTime:    campaign.EndTime,
 			Timestamp:  time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "marketing.campaign.created", fmt.Sprintf("%d", campaign.ID), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.CampaignCreatedEventType, fmt.Sprintf("%d", campaign.ID), event)
 	})
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create campaign", "name", name, "error", err)
@@ -97,7 +97,7 @@ func (s *MarketingCommandService) UpdateCampaignStatus(ctx context.Context, id u
 			NewStatus:  status,
 			Timestamp:  time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "marketing.campaign.status_updated", fmt.Sprintf("%d", id), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.CampaignStatusUpdatedEventType, fmt.Sprintf("%d", id), event)
 	})
 }
 
@@ -138,13 +138,13 @@ func (s *MarketingCommandService) RecordParticipation(ctx context.Context, campa
 		s.userFilter.Add(filterKey)
 
 		event := &domain.ParticipationRecordedEvent{
-			CampaignID: uint(campaignID),
+			CampaignID: campaignID,
 			UserID:     userID,
 			OrderID:    orderID,
 			Discount:   discount,
 			Timestamp:  time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "marketing.participation.recorded", fmt.Sprintf("%d:%d", campaignID, userID), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.ParticipationRecordedEventType, fmt.Sprintf("%d:%d", campaignID, userID), event)
 	})
 }
 
@@ -163,7 +163,7 @@ func (s *MarketingCommandService) CreateBanner(ctx context.Context, title, image
 			Position:  banner.Position,
 			Timestamp: time.Now(),
 		}
-		return s.publisher.PublishInTx(ctx, tx, "marketing.banner.created", fmt.Sprintf("%d", banner.ID), event)
+		return s.publisher.PublishInTx(ctx, tx, domain.BannerCreatedEventType, fmt.Sprintf("%d", banner.ID), event)
 	})
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create banner", "title", title, "error", err)
@@ -175,7 +175,16 @@ func (s *MarketingCommandService) CreateBanner(ctx context.Context, title, image
 
 // DeleteBanner 删除广告位。
 func (s *MarketingCommandService) DeleteBanner(ctx context.Context, id uint64) error {
-	return s.repo.DeleteBanner(ctx, id)
+	return s.repo.WithTx(ctx, func(tx any) error {
+		if err := s.repo.DeleteBannerInTx(ctx, tx, id); err != nil {
+			return err
+		}
+		event := &domain.BannerDeletedEvent{
+			BannerID:  id,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.BannerDeletedEventType, fmt.Sprintf("%d", id), event)
+	})
 }
 
 // ClickBanner 记录广告位点击。
@@ -185,7 +194,16 @@ func (s *MarketingCommandService) ClickBanner(ctx context.Context, id uint64) er
 		return err
 	}
 	banner.IncrementClick()
-	return s.repo.SaveBanner(ctx, banner)
+	return s.repo.WithTx(ctx, func(tx any) error {
+		if err := s.repo.SaveBannerInTx(ctx, tx, banner); err != nil {
+			return err
+		}
+		event := &domain.BannerClickedEvent{
+			BannerID:  id,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.BannerClickedEventType, fmt.Sprintf("%d", id), event)
+	})
 }
 
 // DistributeTargetedCoupons 定向优惠券分发。

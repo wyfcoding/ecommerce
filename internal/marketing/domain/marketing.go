@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 var (
 	ErrCampaignNotFound = errors.New("campaign not found")
 	ErrCampaignEnded    = errors.New("campaign ended")
+	ErrBannerNotFound   = errors.New("banner not found")
 )
 
 // CampaignType 定义了营销活动的类型。
@@ -58,18 +57,20 @@ func (m *JSONMap) Scan(value any) error {
 
 // Campaign 实体是营销模块的聚合根。
 type Campaign struct {
-	gorm.Model
-	Name         string         `gorm:"type:varchar(128);not null;comment:活动名称" json:"name"`
-	CampaignType CampaignType   `gorm:"type:varchar(32);not null;comment:活动类型" json:"campaign_type"`
-	Description  string         `gorm:"type:text;comment:活动描述" json:"description"`
-	StartTime    time.Time      `gorm:"not null;comment:开始时间" json:"start_time"`
-	EndTime      time.Time      `gorm:"not null;comment:结束时间" json:"end_time"`
-	Budget       uint64         `gorm:"not null;default:0;comment:预算" json:"budget"`
-	Spent        uint64         `gorm:"not null;default:0;comment:已花费" json:"spent"`
-	TargetUsers  int64          `gorm:"not null;default:0;comment:目标用户数" json:"target_users"`
-	ReachedUsers int64          `gorm:"not null;default:0;comment:触达用户数" json:"reached_users"`
-	Status       CampaignStatus `gorm:"default:0;comment:状态" json:"status"`
-	Rules        JSONMap        `gorm:"type:json;comment:规则配置" json:"rules"`
+	ID           uint64         `json:"id"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	Name         string         `json:"name"`
+	CampaignType CampaignType   `json:"campaign_type"`
+	Description  string         `json:"description"`
+	StartTime    time.Time      `json:"start_time"`
+	EndTime      time.Time      `json:"end_time"`
+	Budget       uint64         `json:"budget"`
+	Spent        uint64         `json:"spent"`
+	TargetUsers  int64          `json:"target_users"`
+	ReachedUsers int64          `json:"reached_users"`
+	Status       CampaignStatus `json:"status"`
+	Rules        JSONMap        `json:"rules"`
 }
 
 // NewCampaign 创建并返回一个新的 Campaign 实体实例。
@@ -133,11 +134,13 @@ func (c *Campaign) RemainingBudget() uint64 {
 
 // CampaignParticipation 实体代表用户参与营销活动的记录。
 type CampaignParticipation struct {
-	gorm.Model
-	CampaignID uint64 `gorm:"not null;index;comment:活动ID" json:"campaign_id"`
-	UserID     uint64 `gorm:"not null;index;comment:用户ID" json:"user_id"`
-	OrderID    uint64 `gorm:"index;comment:订单ID" json:"order_id"`
-	Discount   uint64 `gorm:"not null;default:0;comment:优惠金额" json:"discount"`
+	ID         uint64    `json:"id"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	CampaignID uint64    `json:"campaign_id"`
+	UserID     uint64    `json:"user_id"`
+	OrderID    uint64    `json:"order_id"`
+	Discount   uint64    `json:"discount"`
 }
 
 // NewCampaignParticipation 创建并返回一个新的 CampaignParticipation 实体实例。
@@ -152,16 +155,18 @@ func NewCampaignParticipation(campaignID, userID, orderID, discount uint64) *Cam
 
 // Banner 实体代表一个广告横幅。
 type Banner struct {
-	gorm.Model
-	Title      string    `gorm:"type:varchar(128);not null;comment:标题" json:"title"`
-	ImageURL   string    `gorm:"type:varchar(255);not null;comment:图片URL" json:"image_url"`
-	LinkURL    string    `gorm:"type:varchar(255);comment:跳转URL" json:"link_url"`
-	Position   string    `gorm:"type:varchar(32);not null;comment:位置" json:"position"`
-	Priority   int32     `gorm:"default:0;comment:优先级" json:"priority"`
-	StartTime  time.Time `gorm:"not null;comment:开始时间" json:"start_time"`
-	EndTime    time.Time `gorm:"not null;comment:结束时间" json:"end_time"`
-	ClickCount int64     `gorm:"default:0;comment:点击数" json:"click_count"`
-	Enabled    bool      `gorm:"default:true;comment:是否启用" json:"enabled"`
+	ID         uint64    `json:"id"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Title      string    `json:"title"`
+	ImageURL   string    `json:"image_url"`
+	LinkURL    string    `json:"link_url"`
+	Position   string    `json:"position"`
+	Priority   int32     `json:"priority"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+	ClickCount int64     `json:"click_count"`
+	Enabled    bool      `json:"enabled"`
 }
 
 // NewBanner 创建并返回一个新的 Banner 实体实例。

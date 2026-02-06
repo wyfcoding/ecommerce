@@ -15,14 +15,16 @@ import (
 
 // Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
-	app    *application.Marketing
+	cmd    *application.MarketingCommandService
+	query  *application.MarketingQueryService
 	logger *slog.Logger
 }
 
 // NewHandler 处理 HTTP 或 gRPC 请求。
-func NewHandler(app *application.Marketing, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.MarketingCommandService, query *application.MarketingQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -45,7 +47,7 @@ func (h *Handler) CreateCampaign(c *gin.Context) {
 		return
 	}
 
-	campaign, err := h.app.CreateCampaign(c.Request.Context(), req.Name, domain.CampaignType(req.Type), req.Description, req.StartTime, req.EndTime, req.Budget, req.Rules)
+	campaign, err := h.cmd.CreateCampaign(c.Request.Context(), req.Name, domain.CampaignType(req.Type), req.Description, req.StartTime, req.EndTime, req.Budget, req.Rules)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create campaign", "error", err)
 		response.Error(c, err)
@@ -63,7 +65,7 @@ func (h *Handler) GetCampaign(c *gin.Context) {
 		return
 	}
 
-	campaign, err := h.app.GetCampaign(c.Request.Context(), id)
+	campaign, err := h.query.GetCampaign(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get campaign detail", "campaign_id", id, "error", err)
 		response.Error(c, err)
@@ -89,7 +91,7 @@ func (h *Handler) ListCampaigns(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListCampaigns(c.Request.Context(), domain.CampaignStatus(status), page, pageSize)
+	list, total, err := h.query.ListCampaigns(c.Request.Context(), domain.CampaignStatus(status), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list campaigns", "status", status, "error", err)
 		response.Error(c, err)
@@ -116,7 +118,7 @@ func (h *Handler) CreateBanner(c *gin.Context) {
 		return
 	}
 
-	banner, err := h.app.CreateBanner(c.Request.Context(), req.Title, req.ImageURL, req.LinkURL, req.Position, req.Priority, req.StartTime, req.EndTime)
+	banner, err := h.cmd.CreateBanner(c.Request.Context(), req.Title, req.ImageURL, req.LinkURL, req.Position, req.Priority, req.StartTime, req.EndTime)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create banner", "title", req.Title, "error", err)
 		response.Error(c, err)
@@ -131,7 +133,7 @@ func (h *Handler) ListBanners(c *gin.Context) {
 	position := c.Query("position")
 	activeOnly := c.Query("active_only") == "true"
 
-	list, err := h.app.ListBanners(c.Request.Context(), position, activeOnly)
+	list, err := h.query.ListBanners(c.Request.Context(), position, activeOnly)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list banners", "position", position, "error", err)
 		response.Error(c, err)
@@ -149,12 +151,89 @@ func (h *Handler) ClickBanner(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.ClickBanner(c.Request.Context(), id); err != nil {
+	if err := h.cmd.ClickBanner(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to record banner click", "banner_id", id, "error", err)
 		response.Error(c, err)
 		return
 	}
 
+	response.Success(c, nil)
+}
+
+// UpdateCampaignStatus 更新营销活动状态。
+func (h *Handler) UpdateCampaignStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
+		return
+	}
+	var req struct {
+		Status int `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
+		return
+	}
+	if err := h.cmd.UpdateCampaignStatus(c.Request.Context(), id, domain.CampaignStatus(req.Status)); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to update campaign status", "campaign_id", id, "error", err)
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
+// RecordParticipation 记录活动参与。
+func (h *Handler) RecordParticipation(c *gin.Context) {
+	campaignID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
+		return
+	}
+	var req struct {
+		UserID   uint64 `json:"user_id" binding:"required"`
+		OrderID  uint64 `json:"order_id"`
+		Discount uint64 `json:"discount"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid request data", err.Error())
+		return
+	}
+	if err := h.cmd.RecordParticipation(c.Request.Context(), campaignID, req.UserID, req.OrderID, req.Discount); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to record participation", "campaign_id", campaignID, "error", err)
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
+// GetBanner 获取广告位详情。
+func (h *Handler) GetBanner(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
+		return
+	}
+	banner, err := h.query.GetBanner(c.Request.Context(), id)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to get banner", "banner_id", id, "error", err)
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, banner)
+}
+
+// DeleteBanner 删除广告位。
+func (h *Handler) DeleteBanner(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "invalid id format", "")
+		return
+	}
+	if err := h.cmd.DeleteBanner(c.Request.Context(), id); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to delete banner", "banner_id", id, "error", err)
+		response.Error(c, err)
+		return
+	}
 	response.Success(c, nil)
 }
 
@@ -164,9 +243,13 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		group.POST("/campaigns", h.CreateCampaign)
 		group.GET("/campaigns", h.ListCampaigns)
 		group.GET("/campaigns/:id", h.GetCampaign)
+		group.PATCH("/campaigns/:id/status", h.UpdateCampaignStatus)
+		group.POST("/campaigns/:id/participations", h.RecordParticipation)
 
 		group.POST("/banners", h.CreateBanner)
 		group.GET("/banners", h.ListBanners)
+		group.GET("/banners/:id", h.GetBanner)
 		group.POST("/banners/:id/click", h.ClickBanner)
+		group.DELETE("/banners/:id", h.DeleteBanner)
 	}
 }
