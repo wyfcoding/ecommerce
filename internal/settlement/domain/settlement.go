@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // --- Settlement Aggregates ---
@@ -31,38 +29,42 @@ const (
 
 // Settlement 实体是结算模块的聚合根。
 type Settlement struct {
-	gorm.Model
-	SettlementNo     string           `gorm:"type:varchar(64);uniqueIndex;not null;comment:结算单号" json:"settlement_no"`
-	MerchantID       uint64           `gorm:"index;not null;comment:商户ID" json:"merchant_id"`
-	Cycle            SettlementCycle  `gorm:"type:varchar(32);not null;comment:结算周期" json:"cycle"`
-	StartDate        time.Time        `gorm:"not null;comment:开始日期" json:"start_date"`
-	EndDate          time.Time        `gorm:"not null;comment:结束日期" json:"end_date"`
-	OrderCount       int64            `gorm:"not null;default:0;comment:订单数量" json:"order_count"`
-	TotalAmount      uint64           `gorm:"not null;default:0;comment:总金额(分)" json:"total_amount"`
-	PlatformFee      uint64           `gorm:"not null;default:0;comment:平台手续费(分)" json:"platform_fee"`
-	CommissionAmount int64            `gorm:"not null;default:0;comment:佣金金额(分)" json:"commission_amount"`
-	RebateAmount     int64            `gorm:"not null;default:0;comment:返利金额(分)" json:"rebate_amount"`
-	OtherFees        int64            `gorm:"not null;default:0;comment:其他费用(分)" json:"other_fees"`
-	SettlementAmount uint64           `gorm:"not null;default:0;comment:结算金额(分)" json:"settlement_amount"`
-	Status           SettlementStatus `gorm:"type:tinyint;not null;default:0;comment:状态" json:"status"`
-	SettledAt        *time.Time       `gorm:"comment:结算时间" json:"settled_at"`
-	ApprovedBy       string           `gorm:"type:varchar(64);comment:审核人" json:"approved_by"`
-	ApprovedAt       *time.Time       `gorm:"comment:审核时间" json:"approved_at"`
-	FailReason       string           `gorm:"type:varchar(255);comment:失败原因" json:"fail_reason"`
+	ID               uint             `json:"id"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
+	SettlementNo     string           `json:"settlement_no"`
+	MerchantID       uint64           `json:"merchant_id"`
+	Cycle            SettlementCycle  `json:"cycle"`
+	StartDate        time.Time        `json:"start_date"`
+	EndDate          time.Time        `json:"end_date"`
+	OrderCount       int64            `json:"order_count"`
+	TotalAmount      uint64           `json:"total_amount"`
+	PlatformFee      uint64           `json:"platform_fee"`
+	CommissionAmount int64            `json:"commission_amount"`
+	RebateAmount     int64            `json:"rebate_amount"`
+	OtherFees        int64            `json:"other_fees"`
+	SettlementAmount uint64           `json:"settlement_amount"`
+	Status           SettlementStatus `json:"status"`
+	SettledAt        *time.Time       `json:"settled_at"`
+	ApprovedBy       string           `json:"approved_by"`
+	ApprovedAt       *time.Time       `json:"approved_at"`
+	FailReason       string           `json:"fail_reason"`
 }
 
 // SettlementDetail 实体代表结算单中的一个订单明细。
 type SettlementDetail struct {
-	gorm.Model
-	SettlementID     uint64 `gorm:"index;not null;comment:结算单ID" json:"settlement_id"`
-	OrderID          uint64 `gorm:"index;not null;comment:订单ID" json:"order_id"`
-	OrderNo          string `gorm:"type:varchar(64);not null;comment:订单号" json:"order_no"`
-	OrderAmount      uint64 `gorm:"not null;comment:订单金额(分)" json:"order_amount"`
-	PlatformFee      uint64 `gorm:"not null;comment:平台手续费(分)" json:"platform_fee"`
-	LogisticsFee     int64  `gorm:"not null;default:0;comment:物流费(分)" json:"logistics_fee"`
-	ReturnFee        int64  `gorm:"not null;default:0;comment:退货费(分)" json:"return_fee"`
-	OtherFee         int64  `gorm:"not null;default:0;comment:其他费用(分)" json:"other_fee"`
-	SettlementAmount uint64 `gorm:"not null;comment:结算金额(分)" json:"settlement_amount"`
+	ID               uint      `json:"id"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	SettlementID     uint64    `json:"settlement_id"`
+	OrderID          uint64    `json:"order_id"`
+	OrderNo          string    `json:"order_no"`
+	OrderAmount      uint64    `json:"order_amount"`
+	PlatformFee      uint64    `json:"platform_fee"`
+	LogisticsFee     int64     `json:"logistics_fee"`
+	ReturnFee        int64     `json:"return_fee"`
+	OtherFee         int64     `json:"other_fee"`
+	SettlementAmount uint64    `json:"settlement_amount"`
 }
 
 // PaymentStatus 定义了结算支付的生命周期状态。
@@ -77,24 +79,28 @@ const (
 
 // SettlementPayment 实体代表一笔结算支付记录。
 type SettlementPayment struct {
-	gorm.Model
-	SettlementID  uint64        `gorm:"not null;index;comment:结算ID" json:"settlement_id"`
-	MerchantID    uint64        `gorm:"not null;index;comment:商户ID" json:"merchant_id"`
-	Amount        int64         `gorm:"not null;comment:支付金额(分)" json:"amount"`
-	Status        PaymentStatus `gorm:"type:varchar(32);default:'pending';comment:状态" json:"status"`
-	TransactionID string        `gorm:"type:varchar(128);comment:交易流水号" json:"transaction_id"`
-	CompletedAt   *time.Time    `gorm:"comment:完成时间" json:"completed_at"`
+	ID            uint          `json:"id"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+	SettlementID  uint64        `json:"settlement_id"`
+	MerchantID    uint64        `json:"merchant_id"`
+	Amount        int64         `json:"amount"`
+	Status        PaymentStatus `json:"status"`
+	TransactionID string        `json:"transaction_id"`
+	CompletedAt   *time.Time    `json:"completed_at"`
 }
 
 // MerchantAccount 实体代表商户的账户信息。
 type MerchantAccount struct {
-	gorm.Model
-	MerchantID    uint64  `gorm:"uniqueIndex;not null;comment:商户ID" json:"merchant_id"`
-	Balance       uint64  `gorm:"not null;default:0;comment:余额(分)" json:"balance"`
-	FrozenBalance uint64  `gorm:"not null;default:0;comment:冻结金额(分)" json:"frozen_balance"`
-	TotalIncome   uint64  `gorm:"not null;default:0;comment:总收入(分)" json:"total_income"`
-	TotalWithdraw uint64  `gorm:"not null;default:0;comment:总提现(分)" json:"total_withdraw"`
-	FeeRate       float64 `gorm:"type:decimal(5,2);not null;default:0;comment:费率(%)" json:"fee_rate"`
+	ID            uint      `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	MerchantID    uint64    `json:"merchant_id"`
+	Balance       uint64    `json:"balance"`
+	FrozenBalance uint64    `json:"frozen_balance"`
+	TotalIncome   uint64    `json:"total_income"`
+	TotalWithdraw uint64    `json:"total_withdraw"`
+	FeeRate       float64   `json:"fee_rate"`
 }
 
 func (a *MerchantAccount) AvailableBalance() uint64 {
@@ -124,38 +130,46 @@ const (
 )
 
 type Subject struct {
-	Code        string      `gorm:"primaryKey;type:varchar(32);comment:科目代码" json:"code"`
-	Name        string      `gorm:"type:varchar(64);not null;comment:科目名称" json:"name"`
-	Type        AccountType `gorm:"type:varchar(32);not null;comment:科目类型" json:"type"`
-	Description string      `gorm:"type:varchar(255);comment:描述" json:"description"`
+	Code        string      `json:"code"`
+	Name        string      `json:"name"`
+	Type        AccountType `json:"type"`
+	Description string      `json:"description"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 type Account struct {
-	gorm.Model
-	SubjectCode string `gorm:"index;type:varchar(32);not null;comment:关联科目" json:"subject_code"`
-	EntityID    string `gorm:"uniqueIndex:idx_sub_ent;type:varchar(64);not null;comment:关联实体ID" json:"entity_id"`
-	Balance     int64  `gorm:"not null;default:0;comment:余额(分)" json:"balance"`
-	Currency    string `gorm:"type:varchar(3);default:'CNY';comment:币种" json:"currency"`
-	Version     int64  `gorm:"default:0;comment:乐观锁版本" json:"version"`
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	SubjectCode string    `json:"subject_code"`
+	EntityID    string    `json:"entity_id"`
+	Balance     int64     `json:"balance"`
+	Currency    string    `json:"currency"`
+	Version     int64     `json:"version"`
 }
 
 type JournalEntry struct {
-	gorm.Model
-	EntryNo       string      `gorm:"uniqueIndex;type:varchar(64);not null;comment:凭证号" json:"entry_no"`
-	TransactionID string      `gorm:"index;type:varchar(64);not null;comment:关联业务流水号" json:"transaction_id"`
-	EventType     string      `gorm:"type:varchar(32);not null;comment:事件类型" json:"event_type"`
-	PostingDate   time.Time   `gorm:"index;not null;comment:入账日期" json:"posting_date"`
-	Description   string      `gorm:"type:varchar(255);comment:摘要" json:"description"`
-	Lines         []EntryLine `gorm:"foreignKey:EntryID" json:"lines"`
+	ID            uint        `json:"id"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
+	EntryNo       string      `json:"entry_no"`
+	TransactionID string      `json:"transaction_id"`
+	EventType     string      `json:"event_type"`
+	PostingDate   time.Time   `json:"posting_date"`
+	Description   string      `json:"description"`
+	Lines         []EntryLine `json:"lines"`
 }
 
 type EntryLine struct {
-	gorm.Model
-	EntryID     uint64    `gorm:"index;not null;comment:关联凭证ID" json:"entry_id"`
-	AccountID   uint64    `gorm:"index;not null;comment:关联账户ID" json:"account_id"`
-	SubjectCode string    `gorm:"type:varchar(32);not null;comment:冗余科目代码" json:"subject_code"`
-	Direction   Direction `gorm:"type:tinyint;not null;comment:借贷方向(1:借, -1:贷)" json:"direction"`
-	Amount      int64     `gorm:"not null;comment:发生金额(分)" json:"amount"`
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	EntryID     uint64    `json:"entry_id"`
+	AccountID   uint64    `json:"account_id"`
+	SubjectCode string    `json:"subject_code"`
+	Direction   Direction `json:"direction"`
+	Amount      int64     `json:"amount"`
 }
 
 func (e *JournalEntry) Validate() error {
@@ -201,39 +215,38 @@ type LedgerService struct {
 	repo LedgerRepository
 }
 
+// NewLedgerService 创建账务服务。
 func NewLedgerService(repo LedgerRepository) *LedgerService {
 	return &LedgerService{repo: repo}
 }
 
-func (s *LedgerService) PostEntry(_ context.Context, entry *JournalEntry) error {
+// PostEntry 过账：校验+保存。
+func (s *LedgerService) PostEntry(ctx context.Context, entry *JournalEntry) error {
 	if err := entry.Validate(); err != nil {
 		return err
-	}
-	if entry.EntryNo == "" {
-		entry.EntryNo = fmt.Sprintf("JE%d", time.Now().UnixNano())
-	}
-	if entry.PostingDate.IsZero() {
-		entry.PostingDate = time.Now()
 	}
 	return s.repo.CreateJournalEntry(entry)
 }
 
-func (s *LedgerService) CreateAccount(_ context.Context, subjectCode, entityID string) (*Account, error) {
-	acc, err := s.repo.GetAccount(subjectCode, entityID)
+// CreateAccount 获取或创建账户。
+func (s *LedgerService) CreateAccount(ctx context.Context, subjectCode, entityID string) (*Account, error) {
+	account, err := s.repo.GetAccount(subjectCode, entityID)
+	if err == nil && account != nil {
+		return account, nil
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to check existing account: %w", err)
+		return nil, err
 	}
-	if acc != nil {
-		return acc, nil
-	}
-	acc = &Account{
+
+	newAcc := &Account{
 		SubjectCode: subjectCode,
 		EntityID:    entityID,
 		Balance:     0,
 		Currency:    "CNY",
+		Version:     0,
 	}
-	if err = s.repo.SaveAccount(acc); err != nil {
+	if err := s.repo.SaveAccount(newAcc); err != nil {
 		return nil, err
 	}
-	return acc, nil
+	return newAcc, nil
 }

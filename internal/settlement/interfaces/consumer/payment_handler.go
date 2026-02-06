@@ -1,4 +1,4 @@
-package event
+package consumer
 
 import (
 	"context"
@@ -11,14 +11,14 @@ import (
 
 // PaymentHandler 处理支付相关的消息事件。
 type PaymentHandler struct {
-	app    *application.SettlementService
+	cmd    *application.SettlementCommandService
 	logger *slog.Logger
 }
 
 // NewPaymentHandler 创建支付事件处理器。
-func NewPaymentHandler(app *application.SettlementService, logger *slog.Logger) *PaymentHandler {
+func NewPaymentHandler(cmd *application.SettlementCommandService, logger *slog.Logger) *PaymentHandler {
 	return &PaymentHandler{
-		app:    app,
+		cmd:    cmd,
 		logger: logger.With("module", "event_handler"),
 	}
 }
@@ -45,5 +45,5 @@ func (h *PaymentHandler) HandlePaymentCaptured(ctx context.Context, msg kafkago.
 	merchantID := uint64(1)
 	channelCost := int64(float64(event.Amount) * 0.006) // 假设 0.6% 渠道成本
 
-	return h.app.RecordPaymentSuccess(ctx, 0, event.OrderNo, merchantID, event.Amount, channelCost)
+	return h.cmd.RecordPaymentSuccess(ctx, 0, event.OrderNo, merchantID, event.Amount, channelCost)
 }

@@ -15,14 +15,16 @@ import (
 
 // Handler 处理 HTTP 请求。
 type Handler struct {
-	app    *application.SettlementService
+	cmd    *application.SettlementCommandService
+	query  *application.SettlementQueryService
 	logger *slog.Logger
 }
 
 // NewHandler 创建一个新的 Handler 实例。
-func NewHandler(app *application.SettlementService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.SettlementCommandService, query *application.SettlementQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -52,7 +54,7 @@ func (h *Handler) CreateSettlement(c *gin.Context) {
 		return
 	}
 
-	settlement, err := h.app.CreateSettlement(c.Request.Context(), req.MerchantID, req.Cycle, start, end)
+	settlement, err := h.cmd.CreateSettlement(c.Request.Context(), req.MerchantID, req.Cycle, start, end)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create settlement", "error", err)
 		response.Error(c, err)
@@ -76,7 +78,7 @@ func (h *Handler) AddOrderToSettlement(c *gin.Context) {
 		Amount  uint64 `json:"amount" binding:"required"`
 	}
 
-	if err := h.app.AddOrderToSettlement(c.Request.Context(), id, req.OrderID, req.OrderNo, req.Amount); err != nil {
+	if err := h.cmd.AddOrderToSettlement(c.Request.Context(), id, req.OrderID, req.OrderNo, req.Amount); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to add order to settlement", "id", id, "error", err)
 		response.Error(c, err)
 		return
@@ -93,7 +95,7 @@ func (h *Handler) ProcessSettlement(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.ProcessSettlement(c.Request.Context(), id); err != nil {
+	if err := h.cmd.ProcessSettlement(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to process settlement", "id", id, "error", err)
 		response.Error(c, err)
 		return
@@ -110,7 +112,7 @@ func (h *Handler) CompleteSettlement(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.CompleteSettlement(c.Request.Context(), id); err != nil {
+	if err := h.cmd.CompleteSettlement(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to complete settlement", "id", id, "error", err)
 		response.Error(c, err)
 		return
@@ -133,7 +135,7 @@ func (h *Handler) ListSettlements(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	list, total, err := h.app.ListSettlements(c.Request.Context(), merchantID, statusPtr, page, pageSize)
+	list, total, err := h.query.ListSettlements(c.Request.Context(), merchantID, statusPtr, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list settlements", "merchant_id", merchantID, "error", err)
 		response.Error(c, err)
@@ -151,7 +153,7 @@ func (h *Handler) GetSettlement(c *gin.Context) {
 		return
 	}
 
-	settlement, err := h.app.GetSettlement(c.Request.Context(), id)
+	settlement, err := h.query.GetSettlement(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get settlement", "id", id, "error", err)
 		response.Error(c, err)
@@ -169,7 +171,7 @@ func (h *Handler) GetMerchantAccount(c *gin.Context) {
 		return
 	}
 
-	account, err := h.app.GetMerchantAccount(c.Request.Context(), merchantID)
+	account, err := h.query.GetMerchantAccount(c.Request.Context(), merchantID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get merchant account", "merchant_id", merchantID, "error", err)
 		response.Error(c, err)

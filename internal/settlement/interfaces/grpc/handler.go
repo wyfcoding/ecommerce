@@ -19,12 +19,13 @@ import (
 // Server 结构体实现了 SettlementService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedSettlementServiceServer
-	app *application.SettlementService
+	cmd   *application.SettlementCommandService
+	query *application.SettlementQueryService
 }
 
 // NewServer 创建并返回一个新的 Settlement gRPC 服务端实例。
-func NewServer(app *application.SettlementService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.SettlementCommandService, query *application.SettlementQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // CreateSettlement 处理创建结算单的gRPC请求。
@@ -32,7 +33,7 @@ func (s *Server) CreateSettlement(ctx context.Context, req *pb.CreateSettlementR
 	start := time.Now()
 	slog.Info("gRPC CreateSettlement received", "merchant_id", req.MerchantId, "cycle", req.Cycle)
 
-	settlement, err := s.app.CreateSettlement(ctx, req.MerchantId, req.Cycle, req.StartDate.AsTime(), req.EndDate.AsTime())
+	settlement, err := s.cmd.CreateSettlement(ctx, req.MerchantId, req.Cycle, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {
 		slog.Error("gRPC CreateSettlement failed", "merchant_id", req.MerchantId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create settlement: %v", err))
@@ -49,7 +50,7 @@ func (s *Server) AddOrderToSettlement(ctx context.Context, req *pb.AddOrderToSet
 	start := time.Now()
 	slog.Info("gRPC AddOrderToSettlement received", "settlement_id", req.SettlementId, "order_id", req.OrderId)
 
-	if err := s.app.AddOrderToSettlement(ctx, req.SettlementId, req.OrderId, req.OrderNo, req.Amount); err != nil {
+	if err := s.cmd.AddOrderToSettlement(ctx, req.SettlementId, req.OrderId, req.OrderNo, req.Amount); err != nil {
 		slog.Error("gRPC AddOrderToSettlement failed", "settlement_id", req.SettlementId, "order_id", req.OrderId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add order to settlement: %v", err))
 	}
@@ -63,7 +64,7 @@ func (s *Server) ProcessSettlement(ctx context.Context, req *pb.ProcessSettlemen
 	start := time.Now()
 	slog.Info("gRPC ProcessSettlement received", "id", req.Id)
 
-	if err := s.app.ProcessSettlement(ctx, req.Id); err != nil {
+	if err := s.cmd.ProcessSettlement(ctx, req.Id); err != nil {
 		slog.Error("gRPC ProcessSettlement failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process settlement: %v", err))
 	}
@@ -77,7 +78,7 @@ func (s *Server) CompleteSettlement(ctx context.Context, req *pb.CompleteSettlem
 	start := time.Now()
 	slog.Info("gRPC CompleteSettlement received", "id", req.Id)
 
-	if err := s.app.CompleteSettlement(ctx, req.Id); err != nil {
+	if err := s.cmd.CompleteSettlement(ctx, req.Id); err != nil {
 		slog.Error("gRPC CompleteSettlement failed", "id", req.Id, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to complete settlement: %v", err))
 	}
@@ -103,7 +104,7 @@ func (s *Server) ListSettlements(ctx context.Context, req *pb.ListSettlementsReq
 		statusPtr = &st
 	}
 
-	settlements, total, err := s.app.ListSettlements(ctx, req.MerchantId, statusPtr, page, pageSize)
+	settlements, total, err := s.query.ListSettlements(ctx, req.MerchantId, statusPtr, page, pageSize)
 	if err != nil {
 		slog.Error("gRPC ListSettlements failed", "merchant_id", req.MerchantId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list settlements: %v", err))
@@ -126,7 +127,7 @@ func (s *Server) GetMerchantAccount(ctx context.Context, req *pb.GetMerchantAcco
 	start := time.Now()
 	slog.Debug("gRPC GetMerchantAccount received", "merchant_id", req.MerchantId)
 
-	account, err := s.app.GetMerchantAccount(ctx, req.MerchantId)
+	account, err := s.query.GetMerchantAccount(ctx, req.MerchantId)
 	if err != nil {
 		slog.Error("gRPC GetMerchantAccount failed", "merchant_id", req.MerchantId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get merchant account: %v", err))
