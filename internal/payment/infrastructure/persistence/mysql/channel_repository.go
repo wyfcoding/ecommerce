@@ -10,6 +10,7 @@ import (
 )
 
 // channelRepositoryImpl 渠道配置仓储实现
+
 type channelRepositoryImpl struct {
 	sharding *sharding.Manager
 	tx       *gorm.DB
@@ -31,31 +32,52 @@ func (r *channelRepositoryImpl) getDB() *gorm.DB {
 // FindByCode 根据编码查找渠道
 func (r *channelRepositoryImpl) FindByCode(ctx context.Context, code string) (*domain.ChannelConfig, error) {
 	db := r.getDB()
-	var config domain.ChannelConfig
+	var config ChannelConfigModel
 	if err := db.WithContext(ctx).Where("code = ?", code).First(&config).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &config, nil
+	return toDomainChannelConfig(&config), nil
 }
 
 // ListEnabledByType 获取指定类型的所有启用渠道
 func (r *channelRepositoryImpl) ListEnabledByType(ctx context.Context, channelType domain.ChannelType) ([]*domain.ChannelConfig, error) {
 	db := r.getDB()
-	var list []*domain.ChannelConfig
+	var list []ChannelConfigModel
 	err := db.WithContext(ctx).
 		Where("type = ? AND enabled = ?", channelType, true).
 		Order("priority DESC").
 		Find(&list).Error
-	return list, err
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*domain.ChannelConfig, 0, len(list))
+	for _, item := range list {
+		itemCopy := item
+		result = append(result, toDomainChannelConfig(&itemCopy))
+	}
+	return result, nil
 }
 
 // Save 保存配置
 func (r *channelRepositoryImpl) Save(ctx context.Context, channel *domain.ChannelConfig) error {
+	if channel == nil {
+		return nil
+	}
 	db := r.getDB()
-	return db.WithContext(ctx).Save(channel).Error
+	model := toChannelConfigModel(channel)
+	if model == nil {
+		return nil
+	}
+	if err := db.WithContext(ctx).Save(model).Error; err != nil {
+		return err
+	}
+	if synced := toDomainChannelConfig(model); synced != nil {
+		*channel = *synced
+	}
+	return nil
 }
 
 func (r *channelRepositoryImpl) Transaction(ctx context.Context, fn func(tx any) error) error {

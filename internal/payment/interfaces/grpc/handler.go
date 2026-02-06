@@ -189,7 +189,7 @@ func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	}
 
 	return &pb.PaymentTransaction{
-		Id:                   uint64(p.Model.ID),
+		Id:                   uint64(p.ID),
 		TransactionNo:        p.PaymentNo,
 		OrderId:              p.OrderID,
 		UserId:               p.UserID,

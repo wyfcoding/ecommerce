@@ -174,8 +174,3 @@ require (
 )
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20251222181119-0a764e51fe1b
-
-replace (
-	github.com/wyfcoding/financialtrading => ../financialTrading
-	github.com/wyfcoding/pkg => ../pkg
-)

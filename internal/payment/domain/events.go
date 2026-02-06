@@ -35,6 +35,9 @@ func (e *PaymentInitiatedEvent) EventType() string { return PaymentInitiatedEven
 // PaymentAuthorizedEvent 当网关授权成功时发出的事件。
 type PaymentAuthorizedEvent struct {
 	eventsourcing.BaseEvent
+	PaymentNo     string `json:"payment_no"`
+	OrderID       uint64 `json:"order_id"`
+	UserID        uint64 `json:"user_id"`
 	TransactionID string `json:"transaction_id"`
 }
 
@@ -45,6 +48,7 @@ type PaymentCapturedEvent struct {
 	eventsourcing.BaseEvent
 	PaymentNo string    `json:"payment_no"`
 	OrderNo   string    `json:"order_no"`
+	OrderID   uint64    `json:"order_id"`
 	UserID    uint64    `json:"user_id"`
 	Amount    int64     `json:"amount"`
 	PaidAt    time.Time `json:"paid_at"`
@@ -57,6 +61,7 @@ type PaymentPaidEvent struct {
 	eventsourcing.BaseEvent
 	PaymentNo string `json:"payment_no"`
 	OrderNo   string `json:"order_no"`
+	OrderID   uint64 `json:"order_id"`
 	UserID    uint64 `json:"user_id"`
 	Amount    int64  `json:"amount"`
 	PaidAt    int64  `json:"paid_at"`
@@ -70,6 +75,7 @@ type RefundFinishedEvent struct {
 	RefundNo     string    `json:"refund_no"`
 	PaymentNo    string    `json:"payment_no"`
 	OrderNo      string    `json:"order_no"`
+	OrderID      uint64    `json:"order_id"`
 	UserID       uint64    `json:"user_id"`
 	RefundAmount int64     `json:"refund_amount"`
 	RefundedAt   time.Time `json:"refunded_at"`
@@ -80,7 +86,10 @@ func (e *RefundFinishedEvent) EventType() string { return RefundFinishedEventTyp
 // PaymentClosedEvent 当支付单关闭时发出的事件。
 type PaymentClosedEvent struct {
 	eventsourcing.BaseEvent
-	ClosedAt time.Time `json:"closed_at"`
+	PaymentNo string    `json:"payment_no"`
+	OrderID   uint64    `json:"order_id"`
+	UserID    uint64    `json:"user_id"`
+	ClosedAt  time.Time `json:"closed_at"`
 }
 
 func (e *PaymentClosedEvent) EventType() string { return PaymentClosedEventType }

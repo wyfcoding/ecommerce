@@ -17,8 +17,11 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"
+	paymentsearch "github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/elasticsearch"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/mysql"
+	paymentredis "github.com/wyfcoding/ecommerce/internal/payment/infrastructure/persistence/redis"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/risk"
+	consumer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/consumer"
 	grpcServer "github.com/wyfcoding/ecommerce/internal/payment/interfaces/grpc"
 	paymenthttp "github.com/wyfcoding/ecommerce/internal/payment/interfaces/http"
 	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
@@ -36,6 +39,7 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -47,6 +51,9 @@ const IdempotencyPrefix = "payment:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		PaymentIndex string `mapstructure:"payment_index" toml:"payment_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
@@ -170,6 +177,21 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		shardingManager.Close()
+		redisCache.Close()
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
@@ -229,6 +251,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	channelRepo := mysql.NewChannelRepository(shardingManager)
 	refundRepo := mysql.NewRefundRepository(shardingManager)
 	eventStore := mysql.NewEventStore(shardingManager)
+	paymentReadRepo := paymentredis.NewPaymentReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	paymentSearchRepo := paymentsearch.NewPaymentSearchRepository(esClient, c.Search.PaymentIndex)
 
 	riskSvc := risk.NewRiskService(clients.RiskSecurity)
 
@@ -255,14 +279,40 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		redisLock,
 		logger.Logger,
 	)
-	paymentQuery := application.NewPaymentQuery(paymentRepo)
+	paymentQuery := application.NewPaymentQuery(paymentRepo, paymentReadRepo, paymentSearchRepo, eventStore, logger.Logger)
 
-	// 5.3 Interface (HTTP Handlers)
+	// --- 5.3 Projection Consumers (Payment Events -> Read Model) ---
+	projectionService := application.NewPaymentProjectionService(paymentRepo, paymentReadRepo, paymentSearchRepo, logger.Logger)
+	projectionHandler := consumer.NewPaymentProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		"payment.initiated",
+		"payment.authorized",
+		"payment.captured",
+		"payment.paid",
+		"payment.refunded",
+		"payment.closed",
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 5.4 Interface (HTTP Handlers)
 	httpHandler := paymenthttp.NewHandler(paymentCmdService, paymentQuery, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
 		outboxProc.Stop()
 		if producer != nil {
 			producer.Close()

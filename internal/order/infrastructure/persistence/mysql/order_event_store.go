@@ -58,12 +58,7 @@ func (s *orderEventStore) SaveInTx(ctx context.Context, tx any, userID uint64, a
 	if !ok {
 		return errors.New("invalid transaction type for event store")
 	}
-	return s.storeByUserID(userID).SaveInTx(ctx, gormTx, aggregateID, events, expectedVersion)
-}
-
-// Load 加载指定聚合的所有事件。
-func (s *orderEventStore) Load(ctx context.Context, userID uint64, aggregateID string) ([]eventsourcing.DomainEvent, error) {
-	return s.storeByUserID(userID).Load(ctx, aggregateID)
+	return s.storeByUserID(userID).SaveWithTx(ctx, gormTx, aggregateID, events, expectedVersion)
 }
 
 // LoadFromVersion 从指定版本加载事件。
@@ -82,7 +77,7 @@ func (s *orderEventStore) SaveSnapshotInTx(ctx context.Context, tx any, userID u
 	if !ok {
 		return errors.New("invalid transaction type for snapshot store")
 	}
-	return s.storeByUserID(userID).SaveSnapshotInTx(ctx, gormTx, aggregateID, state, version)
+	return s.storeByUserID(userID).SaveSnapshotWithTx(ctx, gormTx, aggregateID, state, version)
 }
 
 // storeByUserID 根据用户ID路由到对应分片的事件存储。

@@ -13,8 +13,6 @@ import (
 type OrderEventStore interface {
 	// SaveInTx 在事务中保存事件流。
 	SaveInTx(ctx context.Context, tx any, userID uint64, aggregateID string, events []eventsourcing.DomainEvent, expectedVersion int64) error
-	// Load 加载指定聚合的所有事件。
-	Load(ctx context.Context, userID uint64, aggregateID string) ([]eventsourcing.DomainEvent, error)
 	// LoadFromVersion 从指定版本加载事件。
 	LoadFromVersion(ctx context.Context, userID uint64, aggregateID string, fromVersion int64) ([]eventsourcing.DomainEvent, error)
 	// GetSnapshot 获取聚合快照。

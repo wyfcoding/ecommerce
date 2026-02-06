@@ -136,7 +136,7 @@ func (s *PaymentCommandService) saveAggregate(ctx context.Context, p *domain.Pay
 		txRepo := s.paymentRepo.WithTx(tx)
 
 		var err error
-		if p.Model.ID == 0 {
+		if p.ID == 0 {
 			err = txRepo.Save(ctx, p)
 		} else {
 			err = txRepo.Update(ctx, p)
@@ -261,7 +261,7 @@ func (s *PaymentCommandService) RequestRefund(ctx context.Context, cmd *RefundPa
 		// 创建退款单
 		refund = &domain.Refund{
 			RefundNo:     fmt.Sprintf("REF%d", s.idGenerator.Generate()),
-			PaymentID:    uint64(p.Model.ID),
+			PaymentID:    uint64(p.ID),
 			PaymentNo:    p.PaymentNo,
 			OrderID:      p.OrderID,
 			OrderNo:      p.OrderNo,
@@ -372,7 +372,7 @@ func (s *PaymentCommandService) SagaRefund(ctx context.Context, barrier any, use
 		refundNo = fmt.Sprintf("SAGA-REF-%d", s.idGenerator.Generate())
 		refund := &domain.Refund{
 			RefundNo:     refundNo,
-			PaymentID:    uint64(payment.Model.ID),
+			PaymentID:    uint64(payment.ID),
 			PaymentNo:    payment.PaymentNo,
 			OrderID:      orderID,
 			OrderNo:      payment.OrderNo,

@@ -57,7 +57,7 @@ func (s *OrderQueryService) GetOrder(ctx context.Context, userID uint64, orderID
 
 	if s.eventStore != nil {
 		aggregateID := fmt.Sprintf("%d", orderID)
-		events, err := s.eventStore.Load(ctx, userID, aggregateID)
+		events, err := s.eventStore.LoadFromVersion(ctx, userID, aggregateID, 0)
 		if err != nil {
 			s.logger.WarnContext(ctx, "event store load failed", "order_id", orderID, "error", err)
 			return nil, nil

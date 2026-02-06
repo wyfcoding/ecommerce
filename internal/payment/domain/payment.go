@@ -10,7 +10,6 @@ import (
 	"github.com/wyfcoding/pkg/eventsourcing"
 	"github.com/wyfcoding/pkg/fsm"
 	"github.com/wyfcoding/pkg/idgen"
-	"gorm.io/gorm"
 )
 
 // --- Payment Basic Types ---
@@ -24,33 +23,35 @@ var (
 // --- Payment Aggregates ---
 
 type Payment struct {
-	gorm.Model
 	eventsourcing.AggregateRoot
-	PaymentNo      string        `gorm:"uniqueIndex;size:64;comment:支付单号"`
-	OrderID        uint64        `gorm:"index;comment:订单ID"`
-	OrderNo        string        `gorm:"size:64;comment:订单号"`
-	UserID         uint64        `gorm:"index;comment:用户ID"`
-	Amount         int64         `gorm:"not null;comment:总金额"`
-	CapturedAmount int64         `gorm:"default:0;comment:捕获金额"`
-	Currency       string        `gorm:"size:10;default:'CNY';comment:币种"`
-	PaymentMethod  string        `gorm:"size:32;comment:支付方式"`
-	GatewayType    GatewayType   `gorm:"size:32;comment:网关类型"`
-	Status         PaymentStatus `gorm:"column:status;comment:支付状态"`
-	TransactionID  string        `gorm:"size:128;comment:网关交易号"`
-	ThirdPartyNo   string        `gorm:"size:128;comment:三方单号"`
-	CallbackData   string        `gorm:"type:text;comment:回调原始数据"`
-	FailureReason  string        `gorm:"size:255;comment:失败原因"`
-	PaidAt         *time.Time    `gorm:"comment:支付时间"`
-	CancelledAt    *time.Time    `gorm:"comment:取消时间"`
-	RefundedAt     *time.Time    `gorm:"comment:退款时间"`
-	PersistenceVer int64         `gorm:"column:version;default:1;comment:乐观锁版本"`
+	ID             uint          `json:"id"`
+	CreatedAt      time.Time     `json:"created_at"`
+	UpdatedAt      time.Time     `json:"updated_at"`
+	PaymentNo      string        `json:"payment_no"`
+	OrderID        uint64        `json:"order_id"`
+	OrderNo        string        `json:"order_no"`
+	UserID         uint64        `json:"user_id"`
+	Amount         int64         `json:"amount"`
+	CapturedAmount int64         `json:"captured_amount"`
+	Currency       string        `json:"currency"`
+	PaymentMethod  string        `json:"payment_method"`
+	GatewayType    GatewayType   `json:"gateway_type"`
+	Status         PaymentStatus `json:"status"`
+	TransactionID  string        `json:"transaction_id"`
+	ThirdPartyNo   string        `json:"third_party_no"`
+	CallbackData   string        `json:"callback_data"`
+	FailureReason  string        `json:"failure_reason"`
+	PaidAt         *time.Time    `json:"paid_at"`
+	CancelledAt    *time.Time    `json:"cancelled_at"`
+	RefundedAt     *time.Time    `json:"refunded_at"`
+	PersistenceVer int64         `json:"version"`
 
-	fsm     *fsm.Machine[string, string] `gorm:"-"`
-	Logs    []*PaymentLog                `gorm:"foreignKey:PaymentID"`
-	Refunds []*Refund                    `gorm:"foreignKey:PaymentID"`
+	fsm     *fsm.Machine[string, string] `json:"-"`
+	Logs    []*PaymentLog                `json:"logs"`
+	Refunds []*Refund                    `json:"refunds"`
 
 	// 世界级特性：分账信息 (用于平台抽佣、多商家结算)
-	Splits []PaymentSplit `gorm:"foreignKey:PaymentID"`
+	Splits []PaymentSplit `json:"splits"`
 }
 
 // GetID 返回聚合标识。
@@ -62,6 +63,9 @@ func (p *Payment) GetID() string {
 func (p *Payment) Apply(event eventsourcing.DomainEvent) {
 	switch e := event.(type) {
 	case *PaymentInitiatedEvent:
+		if p.GetID() == "" {
+			p.SetID(e.AggregateID())
+		}
 		p.PaymentNo = e.AggregateID()
 		p.OrderID = e.OrderID
 		p.OrderNo = e.OrderNo
@@ -93,50 +97,58 @@ func (p *Payment) Apply(event eventsourcing.DomainEvent) {
 
 // PaymentSplit 定义了资金流向的拆分详情
 type PaymentSplit struct {
-	gorm.Model
-	PaymentID     uint64 `gorm:"index"`
-	RecipientID   uint64 `gorm:"index;comment:接收者ID(商家或平台)"`
-	RecipientType string `gorm:"size:32;comment:MERCHANT, PLATFORM, TAX"`
-	Amount        int64  `gorm:"not null"`
-	Status        string `gorm:"default:'PENDING';comment:PENDING, SETTLED"`
+	ID            uint      `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	PaymentID     uint64    `json:"payment_id"`
+	RecipientID   uint64    `json:"recipient_id"`
+	RecipientType string    `json:"recipient_type"`
+	Amount        int64     `json:"amount"`
+	Status        string    `json:"status"`
 }
 
 // AccountingEntry 影子账本分录 (复式记账原则)
 type AccountingEntry struct {
-	gorm.Model
-	PaymentID     uint64 `gorm:"index"`
-	AccountNo     string `gorm:"size:64;comment:科目编号"`
-	EntryType     string `gorm:"size:10;comment:DEBIT, CREDIT"`
-	Amount        int64
-	BalanceBefore int64
-	BalanceAfter  int64
+	ID            uint      `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	PaymentID     uint64    `json:"payment_id"`
+	AccountNo     string    `json:"account_no"`
+	EntryType     string    `json:"entry_type"`
+	Amount        int64     `json:"amount"`
+	BalanceBefore int64     `json:"balance_before"`
+	BalanceAfter  int64     `json:"balance_after"`
 }
 
 type Refund struct {
-	gorm.Model
-	RefundNo        string `gorm:"uniqueIndex;size:64"`
-	PaymentID       uint64 `gorm:"index"`
-	PaymentNo       string `gorm:"size:64"`
-	OrderID         uint64 `gorm:"index"`
-	OrderNo         string `gorm:"size:64"`
-	UserID          uint64 `gorm:"index"`
-	RefundAmount    int64  `gorm:"not null"`
-	Reason          string `gorm:"size:255"`
-	Status          PaymentStatus
-	ThirdPartyNo    string `gorm:"size:128"`
-	GatewayRefundID string `gorm:"size:128"`
-	FailureReason   string `gorm:"size:255"`
-	RefundedAt      *time.Time
+	ID              uint          `json:"id"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
+	RefundNo        string        `json:"refund_no"`
+	PaymentID       uint64        `json:"payment_id"`
+	PaymentNo       string        `json:"payment_no"`
+	OrderID         uint64        `json:"order_id"`
+	OrderNo         string        `json:"order_no"`
+	UserID          uint64        `json:"user_id"`
+	RefundAmount    int64         `json:"refund_amount"`
+	Reason          string        `json:"reason"`
+	Status          PaymentStatus `json:"status"`
+	ThirdPartyNo    string        `json:"third_party_no"`
+	GatewayRefundID string        `json:"gateway_refund_id"`
+	FailureReason   string        `json:"failure_reason"`
+	RefundedAt      *time.Time    `json:"refunded_at"`
 }
 
 type PaymentLog struct {
-	gorm.Model
-	PaymentID uint64 `gorm:"index"`
-	UserID    uint64 `gorm:"index"`
-	Action    string `gorm:"size:64"`
-	OldStatus string `gorm:"size:32"`
-	NewStatus string `gorm:"size:32"`
-	Remark    string `gorm:"size:255"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	PaymentID uint64    `json:"payment_id"`
+	UserID    uint64    `json:"user_id"`
+	Action    string    `json:"action"`
+	OldStatus string    `json:"old_status"`
+	NewStatus string    `json:"new_status"`
+	Remark    string    `json:"remark"`
 }
 
 func NewPayment(orderID uint64, orderNo string, userID uint64, amount int64, paymentMethod string, gatewayType GatewayType, idGenerator idgen.Generator) *Payment {
@@ -184,6 +196,13 @@ func (p *Payment) initFSM() {
 	p.fsm = m
 }
 
+// InitFSM 确保状态机已初始化。
+func (p *Payment) InitFSM() {
+	if p.fsm == nil {
+		p.initFSM()
+	}
+}
+
 func (p *Payment) Trigger(ctx context.Context, event string, remark string) error {
 	if p.fsm == nil {
 		p.initFSM()
@@ -202,6 +221,9 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 	case "AUTH":
 		domainEv = &PaymentAuthorizedEvent{
 			BaseEvent:     eventsourcing.NewBaseEvent(PaymentAuthorizedEventType, p.GetID(), p.AggregateRoot.Version()),
+			PaymentNo:     p.PaymentNo,
+			OrderID:       p.OrderID,
+			UserID:        p.UserID,
 			TransactionID: p.TransactionID,
 		}
 	case "CAPTURE":
@@ -209,6 +231,7 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 			BaseEvent: eventsourcing.NewBaseEvent(PaymentCapturedEventType, p.GetID(), p.AggregateRoot.Version()),
 			PaymentNo: p.PaymentNo,
 			OrderNo:   p.OrderNo,
+			OrderID:   p.OrderID,
 			UserID:    p.UserID,
 			Amount:    p.CapturedAmount,
 			PaidAt:    time.Now(),
@@ -218,6 +241,7 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 			BaseEvent: eventsourcing.NewBaseEvent(PaymentPaidEventType, p.GetID(), p.AggregateRoot.Version()),
 			PaymentNo: p.PaymentNo,
 			OrderNo:   p.OrderNo,
+			OrderID:   p.OrderID,
 			UserID:    p.UserID,
 			Amount:    p.Amount,
 			PaidAt:    time.Now().Unix(),
@@ -227,6 +251,7 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 			BaseEvent:    eventsourcing.NewBaseEvent(RefundFinishedEventType, p.GetID(), p.AggregateRoot.Version()),
 			PaymentNo:    p.PaymentNo,
 			OrderNo:      p.OrderNo,
+			OrderID:      p.OrderID,
 			UserID:       p.UserID,
 			RefundAmount: p.Amount,
 			RefundedAt:   time.Now(),
@@ -234,6 +259,9 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 	case "CANCEL", "VOID":
 		domainEv = &PaymentClosedEvent{
 			BaseEvent: eventsourcing.NewBaseEvent(PaymentClosedEventType, p.GetID(), p.AggregateRoot.Version()),
+			PaymentNo: p.PaymentNo,
+			OrderID:   p.OrderID,
+			UserID:    p.UserID,
 			ClosedAt:  time.Now(),
 		}
 	}
@@ -251,7 +279,6 @@ func (p *Payment) Trigger(ctx context.Context, event string, remark string) erro
 
 func (p *Payment) AddLog(action, oldStatus, newStatus, remark string) {
 	p.Logs = append(p.Logs, &PaymentLog{
-		PaymentID: uint64(p.Model.ID),
 		UserID:    p.UserID,
 		Action:    action,
 		OldStatus: oldStatus,
@@ -351,7 +378,9 @@ type ChannelRepository interface {
 }
 
 type ChannelConfig struct {
-	gorm.Model
+	ID          uint        `json:"id"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 	Code        string      `json:"code"`
 	Type        ChannelType `json:"type"`
 	Name        string      `json:"name"`
@@ -392,12 +421,14 @@ type RiskContext struct {
 }
 
 type ReconciliationRecord struct {
-	gorm.Model
-	OrderNo       string `gorm:"size:64"`
-	PaymentID     uint64 `gorm:"index"`
-	GatewayAmount int64
-	SystemAmount  int64
-	DiffAmount    int64
-	Status        string `gorm:"size:32"`
-	Remark        string `gorm:"size:255"`
+	ID            uint      `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	OrderNo       string    `json:"order_no"`
+	PaymentID     uint64    `json:"payment_id"`
+	GatewayAmount int64     `json:"gateway_amount"`
+	SystemAmount  int64     `json:"system_amount"`
+	DiffAmount    int64     `json:"diff_amount"`
+	Status        string    `json:"status"`
+	Remark        string    `json:"remark"`
 }

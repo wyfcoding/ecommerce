@@ -27,32 +27,45 @@ func (r *refundRepository) getDB(userID uint64) *gorm.DB {
 }
 
 func (r *refundRepository) Save(ctx context.Context, refund *domain.Refund) error {
+	if refund == nil {
+		return nil
+	}
 	db := r.getDB(uint64(refund.UserID))
-	return db.WithContext(ctx).Create(refund).Error
+	model := toRefundModel(refund)
+	if model == nil {
+		return nil
+	}
+	if err := db.WithContext(ctx).Save(model).Error; err != nil {
+		return err
+	}
+	if synced := toDomainRefund(model); synced != nil {
+		*refund = *synced
+	}
+	return nil
 }
 
 func (r *refundRepository) FindByID(ctx context.Context, userID uint64, id uint64) (*domain.Refund, error) {
 	db := r.getDB(userID)
-	var refund domain.Refund
+	var refund RefundModel
 	if err := db.WithContext(ctx).First(&refund, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &refund, nil
+	return toDomainRefund(&refund), nil
 }
 
 func (r *refundRepository) FindByRefundNo(ctx context.Context, userID uint64, refundNo string) (*domain.Refund, error) {
 	db := r.getDB(userID)
-	var refund domain.Refund
+	var refund RefundModel
 	if err := db.WithContext(ctx).Where("refund_no = ?", refundNo).First(&refund).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &refund, nil
+	return toDomainRefund(&refund), nil
 }
 
 func (r *refundRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {
