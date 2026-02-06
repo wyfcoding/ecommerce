@@ -17,12 +17,13 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedPricingServiceServer
-	app *application.PricingService
+	cmd   *application.PricingCommandService
+	query *application.PricingQueryService
 }
 
 // NewServer 函数。
-func NewServer(app *application.PricingService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.PricingCommandService, query *application.PricingQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 func (s *Server) CreateRule(ctx context.Context, req *pb.CreateRuleRequest) (*pb.CreateRuleResponse, error) {
@@ -40,7 +41,7 @@ func (s *Server) CreateRule(ctx context.Context, req *pb.CreateRuleRequest) (*pb
 		EndTime:    req.EndTime.AsTime(),
 	}
 
-	if err := s.app.CreateRule(ctx, rule); err != nil {
+	if err := s.cmd.CreateRule(ctx, rule); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create rule: %v", err))
 	}
 
@@ -56,7 +57,7 @@ func (s *Server) ListRules(ctx context.Context, req *pb.ListRulesRequest) (*pb.L
 		pageSize = 10
 	}
 
-	rules, total, err := s.app.ListRules(ctx, req.ProductId, page, pageSize)
+	rules, total, err := s.query.ListRules(ctx, req.ProductId, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list rules: %v", err))
 	}
@@ -73,7 +74,7 @@ func (s *Server) ListRules(ctx context.Context, req *pb.ListRulesRequest) (*pb.L
 }
 
 func (s *Server) CalculatePrice(ctx context.Context, req *pb.CalculatePriceRequest) (*pb.CalculatePriceResponse, error) {
-	price, err := s.app.CalculatePrice(ctx, req.ProductId, req.SkuId, req.Demand, req.Competition)
+	price, err := s.query.CalculatePrice(ctx, req.ProductId, req.SkuId, req.Demand, req.Competition)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to calculate price: %v", err))
 	}
@@ -84,7 +85,7 @@ func (s *Server) CalculatePrice(ctx context.Context, req *pb.CalculatePriceReque
 }
 
 func (s *Server) RecordHistory(ctx context.Context, req *pb.RecordHistoryRequest) (*emptypb.Empty, error) {
-	if err := s.app.RecordHistory(ctx, req.ProductId, req.SkuId, req.Price, req.OldPrice, req.Reason); err != nil {
+	if err := s.cmd.RecordHistory(ctx, req.ProductId, req.SkuId, req.Price, req.OldPrice, req.Reason); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to record price history: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -97,7 +98,7 @@ func (s *Server) ListHistory(ctx context.Context, req *pb.ListHistoryRequest) (*
 		pageSize = 10
 	}
 
-	history, total, err := s.app.ListHistory(ctx, req.ProductId, req.SkuId, page, pageSize)
+	history, total, err := s.query.ListHistory(ctx, req.ProductId, req.SkuId, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list history: %v", err))
 	}
@@ -118,7 +119,7 @@ func convertRuleToProto(r *domain.PricingRule) *pb.PricingRule {
 		return nil
 	}
 	return &pb.PricingRule{
-		Id:         uint64(r.ID),
+		Id:         r.ID,
 		Name:       r.Name,
 		ProductId:  r.ProductID,
 		SkuId:      r.SkuID,
@@ -140,7 +141,7 @@ func convertHistoryToProto(h *domain.PriceHistory) *pb.PriceHistory {
 		return nil
 	}
 	return &pb.PriceHistory{
-		Id:         uint64(h.ID),
+		Id:         h.ID,
 		ProductId:  h.ProductID,
 		SkuId:      h.SkuID,
 		Price:      h.Price,

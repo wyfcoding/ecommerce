@@ -10,14 +10,22 @@ import (
 
 // PricingQueryService 处理读操作和计算。
 type PricingQueryService struct {
-	repo          domain.PricingRepository
-	marketDataCli marketdatav1.MarketDataServiceClient
+	repo              domain.PricingRepository
+	ruleReadRepo      domain.PricingRuleReadRepository
+	historySearchRepo domain.PriceHistorySearchRepository
+	marketDataCli     marketdatav1.MarketDataServiceClient
 }
 
 // NewPricingQueryService creates a new PricingQueryService instance.
-func NewPricingQueryService(repo domain.PricingRepository) *PricingQueryService {
+func NewPricingQueryService(
+	repo domain.PricingRepository,
+	ruleReadRepo domain.PricingRuleReadRepository,
+	historySearchRepo domain.PriceHistorySearchRepository,
+) *PricingQueryService {
 	return &PricingQueryService{
-		repo: repo,
+		repo:              repo,
+		ruleReadRepo:      ruleReadRepo,
+		historySearchRepo: historySearchRepo,
 	}
 }
 
@@ -27,9 +35,21 @@ func (q *PricingQueryService) SetMarketDataClient(cli marketdatav1.MarketDataSer
 
 // CalculatePrice 根据定价规则计算商品或SKU的价格。
 func (q *PricingQueryService) CalculatePrice(ctx context.Context, productID, skuID uint64, demand, competition float64) (uint64, error) {
-	rule, err := q.repo.GetActiveRule(ctx, productID, skuID)
-	if err != nil {
-		return 0, err
+	var rule *domain.PricingRule
+	var err error
+	if q.ruleReadRepo != nil {
+		if cached, cacheErr := q.ruleReadRepo.GetActive(ctx, productID, skuID); cacheErr == nil && cached != nil {
+			rule = cached
+		}
+	}
+	if rule == nil {
+		rule, err = q.repo.GetActiveRule(ctx, productID, skuID)
+		if err != nil {
+			return 0, err
+		}
+		if rule != nil && q.ruleReadRepo != nil {
+			_ = q.ruleReadRepo.Save(ctx, rule)
+		}
 	}
 	if rule == nil {
 		return 0, errors.New("no active pricing rule found")
@@ -72,5 +92,11 @@ func (q *PricingQueryService) ListRules(ctx context.Context, productID uint64, p
 // ListHistory 获取价格历史记录列表。
 func (q *PricingQueryService) ListHistory(ctx context.Context, productID, skuID uint64, page, pageSize int) ([]*domain.PriceHistory, int64, error) {
 	offset := (page - 1) * pageSize
+	if q.historySearchRepo != nil {
+		list, total, err := q.historySearchRepo.Search(ctx, productID, skuID, offset, pageSize)
+		if err == nil {
+			return list, total, nil
+		}
+	}
 	return q.repo.ListHistory(ctx, productID, skuID, offset, pageSize)
 }

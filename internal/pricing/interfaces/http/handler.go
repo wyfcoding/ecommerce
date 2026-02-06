@@ -14,15 +14,17 @@ import (
 
 // Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
-	service *application.PricingService
-	logger  *slog.Logger
+	cmd    *application.PricingCommandService
+	query  *application.PricingQueryService
+	logger *slog.Logger
 }
 
 // NewHandler 处理 HTTP 或 gRPC 请求。
-func NewHandler(service *application.PricingService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.PricingCommandService, query *application.PricingQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		cmd:    cmd,
+		query:  query,
+		logger: logger,
 	}
 }
 
@@ -33,7 +35,7 @@ func (h *Handler) CreateRule(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CreateRule(c.Request.Context(), &req); err != nil {
+	if err := h.cmd.CreateRule(c.Request.Context(), &req); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create rule", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create rule", err.Error())
 		return
@@ -55,7 +57,7 @@ func (h *Handler) CalculatePrice(c *gin.Context) {
 		return
 	}
 
-	price, err := h.service.CalculatePrice(c.Request.Context(), req.ProductID, req.SkuID, req.Demand, req.Competition)
+	price, err := h.query.CalculatePrice(c.Request.Context(), req.ProductID, req.SkuID, req.Demand, req.Competition)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to calculate price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to calculate price", err.Error())
@@ -87,7 +89,7 @@ func (h *Handler) ListRules(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.service.ListRules(c.Request.Context(), productID, page, pageSize)
+	list, total, err := h.query.ListRules(c.Request.Context(), productID, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list rules", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list rules", err.Error())
@@ -132,7 +134,7 @@ func (h *Handler) ListHistory(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.service.ListHistory(c.Request.Context(), productID, skuID, page, pageSize)
+	list, total, err := h.query.ListHistory(c.Request.Context(), productID, skuID, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list history", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list history", err.Error())

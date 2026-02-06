@@ -14,7 +14,11 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/pricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/pricing/application"
-	"github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
+	pricingsearch "github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence/elasticsearch"
+	pricingmysql "github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence/mysql"
+	pricingredis "github.com/wyfcoding/ecommerce/internal/pricing/infrastructure/persistence/redis"
+	pricingconsumer "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/consumer"
 	pricinggrpc "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/grpc"
 	pricinghttp "github.com/wyfcoding/ecommerce/internal/pricing/interfaces/http"
 	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
@@ -25,9 +29,11 @@ import (
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -39,12 +45,16 @@ const IdempotencyPrefix = "pricing:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		HistoryIndex string `mapstructure:"history_index" toml:"history_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Pricing     *application.PricingService
+	Cmd         *application.PricingCommandService
+	Query       *application.PricingQueryService
 	Clients     *ServiceClients
 	Handler     *pricinghttp.Handler
 	Metrics     *metrics.Metrics
@@ -77,7 +87,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterPricingServiceServer(s, pricinggrpc.NewServer(ctx.Pricing))
+	pb.RegisterPricingServiceServer(s, pricinggrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -141,14 +151,49 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
+
 	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+
+	// 3.1 初始化消息队列与 Outbox
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	if err := db.RawDB().AutoMigrate(&outbox.Message{}); err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
 
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
+		producer.Close()
 		redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
@@ -160,38 +205,53 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		clients.MarketData = marketdatav1.NewMarketDataServiceClient(clients.MarketDataConn)
 	}
 
-	// 5. 初始化 Outbox 管理器与发布者
-	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := outbox.NewPublisher(outboxMgr)
-
-	// 启动 Outbox 处理器
-	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
-		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
-		return nil
-	}, 100, 5*time.Second)
-	outboxProcessor.Start()
-
 	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	pricingRepo := persistence.NewPricingRepository(db.RawDB())
+	pricingRepo := pricingmysql.NewPricingRepository(db.RawDB())
+	ruleReadRepo := pricingredis.NewPricingRuleReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	historySearchRepo := pricingsearch.NewPriceHistorySearchRepository(esClient, c.Search.HistoryIndex)
 
 	// 6.2 Application (Service)
-	querySvc := application.NewPricingQueryService(pricingRepo)
+	querySvc := application.NewPricingQueryService(pricingRepo, ruleReadRepo, historySearchRepo)
 	if clients.MarketData != nil {
 		querySvc.SetMarketDataClient(clients.MarketData)
 	}
-	commandSvc := application.NewPricingCommandService(pricingRepo, outboxPublisher, logger.Logger)
-	pricingService := application.NewPricingService(commandSvc, querySvc)
+	commandSvc := application.NewPricingCommandService(pricingRepo, outbox.NewPublisher(outboxMgr), logger.Logger)
 
-	// 5.3 Interface (HTTP Handlers)
-	handler := pricinghttp.NewHandler(pricingService, logger.Logger)
+	// 5.3 Projection Consumers (Pricing Events -> Read Model)
+	projectionService := application.NewPricingProjectionService(pricingRepo, ruleReadRepo, historySearchRepo, logger.Logger)
+	projectionHandler := pricingconsumer.NewPricingProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.PricingRuleUpdatedEventType,
+		domain.PriceHistoryRecordedEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 5.4 Interface (HTTP Handlers)
+	handler := pricinghttp.NewHandler(commandSvc, querySvc, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
 		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -208,7 +268,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Pricing:     pricingService,
+		Cmd:         commandSvc,
+		Query:       querySvc,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,
