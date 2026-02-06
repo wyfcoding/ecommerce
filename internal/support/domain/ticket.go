@@ -1,10 +1,6 @@
 package domain
 
-import (
-	"time"
-
-	"gorm.io/gorm"
-)
+import "time"
 
 // TicketStatus 定义了工单的生命周期状态。
 type TicketStatus int
@@ -28,17 +24,19 @@ const (
 
 // Ticket 实体代表一个客户服务工单。
 type Ticket struct {
-	gorm.Model
-	TicketNo    string         `gorm:"type:varchar(64);uniqueIndex;not null;comment:工单编号" json:"ticket_no"`
-	UserID      uint64         `gorm:"not null;index;comment:用户ID" json:"user_id"`
-	Subject     string         `gorm:"type:varchar(255);not null;comment:主题" json:"subject"`
-	Description string         `gorm:"type:text;comment:描述" json:"description"`
-	Status      TicketStatus   `gorm:"default:1;comment:状态" json:"status"`
-	Priority    TicketPriority `gorm:"default:2;comment:优先级" json:"priority"`
-	Category    string         `gorm:"type:varchar(64);comment:分类" json:"category"`
-	AssigneeID  uint64         `gorm:"comment:经办人ID" json:"assignee_id"`
-	ResolvedAt  *time.Time     `gorm:"comment:解决时间" json:"resolved_at"`
-	ClosedAt    *time.Time     `gorm:"comment:关闭时间" json:"closed_at"`
+	ID          uint64         `json:"id"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	TicketNo    string         `json:"ticket_no"`
+	UserID      uint64         `json:"user_id"`
+	Subject     string         `json:"subject"`
+	Description string         `json:"description"`
+	Status      TicketStatus   `json:"status"`
+	Priority    TicketPriority `json:"priority"`
+	Category    string         `json:"category"`
+	AssigneeID  uint64         `json:"assignee_id"`
+	ResolvedAt  *time.Time     `json:"resolved_at"`
+	ClosedAt    *time.Time     `json:"closed_at"`
 }
 
 // MessageType 定义了工单消息的类型。
@@ -52,13 +50,15 @@ const (
 
 // Message 实体代表工单中的一条消息。
 type Message struct {
-	gorm.Model
-	TicketID   uint64      `gorm:"not null;index;comment:工单ID" json:"ticket_id"`
-	SenderID   uint64      `gorm:"not null;comment:发送者ID" json:"sender_id"`
-	SenderType string      `gorm:"type:varchar(32);not null;comment:发送者类型(user/admin)" json:"sender_type"`
-	Content    string      `gorm:"type:text;not null;comment:内容" json:"content"`
-	Type       MessageType `gorm:"default:1;comment:消息类型" json:"type"`
-	IsInternal bool        `gorm:"default:false;comment:是否内部消息" json:"is_internal"`
+	ID         uint64      `json:"id"`
+	CreatedAt  time.Time   `json:"created_at"`
+	UpdatedAt  time.Time   `json:"updated_at"`
+	TicketID   uint64      `json:"ticket_id"`
+	SenderID   uint64      `json:"sender_id"`
+	SenderType string      `json:"sender_type"`
+	Content    string      `json:"content"`
+	Type       MessageType `json:"type"`
+	IsInternal bool        `json:"is_internal"`
 }
 
 // NewTicket 创建并返回一个新的 Ticket 实体实例。

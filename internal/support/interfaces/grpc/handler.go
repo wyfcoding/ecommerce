@@ -19,12 +19,13 @@ import (
 // Server 结构体实现了 Customer 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedSupportServiceServer
-	app *application.Support
+	cmd   *application.SupportCommandService
+	query *application.SupportQueryService
 }
 
 // NewServer 创建并返回一个新的 Customer gRPC 服务端实例。
-func NewServer(app *application.Support) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.SupportCommandService, query *application.SupportQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // CreateTicket 处理创建工单的gRPC请求。
@@ -32,7 +33,7 @@ func (s *Server) CreateTicket(ctx context.Context, req *pb.CreateTicketRequest) 
 	start := time.Now()
 	slog.Info("gRPC CreateTicket received", "user_id", req.UserId, "subject", req.Subject)
 
-	ticket, err := s.app.CreateTicket(ctx, req.UserId, req.Subject, req.Description, "general", domain.TicketPriorityMedium)
+	ticket, err := s.cmd.CreateTicket(ctx, req.UserId, req.Subject, req.Description, "general", domain.TicketPriorityMedium)
 	if err != nil {
 		slog.Error("gRPC CreateTicket failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create ticket: %v", err))
@@ -49,7 +50,7 @@ func (s *Server) GetTicketByID(ctx context.Context, req *pb.GetTicketByIDRequest
 	start := time.Now()
 	slog.Debug("gRPC GetTicketByID received", "ticket_id", req.TicketId)
 
-	ticket, err := s.app.GetTicket(ctx, req.TicketId)
+	ticket, err := s.query.GetTicket(ctx, req.TicketId)
 	if err != nil {
 		slog.Error("gRPC GetTicketByID failed", "ticket_id", req.TicketId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("ticket not found: %v", err))
@@ -71,9 +72,9 @@ func (s *Server) UpdateTicketStatus(ctx context.Context, req *pb.UpdateTicketSta
 
 	switch st {
 	case "CLOSED":
-		err = s.app.CloseTicket(ctx, req.TicketId)
+		err = s.cmd.CloseTicket(ctx, req.TicketId)
 	case "RESOLVED":
-		err = s.app.ResolveTicket(ctx, req.TicketId)
+		err = s.cmd.ResolveTicket(ctx, req.TicketId)
 	default:
 		slog.Warn("gRPC UpdateTicketStatus unsupported status", "ticket_id", req.TicketId, "status", req.Status)
 		return nil, status.Errorf(codes.Unimplemented, "status transition to %s not supported via gRPC yet", req.Status)
@@ -84,7 +85,7 @@ func (s *Server) UpdateTicketStatus(ctx context.Context, req *pb.UpdateTicketSta
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update ticket status: %v", err))
 	}
 
-	ticket, err := s.app.GetTicket(ctx, req.TicketId)
+	ticket, err := s.query.GetTicket(ctx, req.TicketId)
 	if err != nil {
 		slog.Error("gRPC GetTicket after update failed", "ticket_id", req.TicketId, "error", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to fetch updated ticket: %v", err))
@@ -101,7 +102,7 @@ func (s *Server) AddMessageToTicket(ctx context.Context, req *pb.AddMessageToTic
 	start := time.Now()
 	slog.Info("gRPC AddMessageToTicket received", "ticket_id", req.TicketId, "sender_id", req.SenderId)
 
-	msg, err := s.app.ReplyTicket(ctx, req.TicketId, req.SenderId, req.SenderType, req.MessageBody, domain.MessageTypeText)
+	msg, err := s.cmd.ReplyTicket(ctx, req.TicketId, req.SenderId, req.SenderType, req.MessageBody, domain.MessageTypeText)
 	if err != nil {
 		slog.Error("gRPC AddMessageToTicket failed", "ticket_id", req.TicketId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add message to ticket: %v", err))
@@ -118,7 +119,7 @@ func (s *Server) GetTicketMessages(ctx context.Context, req *pb.GetTicketMessage
 	start := time.Now()
 	slog.Debug("gRPC GetTicketMessages received", "ticket_id", req.TicketId)
 
-	msgs, _, err := s.app.ListMessages(ctx, req.TicketId, 1, 100)
+	msgs, _, err := s.query.ListMessages(ctx, req.TicketId, 1, 100)
 	if err != nil {
 		slog.Error("gRPC GetTicketMessages failed", "ticket_id", req.TicketId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list ticket messages: %v", err))

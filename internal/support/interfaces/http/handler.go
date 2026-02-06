@@ -14,14 +14,16 @@ import (
 
 // Handler 结构体定义了Customer模块的HTTP处理层。
 type Handler struct {
-	app    *application.Support
+	cmd    *application.SupportCommandService
+	query  *application.SupportQueryService
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Customer HTTP Handler 实例。
-func NewHandler(app *application.Support, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.SupportCommandService, query *application.SupportQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -41,7 +43,7 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.app.CreateTicket(c.Request.Context(), req.UserID, req.Subject, req.Description, req.Category, req.Priority)
+	ticket, err := h.cmd.CreateTicket(c.Request.Context(), req.UserID, req.Subject, req.Description, req.Category, req.Priority)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create ticket", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create ticket", err.Error())
@@ -71,7 +73,7 @@ func (h *Handler) ReplyTicket(c *gin.Context) {
 		return
 	}
 
-	message, err := h.app.ReplyTicket(c.Request.Context(), ticketID, req.SenderID, req.SenderType, req.Content, req.Type)
+	message, err := h.cmd.ReplyTicket(c.Request.Context(), ticketID, req.SenderID, req.SenderType, req.Content, req.Type)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to reply ticket", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to reply ticket", err.Error())
@@ -117,7 +119,7 @@ func (h *Handler) ListTickets(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListTickets(c.Request.Context(), userID, domain.TicketStatus(status), page, pageSize)
+	list, total, err := h.query.ListTickets(c.Request.Context(), userID, domain.TicketStatus(status), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list tickets", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list tickets", err.Error())
@@ -149,7 +151,7 @@ func (h *Handler) ListMessages(c *gin.Context) {
 		pageSize = 20
 	}
 
-	list, total, err := h.app.ListMessages(c.Request.Context(), ticketID, page, pageSize)
+	list, total, err := h.query.ListMessages(c.Request.Context(), ticketID, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list messages", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list messages", err.Error())
@@ -172,7 +174,7 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 		return
 	}
 
-	err = h.app.CloseTicket(c.Request.Context(), id)
+	err = h.cmd.CloseTicket(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to close ticket", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to close ticket", err.Error())

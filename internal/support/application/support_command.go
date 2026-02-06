@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -67,8 +68,24 @@ func (m *SupportCommandService) CreateTicket(ctx context.Context, userID uint64,
 	ticketNo := fmt.Sprintf("TKT%d", time.Now().UnixNano())
 	ticket := domain.NewTicket(ticketNo, userID, subject, description, category, priority)
 
-	if err := m.repo.SaveTicket(ctx, ticket); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create ticket", "user_id", userID, "subject", subject, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveTicketInTx(ctx, tx, ticket); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create ticket", "user_id", userID, "subject", subject, "error", err)
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.TicketCreatedEvent{
+				TicketID:  ticket.ID,
+				TicketNo:  ticket.TicketNo,
+				UserID:    ticket.UserID,
+				Timestamp: time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.TicketCreatedEventType, fmt.Sprintf("%d", ticket.ID), event); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "ticket created successfully", "ticket_id", ticket.ID, "ticket_no", ticketNo)
@@ -81,19 +98,54 @@ func (m *SupportCommandService) ReplyTicket(ctx context.Context, ticketID, sende
 	if err != nil {
 		return nil, err
 	}
-
-	if senderType != "user" && ticket.Status == domain.TicketStatusOpen {
-		ticket.Status = domain.TicketStatusInProgress
-		if err := m.repo.UpdateTicket(ctx, ticket); err != nil {
-			return nil, err
-		}
+	if ticket == nil {
+		return nil, errors.New("ticket not found")
 	}
 
 	message := domain.NewMessage(ticketID, senderID, senderType, content, msgType, false)
-	if err := m.repo.SaveMessage(ctx, message); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save message", "ticket_id", ticketID, "sender_id", senderID, "error", err)
+
+	needTicketUpdate := senderType != "user" && ticket.Status == domain.TicketStatusOpen
+	if needTicketUpdate {
+		ticket.Status = domain.TicketStatusInProgress
+	}
+
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if needTicketUpdate {
+			if err := m.repo.UpdateTicketInTx(ctx, tx, ticket); err != nil {
+				return err
+			}
+		}
+		if err := m.repo.SaveMessageInTx(ctx, tx, message); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save message", "ticket_id", ticketID, "sender_id", senderID, "error", err)
+			return err
+		}
+		if m.publisher != nil {
+			msgEvent := &domain.TicketMessageCreatedEvent{
+				MessageID: message.ID,
+				TicketID:  ticketID,
+				SenderID:  senderID,
+				Timestamp: time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.TicketMessageCreatedEventType, fmt.Sprintf("%d", message.ID), msgEvent); err != nil {
+				return err
+			}
+			if needTicketUpdate {
+				ticketEvent := &domain.TicketUpdatedEvent{
+					TicketID:   ticket.ID,
+					Status:     ticket.Status,
+					AssigneeID: ticket.AssigneeID,
+					Timestamp:  time.Now(),
+				}
+				if err := m.publisher.PublishInTx(ctx, tx, domain.TicketUpdatedEventType, fmt.Sprintf("%d", ticket.ID), ticketEvent); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
+
 	m.logger.InfoContext(ctx, "message saved successfully", "message_id", message.ID, "ticket_id", ticketID)
 
 	return message, nil
@@ -105,9 +157,26 @@ func (m *SupportCommandService) CloseTicket(ctx context.Context, id uint64) erro
 	if err != nil {
 		return err
 	}
+	if ticket == nil {
+		return errors.New("ticket not found")
+	}
 
 	ticket.Close()
-	return m.repo.UpdateTicket(ctx, ticket)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateTicketInTx(ctx, tx, ticket); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.TicketUpdatedEvent{
+				TicketID:   ticket.ID,
+				Status:     ticket.Status,
+				AssigneeID: ticket.AssigneeID,
+				Timestamp:  time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.TicketUpdatedEventType, fmt.Sprintf("%d", ticket.ID), event)
+		}
+		return nil
+	})
 }
 
 // ResolveTicket 解决一个工单。
@@ -116,17 +185,48 @@ func (m *SupportCommandService) ResolveTicket(ctx context.Context, id uint64) er
 	if err != nil {
 		return err
 	}
+	if ticket == nil {
+		return errors.New("ticket not found")
+	}
 
 	ticket.Resolve()
-	return m.repo.UpdateTicket(ctx, ticket)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateTicketInTx(ctx, tx, ticket); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.TicketUpdatedEvent{
+				TicketID:   ticket.ID,
+				Status:     ticket.Status,
+				AssigneeID: ticket.AssigneeID,
+				Timestamp:  time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.TicketUpdatedEventType, fmt.Sprintf("%d", ticket.ID), event)
+		}
+		return nil
+	})
 }
 
 // StartConversation 开启一个新的私聊会话。
 func (m *SupportCommandService) StartConversation(ctx context.Context, user1ID, user2ID uint64) (*domain.Conversation, error) {
 	// 简单的唯一性检查逻辑略（如查询是否存在）
 	conv := domain.NewConversation(user1ID, user2ID)
-	if err := m.repo.SaveConversation(ctx, conv); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create conversation", "u1", user1ID, "u2", user2ID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveConversationInTx(ctx, tx, conv); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create conversation", "u1", user1ID, "u2", user2ID, "error", err)
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.ConversationCreatedEvent{
+				ConversationID: conv.ID,
+				User1ID:        conv.User1ID,
+				User2ID:        conv.User2ID,
+				Timestamp:      time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.ConversationCreatedEventType, fmt.Sprintf("%d", conv.ID), event)
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return conv, nil
@@ -135,7 +235,22 @@ func (m *SupportCommandService) StartConversation(ctx context.Context, user1ID, 
 // SendConversationMessage 发送私聊消息。
 func (m *SupportCommandService) SendConversationMessage(ctx context.Context, convID, senderID, receiverID uint64, content string, msgType domain.MessageType) (*domain.ConversationMessage, error) {
 	msg := domain.NewConversationMessage(convID, senderID, receiverID, content, msgType)
-	if err := m.repo.SaveConversationMessage(ctx, msg); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveConversationMessageInTx(ctx, tx, msg); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.ConversationMessageCreatedEvent{
+				MessageID:      msg.ID,
+				ConversationID: msg.ConversationID,
+				SenderID:       msg.SenderID,
+				ReceiverID:     msg.ReceiverID,
+				Timestamp:      time.Now(),
+			}
+			return m.publisher.PublishInTx(ctx, tx, domain.ConversationMessageCreatedEventType, fmt.Sprintf("%d", msg.ID), event)
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return msg, nil
