@@ -20,13 +20,14 @@ import (
 // Server 结构体实现了 Coupon 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedCouponServiceServer                     // 嵌入生成的UnimplementedCouponServiceServer，确保前向兼容性。
-	app                                 *application.Coupon // 依赖Coupon应用服务，处理核心业务逻辑。
+	pb.UnimplementedCouponServiceServer // 嵌入生成的UnimplementedCouponServiceServer，确保前向兼容性。
+	cmd                                 *application.CouponCommandService
+	query                               *application.CouponQueryService
 }
 
 // NewServer 创建并返回一个新的 Coupon gRPC 服务端实例。
-func NewServer(app *application.Coupon) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.CouponCommandService, query *application.CouponQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // CreateCoupon 处理创建优惠券的gRPC请求。
@@ -50,7 +51,7 @@ func (s *Server) CreateCoupon(ctx context.Context, req *pb.CreateCouponRequest) 
 	minOrder := int64(req.MinOrderAmount * 100)
 
 	// 调用应用服务层创建优惠券.
-	coupon, err := s.app.CreateCoupon(ctx, req.Name, req.Description, int(couponType), discountVal, minOrder)
+	coupon, err := s.cmd.CreateCoupon(ctx, req.Name, req.Description, int(couponType), discountVal, minOrder)
 	if err != nil {
 		slog.Error("gRPC CreateCoupon failed", "name", req.Name, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create coupon: %v", err))
@@ -67,7 +68,7 @@ func (s *Server) GetCouponByID(ctx context.Context, req *pb.GetCouponByIDRequest
 	start := time.Now()
 	slog.Debug("gRPC GetCouponByID received", "coupon_id", req.CouponId)
 
-	coupon, err := s.app.GetCoupon(ctx, req.CouponId)
+	coupon, err := s.query.GetCoupon(ctx, req.CouponId)
 	if err != nil {
 		slog.Error("gRPC GetCouponByID failed", "coupon_id", req.CouponId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get coupon: %v", err))
@@ -94,7 +95,7 @@ func (s *Server) IssueCoupon(ctx context.Context, req *pb.IssueCouponRequest) (*
 	start := time.Now()
 	slog.Info("gRPC IssueCoupon received", "user_id", req.UserId, "coupon_id", req.CouponId)
 
-	userCoupon, err := s.app.AcquireCoupon(ctx, req.UserId, req.CouponId)
+	userCoupon, err := s.cmd.AcquireCoupon(ctx, req.UserId, req.CouponId)
 	if err != nil {
 		slog.Error("gRPC IssueCoupon failed", "user_id", req.UserId, "coupon_id", req.CouponId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to issue coupon: %v", err))
@@ -117,7 +118,7 @@ func (s *Server) GetUserCoupons(ctx context.Context, req *pb.GetUserCouponsReque
 	}
 	// 注意：Proto请求中没有分页字段 (page/size)。
 	// 应用服务层需要分页参数，此处使用默认值1页100条。
-	userCoupons, _, err := s.app.ListUserCoupons(ctx, req.UserId, statusFilter, 1, 100)
+	userCoupons, _, err := s.query.ListUserCoupons(ctx, req.UserId, statusFilter, 1, 100)
 	if err != nil {
 		slog.Error("gRPC GetUserCoupons failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list user coupons: %v", err))
@@ -142,7 +143,7 @@ func (s *Server) UseCoupon(ctx context.Context, req *pb.UseCouponRequest) (*pb.U
 
 	// 调用应用服务层使用优惠券。
 	// 注意：Proto中的OrderId是uint64，这里将其转换为字符串传递给服务。
-	err := s.app.UseCoupon(ctx, req.UserCouponId, req.UserId, strconv.FormatUint(req.OrderId, 10))
+	err := s.cmd.UseCoupon(ctx, req.UserCouponId, req.UserId, strconv.FormatUint(req.OrderId, 10))
 	if err != nil {
 		slog.Error("gRPC UseCoupon failed", "user_id", req.UserId, "user_coupon_id", req.UserCouponId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to use coupon: %v", err))

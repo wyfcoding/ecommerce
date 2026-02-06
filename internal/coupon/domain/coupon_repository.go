@@ -11,6 +11,7 @@ type CouponRepository interface {
 	BeginTx(ctx context.Context) any
 	CommitTx(tx any) error
 	RollbackTx(tx any) error
+	WithTx(ctx context.Context, fn func(tx any) error) error
 
 	// --- Coupon methods ---
 	SaveCoupon(ctx context.Context, coupon *Coupon) error

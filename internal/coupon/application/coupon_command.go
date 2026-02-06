@@ -31,20 +31,27 @@ func NewCouponCommandService(repo domain.CouponRepository, publisher domain.Even
 // CreateCoupon 创建新的优惠券模板。
 func (m *CouponCommandService) CreateCoupon(ctx context.Context, name, description string, couponType int, discountAmount, minOrderAmount int64) (*domain.Coupon, error) {
 	coupon := domain.NewCoupon(name, description, domain.CouponType(couponType), discountAmount, minOrderAmount)
-	if err := m.repo.SaveCoupon(ctx, coupon); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create coupon", "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveCouponInTx(ctx, tx, coupon); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create coupon", "error", err)
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.CouponCreatedEvent{
+				CouponID:       coupon.ID,
+				CouponNo:       coupon.CouponNo,
+				Name:           name,
+				DiscountAmount: discountAmount,
+				Timestamp:      time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.CouponCreatedEventType, coupon.CouponNo, event); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-
-	// 发布领域事件
-	event := &domain.CouponCreatedEvent{
-		CouponID:       coupon.ID,
-		CouponNo:       coupon.CouponNo,
-		Name:           name,
-		DiscountAmount: discountAmount,
-		Timestamp:      time.Now(),
-	}
-	_ = m.publisher.Publish(ctx, "coupon.created", coupon.CouponNo, event)
 
 	m.logger.InfoContext(ctx, "coupon template created", "coupon_id", coupon.ID, "coupon_no", coupon.CouponNo)
 	return coupon, nil
@@ -64,12 +71,7 @@ func (m *CouponCommandService) AcquireCoupon(ctx context.Context, userID, coupon
 		return nil, err
 	}
 
-	// 事务处理
-	tx := m.repo.BeginTx(ctx)
-	defer m.repo.RollbackTx(tx)
-
-	// 检查限领 (可以在 Repo 实现中加锁或在此处查询)
-	// 此处简化，采用应用层检查
+	// 检查限领（应用层检查，保持原有逻辑）
 	userCoupons, total, err := m.repo.ListUserCoupons(ctx, userID, "", 0, 1000)
 	if err == nil && total > 0 {
 		count := 0
@@ -84,28 +86,30 @@ func (m *CouponCommandService) AcquireCoupon(ctx context.Context, userID, coupon
 	}
 
 	userCoupon := domain.NewUserCoupon(userID, couponID, coupon.CouponNo)
-	if err := m.repo.SaveUserCouponInTx(ctx, tx, userCoupon); err != nil {
-		return nil, err
-	}
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveUserCouponInTx(ctx, tx, userCoupon); err != nil {
+			return err
+		}
 
-	coupon.Issue(1)
-	if err := m.repo.UpdateCouponInTx(ctx, tx, coupon); err != nil {
-		return nil, err
-	}
+		coupon.Issue(1)
+		if err := m.repo.UpdateCouponInTx(ctx, tx, coupon); err != nil {
+			return err
+		}
 
-	// 发布领域事件
-	event := &domain.CouponIssuedEvent{
-		UserCouponID: userCoupon.ID,
-		UserID:       userID,
-		CouponID:     couponID,
-		CouponNo:     coupon.CouponNo,
-		Timestamp:    time.Now(),
-	}
-	if err := m.publisher.PublishInTx(ctx, tx, "coupon.issued", fmt.Sprintf("%d", userCoupon.ID), event); err != nil {
-		return nil, err
-	}
-
-	if err := m.repo.CommitTx(tx); err != nil {
+		if m.publisher != nil {
+			event := &domain.CouponIssuedEvent{
+				UserCouponID: userCoupon.ID,
+				UserID:       userID,
+				CouponID:     couponID,
+				CouponNo:     coupon.CouponNo,
+				Timestamp:    time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.CouponIssuedEventType, fmt.Sprintf("%d", userCoupon.ID), event); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
@@ -123,34 +127,27 @@ func (m *CouponCommandService) UseCoupon(ctx context.Context, userCouponID uint6
 		return fmt.Errorf("user coupon not found or permission denied")
 	}
 
-	tx := m.repo.BeginTx(ctx)
-	defer m.repo.RollbackTx(tx)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := userCoupon.Use(orderID); err != nil {
+			return err
+		}
+		if err := m.repo.UpdateUserCouponInTx(ctx, tx, userCoupon); err != nil {
+			return err
+		}
 
-	if err := userCoupon.Use(orderID); err != nil {
-		return err
-	}
-
-	if err := m.repo.UpdateUserCouponInTx(ctx, tx, userCoupon); err != nil {
-		return err
-	}
-
-	// 发布领域事件
-	event := &domain.CouponUsedEvent{
-		UserCouponID: uint(userCouponID),
-		UserID:       userID,
-		OrderID:      orderID,
-		Timestamp:    time.Now(),
-	}
-	if err := m.publisher.PublishInTx(ctx, tx, "coupon.used", fmt.Sprintf("%d", userCouponID), event); err != nil {
-		return err
-	}
-
-	if err := m.repo.CommitTx(tx); err != nil {
-		return err
-	}
-
-	m.logger.InfoContext(ctx, "coupon used successfully", "user_id", userID, "user_coupon_id", userCouponID, "order_id", orderID)
-	return nil
+		if m.publisher != nil {
+			event := &domain.CouponUsedEvent{
+				UserCouponID: userCouponID,
+				UserID:       userID,
+				OrderID:      orderID,
+				Timestamp:    time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.CouponUsedEventType, fmt.Sprintf("%d", userCouponID), event); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (m *CouponCommandService) CreateActivity(ctx context.Context, activity *domain.CouponActivity) error {

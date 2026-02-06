@@ -1,31 +1,37 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/wyfcoding/pkg/database"
-	"github.com/wyfcoding/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/coupon/application"
-	"github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/coupon/domain"
+	couponsearch "github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence/elasticsearch"
+	couponmysql "github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence/mysql"
+	couponredis "github.com/wyfcoding/ecommerce/internal/coupon/infrastructure/persistence/redis"
+	couponconsumer "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/consumer"
 	coupongrpc "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/grpc"
 	couponhttp "github.com/wyfcoding/ecommerce/internal/coupon/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/response"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -37,12 +43,17 @@ const IdempotencyPrefix = "coupon:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		CouponIndex     string `mapstructure:"coupon_index" toml:"coupon_index"`
+		UserCouponIndex string `mapstructure:"user_coupon_index" toml:"user_coupon_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Coupon      *application.Coupon
+	Cmd         *application.CouponCommandService
+	Query       *application.CouponQueryService
 	Clients     *ServiceClients
 	Handler     *couponhttp.Handler
 	Metrics     *metrics.Metrics
@@ -74,7 +85,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterCouponServiceServer(s, coupongrpc.NewServer(ctx.Coupon))
+	pb.RegisterCouponServiceServer(s, coupongrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -138,18 +149,49 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
 	}
 
-	// 3. Reliable Messaging (Outbox)
-	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	publisher := outbox.NewPublisher(outboxMgr)
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
+	}
 
-	// 4. 初始化治理组件 (限流器、幂等管理器)
+	// 3. 初始化治理组件 (限流器、幂等管理器)
 	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
 	idemManager := idempotency.NewRedisManager(redisCache.GetClient(), IdempotencyPrefix)
+
+	// 3.1 初始化消息队列与 Outbox
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	if err := db.RawDB().AutoMigrate(&outbox.Message{}); err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
 
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
+		producer.Close()
 		redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
@@ -161,19 +203,50 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	couponRepo := persistence.NewCouponRepository(db.RawDB())
+	couponRepo := couponmysql.NewCouponRepository(db.RawDB())
+	couponReadRepo := couponredis.NewCouponReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	userCouponReadRepo := couponredis.NewUserCouponReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	couponSearchRepo := couponsearch.NewCouponSearchRepository(esClient, c.Search.CouponIndex)
+	userCouponSearchRepo := couponsearch.NewUserCouponSearchRepository(esClient, c.Search.UserCouponIndex)
 
 	// 5.2 Application (Service)
-	query := application.NewCouponQuery(couponRepo)
-	command := application.NewCouponCommandService(couponRepo, publisher, logger.Logger)
-	couponService := application.NewCoupon(command, query)
+	querySvc := application.NewCouponQueryService(couponRepo, couponReadRepo, userCouponReadRepo, couponSearchRepo, userCouponSearchRepo, logger.Logger)
+	commandSvc := application.NewCouponCommandService(couponRepo, outbox.NewPublisher(outboxMgr), logger.Logger)
 
-	// 5.3 Interface (HTTP Handlers)
-	handler := couponhttp.NewHandler(couponService, logger.Logger)
+	// 5.3 Projection Consumers (Coupon Events -> Read Model)
+	projectionService := application.NewCouponProjectionService(couponRepo, couponReadRepo, userCouponReadRepo, couponSearchRepo, userCouponSearchRepo, logger.Logger)
+	projectionHandler := couponconsumer.NewCouponProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.CouponCreatedEventType,
+		domain.CouponIssuedEventType,
+		domain.CouponUsedEventType,
+		domain.CouponExpiredEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 5.4 Interface (HTTP Handlers)
+	handler := couponhttp.NewHandler(commandSvc, querySvc, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
+		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -190,7 +263,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Coupon:      couponService,
+		Cmd:         commandSvc,
+		Query:       querySvc,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,

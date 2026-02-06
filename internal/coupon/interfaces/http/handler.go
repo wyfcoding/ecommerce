@@ -16,14 +16,16 @@ import (
 
 // Handler 结构体定义了Coupon模块的HTTP处理层。
 type Handler struct {
-	app    *application.Coupon // 依赖Coupon应用服务（Facade）。
-	logger *slog.Logger        // 日志记录器。
+	cmd    *application.CouponCommandService
+	query  *application.CouponQueryService
+	logger *slog.Logger // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Coupon HTTP Handler 实例。
-func NewHandler(app *application.Coupon, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.CouponCommandService, query *application.CouponQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -43,7 +45,7 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 		return
 	}
 
-	coupon, err := h.app.CreateCoupon(c.Request.Context(), req.Name, req.Description, req.Type, req.DiscountAmount, req.MinOrderAmount)
+	coupon, err := h.cmd.CreateCoupon(c.Request.Context(), req.Name, req.Description, req.Type, req.DiscountAmount, req.MinOrderAmount)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create coupon", "error", err)
 		response.Error(c, err)
@@ -65,7 +67,7 @@ func (h *Handler) IssueCoupon(c *gin.Context) {
 		return
 	}
 
-	userCoupon, err := h.app.AcquireCoupon(c.Request.Context(), req.UserID, req.CouponID)
+	userCoupon, err := h.cmd.AcquireCoupon(c.Request.Context(), req.UserID, req.CouponID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to issue coupon", "user_id", req.UserID, "coupon_id", req.CouponID, "error", err)
 		response.Error(c, err)
@@ -86,7 +88,7 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListCoupons(c.Request.Context(), page, pageSize)
+	list, total, err := h.query.ListCoupons(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list coupons", "error", err)
 		response.Error(c, err)
@@ -128,7 +130,7 @@ func (h *Handler) ListUserCoupons(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListUserCoupons(c.Request.Context(), userID, status, page, pageSize)
+	list, total, err := h.query.ListUserCoupons(c.Request.Context(), userID, status, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list user coupons", "user_id", userID, "error", err)
 		response.Error(c, err)
@@ -159,7 +161,7 @@ func (h *Handler) CreateActivity(c *gin.Context) {
 	}
 
 	activity := domain.NewCouponActivity(req.Name, req.Description, req.StartTime, req.EndTime, req.CouponIDs)
-	err := h.app.CreateActivity(c.Request.Context(), activity)
+	err := h.cmd.CreateActivity(c.Request.Context(), activity)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create activity", "name", req.Name, "error", err)
 		response.Error(c, err)
@@ -185,7 +187,7 @@ func (h *Handler) UseCoupon(c *gin.Context) {
 		return
 	}
 
-	err = h.app.UseCoupon(c.Request.Context(), userCouponID, req.UserID, req.OrderID)
+	err = h.cmd.UseCoupon(c.Request.Context(), userCouponID, req.UserID, req.OrderID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to use coupon", "id", userCouponID, "user_id", req.UserID, "error", err)
 		response.Error(c, err)

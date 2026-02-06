@@ -3,8 +3,6 @@ package domain
 import (
 	"fmt"  // 导入格式化包。
 	"time" // 导入时间包。
-
-	"gorm.io/gorm" // 导入GORM库。
 )
 
 // CouponType 定义了优惠券的类型。
@@ -31,55 +29,61 @@ const (
 // Coupon 实体是优惠券模块的聚合根。
 // 它代表一个优惠券模板，包含了优惠券的规则、状态、发行和使用统计等信息。
 type Coupon struct {
-	gorm.Model                         // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	CouponNo              string       `gorm:"type:varchar(64);uniqueIndex;not null;comment:优惠券编号" json:"coupon_no"`      // 优惠券编号，唯一索引，不允许为空。
-	Name                  string       `gorm:"type:varchar(255);not null;comment:名称" json:"name"`                         // 优惠券名称。
-	Description           string       `gorm:"type:text;comment:描述" json:"description"`                                   // 优惠券描述。
-	Type                  CouponType   `gorm:"default:1;comment:类型" json:"type"`                                          // 优惠券类型，默认为折扣券。
-	Status                CouponStatus `gorm:"default:1;comment:状态" json:"status"`                                        // 优惠券状态，默认为草稿。
-	DiscountAmount        int64        `gorm:"comment:折扣金额/比例" json:"discount_amount"`                                    // 优惠金额（单位：分）或折扣比例（0-100）。
-	MinOrderAmount        int64        `gorm:"comment:最低订单金额" json:"min_order_amount"`                                    // 使用优惠券的最低订单金额（单位：分）。
-	MaxDiscount           int64        `gorm:"comment:最大折扣金额" json:"max_discount"`                                        // 折扣券的最大优惠金额。
-	ValidFrom             time.Time    `gorm:"comment:有效期开始" json:"valid_from"`                                           // 优惠券有效期开始时间。
-	ValidTo               time.Time    `gorm:"comment:有效期结束" json:"valid_to"`                                             // 优惠券有效期结束时间。
-	UsageLimit            int32        `gorm:"default:0;comment:总发行量" json:"usage_limit"`                                 // 优惠券的总发行数量，0表示不限制。
-	UsagePerUser          int32        `gorm:"default:1;comment:每人限领" json:"usage_per_user"`                              // 每个用户可以领取的优惠券数量。
-	TotalIssued           int32        `gorm:"default:0;comment:已发行量" json:"total_issued"`                                // 已经发放的数量。
-	TotalUsed             int32        `gorm:"default:0;comment:已使用量" json:"total_used"`                                  // 已经使用的数量。
-	ConditionExpr         string       `gorm:"type:text;comment:判定表达式" json:"condition_expr"`                             // 判定表达式，用于规则引擎判定。
-	ApplicableScope       string       `gorm:"type:varchar(255);comment:适用范围" json:"applicable_scope"`                    // 优惠券适用范围，例如“全场通用”、“指定商品”。
-	ApplicableProductIDs  []uint64     `gorm:"type:json;serializer:json;comment:适用商品ID列表" json:"applicable_product_ids"`  // 适用商品ID列表。
-	ExcludedProductIDs    []uint64     `gorm:"type:json;serializer:json;comment:排除商品ID列表" json:"excluded_product_ids"`    // 排除商品ID列表。
-	ApplicableCategoryIDs []string     `gorm:"type:json;serializer:json;comment:适用分类ID列表" json:"applicable_category_ids"` // 适用分类ID列表。
-	ExcludedCategoryIDs   []string     `gorm:"type:json;serializer:json;comment:排除分类ID列表" json:"excluded_category_ids"`   // 排除分类ID列表。
-	UserTierRequirement   string       `gorm:"type:varchar(32);comment:会员等级要求" json:"usertier_requirement"`               // 会员等级要求。
-	CanStack              bool         `gorm:"default:false;comment:是否可叠加" json:"can_stack"`                              // 是否允许与其他优惠券叠加使用。
-	StackingRules         string       `gorm:"type:text;comment:叠加规则(JSON)" json:"stacking_rules"`                        // 详细的叠加规则，如“仅限同类券叠加”。
+	ID                    uint64       `json:"id"`                      // 优惠券ID。
+	CreatedAt             time.Time    `json:"created_at"`              // 创建时间。
+	UpdatedAt             time.Time    `json:"updated_at"`              // 更新时间。
+	CouponNo              string       `json:"coupon_no"`               // 优惠券编号。
+	Name                  string       `json:"name"`                    // 优惠券名称。
+	Description           string       `json:"description"`             // 优惠券描述。
+	Type                  CouponType   `json:"type"`                    // 优惠券类型。
+	Status                CouponStatus `json:"status"`                  // 优惠券状态。
+	DiscountAmount        int64        `json:"discount_amount"`         // 优惠金额（单位：分）或折扣比例（0-100）。
+	MinOrderAmount        int64        `json:"min_order_amount"`        // 使用优惠券的最低订单金额（单位：分）。
+	MaxDiscount           int64        `json:"max_discount"`            // 折扣券的最大优惠金额。
+	ValidFrom             time.Time    `json:"valid_from"`              // 优惠券有效期开始时间。
+	ValidTo               time.Time    `json:"valid_to"`                // 优惠券有效期结束时间。
+	UsageLimit            int32        `json:"usage_limit"`             // 优惠券的总发行数量，0表示不限制。
+	UsagePerUser          int32        `json:"usage_per_user"`          // 每个用户可以领取的优惠券数量。
+	TotalIssued           int32        `json:"total_issued"`            // 已经发放的数量。
+	TotalUsed             int32        `json:"total_used"`              // 已经使用的数量。
+	ConditionExpr         string       `json:"condition_expr"`          // 判定表达式，用于规则引擎判定。
+	ApplicableScope       string       `json:"applicable_scope"`        // 优惠券适用范围。
+	ApplicableProductIDs  []uint64     `json:"applicable_product_ids"`  // 适用商品ID列表。
+	ExcludedProductIDs    []uint64     `json:"excluded_product_ids"`    // 排除商品ID列表。
+	ApplicableCategoryIDs []string     `json:"applicable_category_ids"` // 适用分类ID列表。
+	ExcludedCategoryIDs   []string     `json:"excluded_category_ids"`   // 排除分类ID列表。
+	UserTierRequirement   string       `json:"usertier_requirement"`    // 会员等级要求。
+	CanStack              bool         `json:"can_stack"`               // 是否允许与其他优惠券叠加使用。
+	StackingRules         string       `json:"stacking_rules"`          // 叠加规则(JSON)。
 }
 
 // UserCoupon 实体代表用户拥有的优惠券。
 // 它是Coupon实体的一个实例，与特定用户关联。
 type UserCoupon struct {
-	gorm.Model            // 嵌入gorm.Model。
-	UserID     uint64     `gorm:"not null;index;comment:用户ID" json:"user_id"`                 // 优惠券所属的用户ID，索引字段。
-	CouponID   uint64     `gorm:"not null;index;comment:优惠券ID" json:"coupon_id"`              // 关联的优惠券模板ID，索引字段。
-	CouponNo   string     `gorm:"type:varchar(64);not null;comment:优惠券编号" json:"coupon_no"`   // 优惠券的唯一编号。
-	Status     string     `gorm:"type:varchar(32);default:'unused';comment:状态" json:"status"` // 用户优惠券状态，例如“unused”（未使用）、“used”（已使用）、“expired”（已过期）。
-	UsedAt     *time.Time `gorm:"comment:使用时间" json:"used_at"`                                // 优惠券使用时间。
-	OrderID    string     `gorm:"type:varchar(64);comment:订单ID" json:"order_id"`              // 使用该优惠券的订单ID。
-	ReceivedAt time.Time  `gorm:"comment:领取时间" json:"received_at"`                            // 用户领取优惠券的时间。
+	ID         uint64     `json:"id"`          // 用户优惠券ID。
+	CreatedAt  time.Time  `json:"created_at"`  // 创建时间。
+	UpdatedAt  time.Time  `json:"updated_at"`  // 更新时间。
+	UserID     uint64     `json:"user_id"`     // 优惠券所属的用户ID。
+	CouponID   uint64     `json:"coupon_id"`   // 关联的优惠券模板ID。
+	CouponNo   string     `json:"coupon_no"`   // 优惠券的唯一编号。
+	Status     string     `json:"status"`      // 用户优惠券状态。
+	UsedAt     *time.Time `json:"used_at"`     // 优惠券使用时间。
+	OrderID    string     `json:"order_id"`    // 使用该优惠券的订单ID。
+	ReceivedAt time.Time  `json:"received_at"` // 用户领取优惠券的时间。
 }
 
 // CouponActivity 实体是优惠券模块的聚合根，代表一个优惠券营销活动。
 // 一个活动可以关联多个优惠券模板。
 type CouponActivity struct {
-	gorm.Model            // 嵌入gorm.Model。
-	Name        string    `gorm:"type:varchar(255);not null;comment:活动名称" json:"name"`         // 活动名称。
-	Description string    `gorm:"type:text;comment:活动描述" json:"description"`                   // 活动描述。
-	StartTime   time.Time `gorm:"comment:开始时间" json:"start_time"`                              // 活动开始时间。
-	EndTime     time.Time `gorm:"comment:结束时间" json:"end_time"`                                // 活动结束时间。
-	CouponIDs   []uint64  `gorm:"type:json;serializer:json;comment:关联优惠券ID" json:"coupon_ids"` // 活动关联的优惠券模板ID列表（JSON存储）。
-	Status      string    `gorm:"type:varchar(32);default:'active';comment:状态" json:"status"`  // 活动状态，例如“active”（进行中）、“inactive”（未开始）、“ended”（已结束）。
+	ID          uint64    `json:"id"`          // 活动ID。
+	CreatedAt   time.Time `json:"created_at"`  // 创建时间。
+	UpdatedAt   time.Time `json:"updated_at"`  // 更新时间。
+	Name        string    `json:"name"`        // 活动名称。
+	Description string    `json:"description"` // 活动描述。
+	StartTime   time.Time `json:"start_time"`  // 活动开始时间。
+	EndTime     time.Time `json:"end_time"`    // 活动结束时间。
+	CouponIDs   []uint64  `json:"coupon_ids"`  // 活动关联的优惠券模板ID列表。
+	Status      string    `json:"status"`      // 活动状态。
 }
 
 // NewCoupon 创建并返回一个新的 Coupon 实体实例。
