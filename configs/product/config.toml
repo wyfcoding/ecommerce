@@ -2,7 +2,7 @@
 version = "1.0.0"
 
 [server]
-name = "user"           # 服务名称
+name = "product"        # 服务名称
 environment = "dev"     # 运行环境: dev/test/prod
 
 [server.http]
@@ -25,7 +25,7 @@ max_concurrent_streams = 100    # 最大并发流数量
 level = "info"          # 日志级别: debug/info/warn/error
 format = "json"         # 日志格式: json/text
 output = "stdout"       # 输出目标: stdout/file
-file = "logs/user.log"  # 日志文件路径
+file = "logs/product.log"  # 日志文件路径
 max_size = 100          # 单文件最大 MB
 max_backups = 3         # 保留旧文件个数
 max_age = 28            # 保留天数
@@ -33,7 +33,7 @@ compress = true         # 是否压缩
 
 [tracing]
 enabled = true          # 是否开启分布式追踪
-service_name = "user"   # 链路中的服务名
+service_name = "product"   # 链路中的服务名
 otlp_endpoint = "localhost:4317" # OTLP 收集器地址
 
 [metrics]
@@ -83,7 +83,10 @@ slow_threshold = "200ms" # 慢查询记录阈值
 log_level = 4           # SQL 日志级别 (1:Silent, 2:Error, 3:Warn, 4:Info)
 
 [data.redis]
-addr = "127.0.0.1:6379" # Redis 节点地址
+# 读模型缓存（商品/品牌/分类），支持单机/哨兵/集群。
+# addr 为历史字段，推荐使用 addrs。
+# addr = "127.0.0.1:6379"
+addrs = ["127.0.0.1:6379"] # Redis 节点地址
 password = "redis_password"
 db = 0                  # 数据库索引
 pool_size = 10          # 连接池大小
@@ -91,10 +94,18 @@ min_idle_conns = 5
 read_timeout = "0.2s"
 write_timeout = "0.2s"
 
+[data.elasticsearch]
+addresses = ["http://127.0.0.1:9200"]
+username = "elastic"
+password = "elastic_password"
+
+[search]
+product_index = "products"
+
 [messagequeue.kafka]
 brokers = ["localhost:9092"] # Kafka 集群地址
-topic = "user-events"        # 默认生产主题
-group_id = "user-group"      # 默认消费组 ID
+topic = "product-events"     # 默认生产主题
+group_id = "product-group"   # 默认消费组 ID
 dial_timeout = "10s"
 read_timeout = "10s"
 write_timeout = "10s"

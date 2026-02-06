@@ -13,12 +13,12 @@ import (
 // Handler 支付HTTP处理器
 type Handler struct {
 	cmdService   *application.PaymentCommandService
-	queryService *application.PaymentQuery
+	queryService *application.PaymentQueryService
 	logger       *slog.Logger
 }
 
 // NewHandler 创建HTTP处理器
-func NewHandler(cmd *application.PaymentCommandService, query *application.PaymentQuery, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.PaymentCommandService, query *application.PaymentQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
 		cmdService:   cmd,
 		queryService: query,

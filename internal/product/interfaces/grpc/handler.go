@@ -19,10 +19,10 @@ import (
 type Server struct {
 	pb.UnimplementedProductServiceServer
 	cmdService   *application.ProductCommandService
-	queryService *application.ProductQuery
+	queryService *application.ProductQueryService
 }
 
-func NewServer(cmd *application.ProductCommandService, query *application.ProductQuery) *Server {
+func NewServer(cmd *application.ProductCommandService, query *application.ProductQueryService) *Server {
 	return &Server{cmdService: cmd, queryService: query}
 }
 

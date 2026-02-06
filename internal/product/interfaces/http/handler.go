@@ -12,11 +12,11 @@ import (
 
 type Handler struct {
 	cmdService   *application.ProductCommandService
-	queryService *application.ProductQuery
+	queryService *application.ProductQueryService
 	logger       *slog.Logger
 }
 
-func NewHandler(cmd *application.ProductCommandService, query *application.ProductQuery, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.ProductCommandService, query *application.ProductQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
 		cmdService:   cmd,
 		queryService: query,

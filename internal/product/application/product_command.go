@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
-	"github.com/wyfcoding/pkg/cache"
 )
 
 type ProductCommandService struct {
@@ -16,9 +15,7 @@ type ProductCommandService struct {
 	skuRepo      domain.SKURepository
 	brandRepo    domain.BrandRepository
 	categoryRepo domain.CategoryRepository
-	cache        cache.Cache
 	publisher    domain.EventPublisher
-	topic        string
 	logger       *slog.Logger
 }
 
@@ -27,9 +24,7 @@ func NewProductCommandService(
 	skuRepo domain.SKURepository,
 	brandRepo domain.BrandRepository,
 	categoryRepo domain.CategoryRepository,
-	cache cache.Cache,
 	publisher domain.EventPublisher,
-	topic string,
 	logger *slog.Logger,
 ) *ProductCommandService {
 	return &ProductCommandService{
@@ -37,9 +32,7 @@ func NewProductCommandService(
 		skuRepo:      skuRepo,
 		brandRepo:    brandRepo,
 		categoryRepo: categoryRepo,
-		cache:        cache,
 		publisher:    publisher,
-		topic:        topic,
 		logger:       logger,
 	}
 }
@@ -52,19 +45,22 @@ func (s *ProductCommandService) CreateProduct(ctx context.Context, cmd *CreatePr
 		return nil, err
 	}
 
-	if err := s.repo.Save(ctx, product); err != nil {
+	if err := s.repo.Transaction(ctx, func(tx any) error {
+		repo := s.repo.WithTx(tx)
+		if err := repo.Save(ctx, product); err != nil {
+			return err
+		}
+		event := &domain.ProductCreatedEvent{
+			ID:        product.ID,
+			Name:      product.Name,
+			Price:     product.Price,
+			Stock:     product.Stock,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.ProductCreatedEventType, fmt.Sprintf("%d", product.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-
-	// 发布领域事件
-	event := &domain.ProductCreatedEvent{
-		ID:        product.ID,
-		Name:      product.Name,
-		Price:     product.Price,
-		Stock:     product.Stock,
-		Timestamp: time.Now(),
-	}
-	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", product.ID), event)
 
 	return product, nil
 }
@@ -94,38 +90,36 @@ func (s *ProductCommandService) UpdateProduct(ctx context.Context, cmd *UpdatePr
 		product.Status = domain.ProductStatus(*cmd.Status)
 	}
 
-	if err := s.repo.Update(ctx, product); err != nil {
+	if err := s.repo.Transaction(ctx, func(tx any) error {
+		repo := s.repo.WithTx(tx)
+		if err := repo.Update(ctx, product); err != nil {
+			return err
+		}
+		event := &domain.ProductUpdatedEvent{
+			ID:        product.ID,
+			Status:    int(product.Status),
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.ProductUpdatedEventType, fmt.Sprintf("%d", product.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-
-	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", cmd.ID))
-
-	// 发布领域事件
-	event := &domain.ProductUpdatedEvent{
-		ID:        product.ID,
-		Status:    int(product.Status),
-		Timestamp: time.Now(),
-	}
-	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", product.ID), event)
 
 	return product, nil
 }
 
 func (s *ProductCommandService) DeleteProduct(ctx context.Context, id uint64) error {
-	if err := s.repo.Delete(ctx, uint(id)); err != nil {
-		return err
-	}
-
-	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", id))
-
-	// 发布领域事件
-	event := &domain.ProductDeletedEvent{
-		ID:        uint(id),
-		Timestamp: time.Now(),
-	}
-	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", id), event)
-
-	return nil
+	return s.repo.Transaction(ctx, func(tx any) error {
+		repo := s.repo.WithTx(tx)
+		if err := repo.Delete(ctx, uint(id)); err != nil {
+			return err
+		}
+		event := &domain.ProductDeletedEvent{
+			ID:        uint(id),
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.ProductDeletedEventType, fmt.Sprintf("%d", id), event)
+	})
 }
 
 // ---------------- SKU ----------------
@@ -144,19 +138,20 @@ func (s *ProductCommandService) AddSKU(ctx context.Context, cmd *AddSKUCommand) 
 		return nil, err
 	}
 
-	if err := s.skuRepo.Save(ctx, sku); err != nil {
+	if err := s.skuRepo.Transaction(ctx, func(tx any) error {
+		repo := s.skuRepo.WithTx(tx)
+		if err := repo.Save(ctx, sku); err != nil {
+			return err
+		}
+		event := &domain.SKUAddedEvent{
+			ProductID: cmd.ProductID,
+			SKUID:     sku.ID,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.SKUAddedEventType, fmt.Sprintf("%d", sku.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-
-	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", cmd.ProductID))
-
-	// 发布领域事件
-	event := &domain.SKUAddedEvent{
-		ProductID: cmd.ProductID,
-		SKUID:     sku.ID,
-		Timestamp: time.Now(),
-	}
-	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", sku.ID), event)
 
 	return sku, nil
 }
@@ -180,20 +175,20 @@ func (s *ProductCommandService) UpdateSKU(ctx context.Context, cmd *UpdateSKUCom
 		sku.Image = *cmd.Image
 	}
 
-	if err := s.skuRepo.Update(ctx, sku); err != nil {
+	if err := s.skuRepo.Transaction(ctx, func(tx any) error {
+		repo := s.skuRepo.WithTx(tx)
+		if err := repo.Update(ctx, sku); err != nil {
+			return err
+		}
+		event := &domain.SKUUpdatedEvent{
+			ProductID: sku.ProductID,
+			SKUID:     sku.ID,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.SKUUpdatedEventType, fmt.Sprintf("%d", sku.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-
-	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
-	_ = s.cache.Delete(ctx, fmt.Sprintf("sku:%d", sku.ID))
-
-	// 发布领域事件
-	event := &domain.SKUUpdatedEvent{
-		ProductID: sku.ProductID,
-		SKUID:     sku.ID,
-		Timestamp: time.Now(),
-	}
-	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", sku.ID), event)
 
 	return sku, nil
 }
@@ -207,22 +202,18 @@ func (s *ProductCommandService) DeleteSKU(ctx context.Context, id uint64) error 
 		return nil // Already deleted
 	}
 
-	if err := s.skuRepo.Delete(ctx, uint(id)); err != nil {
-		return err
-	}
-
-	_ = s.cache.Delete(ctx, fmt.Sprintf("product:%d", sku.ProductID))
-	_ = s.cache.Delete(ctx, fmt.Sprintf("sku:%d", sku.ID))
-
-	// 发布领域事件
-	event := &domain.SKUDeletedEvent{
-		ProductID: sku.ProductID,
-		SKUID:     sku.ID,
-		Timestamp: time.Now(),
-	}
-	_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", sku.ID), event)
-
-	return nil
+	return s.skuRepo.Transaction(ctx, func(tx any) error {
+		repo := s.skuRepo.WithTx(tx)
+		if err := repo.Delete(ctx, uint(id)); err != nil {
+			return err
+		}
+		event := &domain.SKUDeletedEvent{
+			ProductID: sku.ProductID,
+			SKUID:     sku.ID,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.SKUDeletedEventType, fmt.Sprintf("%d", sku.ID), event)
+	})
 }
 
 // ---------------- Brand ----------------
@@ -232,10 +223,22 @@ func (s *ProductCommandService) CreateBrand(ctx context.Context, cmd *CreateBran
 	if err != nil {
 		return nil, err
 	}
-	if err := s.brandRepo.Save(ctx, brand); err != nil {
+	if err := s.brandRepo.Transaction(ctx, func(tx any) error {
+		repo := s.brandRepo.WithTx(tx)
+		if err := repo.Save(ctx, brand); err != nil {
+			return err
+		}
+		event := &domain.BrandCreatedEvent{
+			ID:        brand.ID,
+			Name:      brand.Name,
+			Logo:      brand.Logo,
+			Status:    brand.Status,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.BrandCreatedEventType, fmt.Sprintf("%d", brand.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-	_ = s.cache.Delete(ctx, "brand:list")
 	return brand, nil
 }
 
@@ -253,21 +256,37 @@ func (s *ProductCommandService) UpdateBrand(ctx context.Context, cmd *UpdateBran
 	if cmd.Logo != nil {
 		brand.Logo = *cmd.Logo
 	}
-	if err := s.brandRepo.Update(ctx, brand); err != nil {
+	if err := s.brandRepo.Transaction(ctx, func(tx any) error {
+		repo := s.brandRepo.WithTx(tx)
+		if err := repo.Update(ctx, brand); err != nil {
+			return err
+		}
+		event := &domain.BrandUpdatedEvent{
+			ID:        brand.ID,
+			Name:      brand.Name,
+			Logo:      brand.Logo,
+			Status:    brand.Status,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.BrandUpdatedEventType, fmt.Sprintf("%d", brand.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-	_ = s.cache.Delete(ctx, fmt.Sprintf("brand:%d", cmd.ID))
-	_ = s.cache.Delete(ctx, "brand:list")
 	return brand, nil
 }
 
 func (s *ProductCommandService) DeleteBrand(ctx context.Context, id uint64) error {
-	if err := s.brandRepo.Delete(ctx, uint(id)); err != nil {
-		return err
-	}
-	_ = s.cache.Delete(ctx, fmt.Sprintf("brand:%d", id))
-	_ = s.cache.Delete(ctx, "brand:list")
-	return nil
+	return s.brandRepo.Transaction(ctx, func(tx any) error {
+		repo := s.brandRepo.WithTx(tx)
+		if err := repo.Delete(ctx, uint(id)); err != nil {
+			return err
+		}
+		event := &domain.BrandDeletedEvent{
+			ID:        uint(id),
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.BrandDeletedEventType, fmt.Sprintf("%d", id), event)
+	})
 }
 
 // ---------------- Category ----------------
@@ -277,10 +296,23 @@ func (s *ProductCommandService) CreateCategory(ctx context.Context, cmd *CreateC
 	if err != nil {
 		return nil, err
 	}
-	if err := s.categoryRepo.Save(ctx, category); err != nil {
+	if err := s.categoryRepo.Transaction(ctx, func(tx any) error {
+		repo := s.categoryRepo.WithTx(tx)
+		if err := repo.Save(ctx, category); err != nil {
+			return err
+		}
+		event := &domain.CategoryCreatedEvent{
+			ID:        category.ID,
+			Name:      category.Name,
+			ParentID:  category.ParentID,
+			Sort:      category.Sort,
+			Status:    category.Status,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.CategoryCreatedEventType, fmt.Sprintf("%d", category.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-	_ = s.cache.Delete(ctx, "category:list")
 	return category, nil
 }
 
@@ -301,19 +333,36 @@ func (s *ProductCommandService) UpdateCategory(ctx context.Context, cmd *UpdateC
 	if cmd.Sort != nil {
 		category.Sort = *cmd.Sort
 	}
-	if err := s.categoryRepo.Update(ctx, category); err != nil {
+	if err := s.categoryRepo.Transaction(ctx, func(tx any) error {
+		repo := s.categoryRepo.WithTx(tx)
+		if err := repo.Update(ctx, category); err != nil {
+			return err
+		}
+		event := &domain.CategoryUpdatedEvent{
+			ID:        category.ID,
+			Name:      category.Name,
+			ParentID:  category.ParentID,
+			Sort:      category.Sort,
+			Status:    category.Status,
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.CategoryUpdatedEventType, fmt.Sprintf("%d", category.ID), event)
+	}); err != nil {
 		return nil, err
 	}
-	_ = s.cache.Delete(ctx, fmt.Sprintf("category:%d", cmd.ID))
-	_ = s.cache.Delete(ctx, "category:list")
 	return category, nil
 }
 
 func (s *ProductCommandService) DeleteCategory(ctx context.Context, id uint64) error {
-	if err := s.categoryRepo.Delete(ctx, uint(id)); err != nil {
-		return err
-	}
-	_ = s.cache.Delete(ctx, fmt.Sprintf("category:%d", id))
-	_ = s.cache.Delete(ctx, "category:list")
-	return nil
+	return s.categoryRepo.Transaction(ctx, func(tx any) error {
+		repo := s.categoryRepo.WithTx(tx)
+		if err := repo.Delete(ctx, uint(id)); err != nil {
+			return err
+		}
+		event := &domain.CategoryDeletedEvent{
+			ID:        uint(id),
+			Timestamp: time.Now(),
+		}
+		return s.publisher.PublishInTx(ctx, tx, domain.CategoryDeletedEventType, fmt.Sprintf("%d", id), event)
+	})
 }

@@ -1,9 +1,8 @@
 package domain
 
 import (
-	"fmt" // 导入格式化库，用于错误信息。
-
-	"gorm.io/gorm" // 导入GORM库。
+	"fmt"  // 导入格式化库，用于错误信息。
+	"time" // 导入时间库。
 )
 
 // ProductStatus 定义了商品的生命周期状态。
@@ -27,48 +26,56 @@ const (
 
 // Product 实体是商品模块的聚合根。
 type Product struct {
-	gorm.Model                // 嵌入 gorm.Model，包含 ID, CreatedAt, UpdatedAt, DeletedAt 等通用字段
-	Name        string        `gorm:"column:name;type:varchar(255);not null;comment:商品名称" json:"name"`
-	Description string        `gorm:"column:description;type:text;comment:商品详细描述" json:"description"`
-	CategoryID  uint          `gorm:"column:category_id;index;not null;comment:所属分类ID" json:"category_id"`
-	BrandID     uint          `gorm:"column:brand_id;index;not null;comment:所属品牌ID" json:"brand_id"`
-	Status      ProductStatus `gorm:"column:status;type:tinyint;default:1;comment:商品状态(1:草稿, 2:已发布, 3:已下架, 4:已删除)" json:"status"`
-	Type        ProductType   `gorm:"column:type;type:tinyint;default:1;comment:商品类型(1:实物, 2:虚拟, 3:资产)" json:"type"`
-	MainImage   string        `gorm:"column:main_image;type:varchar(1024);comment:商品主图URL" json:"main_image"`
-	Images      []string      `gorm:"type:json;serializer:json;comment:商品图集JSON" json:"images"`
-	Price       int64         `gorm:"column:price;type:bigint;not null;comment:默认售价(单位:分)" json:"price"`
-	Stock       int32         `gorm:"column:stock;type:int;default:0;comment:总库存量" json:"stock"`
-	Sales       int32         `gorm:"column:sales;type:int;default:0;comment:历史总销量" json:"sales"`
-	SKUs        []*SKU        `gorm:"foreignKey:ProductID;comment:关联SKU集合" json:"skus"`
+	ID          uint          `json:"id"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	CategoryID  uint          `json:"category_id"`
+	BrandID     uint          `json:"brand_id"`
+	Status      ProductStatus `json:"status"`
+	Type        ProductType   `json:"type"`
+	MainImage   string        `json:"main_image"`
+	Images      []string      `json:"images"`
+	Price       int64         `json:"price"`
+	Stock       int32         `json:"stock"`
+	Sales       int32         `json:"sales"`
+	SKUs        []*SKU        `json:"skus"`
 }
 
 // SKU 实体代表商品的最小库存单元。
 type SKU struct {
-	gorm.Model
-	ProductID uint              `gorm:"column:product_id;index;not null;comment:关联商品ID" json:"product_id"`
-	Name      string            `gorm:"column:name;type:varchar(255);not null;comment:规格名称" json:"name"`
-	Price     int64             `gorm:"column:price;type:bigint;not null;comment:规格售价(单位:分)" json:"price"`
-	Stock     int32             `gorm:"column:stock;type:int;default:0;comment:规格库存" json:"stock"`
-	Sales     int32             `gorm:"column:sales;type:int;default:0;comment:规格销量" json:"sales"`
-	Image     string            `gorm:"column:image;type:varchar(1024);comment:规格图片URL" json:"image"`
-	Specs     map[string]string `gorm:"type:json;serializer:json;comment:规格参数JSON" json:"specs"`
+	ID        uint              `json:"id"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	ProductID uint              `json:"product_id"`
+	Name      string            `json:"name"`
+	Price     int64             `json:"price"`
+	Stock     int32             `json:"stock"`
+	Sales     int32             `json:"sales"`
+	Image     string            `json:"image"`
+	Specs     map[string]string `json:"specs"`
 }
 
 // Category 实体代表商品分类。
 type Category struct {
-	gorm.Model
-	Name     string `gorm:"column:name;type:varchar(255);not null;comment:分类名称" json:"name"`
-	ParentID uint   `gorm:"column:parent_id;index;default:0;comment:父分类ID(0为根节点)" json:"parent_id"`
-	Sort     int    `gorm:"column:sort;type:int;default:0;comment:排序权重" json:"sort"`
-	Status   int    `gorm:"column:status;type:tinyint;default:1;comment:分类状态(1:启用, 2:禁用)" json:"status"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	ParentID  uint      `json:"parent_id"`
+	Sort      int       `json:"sort"`
+	Status    int       `json:"status"`
 }
 
 // Brand 实体代表商品品牌。
 type Brand struct {
-	gorm.Model
-	Name   string `gorm:"column:name;type:varchar(255);not null;comment:品牌名称" json:"name"`
-	Logo   string `gorm:"column:logo;type:varchar(1024);comment:品牌Logo地址" json:"logo"`
-	Status int    `gorm:"column:status;type:tinyint;default:1;comment:品牌状态(1:启用, 2:禁用)" json:"status"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Logo      string    `json:"logo"`
+	Status    int       `json:"status"`
 }
 
 // NewProduct 是一个工厂方法，用于创建并返回一个新的 Product 实体实例。

@@ -21,11 +21,11 @@ import (
 type Server struct {
 	pb.UnimplementedPaymentServiceServer
 	cmdService   *application.PaymentCommandService
-	queryService *application.PaymentQuery
+	queryService *application.PaymentQueryService
 }
 
 // NewServer 创建一个新的支付 gRPC 服务端实例。
-func NewServer(cmd *application.PaymentCommandService, query *application.PaymentQuery) *Server {
+func NewServer(cmd *application.PaymentCommandService, query *application.PaymentQueryService) *Server {
 	return &Server{
 		cmdService:   cmd,
 		queryService: query,
@@ -87,7 +87,7 @@ func (s *Server) HandlePaymentCallback(ctx context.Context, req *pb.HandlePaymen
 	// Assuming queryService handle this or we have a mapping.
 	// For now, using a mock/temp userID if not provided, or querying via Repo.
 	// The original code used App.GetUserIDByPaymentNo.
-	// I'll add this to PaymentQuery.
+	// Now provided by PaymentQueryService.
 	userID, err := s.queryService.GetUserIDByPaymentNo(ctx, paymentNo)
 	if err != nil {
 		slog.Error("gRPC HandlePaymentCallback failed: user not found", "payment_no", paymentNo, "error", err)

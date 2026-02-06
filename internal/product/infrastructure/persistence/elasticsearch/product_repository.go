@@ -14,14 +14,20 @@ type productSearchRepository struct {
 }
 
 // NewProductSearchRepository 创建商品搜索仓储实现。
-func NewProductSearchRepository(client *search.Client) domain.ProductSearchRepository {
+func NewProductSearchRepository(client *search.Client, index string) domain.ProductSearchRepository {
+	if index == "" {
+		index = "products"
+	}
 	return &productSearchRepository{
 		client: client,
-		index:  "products",
+		index:  index,
 	}
 }
 
 func (r *productSearchRepository) Index(ctx context.Context, product *domain.Product) error {
+	if product == nil {
+		return nil
+	}
 	docID := fmt.Sprintf("%d", product.ID)
 	return r.client.Index(ctx, r.index, docID, product)
 }

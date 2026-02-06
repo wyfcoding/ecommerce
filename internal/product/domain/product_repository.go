@@ -45,6 +45,10 @@ type SKURepository interface {
 	Update(ctx context.Context, sku *SKU) error
 	// Delete 根据ID删除SKU实体。
 	Delete(ctx context.Context, id uint) error
+	// Transaction 在事务中执行操作。
+	Transaction(ctx context.Context, fn func(tx any) error) error
+	// WithTx 返回一个带事务的仓储副本。
+	WithTx(tx any) SKURepository
 }
 
 // CategoryRepository 是商品分类模块的仓储接口。
@@ -64,6 +68,10 @@ type CategoryRepository interface {
 	List(ctx context.Context) ([]*Category, error)
 	// FindByParentID 根据父分类ID获取子分类实体列表。
 	FindByParentID(ctx context.Context, parentID uint) ([]*Category, error)
+	// Transaction 在事务中执行操作。
+	Transaction(ctx context.Context, fn func(tx any) error) error
+	// WithTx 返回一个带事务的仓储副本。
+	WithTx(tx any) CategoryRepository
 }
 
 // BrandRepository 是商品品牌模块的仓储接口。
@@ -81,6 +89,10 @@ type BrandRepository interface {
 	Delete(ctx context.Context, id uint) error
 	// List 列出所有品牌实体。
 	List(ctx context.Context) ([]*Brand, error)
+	// Transaction 在事务中执行操作。
+	Transaction(ctx context.Context, fn func(tx any) error) error
+	// WithTx 返回一个带事务的仓储副本。
+	WithTx(tx any) BrandRepository
 }
 
 // ProductSearchRepository 是商品搜索的高性能仓储接口 (基于 ES)。

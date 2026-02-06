@@ -60,7 +60,7 @@ type Config struct {
 type AppContext struct {
 	Config      *Config
 	Cmd         *application.PaymentCommandService
-	Query       *application.PaymentQuery
+	Query       *application.PaymentQueryService
 	Clients     *ServiceClients
 	Handler     *paymenthttp.Handler
 	Metrics     *metrics.Metrics
@@ -210,20 +210,34 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 4. 初始化消息队列与 Outbox (架构增强)
 	bootLog.Info("initializing kafka producer and outbox...")
 	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
-	masterDB := shardingManager.GetDB(0)
-	if err := masterDB.AutoMigrate(&outbox.Message{}); err != nil {
-		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+
+	allDBs := shardingManager.GetAllDBs()
+	outboxProcessors := make([]*outbox.Processor, 0, len(allDBs))
+	defaultOutboxMgr := outbox.NewManager(shardingManager.GetDB(0), logger.Logger)
+
+	for i, dbNode := range allDBs {
+		bootLog.Info("syncing outbox schema and starting processor for shard", "shard_index", i)
+		if err := dbNode.AutoMigrate(&outbox.Message{}); err != nil {
+			return nil, nil, fmt.Errorf("failed to migrate outbox table on shard %d: %w", i, err)
+		}
+		shardMgr := outbox.NewManager(dbNode, logger.Logger)
+		proc := outbox.NewProcessor(shardMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+			return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+		}, 100, 5*time.Second)
+		proc.Start()
+		outboxProcessors = append(outboxProcessors, proc)
 	}
-	outboxMgr := outbox.NewManager(masterDB, logger.Logger)
-	outboxProc := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
-		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
-	}, 100, 5*time.Second)
-	outboxProc.Start()
 
 	// 5. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		for _, p := range outboxProcessors {
+			p.Stop()
+		}
+		if producer != nil {
+			producer.Close()
+		}
 		if err := redisCache.Close(); err != nil {
 			bootLog.Error("failed to close redis cache", "error", err)
 		}
@@ -265,7 +279,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	}
 
 	// 5.2 Application
-	publisher := outbox.NewPublisher(outboxMgr)
+	publisher := outbox.NewPublisher(defaultOutboxMgr)
 
 	paymentCmdService := application.NewPaymentCommandService(
 		paymentRepo,
@@ -279,7 +293,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		redisLock,
 		logger.Logger,
 	)
-	paymentQuery := application.NewPaymentQuery(paymentRepo, paymentReadRepo, paymentSearchRepo, eventStore, logger.Logger)
+	paymentQuery := application.NewPaymentQueryService(paymentRepo, paymentReadRepo, paymentSearchRepo, eventStore, logger.Logger)
 
 	// --- 5.3 Projection Consumers (Payment Events -> Read Model) ---
 	projectionService := application.NewPaymentProjectionService(paymentRepo, paymentReadRepo, paymentSearchRepo, logger.Logger)
@@ -313,7 +327,9 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 				c.Close()
 			}
 		}
-		outboxProc.Stop()
+		for _, p := range outboxProcessors {
+			p.Stop()
+		}
 		if producer != nil {
 			producer.Close()
 		}
