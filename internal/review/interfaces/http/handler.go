@@ -14,14 +14,16 @@ import (
 
 // Handler 结构体定义了Review模块的HTTP处理层。
 type Handler struct {
-	app    *application.Review // 依赖Review应用服务 (Facade)。
-	logger *slog.Logger        // 日志记录器。
+	cmd    *application.ReviewCommandService
+	query  *application.ReviewQueryService
+	logger *slog.Logger // 日志记录器。
 }
 
 // NewHandler 创建并返回一个新的 Review HTTP Handler 实例。
-func NewHandler(app *application.Review, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.ReviewCommandService, query *application.ReviewQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -43,7 +45,7 @@ func (h *Handler) CreateReview(c *gin.Context) {
 		return
 	}
 
-	review, err := h.app.CreateReview(c.Request.Context(), req.UserID, req.ProductID, req.OrderID, req.SkuID, req.Rating, req.Content, req.Images)
+	review, err := h.cmd.CreateReview(c.Request.Context(), req.UserID, req.ProductID, req.OrderID, req.SkuID, req.Rating, req.Content, req.Images)
 	if err != nil {
 		h.logger.Error("Failed to create review", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create review", err.Error())
@@ -69,7 +71,7 @@ func (h *Handler) AuditReview(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.AuditReview(c.Request.Context(), id, req.Approved); err != nil {
+	if err := h.cmd.AuditReview(c.Request.Context(), id, req.Approved); err != nil {
 		h.logger.Error("Failed to audit review", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to audit review", err.Error())
 		return
@@ -112,7 +114,7 @@ func (h *Handler) ListReviews(c *gin.Context) {
 		status = &s
 	}
 
-	list, total, err := h.app.ListReviews(c.Request.Context(), productID, status, page, pageSize)
+	list, total, err := h.query.ListReviews(c.Request.Context(), productID, status, page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list reviews", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list reviews", err.Error())
@@ -134,7 +136,7 @@ func (h *Handler) GetProductStats(c *gin.Context) {
 		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid Product ID", err.Error())
 		return
 	}
-	stats, err := h.app.GetProductStats(c.Request.Context(), productID)
+	stats, err := h.query.GetProductStats(c.Request.Context(), productID)
 	if err != nil {
 		h.logger.Error("Failed to get product stats", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get product stats", err.Error())

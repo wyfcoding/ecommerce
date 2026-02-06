@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
@@ -74,7 +75,19 @@ func (m *ReviewCommandService) CreateReview(ctx context.Context, userID, product
 		Status:    status,
 	}
 
-	if err := m.repo.Save(ctx, review); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveInTx(ctx, tx, review); err != nil {
+			return err
+		}
+		event := &domain.ReviewCreatedEvent{
+			ReviewID:  review.ID,
+			UserID:    review.UserID,
+			ProductID: review.ProductID,
+			Rating:    int32(review.Rating),
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ReviewCreatedEventType, fmt.Sprintf("%d", review.ID), event)
+	}); err != nil {
 		m.logger.Error("failed to save review", "error", err)
 		return nil, err
 	}
@@ -98,7 +111,18 @@ func (m *ReviewCommandService) AuditReview(ctx context.Context, reviewID uint64,
 		review.Status = domain.ReviewStatusRejected
 	}
 
-	return m.repo.Save(ctx, review)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveInTx(ctx, tx, review); err != nil {
+			return err
+		}
+		event := &domain.ReviewUpdatedEvent{
+			ReviewID:  review.ID,
+			Rating:    int32(review.Rating),
+			Status:    int32(review.Status),
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ReviewUpdatedEventType, fmt.Sprintf("%d", review.ID), event)
+	})
 }
 
 // DeleteReview 删除评论。
@@ -121,5 +145,14 @@ func (m *ReviewCommandService) DeleteReview(ctx context.Context, reviewID uint64
 		}
 	}
 
-	return m.repo.Delete(ctx, reviewID)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.DeleteInTx(ctx, tx, reviewID); err != nil {
+			return err
+		}
+		event := &domain.ReviewDeletedEvent{
+			ReviewID:  review.ID,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ReviewDeletedEventType, fmt.Sprintf("%d", review.ID), event)
+	})
 }

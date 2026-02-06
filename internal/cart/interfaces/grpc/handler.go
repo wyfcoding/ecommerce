@@ -20,13 +20,14 @@ import (
 // Server 结构体实现了 Cart 的 gRPC 服务端接口。
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
-	pb.UnimplementedCartServiceServer                          // 嵌入生成的UnimplementedCartServiceServer，确保前向兼容性。
-	app                               *application.CartService // 依赖Cart应用服务，处理核心业务逻辑。
+	pb.UnimplementedCartServiceServer // 嵌入生成的UnimplementedCartServiceServer，确保前向兼容性。
+	cmd                               *application.CartCommandService
+	query                             *application.CartQueryService
 }
 
 // NewServer 创建并返回一个新的 Cart gRPC 服务端实例。
-func NewServer(app *application.CartService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.CartCommandService, query *application.CartQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // AddItemToCart 处理添加商品到购物车的gRPC请求。
@@ -34,7 +35,7 @@ func (s *Server) AddItemToCart(ctx context.Context, req *pb.AddItemToCartRequest
 	start := time.Now()
 	slog.Info("gRPC AddItemToCart received", "user_id", req.UserId, "product_id", req.ProductId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	err := s.app.AddItem(ctx, req.UserId, req.ProductId, req.SkuId, "Unknown Product", "Unknown SKU", 0.0, req.Quantity, "")
+	err := s.cmd.AddItem(ctx, req.UserId, req.ProductId, req.SkuId, "Unknown Product", "Unknown SKU", 0.0, req.Quantity, "")
 	if err != nil {
 		slog.Error("gRPC AddItemToCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add item to cart: %v", err))
@@ -50,7 +51,7 @@ func (s *Server) UpdateCartItem(ctx context.Context, req *pb.UpdateCartItemReque
 	start := time.Now()
 	slog.Info("gRPC UpdateCartItem received", "user_id", req.UserId, "sku_id", req.SkuId, "quantity", req.Quantity)
 
-	err := s.app.UpdateItemQuantity(ctx, req.UserId, req.SkuId, req.Quantity)
+	err := s.cmd.UpdateItemQuantity(ctx, req.UserId, req.SkuId, req.Quantity)
 	if err != nil {
 		slog.Error("gRPC UpdateCartItem failed", "user_id", req.UserId, "sku_id", req.SkuId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update cart item quantity: %v", err))
@@ -66,7 +67,7 @@ func (s *Server) RemoveItemFromCart(ctx context.Context, req *pb.RemoveItemFromC
 	slog.Info("gRPC RemoveItemFromCart received", "user_id", req.UserId, "sku_ids", req.SkuIds)
 
 	for _, id := range req.SkuIds {
-		if err := s.app.RemoveItem(ctx, req.UserId, id); err != nil {
+		if err := s.cmd.RemoveItem(ctx, req.UserId, id); err != nil {
 			slog.Error("gRPC RemoveItemFromCart failed", "user_id", req.UserId, "item_id", id, "error", err, "duration", time.Since(start))
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove item from cart: %v", err))
 		}
@@ -81,7 +82,7 @@ func (s *Server) GetCart(ctx context.Context, req *pb.GetCartRequest) (*pb.CartI
 	start := time.Now()
 	slog.Debug("gRPC GetCart received", "user_id", req.UserId)
 
-	cart, err := s.app.GetCart(ctx, req.UserId)
+	cart, err := s.query.GetCart(ctx, req.UserId)
 	if err != nil {
 		slog.Error("gRPC GetCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get cart: %v", err))
@@ -96,7 +97,7 @@ func (s *Server) ClearCart(ctx context.Context, req *pb.ClearCartRequest) (*empt
 	start := time.Now()
 	slog.Info("gRPC ClearCart received", "user_id", req.UserId)
 
-	err := s.app.ClearCart(ctx, req.UserId)
+	err := s.cmd.ClearCart(ctx, req.UserId)
 	if err != nil {
 		slog.Error("gRPC ClearCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to clear cart: %v", err))
@@ -111,7 +112,7 @@ func (s *Server) MergeCarts(ctx context.Context, req *pb.MergeCartsRequest) (*pb
 	start := time.Now()
 	slog.Info("gRPC MergeCarts received", "source_user_id", req.SourceUserId, "target_user_id", req.TargetUserId)
 
-	if err := s.app.MergeCarts(ctx, req.SourceUserId, req.TargetUserId); err != nil {
+	if err := s.cmd.MergeCarts(ctx, req.SourceUserId, req.TargetUserId); err != nil {
 		slog.Error("gRPC MergeCarts failed", "source_user_id", req.SourceUserId, "target_user_id", req.TargetUserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to merge carts: %v", err))
 	}
@@ -125,7 +126,7 @@ func (s *Server) ApplyCouponToCart(ctx context.Context, req *pb.ApplyCouponToCar
 	start := time.Now()
 	slog.Info("gRPC ApplyCouponToCart received", "user_id", req.UserId, "coupon_code", req.CouponCode)
 
-	if err := s.app.ApplyCoupon(ctx, req.UserId, req.CouponCode); err != nil {
+	if err := s.cmd.ApplyCoupon(ctx, req.UserId, req.CouponCode); err != nil {
 		slog.Error("gRPC ApplyCouponToCart failed", "user_id", req.UserId, "coupon_code", req.CouponCode, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to apply coupon to cart: %v", err))
 	}
@@ -139,7 +140,7 @@ func (s *Server) RemoveCouponFromCart(ctx context.Context, req *pb.RemoveCouponF
 	start := time.Now()
 	slog.Info("gRPC RemoveCouponFromCart received", "user_id", req.UserId)
 
-	if err := s.app.RemoveCoupon(ctx, req.UserId); err != nil {
+	if err := s.cmd.RemoveCoupon(ctx, req.UserId); err != nil {
 		slog.Error("gRPC RemoveCouponFromCart failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to remove coupon from cart: %v", err))
 	}

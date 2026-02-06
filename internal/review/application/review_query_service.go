@@ -9,17 +9,24 @@ import (
 
 // ReviewQueryService 处理评论模块的查询操作。
 type ReviewQueryService struct {
-	repo   domain.ReviewRepository
-	logger *slog.Logger
+	repo       domain.ReviewRepository
+	readRepo   domain.ReviewReadRepository
+	searchRepo domain.ReviewSearchRepository
+	logger     *slog.Logger
 }
 
 // NewReviewQueryService 创建并返回一个新的 ReviewQueryService 实例。
-func NewReviewQueryService(repo domain.ReviewRepository, logger *slog.Logger) *ReviewQueryService {
-	return &ReviewQueryService{repo: repo, logger: logger}
+func NewReviewQueryService(repo domain.ReviewRepository, readRepo domain.ReviewReadRepository, searchRepo domain.ReviewSearchRepository, logger *slog.Logger) *ReviewQueryService {
+	return &ReviewQueryService{repo: repo, readRepo: readRepo, searchRepo: searchRepo, logger: logger}
 }
 
 // GetReview 根据ID获取评论详情。
 func (q *ReviewQueryService) GetReview(ctx context.Context, id uint64) (*domain.Review, error) {
+	if q.readRepo != nil {
+		if review, err := q.readRepo.GetByID(ctx, id); err == nil && review != nil {
+			return review, nil
+		}
+	}
 	return q.repo.Get(ctx, id)
 }
 
@@ -31,12 +38,23 @@ func (q *ReviewQueryService) ListReviews(ctx context.Context, productID uint64, 
 		s := domain.ReviewStatus(*status)
 		reviewStatus = &s
 	}
+	if q.searchRepo != nil {
+		var productPtr *uint64
+		if productID > 0 {
+			productPtr = &productID
+		}
+		return q.searchRepo.Search(ctx, productPtr, nil, reviewStatus, offset, pageSize, "")
+	}
 	return q.repo.List(ctx, productID, reviewStatus, offset, pageSize)
 }
 
 // ListUserReviews 获取指定用户的评论列表。
 func (q *ReviewQueryService) ListUserReviews(ctx context.Context, userID uint64, page, pageSize int) ([]*domain.Review, int64, error) {
 	offset := (page - 1) * pageSize
+	if q.searchRepo != nil {
+		userPtr := &userID
+		return q.searchRepo.Search(ctx, nil, userPtr, nil, offset, pageSize, "")
+	}
 	return q.repo.ListByUser(ctx, userID, offset, pageSize)
 }
 

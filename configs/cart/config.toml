@@ -82,13 +82,25 @@ slow_threshold = "200ms"
 log_level = 4
 
 [data.redis]
-addr = "127.0.0.1:6379"
+# 读模型缓存（购物车详情），支持单机/哨兵/集群。
+# addr 为历史字段，推荐使用 addrs。
+# addr = "127.0.0.1:6379"
+addrs = ["127.0.0.1:6379"]
 password = "redis_password"
 db = 0
 pool_size = 10
 min_idle_conns = 5
 read_timeout = "0.2s"
 write_timeout = "0.2s"
+
+[data.elasticsearch]
+# 购物车搜索读模型索引
+addresses = ["http://127.0.0.1:9200"]
+username = "elastic"
+password = "elastic_password"
+
+[search]
+cart_index = "carts"
 
 [messagequeue.kafka]
 brokers = ["localhost:9092"]

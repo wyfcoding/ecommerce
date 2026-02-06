@@ -1,7 +1,15 @@
 package domain
 
-import (
-	"time"
+import "time"
+
+const (
+	CartItemAddedEventType     = "cart.item.added"
+	CartItemUpdatedEventType   = "cart.item.updated"
+	CartItemRemovedEventType   = "cart.item.removed"
+	CartClearedEventType       = "cart.cleared"
+	CartMergedEventType        = "cart.merged"
+	CartCouponAppliedEventType = "cart.coupon.applied"
+	CartCouponRemovedEventType = "cart.coupon.removed"
 )
 
 // CartItemAddedEvent 商品加入购物车事件
@@ -46,4 +54,10 @@ type CouponAppliedEvent struct {
 	UserID     uint64    `json:"user_id"`
 	CouponCode string    `json:"coupon_code"`
 	Timestamp  time.Time `json:"timestamp"`
+}
+
+// CouponRemovedEvent 优惠券移除事件
+type CouponRemovedEvent struct {
+	UserID    uint64    `json:"user_id"`
+	Timestamp time.Time `json:"timestamp"`
 }

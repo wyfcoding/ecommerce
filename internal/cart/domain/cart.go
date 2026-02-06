@@ -1,29 +1,31 @@
 package domain
 
-import (
-	"gorm.io/gorm" // 导入GORM库。
-)
+import "time"
 
 // Cart 实体是购物车模块的聚合根。
 // 它代表一个用户的购物车，包含了用户ID和购物车中的所有商品项。
 type Cart struct {
-	gorm.Model                    // 嵌入gorm.Model,包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	UserID            uint64      `gorm:"not null;uniqueIndex;comment:用户ID" json:"user_id"`              // 用户ID,唯一索引,不允许为空,确保每个用户只有一个购物车。
-	AppliedCouponCode string      `gorm:"type:varchar(100);comment:已应用的优惠券码" json:"applied_coupon_code"` // 已应用的优惠券码。
-	Items             []*CartItem `gorm:"foreignKey:CartID" json:"items"`                                // 购物车中的商品项列表,一对多关系。
+	ID                uint64      `json:"id"`                  // 购物车ID
+	CreatedAt         time.Time   `json:"created_at"`          // 创建时间
+	UpdatedAt         time.Time   `json:"updated_at"`          // 更新时间
+	UserID            uint64      `json:"user_id"`             // 用户ID
+	AppliedCouponCode string      `json:"applied_coupon_code"` // 已应用的优惠券码
+	Items             []*CartItem `json:"items"`               // 购物车中的商品项列表
 }
 
 // CartItem 实体代表购物车中的一个商品项。
 type CartItem struct {
-	gorm.Model              // 嵌入gorm.Model。
-	CartID          uint64  `gorm:"not null;index;comment:购物车ID" json:"cart_id"`                 // 关联的购物车ID，索引字段，不允许为空。
-	ProductID       string  `gorm:"not null;comment:商品ID" json:"product_id"`                     // 商品ID。
-	SkuID           string  `gorm:"not null;index;comment:SKU ID" json:"sku_id"`                 // SKU ID，索引字段。
-	ProductName     string  `gorm:"type:varchar(255);not null;comment:商品名称" json:"product_name"` // 商品名称。
-	SkuName         string  `gorm:"type:varchar(255);not null;comment:SKU名称" json:"sku_name"`    // SKU名称（例如，颜色、尺码等属性组合）。
-	Price           float64 `gorm:"type:decimal(10,2);not null;comment:价格" json:"price"`         // 商品单价。
-	Quantity        int32   `gorm:"not null;comment:数量" json:"quantity"`                         // 购买数量。
-	ProductImageURL string  `gorm:"type:varchar(255);comment:商品图片URL" json:"product_image_url"`  // 商品图片URL。
+	ID              uint64    `json:"id"`                // 购物车项ID
+	CreatedAt       time.Time `json:"created_at"`        // 创建时间
+	UpdatedAt       time.Time `json:"updated_at"`        // 更新时间
+	CartID          uint64    `json:"cart_id"`           // 关联的购物车ID
+	ProductID       string    `json:"product_id"`        // 商品ID
+	SkuID           string    `json:"sku_id"`            // SKU ID
+	ProductName     string    `json:"product_name"`      // 商品名称
+	SkuName         string    `json:"sku_name"`          // SKU名称
+	Price           float64   `json:"price"`             // 商品单价
+	Quantity        int32     `json:"quantity"`          // 购买数量
+	ProductImageURL string    `json:"product_image_url"` // 商品图片URL
 }
 
 // NewCart 创建并返回一个新的 Cart 实体实例。

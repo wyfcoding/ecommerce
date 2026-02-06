@@ -2,6 +2,12 @@ package domain
 
 import "time"
 
+const (
+	ReviewCreatedEventType = "review.created"
+	ReviewUpdatedEventType = "review.updated"
+	ReviewDeletedEventType = "review.deleted"
+)
+
 // ReviewCreatedEvent 评论创建事件。
 type ReviewCreatedEvent struct {
 	ReviewID  uint64    `json:"review_id"`
@@ -15,6 +21,7 @@ type ReviewCreatedEvent struct {
 type ReviewUpdatedEvent struct {
 	ReviewID  uint64    `json:"review_id"`
 	Rating    int32     `json:"rating"`
+	Status    int32     `json:"status"`
 	Timestamp time.Time `json:"timestamp"`
 }
 

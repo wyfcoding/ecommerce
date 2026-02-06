@@ -12,13 +12,15 @@ import (
 )
 
 type Handler struct {
-	app    *application.CartService
+	cmd    *application.CartCommandService
+	query  *application.CartQueryService
 	logger *slog.Logger
 }
 
-func NewHandler(app *application.CartService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.CartCommandService, query *application.CartQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -32,7 +34,7 @@ func (h *Handler) GetCart(c *gin.Context) {
 		return
 	}
 
-	cart, err := h.app.GetCart(c.Request.Context(), userID)
+	cart, err := h.query.GetCart(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get cart", "user_id", userID, "error", err)
 		response.Error(c, err)
@@ -61,7 +63,7 @@ func (h *Handler) AddItem(c *gin.Context) {
 		return
 	}
 
-	err := h.app.AddItem(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.Quantity, req.ProductImageURL)
+	err := h.cmd.AddItem(c.Request.Context(), req.UserID, req.ProductID, req.SkuID, req.ProductName, req.SkuName, req.Price, req.Quantity, req.ProductImageURL)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to add item to cart", "user_id", req.UserID, "sku_id", req.SkuID, "error", err)
 		response.Error(c, err)
@@ -84,7 +86,7 @@ func (h *Handler) UpdateItemQuantity(c *gin.Context) {
 		return
 	}
 
-	err := h.app.UpdateItemQuantity(c.Request.Context(), req.UserID, req.SkuID, req.Quantity)
+	err := h.cmd.UpdateItemQuantity(c.Request.Context(), req.UserID, req.SkuID, req.Quantity)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to update item quantity", "user_id", req.UserID, "sku_id", req.SkuID, "error", err)
 		response.Error(c, err)
@@ -106,7 +108,7 @@ func (h *Handler) RemoveItem(c *gin.Context) {
 		return
 	}
 
-	err := h.app.RemoveItem(c.Request.Context(), req.UserID, req.SkuID)
+	err := h.cmd.RemoveItem(c.Request.Context(), req.UserID, req.SkuID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to remove item from cart", "user_id", req.UserID, "sku_id", req.SkuID, "error", err)
 		response.Error(c, err)
@@ -127,7 +129,7 @@ func (h *Handler) ClearCart(c *gin.Context) {
 		return
 	}
 
-	err := h.app.ClearCart(c.Request.Context(), req.UserID)
+	err := h.cmd.ClearCart(c.Request.Context(), req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to clear cart", "user_id", req.UserID, "error", err)
 		response.Error(c, err)
