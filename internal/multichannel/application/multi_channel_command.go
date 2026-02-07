@@ -34,8 +34,21 @@ func (m *MultiChannelCommandService) RegisterAdapter(channelType string, adapter
 
 // RegisterChannel 注册一个新的销售渠道。
 func (m *MultiChannelCommandService) RegisterChannel(ctx context.Context, channel *domain.Channel) error {
-	if err := m.repo.SaveChannel(ctx, channel); err != nil {
-		m.logger.Error("failed to register channel", "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveChannelInTx(ctx, tx, channel); err != nil {
+			m.logger.Error("failed to register channel", "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ChannelRegisteredEventType, fmt.Sprintf("%d", channel.ID), &domain.ChannelRegisteredEvent{
+			ChannelID: uint64(channel.ID),
+			Name:      channel.Name,
+			Type:      channel.Type,
+			Timestamp: time.Now(),
+		})
+	}); err != nil {
 		return err
 	}
 	return nil
@@ -74,6 +87,9 @@ func (m *MultiChannelCommandService) SyncOrders(ctx context.Context, channelID u
 
 	// 2. 遍历并入库
 	for _, order := range externalOrders {
+		order.ChannelID = uint64(channel.ID)
+		order.ChannelName = channel.Name
+
 		exists, err := m.repo.GetOrderByChannelID(ctx, uint64(channel.ID), order.ChannelOrderID)
 		if err != nil {
 			failureCount++
@@ -81,7 +97,21 @@ func (m *MultiChannelCommandService) SyncOrders(ctx context.Context, channelID u
 		}
 
 		if exists == nil {
-			if err := m.repo.SaveOrder(ctx, order); err != nil {
+			if err := m.repo.WithTx(ctx, func(tx any) error {
+				if err := m.repo.SaveOrderInTx(ctx, tx, order); err != nil {
+					return err
+				}
+				if m.publisher == nil {
+					return nil
+				}
+				return m.publisher.PublishInTx(ctx, tx, domain.ChannelOrderCreatedEventType, fmt.Sprintf("%d", order.ID), &domain.ChannelOrderCreatedEvent{
+					OrderID:     uint64(order.ID),
+					ChannelID:   order.ChannelID,
+					ExternalID:  order.ChannelOrderID,
+					TotalAmount: order.TotalAmount,
+					Timestamp:   time.Now(),
+				})
+			}); err != nil {
 				m.logger.ErrorContext(ctx, "failed to save synced order", "channel_order_id", order.ChannelOrderID, "error", err)
 				failureCount++
 			} else {

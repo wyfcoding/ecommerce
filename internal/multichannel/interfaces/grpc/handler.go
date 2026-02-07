@@ -17,12 +17,16 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedMultiChannelServiceServer
-	app *application.MultiChannelService
+	cmd   *application.MultiChannelCommandService
+	query *application.MultiChannelQueryService
 }
 
 // NewServer 函数。
-func NewServer(app *application.MultiChannelService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.MultiChannelCommandService, query *application.MultiChannelQueryService) *Server {
+	return &Server{
+		cmd:   cmd,
+		query: query,
+	}
 }
 
 func (s *Server) RegisterChannel(ctx context.Context, req *pb.RegisterChannelRequest) (*pb.RegisterChannelResponse, error) {
@@ -34,7 +38,7 @@ func (s *Server) RegisterChannel(ctx context.Context, req *pb.RegisterChannelReq
 		IsEnabled: req.IsEnabled,
 	}
 
-	if err := s.app.RegisterChannel(ctx, channel); err != nil {
+	if err := s.cmd.RegisterChannel(ctx, channel); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to register channel: %v", err))
 	}
 
@@ -44,7 +48,7 @@ func (s *Server) RegisterChannel(ctx context.Context, req *pb.RegisterChannelReq
 }
 
 func (s *Server) ListChannels(ctx context.Context, _ *pb.ListChannelsRequest) (*pb.ListChannelsResponse, error) {
-	channels, err := s.app.ListChannels(ctx)
+	channels, err := s.query.ListChannels(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list channels: %v", err))
 	}
@@ -60,7 +64,7 @@ func (s *Server) ListChannels(ctx context.Context, _ *pb.ListChannelsRequest) (*
 }
 
 func (s *Server) SyncOrders(ctx context.Context, req *pb.SyncOrdersRequest) (*emptypb.Empty, error) {
-	if err := s.app.SyncOrders(ctx, req.ChannelId); err != nil {
+	if err := s.cmd.SyncOrders(ctx, req.ChannelId); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to sync orders: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -73,7 +77,7 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 		pageSize = 10
 	}
 
-	orders, total, err := s.app.ListOrders(ctx, req.ChannelId, req.Status, page, pageSize)
+	orders, total, err := s.query.ListOrders(ctx, req.ChannelId, req.Status, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list orders: %v", err))
 	}

@@ -2,6 +2,20 @@ package domain
 
 import "time"
 
+const (
+	ChannelRegisteredEventType    = "multichannel.channel.registered"
+	ChannelOrderCreatedEventType  = "multichannel.order.created"
+	ChannelStatusUpdatedEventType = "multichannel.channel.status.updated"
+)
+
+// ChannelRegisteredEvent 渠道注册事件。
+type ChannelRegisteredEvent struct {
+	ChannelID uint64    `json:"channel_id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
 // ChannelOrderCreatedEvent 渠道订单创建事件。
 type ChannelOrderCreatedEvent struct {
 	OrderID     uint64    `json:"order_id"`
