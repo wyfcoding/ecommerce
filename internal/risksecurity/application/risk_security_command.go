@@ -176,8 +176,23 @@ func (m *RiskSecurityCommandService) createResult(ctx context.Context, userID ui
 		RiskItems: string(itemsJSON),
 	}
 
-	if err := m.repo.SaveAnalysisResult(ctx, result); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save risk analysis result", "user_id", userID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveAnalysisResultInTx(ctx, tx, result); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save risk analysis result", "user_id", userID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.RiskAnalysisCreatedEvent{
+			ResultID:  uint64(result.ID),
+			UserID:    result.UserID,
+			RiskLevel: result.RiskLevel,
+			RiskScore: result.RiskScore,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.RiskAnalysisCreatedEventType, fmt.Sprintf("%d", result.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "risk analysis result saved", "user_id", userID, "risk_level", level)
@@ -192,8 +207,23 @@ func (m *RiskSecurityCommandService) AddToBlacklist(ctx context.Context, bType s
 		Reason:    reason,
 		ExpiresAt: time.Now().Add(duration),
 	}
-	if err := m.repo.SaveBlacklist(ctx, blacklist); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save blacklist entry", "type", bType, "value", value, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveBlacklistInTx(ctx, tx, blacklist); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save blacklist entry", "type", bType, "value", value, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.BlacklistAddedEvent{
+			BlacklistID: uint64(blacklist.ID),
+			Type:        blacklist.Type,
+			Value:       blacklist.Value,
+			ExpiresAt:   blacklist.ExpiresAt,
+			Timestamp:   time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.BlacklistAddedEventType, fmt.Sprintf("%d", blacklist.ID), event)
+	}); err != nil {
 		return err
 	}
 	m.logger.InfoContext(ctx, "added to blacklist", "type", bType, "value", value)
@@ -202,8 +232,26 @@ func (m *RiskSecurityCommandService) AddToBlacklist(ctx context.Context, bType s
 
 // RemoveFromBlacklist 从黑名单中移除指定ID的条目。
 func (m *RiskSecurityCommandService) RemoveFromBlacklist(ctx context.Context, id uint64) error {
-	if err := m.repo.DeleteBlacklist(ctx, id); err != nil {
-		m.logger.ErrorContext(ctx, "failed to delete blacklist entry", "id", id, "error", err)
+	entry, err := m.repo.GetBlacklistByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.DeleteBlacklistInTx(ctx, tx, id); err != nil {
+			m.logger.ErrorContext(ctx, "failed to delete blacklist entry", "id", id, "error", err)
+			return err
+		}
+		if m.publisher == nil || entry == nil {
+			return nil
+		}
+		event := &domain.BlacklistRemovedEvent{
+			BlacklistID: uint64(entry.ID),
+			Type:        entry.Type,
+			Value:       entry.Value,
+			Timestamp:   time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.BlacklistRemovedEventType, fmt.Sprintf("%d", entry.ID), event)
+	}); err != nil {
 		return err
 	}
 	m.logger.InfoContext(ctx, "removed from blacklist", "id", id)
@@ -228,8 +276,22 @@ func (m *RiskSecurityCommandService) RecordUserBehavior(ctx context.Context, use
 	behavior.LastLoginDevice = deviceID
 	behavior.LastLoginTime = time.Now()
 
-	if err := m.repo.SaveUserBehavior(ctx, behavior); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save user behavior", "user_id", userID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveUserBehaviorInTx(ctx, tx, behavior); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save user behavior", "user_id", userID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.UserBehaviorUpdatedEvent{
+			UserID:    userID,
+			IP:        ip,
+			DeviceID:  deviceID,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.UserBehaviorUpdatedEventType, fmt.Sprintf("%d", userID), event)
+	}); err != nil {
 		return err
 	}
 	m.logger.InfoContext(ctx, "user behavior recorded", "user_id", userID, "ip", ip)

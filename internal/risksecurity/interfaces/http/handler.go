@@ -15,15 +15,17 @@ import (
 
 // Handler 结构体定义了RiskSecurity模块的HTTP处理层。
 type Handler struct {
-	app    *application.RiskService
-	logger *slog.Logger
+	cmdService   *application.RiskSecurityCommandService
+	queryService *application.RiskSecurityQueryService
+	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 RiskSecurity HTTP Handler 实例。
-func NewHandler(app *application.RiskService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.RiskSecurityCommandService, query *application.RiskSecurityQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -42,7 +44,7 @@ func (h *Handler) EvaluateRisk(c *gin.Context) {
 	}
 
 	ctx := contextx.WithUserAgent(c.Request.Context(), c.Request.UserAgent())
-	result, err := h.app.EvaluateRisk(ctx, req.UserID, req.IP, req.DeviceID, req.Amount)
+	result, err := h.cmdService.EvaluateRisk(ctx, req.UserID, req.IP, req.DeviceID, req.Amount)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "failed to evaluate risk", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to evaluate risk", err.Error())
@@ -71,7 +73,7 @@ func (h *Handler) AddToBlacklist(c *gin.Context) {
 		duration = 24 * time.Hour
 	}
 
-	if err := h.app.AddToBlacklist(c.Request.Context(), req.Type, req.Value, req.Reason, duration); err != nil {
+	if err := h.cmdService.AddToBlacklist(c.Request.Context(), req.Type, req.Value, req.Reason, duration); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to add to blacklist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add to blacklist", err.Error())
 		return
@@ -88,7 +90,7 @@ func (h *Handler) RemoveFromBlacklist(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.RemoveFromBlacklist(c.Request.Context(), id); err != nil {
+	if err := h.cmdService.RemoveFromBlacklist(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to remove from blacklist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to remove from blacklist", err.Error())
 		return
@@ -111,7 +113,7 @@ func (h *Handler) RecordBehavior(c *gin.Context) {
 	}
 
 	ctx := contextx.WithUserAgent(c.Request.Context(), c.Request.UserAgent())
-	if err := h.app.RecordUserBehavior(ctx, req.UserID, req.IP, req.DeviceID); err != nil {
+	if err := h.cmdService.RecordUserBehavior(ctx, req.UserID, req.IP, req.DeviceID); err != nil {
 		h.logger.ErrorContext(ctx, "failed to record behavior", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to record behavior", err.Error())
 		return
@@ -128,7 +130,7 @@ func (h *Handler) GetRiskAnalysisResult(c *gin.Context) {
 		return
 	}
 
-	result, err := h.app.GetRiskAnalysisResult(c.Request.Context(), userID)
+	result, err := h.queryService.GetRiskAnalysisResult(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get risk analysis result", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get risk analysis result", err.Error())
@@ -148,7 +150,7 @@ func (h *Handler) CheckBlacklist(c *gin.Context) {
 		return
 	}
 
-	blacklist, err := h.app.CheckBlacklist(c.Request.Context(), bType, value)
+	blacklist, err := h.queryService.CheckBlacklist(c.Request.Context(), bType, value)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to check blacklist", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to check blacklist", err.Error())
@@ -171,7 +173,7 @@ func (h *Handler) GetUserBehavior(c *gin.Context) {
 		return
 	}
 
-	behavior, err := h.app.GetUserBehavior(c.Request.Context(), userID)
+	behavior, err := h.queryService.GetUserBehavior(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get user behavior", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get user behavior", err.Error())
