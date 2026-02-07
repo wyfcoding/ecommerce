@@ -1,148 +1,196 @@
+// 变更说明：重构用户服务装配，统一 DDD/CQRS + Outbox + Redis/ES 读模型。
 package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"net"
-	"os"
-	"os/signal"
-	"syscall"
+	"log/slog"
 	"time"
+
+	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
+	"github.com/wyfcoding/ecommerce/internal/user/application"
+	"github.com/wyfcoding/ecommerce/internal/user/domain"
+	usersearch "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/elasticsearch"
+	usermysql "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/mysql"
+	userredis "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/redis"
+	usergrpc "github.com/wyfcoding/ecommerce/internal/user/interfaces/grpc"
+	userhttp "github.com/wyfcoding/ecommerce/internal/user/interfaces/http"
+	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/database"
+	"github.com/wyfcoding/pkg/limiter"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-
-	"github.com/wyfcoding/ecommerce/internal/user/application"
-	"github.com/wyfcoding/ecommerce/internal/user/domain"
-	"github.com/wyfcoding/ecommerce/internal/user/infrastructure/messaging"
-	"github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence"
-	grpcInterface "github.com/wyfcoding/ecommerce/internal/user/interfaces/grpc"
-	httpInterface "github.com/wyfcoding/ecommerce/internal/user/interfaces/http"
-	"github.com/wyfcoding/pkg/algorithm/infra"
-	"github.com/wyfcoding/pkg/cache"
-	"github.com/wyfcoding/pkg/config"
-	"github.com/wyfcoding/pkg/logging"
-	"github.com/wyfcoding/pkg/metrics"
-
-	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
 )
 
-var configFile = flag.String("f", "configs/user/config.toml", "the config file")
+// BootstrapName 服务唯一标识
+const BootstrapName = "user"
+
+// Config 服务扩展配置
+type Config struct {
+	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		UserIndex string `mapstructure:"user_index" toml:"user_index"`
+	} `mapstructure:"search" toml:"search"`
+}
+
+// AppContext 应用上下文
+type AppContext struct {
+	Config  *Config
+	Cmd     *application.UserCommandService
+	Query   *application.UserQueryService
+	Handler *userhttp.UserHandler
+	Metrics *metrics.Metrics
+	Limiter limiter.Limiter
+}
 
 func main() {
-	flag.Parse()
-
-	// 1. 加载配置
-	var cfg config.Config
-	if err := config.Load(*configFile, &cfg); err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGinMiddleware(
+			middleware.CORS(),
+			middleware.TimeoutMiddleware(30*time.Second),
+		).
+		Build().
+		Run(); err != nil {
+		slog.Error("service bootstrap failed", "error", err)
 	}
-	config.PrintWithMask(cfg)
+}
 
-	// 2. 初始化 Logger
-	logging.InitLogger(cfg.Server.Name, "user-service", cfg.Log.Level)
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
+	pb.RegisterUserServiceServer(s, usergrpc.NewGrpcHandler(ctx.Cmd, ctx.Query))
+}
+
+func registerGin(e *gin.Engine, ctx *AppContext) {
+	if ctx.Config.Server.Environment == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	if ctx.Limiter != nil {
+		e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
+	}
+	ctx.Handler.RegisterHandlers(e)
+}
+
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	c := cfg
+	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default()
-	// slog.SetDefault(logger.Logger) // Already done in InitLogger
 
-	// 3. 初始化 Metrics
-	m := metrics.NewMetrics(cfg.Server.Name)
+	configpkg.PrintWithMask(c)
 
-	// 4. 初始化数据库
-	db, err := gorm.Open(mysql.Open(cfg.Data.Database.DSN), &gorm.Config{
-		Logger: logging.NewGormLogger(logger, 200*time.Millisecond),
-	})
+	// 1. DB
+	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
-		logger.ErrorContext(context.Background(), "failed to connect database", "error", err)
-		os.Exit(1)
+		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
-	// 自动迁移 (生产环境建议使用 migrate 工具)
-	if cfg.Server.Environment == "dev" {
-		db.AutoMigrate(&domain.User{}, &domain.Address{})
-	}
-
-	// 5. 初始化 Redis Cache
-	// Fix: cfg.Resiliency.CircuitBreaker -> cfg.CircuitBreaker
-	redisCache, err := cache.NewRedisCache(&cfg.Data.Redis, cfg.CircuitBreaker, logger, m)
-	if err != nil {
-		logger.ErrorContext(context.Background(), "failed to init redis cache", "error", err)
-		os.Exit(1)
-	}
-	defer redisCache.Close()
-
-	// 6. 初始化 Kafka Publisher
-	var publisher domain.EventPublisher
-	if len(cfg.MessageQueue.Kafka.Brokers) > 0 {
-		publisher = messaging.NewKafkaPublisher(cfg.MessageQueue.Kafka.Brokers, logger.Logger)
-		if closer, ok := publisher.(interface{ Close() error }); ok {
-			defer closer.Close()
+	if c.Server.Environment == "dev" {
+		if err := db.RawDB().AutoMigrate(&usermysql.UserModel{}, &usermysql.AddressModel{}, &outbox.Message{}); err != nil {
+			bootLog.Error("failed to migrate database", "error", err)
 		}
+	}
+
+	// 2. Redis
+	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
+	if err != nil {
+		return nil, nil, fmt.Errorf("redis init error: %w", err)
+	}
+
+	// 3. Kafka & Outbox
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
+	// 4. ES (optional)
+	var searchRepo domain.UserSearchRepository
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		bootLog.Warn("elasticsearch init skipped", "error", err)
 	} else {
-		logger.WarnContext(context.Background(), "Kafka brokers not configured, event publishing disabled")
+		searchRepo = usersearch.NewUserSearchRepository(esClient, c.Search.UserIndex)
 	}
 
-	// 7. 初始化依赖
-	userRepo := persistence.NewUserRepository(db)
-	addressRepo := persistence.NewAddressRepository(db)
+	// 5. Repositories
+	userRepo := usermysql.NewUserRepository(db.RawDB())
+	addressRepo := usermysql.NewAddressRepository(db.RawDB())
+	userReadRepo := userredis.NewUserReadRepository(redisCache.GetClient(), time.Hour)
+	addressReadRepo := userredis.NewAddressReadRepository(redisCache.GetClient(), 30*time.Minute)
+
+	// 6. Application Services
 	antiBot := infra.NewAntiBotDetector()
-
-	// 8. 初始化 Application Service
-	cmdService := application.NewUserCommandService(
+	publisher := outbox.NewPublisher(outboxMgr)
+	cmdSvc := application.NewUserCommandService(
 		userRepo,
 		addressRepo,
+		userReadRepo,
+		addressReadRepo,
+		searchRepo,
 		publisher,
-		redisCache, // Injected
-		cfg.MessageQueue.Kafka.Topic,
-		cfg.JWT.Secret,
-		cfg.JWT.Issuer,
-		cfg.JWT.ExpireDuration,
+		c.MessageQueue.Kafka.Topic,
+		c.JWT.Secret,
+		c.JWT.Issuer,
+		c.JWT.ExpireDuration,
 		antiBot,
-		logger.Logger, // Pass *slog.Logger
+		logger.Logger,
 	)
-	queryService := application.NewUserQuery(
+	querySvc := application.NewUserQueryService(
 		userRepo,
 		addressRepo,
-		redisCache, // Injected
+		userReadRepo,
+		addressReadRepo,
+		searchRepo,
 		antiBot,
-		logger.Logger, // Pass *slog.Logger
+		logger.Logger,
 	)
 
-	// 9. 初始化 Handlers
-	httpHandler := httpInterface.NewUserHandler(cmdService, queryService)
-	grpcHandler := grpcInterface.NewGrpcHandler(cmdService, queryService)
+	handler := userhttp.NewUserHandler(cmdSvc, querySvc)
 
-	// 10. 启动 gRPC Server
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.GRPC.Port))
-	if err != nil {
-		logger.ErrorContext(context.Background(), "failed to listen tcp", "error", err)
-		os.Exit(1)
+	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
+
+	cleanup := func() {
+		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
+		if redisCache != nil {
+			if err := redisCache.Close(); err != nil {
+				bootLog.Error("failed to close redis cache", "error", err)
+			}
+		}
+		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
+			if err := sqlDB.Close(); err != nil {
+				bootLog.Error("failed to close sql database", "error", err)
+			}
+		}
 	}
-	s := grpc.NewServer()
-	pb.RegisterUserServiceServer(s, grpcHandler)
-	go func() {
-		logger.InfoContext(context.Background(), "gRPC server started", "addr", cfg.Server.GRPC.Addr, "port", cfg.Server.GRPC.Port)
-		if err := s.Serve(lis); err != nil {
-			logger.ErrorContext(context.Background(), "gRPC server failed", "error", err)
-		}
-	}()
 
-	// 11. 启动 HTTP Server
-	r := gin.Default()
-	r.GET("/metrics", gin.WrapH(m.Handler()))
-	httpHandler.RegisterHandlers(r)
-	go func() {
-		addr := fmt.Sprintf(":%d", cfg.Server.HTTP.Port)
-		logger.InfoContext(context.Background(), "HTTP server started", "port", cfg.Server.HTTP.Port)
-		if err := r.Run(addr); err != nil {
-			logger.ErrorContext(context.Background(), "HTTP server failed", "error", err)
-		}
-	}()
-
-	// 12. 优雅退出
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	logger.InfoContext(context.Background(), "Shutting down server...")
+	return &AppContext{
+		Config:  c,
+		Cmd:     cmdSvc,
+		Query:   querySvc,
+		Handler: handler,
+		Metrics: m,
+		Limiter: rateLimiter,
+	}, cleanup, nil
 }

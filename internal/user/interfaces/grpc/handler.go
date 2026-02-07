@@ -15,12 +15,12 @@ import (
 type GrpcHandler struct {
 	pb.UnimplementedUserServiceServer
 	commandService *application.UserCommandService
-	queryService   *application.UserQuery
+	queryService   *application.UserQueryService
 }
 
 func NewGrpcHandler(
 	commandService *application.UserCommandService,
-	queryService *application.UserQuery,
+	queryService *application.UserQueryService,
 ) *GrpcHandler {
 	return &GrpcHandler{
 		commandService: commandService,
@@ -29,7 +29,7 @@ func NewGrpcHandler(
 }
 
 func (h *GrpcHandler) RegisterByPassword(ctx context.Context, req *pb.RegisterByPasswordRequest) (*pb.RegisterResponse, error) {
-	cmd := &application.CreateUserCommand{
+	cmd := application.CreateUserCommand{
 		Username: req.Username,
 		Password: req.Password,
 		Email:    req.Username + "@example.com",
@@ -43,7 +43,7 @@ func (h *GrpcHandler) RegisterByPassword(ctx context.Context, req *pb.RegisterBy
 }
 
 func (h *GrpcHandler) LoginByPassword(ctx context.Context, req *pb.LoginByPasswordRequest) (*pb.LoginByPasswordResponse, error) {
-	cmd := &application.LoginCommand{
+	cmd := application.LoginCommand{
 		Username: req.Username,
 		Password: req.Password,
 	}
@@ -79,9 +79,7 @@ func (h *GrpcHandler) GetUserByID(ctx context.Context, req *pb.GetUserByIDReques
 }
 
 func (h *GrpcHandler) UpdateUserInfo(ctx context.Context, req *pb.UpdateUserInfoRequest) (*pb.UserResponse, error) {
-	cmd := &application.UpdateUserCommand{
-		ID: uint(req.UserId),
-	}
+	cmd := application.UpdateUserCommand{ID: uint(req.UserId)}
 
 	if req.Nickname != nil {
 		cmd.Nickname = *req.Nickname
@@ -110,7 +108,7 @@ func (h *GrpcHandler) AddAddress(ctx context.Context, req *pb.AddAddressRequest)
 	if req.IsDefault != nil {
 		isDefault = *req.IsDefault
 	}
-	cmd := &application.AddAddressCommand{
+	cmd := application.AddAddressCommand{
 		UserID:          uint(req.UserId),
 		RecipientName:   req.Name,
 		PhoneNumber:     req.Phone,
@@ -140,7 +138,60 @@ func (h *GrpcHandler) GetAddress(ctx context.Context, req *pb.GetAddressRequest)
 }
 
 func (h *GrpcHandler) UpdateAddress(ctx context.Context, req *pb.UpdateAddressRequest) (*pb.Address, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	current, err := h.queryService.GetAddress(ctx, uint(req.UserId), uint(req.Id))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get address: %v", err)
+	}
+	if current == nil {
+		return nil, status.Error(codes.NotFound, "address not found")
+	}
+
+	cmd := application.UpdateAddressCommand{
+		ID:              uint(req.Id),
+		UserID:          uint(req.UserId),
+		RecipientName:   current.RecipientName,
+		PhoneNumber:     current.PhoneNumber,
+		Province:        current.Province,
+		City:            current.City,
+		District:        current.District,
+		DetailedAddress: current.DetailedAddress,
+		PostalCode:      current.PostalCode,
+		IsDefault:       current.IsDefault,
+	}
+	if req.Name != nil {
+		cmd.RecipientName = *req.Name
+	}
+	if req.Phone != nil {
+		cmd.PhoneNumber = *req.Phone
+	}
+	if req.Province != nil {
+		cmd.Province = *req.Province
+	}
+	if req.City != nil {
+		cmd.City = *req.City
+	}
+	if req.District != nil {
+		cmd.District = *req.District
+	}
+	if req.DetailedAddress != nil {
+		cmd.DetailedAddress = *req.DetailedAddress
+	}
+	if req.IsDefault != nil {
+		cmd.IsDefault = *req.IsDefault
+	}
+
+	if err := h.commandService.UpdateAddress(ctx, cmd); err != nil {
+		return nil, status.Errorf(codes.Internal, "update address failed: %v", err)
+	}
+
+	addr, err := h.queryService.GetAddress(ctx, uint(req.UserId), uint(req.Id))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get address: %v", err)
+	}
+	if addr == nil {
+		return nil, status.Error(codes.NotFound, "address not found")
+	}
+	return toPbAddress(addr), nil
 }
 
 func (h *GrpcHandler) DeleteAddress(ctx context.Context, req *pb.DeleteAddressRequest) (*emptypb.Empty, error) {

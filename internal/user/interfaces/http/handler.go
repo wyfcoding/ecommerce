@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wyfcoding/ecommerce/internal/user/application"
@@ -12,13 +13,13 @@ import (
 
 type UserHandler struct {
 	commandService *application.UserCommandService
-	queryService   *application.UserQuery
+	queryService   *application.UserQueryService
 	logger         *slog.Logger
 }
 
 func NewUserHandler(
 	commandService *application.UserCommandService,
-	queryService *application.UserQuery,
+	queryService *application.UserQueryService,
 ) *UserHandler {
 	return &UserHandler{
 		commandService: commandService,
@@ -35,6 +36,7 @@ func (h *UserHandler) RegisterHandlers(router *gin.Engine) {
 		v1.POST("/login", h.Login)
 		v1.GET("/:id", h.GetProfile)
 		v1.PUT("/:id", h.UpdateProfile)
+		v1.GET("/search", h.SearchUsers)
 
 		// Address routes
 		v1.POST("/:id/addresses", h.AddAddress)
@@ -45,14 +47,26 @@ func (h *UserHandler) RegisterHandlers(router *gin.Engine) {
 	}
 }
 
+type registerRequest struct {
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+	Phone    string `json:"phone"`
+}
+
 func (h *UserHandler) Register(c *gin.Context) {
-	var req application.CreateUserCommand
+	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, err)
 		return
 	}
 
-	user, err := h.commandService.Register(c, &req)
+	user, err := h.commandService.Register(c, application.CreateUserCommand{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
+		Phone:    req.Phone,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -61,15 +75,23 @@ func (h *UserHandler) Register(c *gin.Context) {
 	response.Success(c, user)
 }
 
+type loginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
 func (h *UserHandler) Login(c *gin.Context) {
-	var req application.LoginCommand
+	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	ip := c.ClientIP()
-	resp, err := h.commandService.Login(c, &req, ip)
+	resp, err := h.commandService.Login(c, application.LoginCommand{
+		Username: req.Username,
+		Password: req.Password,
+	}, ip)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -108,19 +130,55 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	var req application.UpdateUserCommand
+	var req struct {
+		Nickname string     `json:"nickname"`
+		Avatar   string     `json:"avatar"`
+		Gender   int8       `json:"gender"`
+		Birthday *time.Time `json:"birthday"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, err)
 		return
 	}
-	req.ID = uint(id)
+	cmd := application.UpdateUserCommand{
+		ID:       uint(id),
+		Nickname: req.Nickname,
+		Avatar:   req.Avatar,
+		Gender:   req.Gender,
+		Birthday: req.Birthday,
+	}
 
-	if err := h.commandService.UpdateProfile(c, &req); err != nil {
+	if err := h.commandService.UpdateProfile(c, cmd); err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, nil)
+}
+
+func (h *UserHandler) SearchUsers(c *gin.Context) {
+	keyword := c.Query("keyword")
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 20
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	users, total, err := h.queryService.SearchUsers(c, keyword, limit, offset)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"total": total,
+		"items": users,
+	})
 }
 
 func (h *UserHandler) AddAddress(c *gin.Context) {
@@ -131,14 +189,32 @@ func (h *UserHandler) AddAddress(c *gin.Context) {
 		return
 	}
 
-	var req application.AddAddressCommand
+	var req struct {
+		RecipientName   string `json:"recipient_name" binding:"required"`
+		PhoneNumber     string `json:"phone_number" binding:"required"`
+		Province        string `json:"province" binding:"required"`
+		City            string `json:"city" binding:"required"`
+		District        string `json:"district" binding:"required"`
+		DetailedAddress string `json:"detailed_address" binding:"required"`
+		PostalCode      string `json:"postal_code"`
+		IsDefault       bool   `json:"is_default"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, err)
 		return
 	}
-	req.UserID = uint(userID)
 
-	addr, err := h.commandService.AddAddress(c, &req)
+	addr, err := h.commandService.AddAddress(c, application.AddAddressCommand{
+		UserID:          uint(userID),
+		RecipientName:   req.RecipientName,
+		PhoneNumber:     req.PhoneNumber,
+		Province:        req.Province,
+		City:            req.City,
+		District:        req.District,
+		DetailedAddress: req.DetailedAddress,
+		PostalCode:      req.PostalCode,
+		IsDefault:       req.IsDefault,
+	})
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -207,15 +283,34 @@ func (h *UserHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	var req application.UpdateAddressCommand
+	var req struct {
+		RecipientName   string `json:"recipient_name"`
+		PhoneNumber     string `json:"phone_number"`
+		Province        string `json:"province"`
+		City            string `json:"city"`
+		District        string `json:"district"`
+		DetailedAddress string `json:"detailed_address"`
+		PostalCode      string `json:"postal_code"`
+		IsDefault       bool   `json:"is_default"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, err)
 		return
 	}
-	req.UserID = uint(userID)
-	req.ID = uint(addrID)
+	cmd := application.UpdateAddressCommand{
+		ID:              uint(addrID),
+		UserID:          uint(userID),
+		RecipientName:   req.RecipientName,
+		PhoneNumber:     req.PhoneNumber,
+		Province:        req.Province,
+		City:            req.City,
+		District:        req.District,
+		DetailedAddress: req.DetailedAddress,
+		PostalCode:      req.PostalCode,
+		IsDefault:       req.IsDefault,
+	}
 
-	if err := h.commandService.UpdateAddress(c, &req); err != nil {
+	if err := h.commandService.UpdateAddress(c, cmd); err != nil {
 		response.Error(c, err)
 		return
 	}

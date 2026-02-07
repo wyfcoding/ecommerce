@@ -6,6 +6,11 @@ import "context"
 // 它定义了对 User 实体进行数据持久化操作的契约。
 // 仓储接口属于领域层，旨在将领域逻辑与数据存储的实现细节解耦。
 type UserRepository interface {
+	BeginTx(ctx context.Context) any
+	CommitTx(tx any) error
+	RollbackTx(tx any) error
+	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
+
 	// Save 将用户实体保存到数据存储中。
 	// 如果用户已存在，则更新；如果不存在，则创建。
 	// ctx: 上下文。
@@ -27,9 +32,21 @@ type UserRepository interface {
 	List(ctx context.Context, offset, limit int) ([]*User, int64, error)
 }
 
+// UserReadRepository 用户读模型缓存
+type UserReadRepository interface {
+	Save(ctx context.Context, user *User) error
+	GetByID(ctx context.Context, id uint) (*User, error)
+	Delete(ctx context.Context, id uint) error
+}
+
 // AddressRepository 是用户地址模块的仓储接口。
 // 它定义了对 Address 实体进行数据持久化操作的契约。
 type AddressRepository interface {
+	BeginTx(ctx context.Context) any
+	CommitTx(tx any) error
+	RollbackTx(tx any) error
+	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
+
 	// Save 将地址实体保存到数据存储中。
 	Save(ctx context.Context, address *Address) error
 	// FindByID 根据ID获取地址实体。
@@ -44,4 +61,17 @@ type AddressRepository interface {
 	Delete(ctx context.Context, id uint) error
 	// SetDefault 设置指定用户ID的默认地址，同时取消该用户其他地址的默认状态。
 	SetDefault(ctx context.Context, userID, addressID uint) error
+}
+
+// AddressReadRepository 地址读模型缓存
+type AddressReadRepository interface {
+	Save(ctx context.Context, userID uint, addresses []*Address) error
+	GetByUserID(ctx context.Context, userID uint) ([]*Address, error)
+	Delete(ctx context.Context, userID uint) error
+}
+
+// UserSearchRepository 用户搜索（Elasticsearch）
+type UserSearchRepository interface {
+	Index(ctx context.Context, user *User) error
+	Search(ctx context.Context, keyword string, limit, offset int) ([]*User, int64, error)
 }

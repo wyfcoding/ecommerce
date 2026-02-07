@@ -116,6 +116,14 @@ func (s *Server) ListStrategies(ctx context.Context, req *pb.ListStrategiesReque
 	}, nil
 }
 
+// UpdateCompetitorPrice 处理更新竞品价格的 gRPC 请求。
+func (s *Server) UpdateCompetitorPrice(ctx context.Context, req *pb.UpdateCompetitorPriceRequest) (*emptypb.Empty, error) {
+	if err := s.cmd.UpdateCompetitorPrice(ctx, req.SkuId, req.CompetitorName, req.Price, req.Url); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update competitor price: %v", err))
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func convertDynamicPriceToProto(p *domain.DynamicPrice) *pb.DynamicPrice {
 	if p == nil {
 		return nil

@@ -9,7 +9,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"github.com/wyfcoding/pkg/algorithm/infra"
-	"github.com/wyfcoding/pkg/cache"
+	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
 	"github.com/wyfcoding/pkg/security"
@@ -17,24 +17,28 @@ import (
 
 // UserCommandService 定义用户服务的所有写操作接口
 type UserCommandService struct {
-	userRepo    domain.UserRepository
-	addressRepo domain.AddressRepository
-	publisher   domain.EventPublisher // Event Publisher Injected
-	cache       cache.Cache           // Cache Injected
-	jwtSecret   string
-	jwtIssuer   string
-	jwtExpiry   time.Duration
-	antiBot     *infra.AntiBotDetector
-	logger      *slog.Logger
-	topic       string // Kafka Topic
+	userRepo        domain.UserRepository
+	addressRepo     domain.AddressRepository
+	userReadRepo    domain.UserReadRepository
+	addressReadRepo domain.AddressReadRepository
+	searchRepo      domain.UserSearchRepository
+	publisher       domain.EventPublisher
+	jwtSecret       string
+	jwtIssuer       string
+	jwtExpiry       time.Duration
+	antiBot         *infra.AntiBotDetector
+	logger          *slog.Logger
+	topic           string
 }
 
 // NewUserCommandService 创建用户命令服务实例
 func NewUserCommandService(
 	userRepo domain.UserRepository,
 	addressRepo domain.AddressRepository,
+	userReadRepo domain.UserReadRepository,
+	addressReadRepo domain.AddressReadRepository,
+	searchRepo domain.UserSearchRepository,
 	publisher domain.EventPublisher,
-	cache cache.Cache,
 	topic string,
 	jwtSecret string,
 	jwtIssuer string,
@@ -43,21 +47,27 @@ func NewUserCommandService(
 	logger *slog.Logger,
 ) *UserCommandService {
 	return &UserCommandService{
-		userRepo:    userRepo,
-		addressRepo: addressRepo,
-		publisher:   publisher,
-		cache:       cache,
-		topic:       topic,
-		jwtSecret:   jwtSecret,
-		jwtIssuer:   jwtIssuer,
-		jwtExpiry:   jwtExpiry,
-		antiBot:     antiBot,
-		logger:      logger,
+		userRepo:        userRepo,
+		addressRepo:     addressRepo,
+		userReadRepo:    userReadRepo,
+		addressReadRepo: addressReadRepo,
+		searchRepo:      searchRepo,
+		publisher:       publisher,
+		topic:           topic,
+		jwtSecret:       jwtSecret,
+		jwtIssuer:       jwtIssuer,
+		jwtExpiry:       jwtExpiry,
+		antiBot:         antiBot,
+		logger:          logger,
 	}
 }
 
 // Register 处理注册命令
-func (s *UserCommandService) Register(ctx context.Context, cmd *CreateUserCommand) (*domain.User, error) {
+func (s *UserCommandService) Register(ctx context.Context, cmd CreateUserCommand) (*domain.User, error) {
+	if cmd.Username == "" || cmd.Email == "" || cmd.Password == "" {
+		return nil, errors.New("username/email/password are required")
+	}
+
 	// 1. 唯一性检查
 	existingUser, err := s.userRepo.FindByUsername(ctx, cmd.Username)
 	if err != nil {
@@ -87,28 +97,33 @@ func (s *UserCommandService) Register(ctx context.Context, cmd *CreateUserComman
 	// 4. 生成分布式ID
 	user.ID = uint(idgen.GenID())
 
-	// 5. 保存
-	if err := s.userRepo.Save(ctx, user); err != nil {
-		return nil, fmt.Errorf("failed to save user: %w", err)
+	// 5. 保存 + Outbox
+	if err := s.userRepo.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.userRepo.Save(txCtx, user); err != nil {
+			return fmt.Errorf("failed to save user: %w", err)
+		}
+		if s.publisher == nil {
+			return nil
+		}
+		event := domain.UserCreatedEvent{
+			UserID:     user.ID,
+			Username:   user.Username,
+			Email:      user.Email,
+			Phone:      user.Phone,
+			Status:     user.Status,
+			CreatedAt:  time.Now().UnixMilli(),
+			OccurredOn: time.Now(),
+		}
+		return s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserCreatedEventType, fmt.Sprintf("%d", user.ID), event)
+	}); err != nil {
+		return nil, err
 	}
 
-	// 6. 发布事件 (UserCreatedEvent)
-	event := domain.UserCreatedEvent{
-		Header: domain.EventHeader{
-			ID:        fmt.Sprintf("%d", idgen.GenID()),
-			TraceID:   "", // Should extract from context
-			Source:    "user.service",
-			CreatedAt: time.Now(),
-		},
-		User: user,
+	if s.userReadRepo != nil {
+		_ = s.userReadRepo.Save(ctx, user)
 	}
-	// Best effort delivery. In strict EDA, use Outbox pattern.
-	if s.publisher != nil {
-		if err := s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", user.ID), event); err != nil {
-			s.logger.ErrorContext(ctx, "failed to publish UserCreatedEvent", "error", err, "user_id", user.ID)
-			// Decide: fail usage or ignore? Typically for non-critical downstream, ignore.
-			// But for strict consistency, might want to rollback. GORM transaction required.
-		}
+	if s.searchRepo != nil {
+		_ = s.searchRepo.Index(ctx, user)
 	}
 
 	s.logger.InfoContext(ctx, "user registered", "user_id", user.ID)
@@ -116,7 +131,7 @@ func (s *UserCommandService) Register(ctx context.Context, cmd *CreateUserComman
 }
 
 // Login 处理登录命令
-func (s *UserCommandService) Login(ctx context.Context, cmd *LoginCommand, ip string) (*LoginResponse, error) {
+func (s *UserCommandService) Login(ctx context.Context, cmd LoginCommand, ip string) (*LoginResponse, error) {
 	// 1. 反爬与风控检查
 	behavior := &infra.UserBehavior{
 		IP:        ip,
@@ -151,132 +166,207 @@ func (s *UserCommandService) Login(ctx context.Context, cmd *LoginCommand, ip st
 }
 
 // UpdateProfile 处理更新资料命令
-func (s *UserCommandService) UpdateProfile(ctx context.Context, cmd *UpdateUserCommand) error {
-	user, err := s.userRepo.FindByID(ctx, cmd.ID)
-	if err != nil {
+func (s *UserCommandService) UpdateProfile(ctx context.Context, cmd UpdateUserCommand) error {
+	if cmd.ID == 0 {
+		return errors.New("user id is required")
+	}
+
+	var updated *domain.User
+	if err := s.userRepo.WithTx(ctx, func(txCtx context.Context) error {
+		user, err := s.userRepo.FindByID(txCtx, cmd.ID)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return errors.New("user not found")
+		}
+
+		user.UpdateProfile(cmd.Nickname, cmd.Avatar, cmd.Gender, cmd.Birthday)
+
+		if err := s.userRepo.Update(txCtx, user); err != nil {
+			return fmt.Errorf("failed to update user: %w", err)
+		}
+		updated = user
+
+		if s.publisher == nil {
+			return nil
+		}
+		event := domain.UserUpdatedEvent{
+			UserID:     user.ID,
+			UpdatedAt:  time.Now().UnixMilli(),
+			OccurredOn: time.Now(),
+		}
+		return s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserUpdatedEventType, fmt.Sprintf("%d", user.ID), event)
+	}); err != nil {
 		return err
 	}
-	if user == nil {
-		return errors.New("user not found")
-	}
 
-	user.UpdateProfile(cmd.Nickname, cmd.Avatar, cmd.Gender, cmd.Birthday)
-
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return fmt.Errorf("failed to update user: %w", err)
-	}
-
-	// Cache Invalidation
-	_ = s.cache.Delete(ctx, fmt.Sprintf("user:%d", user.ID))
-
-	// 发布 UserUpdatedEvent
-	event := domain.UserUpdatedEvent{
-		Header: domain.EventHeader{
-			ID:        fmt.Sprintf("%d", idgen.GenID()),
-			Source:    "user.service",
-			CreatedAt: time.Now(),
-		},
-		UserID:    user.ID,
-		UpdatedAt: time.Now(),
-	}
-	if s.publisher != nil {
-		_ = s.publisher.Publish(ctx, s.topic, fmt.Sprintf("%d", user.ID), event)
+	if updated != nil {
+		if s.userReadRepo != nil {
+			_ = s.userReadRepo.Save(ctx, updated)
+		}
+		if s.searchRepo != nil {
+			_ = s.searchRepo.Index(ctx, updated)
+		}
 	}
 
 	return nil
 }
 
 // AddAddress 处理添加地址命令
-func (s *UserCommandService) AddAddress(ctx context.Context, cmd *AddAddressCommand) (*domain.Address, error) {
-	addr := domain.NewAddress(
-		cmd.UserID,
-		cmd.RecipientName,
-		cmd.PhoneNumber,
-		cmd.Province,
-		cmd.City,
-		cmd.District,
-		cmd.DetailedAddress,
-		cmd.PostalCode,
-		cmd.IsDefault,
-	)
+func (s *UserCommandService) AddAddress(ctx context.Context, cmd AddAddressCommand) (*domain.Address, error) {
+	var addr *domain.Address
+	err := s.addressRepo.WithTx(ctx, func(txCtx context.Context) error {
+		addr = domain.NewAddress(
+			cmd.UserID,
+			cmd.RecipientName,
+			cmd.PhoneNumber,
+			cmd.Province,
+			cmd.City,
+			cmd.District,
+			cmd.DetailedAddress,
+			cmd.PostalCode,
+			cmd.IsDefault,
+		)
 
-	if err := s.addressRepo.Save(ctx, addr); err != nil {
-		return nil, fmt.Errorf("failed to save address: %w", err)
-	}
-
-	// 如果设为默认，则更新其他地址
-	if cmd.IsDefault {
-		if err := s.addressRepo.SetDefault(ctx, cmd.UserID, addr.ID); err != nil {
-			s.logger.ErrorContext(ctx, "failed to set default address", "user_id", cmd.UserID, "address_id", addr.ID, "error", err)
+		if err := s.addressRepo.Save(txCtx, addr); err != nil {
+			return fmt.Errorf("failed to save address: %w", err)
 		}
+
+		if cmd.IsDefault {
+			if err := s.addressRepo.SetDefault(txCtx, cmd.UserID, addr.ID); err != nil {
+				s.logger.ErrorContext(ctx, "failed to set default address", "user_id", cmd.UserID, "address_id", addr.ID, "error", err)
+			}
+		}
+
+		if s.publisher == nil {
+			return nil
+		}
+
+		addedEvent := domain.UserAddressAddedEvent{
+			UserID:     cmd.UserID,
+			AddressID:  addr.ID,
+			IsDefault:  cmd.IsDefault,
+			OccurredOn: time.Now(),
+		}
+		if err := s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserAddressAddedEventType, fmt.Sprintf("%d", cmd.UserID), addedEvent); err != nil {
+			return err
+		}
+
+		if cmd.IsDefault {
+			defaultEvent := domain.UserAddressDefaultEvent{
+				UserID:     cmd.UserID,
+				AddressID:  addr.ID,
+				OccurredOn: time.Now(),
+			}
+			return s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserAddressDefaultEventType, fmt.Sprintf("%d", cmd.UserID), defaultEvent)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
+	s.refreshAddressCache(ctx, cmd.UserID)
 	return addr, nil
-	// Note: Ideally we should invalidate user cache here too if user profile includes addresses
-	// But deferring for now to keep it simple or adding explicit delete:
-	// _ = s.cache.Delete(ctx, fmt.Sprintf("user:%d", cmd.UserID))
 }
 
 // UpdateAddress 处理更新地址命令
-func (s *UserCommandService) UpdateAddress(ctx context.Context, cmd *UpdateAddressCommand) error {
-	addr, err := s.addressRepo.FindByID(ctx, cmd.ID)
-	if err != nil {
-		return err
-	}
-	if addr == nil || addr.UserID != cmd.UserID {
-		return errors.New("address not found or permission denied")
-	}
-
-	addr.RecipientName = cmd.RecipientName
-	addr.PhoneNumber = cmd.PhoneNumber
-	addr.Province = cmd.Province
-	addr.City = cmd.City
-	addr.District = cmd.District
-	addr.DetailedAddress = cmd.DetailedAddress
-	addr.PostalCode = cmd.PostalCode
-
-	if err := s.addressRepo.Update(ctx, addr); err != nil {
-		return fmt.Errorf("failed to update address: %w", err)
-	}
-
-	if cmd.IsDefault {
-		if err := s.addressRepo.SetDefault(ctx, cmd.UserID, addr.ID); err != nil {
-			s.logger.ErrorContext(ctx, "failed to set default address", "user_id", cmd.UserID, "address_id", addr.ID, "error", err)
+func (s *UserCommandService) UpdateAddress(ctx context.Context, cmd UpdateAddressCommand) error {
+	return s.addressRepo.WithTx(ctx, func(txCtx context.Context) error {
+		addr, err := s.addressRepo.FindByID(txCtx, cmd.ID)
+		if err != nil {
+			return err
 		}
-	}
-	return nil
+		if addr == nil || addr.UserID != cmd.UserID {
+			return errors.New("address not found or permission denied")
+		}
+
+		addr.RecipientName = cmd.RecipientName
+		addr.PhoneNumber = cmd.PhoneNumber
+		addr.Province = cmd.Province
+		addr.City = cmd.City
+		addr.District = cmd.District
+		addr.DetailedAddress = cmd.DetailedAddress
+		addr.PostalCode = cmd.PostalCode
+		addr.IsDefault = cmd.IsDefault
+
+		if err := s.addressRepo.Update(txCtx, addr); err != nil {
+			return fmt.Errorf("failed to update address: %w", err)
+		}
+
+		if cmd.IsDefault {
+			if err := s.addressRepo.SetDefault(txCtx, cmd.UserID, addr.ID); err != nil {
+				s.logger.ErrorContext(ctx, "failed to set default address", "user_id", cmd.UserID, "address_id", addr.ID, "error", err)
+			}
+		}
+
+		if s.publisher != nil {
+			event := domain.UserAddressUpdatedEvent{
+				UserID:     cmd.UserID,
+				AddressID:  addr.ID,
+				IsDefault:  cmd.IsDefault,
+				OccurredOn: time.Now(),
+			}
+			if err := s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserAddressUpdatedEventType, fmt.Sprintf("%d", cmd.UserID), event); err != nil {
+				return err
+			}
+			if cmd.IsDefault {
+				defaultEvent := domain.UserAddressDefaultEvent{
+					UserID:     cmd.UserID,
+					AddressID:  addr.ID,
+					OccurredOn: time.Now(),
+				}
+				if err := s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserAddressDefaultEventType, fmt.Sprintf("%d", cmd.UserID), defaultEvent); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 // DeleteAddress 处理删除地址命令
 func (s *UserCommandService) DeleteAddress(ctx context.Context, userID, addressID uint) error {
-	addr, err := s.addressRepo.FindByID(ctx, addressID)
+	err := s.addressRepo.WithTx(ctx, func(txCtx context.Context) error {
+		addr, err := s.addressRepo.FindByID(txCtx, addressID)
+		if err != nil {
+			return err
+		}
+		if addr == nil || addr.UserID != userID {
+			return errors.New("address not found")
+		}
+
+		if err := s.addressRepo.Delete(txCtx, addressID); err != nil {
+			return fmt.Errorf("failed to delete address: %w", err)
+		}
+
+		if s.publisher != nil {
+			event := domain.UserAddressDeletedEvent{
+				UserID:     userID,
+				AddressID:  addressID,
+				OccurredOn: time.Now(),
+			}
+			return s.publisher.PublishInTx(txCtx, contextx.GetTx(txCtx), domain.UserAddressDeletedEventType, fmt.Sprintf("%d", userID), event)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	if addr == nil || addr.UserID != userID {
-		return errors.New("address not found")
-	}
 
-	if err := s.addressRepo.Delete(ctx, addressID); err != nil {
-		return fmt.Errorf("failed to delete address: %w", err)
-	}
+	s.refreshAddressCache(ctx, userID)
 	return nil
 }
 
-// 辅助函数：转换 User 实体到 DTO
-func toUserDTO(user *domain.User) *UserDTO {
-	dto := &UserDTO{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		Nickname:  user.Nickname,
-		Avatar:    user.Avatar,
-		Gender:    user.Gender,
-		Birthday:  user.Birthday,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+func (s *UserCommandService) refreshAddressCache(ctx context.Context, userID uint) {
+	if s.addressReadRepo == nil {
+		return
 	}
-	return dto
+	addrs, err := s.addressRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return
+	}
+	_ = s.addressReadRepo.Save(ctx, userID, addrs)
 }

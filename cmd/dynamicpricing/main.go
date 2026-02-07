@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/goapi/dynamicpricing/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
+	productv1 "github.com/wyfcoding/ecommerce/goapi/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/application"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
 	pricingsearch "github.com/wyfcoding/ecommerce/internal/dynamicpricing/infrastructure/persistence/elasticsearch"
@@ -63,7 +65,9 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 DynamicPricing 服务无下游强依赖
+	// 目前 DynamicPricing 服务下游依赖
+	InventoryClient inventoryv1.InventoryServiceClient
+	ProductClient   productv1.ProductServiceClient
 }
 
 func main() {
@@ -215,31 +219,51 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	command := application.NewDynamicPricingCommandService(pricingRepo, publisher, logger.Logger)
 	query := application.NewDynamicPricingQueryService(pricingRepo, priceReadRepo, strategyReadRepo, strategySearchRepo, logger.Logger)
 
-	// 5.3 Projection Consumers (Pricing Events -> Read Model)
+	// 5.4 Projection Consumers (Pricing Events -> Read Model)
 	projectionService := application.NewDynamicPricingProjectionService(pricingRepo, priceReadRepo, strategyReadRepo, strategySearchRepo, logger.Logger)
 	projectionHandler := pricingconsumer.NewDynamicPricingProjectionHandler(projectionService, logger.Logger)
+
+	// 5.5 Business Logic Consumers (External Events -> Pricing Logic)
+	inventoryHandler := pricingconsumer.NewInventoryHandler(command, clients.InventoryClient, clients.ProductClient, logger.Logger)
+
 	projectionTopics := []string{
 		domain.DynamicPriceCalculatedEventType,
 		domain.PricingStrategyCreatedEventType,
 		domain.PricingStrategyUpdatedEventType,
 	}
-	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+
+	// Inventory topics to watch
+	inventoryTopics := []string{
+		"inventory.stock.added",
+		"inventory.stock.deducted",
+		"inventory.stock.warning",
+	}
+
+	consumers := make([]*kafka.Consumer, 0, len(projectionTopics)+len(inventoryTopics))
 	for _, topic := range projectionTopics {
 		consumerCfg := c.MessageQueue.Kafka
 		consumerCfg.Topic = topic
 		consumerCfg.GroupID = BootstrapName + "-projection-group"
 		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
 		consumer.Start(context.Background(), 3, projectionHandler.Handle)
-		projectionConsumers = append(projectionConsumers, consumer)
+		consumers = append(consumers, consumer)
+	}
+
+	for _, topic := range inventoryTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-inventory-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, inventoryHandler.Handle)
+		consumers = append(consumers, consumer)
 	}
 
 	// 5.4 Interface (HTTP Handlers)
 	handler := pricinghttp.NewHandler(command, query, logger.Logger)
 
-	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
-		for _, c := range projectionConsumers {
+		for _, c := range consumers {
 			if c != nil {
 				c.Close()
 			}

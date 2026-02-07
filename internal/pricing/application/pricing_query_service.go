@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	dynamicpricingv1 "github.com/wyfcoding/ecommerce/goapi/dynamicpricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
 	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
 )
@@ -14,6 +15,7 @@ type PricingQueryService struct {
 	ruleReadRepo      domain.PricingRuleReadRepository
 	historySearchRepo domain.PriceHistorySearchRepository
 	marketDataCli     marketdatav1.MarketDataServiceClient
+	dynamicPricingCli dynamicpricingv1.DynamicPricingServiceClient
 }
 
 // NewPricingQueryService creates a new PricingQueryService instance.
@@ -33,8 +35,23 @@ func (q *PricingQueryService) SetMarketDataClient(cli marketdatav1.MarketDataSer
 	q.marketDataCli = cli
 }
 
+func (q *PricingQueryService) SetDynamicPricingClient(cli dynamicpricingv1.DynamicPricingServiceClient) {
+	q.dynamicPricingCli = cli
+}
+
 // CalculatePrice 根据定价规则计算商品或SKU的价格。
 func (q *PricingQueryService) CalculatePrice(ctx context.Context, productID, skuID uint64, demand, competition float64) (uint64, error) {
+	// 1. 优先尝试获取动态定价系统的优化价格
+	if q.dynamicPricingCli != nil {
+		dynamicResp, err := q.dynamicPricingCli.GetLatestPrice(ctx, &dynamicpricingv1.GetLatestPriceRequest{
+			SkuId: skuID,
+		})
+		if err == nil && dynamicResp != nil && dynamicResp.Price != nil && dynamicResp.Price.FinalPrice > 0 {
+			return uint64(dynamicResp.Price.FinalPrice), nil
+		}
+	}
+
+	// 2. 如果没有动态价格，回退到基础定价规则
 	var rule *domain.PricingRule
 	var err error
 	if q.ruleReadRepo != nil {
