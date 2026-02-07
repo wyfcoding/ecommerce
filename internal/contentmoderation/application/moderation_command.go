@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
@@ -64,8 +66,24 @@ func (m *ModerationCommandService) SubmitContent(ctx context.Context, contentTyp
 		record.SetAIResult(0.5, []string{"no_ai_service"})
 	}
 
-	if err := m.repo.CreateRecord(ctx, record); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create moderation record", "content_type", contentType, "content_id", contentID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveRecordInTx(ctx, tx, record); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create moderation record", "content_type", contentType, "content_id", contentID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.ModerationRecordCreatedEvent{
+			RecordID:    uint64(record.ID),
+			ContentType: record.ContentType,
+			ContentID:   record.ContentID,
+			UserID:      record.UserID,
+			Status:      record.Status,
+			Timestamp:   time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ModerationRecordCreatedEventType, fmt.Sprintf("%d", record.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "moderation record created successfully", "record_id", record.ID, "content_type", contentType, "content_id", contentID)
@@ -78,6 +96,9 @@ func (m *ModerationCommandService) ReviewContent(ctx context.Context, id uint64,
 	if err != nil {
 		return err
 	}
+	if record == nil {
+		return fmt.Errorf("moderation record not found")
+	}
 
 	if approved {
 		record.Approve(moderatorID)
@@ -85,19 +106,46 @@ func (m *ModerationCommandService) ReviewContent(ctx context.Context, id uint64,
 		record.Reject(moderatorID, reason)
 	}
 
-	return m.repo.UpdateRecord(ctx, record)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveRecordInTx(ctx, tx, record); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.ModerationRecordUpdatedEvent{
+			RecordID:    uint64(record.ID),
+			Status:      record.Status,
+			ModeratorID: record.ModeratorID,
+			Timestamp:   time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.ModerationRecordUpdatedEventType, fmt.Sprintf("%d", record.ID), event)
+	})
 }
 
 // AddSensitiveWord 添加一个敏感词到系统。
 func (m *ModerationCommandService) AddSensitiveWord(ctx context.Context, word, category string, level int8) (*domain.SensitiveWord, error) {
 	sensitiveWord := domain.NewSensitiveWord(word, category, level)
-	if err := m.repo.CreateWord(ctx, sensitiveWord); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create sensitive word", "word", word, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveWordInTx(ctx, tx, sensitiveWord); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create sensitive word", "word", word, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SensitiveWordCreatedEvent{
+			WordID:    uint64(sensitiveWord.ID),
+			Word:      sensitiveWord.Word,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SensitiveWordCreatedEventType, fmt.Sprintf("%d", sensitiveWord.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 
-	// 实时更新到内存 Trie
-	m.sensitiveTrie.Insert(word, sensitiveWord)
+	// 实时更新到内存 Trie（使用小写以匹配检查逻辑）
+	m.sensitiveTrie.Insert(strings.ToLower(word), sensitiveWord)
 
 	m.logger.InfoContext(ctx, "sensitive word created successfully", "word_id", sensitiveWord.ID, "word", word)
 	return sensitiveWord, nil
@@ -105,8 +153,27 @@ func (m *ModerationCommandService) AddSensitiveWord(ctx context.Context, word, c
 
 // DeleteSensitiveWord 根据ID删除一个敏感词。
 func (m *ModerationCommandService) DeleteSensitiveWord(ctx context.Context, id uint64) error {
-	// 注意：当前 Trie 实现不支持删除，生产环境需支持动态重载或并发安全的 Map/Trie 替换
-	return m.repo.DeleteWord(ctx, id)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.DeleteWordInTx(ctx, tx, id); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SensitiveWordDeletedEvent{
+			WordID:    id,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SensitiveWordDeletedEventType, fmt.Sprintf("%d", id), event)
+	}); err != nil {
+		return err
+	}
+
+	// 删除后重载内存词库以保持一致
+	if err := m.LoadSensitiveWords(ctx); err != nil {
+		m.logger.WarnContext(ctx, "failed to reload sensitive words after delete", "error", err)
+	}
+	return nil
 }
 
 // LoadSensitiveWords 加载所有敏感词到内存 Trie 中。
@@ -118,7 +185,7 @@ func (m *ModerationCommandService) LoadSensitiveWords(ctx context.Context) error
 
 	newTrie := algorithm.NewTrie[*domain.SensitiveWord]()
 	for _, w := range words {
-		newTrie.Insert(w.Word, w)
+		newTrie.Insert(strings.ToLower(w.Word), w)
 	}
 
 	m.sensitiveTrie = newTrie

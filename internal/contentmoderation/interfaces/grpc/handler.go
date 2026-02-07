@@ -17,12 +17,12 @@ import (
 // Server 结构体实现了 ContentModerationService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedContentModerationServiceServer
-	app *application.ModerationService
+	cmdService *application.ModerationCommandService
 }
 
 // NewServer 创建并返回一个新的 ContentModeration gRPC 服务端实例。
-func NewServer(app *application.ModerationService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.ModerationCommandService) *Server {
+	return &Server{cmdService: cmd}
 }
 
 // ModerateText 处理文本内容审核的gRPC请求。
@@ -30,7 +30,7 @@ func (s *Server) ModerateText(ctx context.Context, req *pb.ModerateTextRequest) 
 	start := time.Now()
 	slog.Info("gRPC ModerateText received", "user_id", req.UserId, "text_len", len(req.Text))
 
-	record, err := s.app.SubmitContent(ctx, domain.ContentTypeText, 0, req.Text, req.UserId)
+	record, err := s.cmdService.SubmitContent(ctx, domain.ContentTypeText, 0, req.Text, req.UserId)
 	if err != nil {
 		slog.Error("gRPC ModerateText failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to submit text for moderation: %v", err))

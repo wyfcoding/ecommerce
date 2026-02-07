@@ -1,10 +1,6 @@
 package domain
 
-import (
-	"time"
-
-	"gorm.io/gorm"
-)
+import "time"
 
 // ContentType 定义了待审核内容的类型。
 type ContentType string
@@ -27,26 +23,30 @@ const (
 
 // ModerationRecord 实体代表一条内容审核记录。
 type ModerationRecord struct {
-	gorm.Model
-	ContentType  ContentType      `gorm:"type:varchar(32);not null;comment:内容类型" json:"content_type"`
-	ContentID    uint64           `gorm:"not null;index;comment:内容ID" json:"content_id"`
-	Content      string           `gorm:"type:text;comment:内容" json:"content"`
-	UserID       uint64           `gorm:"not null;index;comment:用户ID" json:"user_id"`
-	Status       ModerationStatus `gorm:"default:0;comment:状态" json:"status"`
-	AIScore      float64          `gorm:"type:decimal(5,4);comment:AI评分" json:"ai_score"`
-	AITags       []string         `gorm:"type:json;serializer:json;comment:AI标签" json:"ai_tags"`
-	RejectReason string           `gorm:"type:varchar(255);comment:拒绝原因" json:"reject_reason"`
-	ModeratorID  uint64           `gorm:"comment:审核人ID" json:"moderator_id"`
-	ModeratedAt  *time.Time       `gorm:"comment:审核时间" json:"moderated_at"`
+	ID           uint             `json:"id"`
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
+	ContentType  ContentType      `json:"content_type"`
+	ContentID    uint64           `json:"content_id"`
+	Content      string           `json:"content"`
+	UserID       uint64           `json:"user_id"`
+	Status       ModerationStatus `json:"status"`
+	AIScore      float64          `json:"ai_score"`
+	AITags       []string         `json:"ai_tags"`
+	RejectReason string           `json:"reject_reason"`
+	ModeratorID  uint64           `json:"moderator_id"`
+	ModeratedAt  *time.Time       `json:"moderated_at"`
 }
 
 // SensitiveWord 实体代表一个敏感词。
 type SensitiveWord struct {
-	gorm.Model
-	Word     string `gorm:"type:varchar(64);uniqueIndex;not null;comment:敏感词" json:"word"`
-	Category string `gorm:"type:varchar(32);not null;comment:分类" json:"category"`
-	Level    int8   `gorm:"default:1;comment:等级" json:"level"`
-	Enabled  bool   `gorm:"default:true;comment:是否启用" json:"enabled"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Word      string    `json:"word"`
+	Category  string    `json:"category"`
+	Level     int8      `json:"level"`
+	Enabled   bool      `json:"enabled"`
 }
 
 // NewModerationRecord 创建并返回一个新的 ModerationRecord 实体实例。

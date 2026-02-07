@@ -14,15 +14,17 @@ import (
 
 // Handler 结构体定义了ContentModeration模块的HTTP处理层。
 type Handler struct {
-	app    *application.ModerationService
-	logger *slog.Logger
+	cmdService   *application.ModerationCommandService
+	queryService *application.ModerationQueryService
+	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 ContentModeration HTTP Handler 实例。
-func NewHandler(app *application.ModerationService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.ModerationCommandService, query *application.ModerationQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -40,7 +42,7 @@ func (h *Handler) SubmitContent(c *gin.Context) {
 		return
 	}
 
-	record, err := h.app.SubmitContent(c.Request.Context(), domain.ContentType(req.ContentType), req.ContentID, req.Content, req.UserID)
+	record, err := h.cmdService.SubmitContent(c.Request.Context(), domain.ContentType(req.ContentType), req.ContentID, req.Content, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to submit content", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to submit content", err.Error())
@@ -69,7 +71,7 @@ func (h *Handler) ReviewContent(c *gin.Context) {
 		return
 	}
 
-	err = h.app.ReviewContent(c.Request.Context(), id, req.ModeratorID, req.Approved, req.Reason)
+	err = h.cmdService.ReviewContent(c.Request.Context(), id, req.ModeratorID, req.Approved, req.Reason)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to review content", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to review content", err.Error())
@@ -90,7 +92,7 @@ func (h *Handler) ListPendingRecords(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListPendingRecords(c.Request.Context(), page, pageSize)
+	list, total, err := h.queryService.ListPendingRecords(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list pending records", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list pending records", err.Error())
@@ -118,7 +120,7 @@ func (h *Handler) AddSensitiveWord(c *gin.Context) {
 		return
 	}
 
-	word, err := h.app.AddSensitiveWord(c.Request.Context(), req.Word, req.Category, req.Level)
+	word, err := h.cmdService.AddSensitiveWord(c.Request.Context(), req.Word, req.Category, req.Level)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to add sensitive word", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add sensitive word", err.Error())
@@ -139,7 +141,7 @@ func (h *Handler) ListSensitiveWords(c *gin.Context) {
 		pageSize = 20
 	}
 
-	list, total, err := h.app.ListSensitiveWords(c.Request.Context(), page, pageSize)
+	list, total, err := h.queryService.ListSensitiveWords(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list sensitive words", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list sensitive words", err.Error())
@@ -162,7 +164,7 @@ func (h *Handler) DeleteSensitiveWord(c *gin.Context) {
 		return
 	}
 
-	err = h.app.DeleteSensitiveWord(c.Request.Context(), id)
+	err = h.cmdService.DeleteSensitiveWord(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to delete sensitive word", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to delete sensitive word", err.Error())
