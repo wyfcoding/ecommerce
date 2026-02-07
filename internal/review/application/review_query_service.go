@@ -60,5 +60,11 @@ func (q *ReviewQueryService) ListUserReviews(ctx context.Context, userID uint64,
 
 // GetProductStats 获取商品的评分统计。
 func (q *ReviewQueryService) GetProductStats(ctx context.Context, productID uint64) (*domain.ProductRatingStats, error) {
+	if q.readRepo != nil {
+		stats, err := q.readRepo.GetProductStats(ctx, productID)
+		if err == nil && stats != nil {
+			return stats, nil
+		}
+	}
 	return q.repo.GetProductStats(ctx, productID)
 }

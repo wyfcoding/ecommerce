@@ -4,7 +4,8 @@ import (
 	"context" // 导入标准错误处理包。
 	"fmt"     // 导入格式化包。
 
-	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"          // 导入售后模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1" // 导入售后模块的protobuf定义。
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application" // 导入售后模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain"
 
@@ -17,13 +18,14 @@ import (
 // 它是DDD分层架构中的接口层，负责接收gRPC请求，调用应用服务处理业务逻辑，并将结果封装为gRPC响应。
 type Server struct {
 	pb.UnimplementedAftersalesServiceServer
-	cmd   *application.AfterSalesCommandService
-	query *application.AfterSalesQueryService
+	cmd         *application.AfterSalesCommandService
+	query       *application.AfterSalesQueryService
+	orderClient orderv1.OrderServiceClient
 }
 
 // NewServer 创建并返回一个新的 AfterSales gRPC 服务端实例。
-func NewServer(cmd *application.AfterSalesCommandService, query *application.AfterSalesQueryService) *Server {
-	return &Server{cmd: cmd, query: query}
+func NewServer(cmd *application.AfterSalesCommandService, query *application.AfterSalesQueryService, orderClient orderv1.OrderServiceClient) *Server {
+	return &Server{cmd: cmd, query: query, orderClient: orderClient}
 }
 
 // CreateReturnRequest 处理创建退货（售后）申请的gRPC请求。
@@ -43,13 +45,35 @@ func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRe
 		entityType = domain.AfterSalesTypeReturnGoods // 默认处理。
 	}
 
-	// 注意：Proto请求中缺少详细的订单商品信息 (product_id, sku_id等) 和 orderNo。
-	// 当前实现传递空商品列表和 "UNKNOWN" 作为订单号。
-	// 在实际系统中，这部分信息可能需要从其他服务获取或通过更完善的Proto定义传递。
+	// 46-49: 获取订单详情以补全信息 (OrderNo, 商品项信息等)。
+	var orderNo string = "UNKNOWN"
 	items := []*domain.AfterSalesItem{}
 
+	if s.orderClient != nil && req.OrderId > 0 {
+		order, err := s.orderClient.GetOrderByID(ctx, &orderv1.GetOrderByIDRequest{Id: req.OrderId})
+		if err == nil && order != nil {
+			orderNo = order.OrderNo
+			// 如果指定了单个商品项，从订单中匹配。
+			if req.OrderItemId > 0 {
+				for _, item := range order.Items {
+					if item.Id == req.OrderItemId {
+						items = append(items, &domain.AfterSalesItem{
+							ProductID:   item.ProductId,
+							SkuID:       item.SkuId,
+							ProductName: item.ProductName,
+							SkuName:     item.SkuName,
+							Quantity:    item.Quantity,
+							Price:       item.Price,
+						})
+						break
+					}
+				}
+			}
+		}
+	}
+
 	// 调用应用服务层创建售后申请。
-	as, err := s.cmd.CreateAfterSales(ctx, req.OrderId, "UNKNOWN", req.UserId, entityType, req.Reason, req.GetDescription(), req.ImageUrls, items)
+	as, err := s.cmd.CreateAfterSales(ctx, req.OrderId, orderNo, req.UserId, entityType, req.Reason, req.GetDescription(), req.ImageUrls, items)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create return request: %v", err))
 	}
@@ -95,9 +119,18 @@ func (s *Server) UpdateReturnRequestStatus(ctx context.Context, req *pb.UpdateRe
 		if err := s.cmd.Reject(ctx, req.Id, "admin", reason); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to reject return request: %v", err))
 		}
+	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_RECEIVED:
+		// 仓库确认收货。
+		if err := s.cmd.ProcessReturnGoods(ctx, req.Id, "warehouse"); err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process return goods receipt: %v", err))
+		}
+	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_EXCHANGED:
+		// 换货处理。
+		if err := s.cmd.ProcessExchange(ctx, req.Id); err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process exchange: %v", err))
+		}
 	default:
-		// 暂时只支持批准和拒绝操作。
-		return nil, status.Error(codes.Unimplemented, "Only Approve and Reject are supported via this API for now")
+		return nil, status.Error(codes.Unimplemented, "unsupported status transition via this API")
 	}
 
 	// 获取更新后的售后申请详情，以便在响应中返回最新状态。
@@ -406,8 +439,11 @@ func (s *Server) toProto(as *domain.AfterSales) *pb.ReturnRequest {
 	case domain.AfterSalesStatusRejected:
 		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REJECTED
 	case domain.AfterSalesStatusCompleted:
-		// 注意：Proto中没有Completed，这里映射到REFUNDED，可能需要调整。
-		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REFUNDED
+		if as.Type == domain.AfterSalesTypeExchange {
+			status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_EXCHANGED
+		} else {
+			status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REFUNDED
+		}
 	case domain.AfterSalesStatusCancelled:
 		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_CLOSED
 	default:

@@ -90,7 +90,8 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterAftersalesServiceServer(s, aftersalesgrpc.NewServer(ctx.Cmd, ctx.Query))
+	orderClient := orderv1.NewOrderServiceClient(ctx.Clients.Order)
+	pb.RegisterAftersalesServiceServer(s, aftersalesgrpc.NewServer(ctx.Cmd, ctx.Query, orderClient))
 }
 
 // registerGin 注册 HTTP 路由

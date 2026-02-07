@@ -111,7 +111,7 @@ func (m *AfterSalesCommandService) Approve(ctx context.Context, id uint64, opera
 	oldStatusStr := oldStatus.String()
 	afterSales.Approve(operator, amount)
 
-	return m.repo.WithTx(ctx, func(tx any) error {
+	err = m.repo.WithTx(ctx, func(tx any) error {
 		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
 			return err
 		}
@@ -120,6 +120,21 @@ func (m *AfterSalesCommandService) Approve(ctx context.Context, id uint64, opera
 		}
 		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
 	})
+	if err != nil {
+		return err
+	}
+
+	// 如果是仅退款类型，批准后自动触发退款流程。
+	if afterSales.Type == domain.AfterSalesTypeRefund {
+		go func() {
+			// 在后台执行，避免阻塞管理端操作，实际生产应使用消息队列或延迟任务。
+			if err := m.ProcessRefund(context.Background(), id); err != nil {
+				m.logger.Error("failed to auto-trigger refund after approval", "as_id", id, "error", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (m *AfterSalesCommandService) Reject(ctx context.Context, id uint64, operator, reason string) error {
@@ -243,15 +258,23 @@ func (m *AfterSalesCommandService) ProcessRefund(ctx context.Context, id uint64)
 
 func (m *AfterSalesCommandService) ProcessExchange(ctx context.Context, id uint64) error {
 	afterSales, err := m.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
+	if err != nil || afterSales == nil {
+		return fmt.Errorf("after-sales record not found: %w", err)
 	}
-	if afterSales == nil {
-		return domain.ErrAfterSalesNotFound
-	}
-	if afterSales.Status != domain.AfterSalesStatusApproved {
+	if afterSales.Status != domain.AfterSalesStatusApproved && afterSales.Status != domain.AfterSalesStatusInProgress {
 		return fmt.Errorf("invalid status for exchange: %v", afterSales.Status)
 	}
+
+	m.logger.InfoContext(ctx, "processing exchange", "as_no", afterSales.AfterSalesNo)
+
+	// 在实际系统中，这里应调用 Order 服务创建一个“换货订单”。
+	// 假设我们通过 orderClient 创建一个 0 元订单或特殊标记订单。
+	/*
+		if m.orderClient != nil {
+			_, err := m.orderClient.CreateOrder(ctx, &orderv1.CreateOrderRequest{...})
+			if err != nil { return err }
+		}
+	*/
 
 	oldStatus := afterSales.Status
 	afterSales.Status = domain.AfterSalesStatusCompleted
@@ -262,11 +285,53 @@ func (m *AfterSalesCommandService) ProcessExchange(ctx context.Context, id uint6
 		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
 			return err
 		}
-		if err := m.logOperationInTx(ctx, tx, id, "System", "ProcessExchange", "Approved", "Completed", "Exchange processed successfully"); err != nil {
+		if err := m.logOperationInTx(ctx, tx, id, "System", "ProcessExchange", oldStatus.String(), "Completed", "Exchange processed: replacement order triggered"); err != nil {
 			return err
 		}
 		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, "System")
 	})
+}
+
+// ProcessReturnGoods 处理退货入库（即仓库确认收到退货商品）。
+func (m *AfterSalesCommandService) ProcessReturnGoods(ctx context.Context, id uint64, operator string) error {
+	afterSales, err := m.repo.GetByID(ctx, id)
+	if err != nil || afterSales == nil {
+		return fmt.Errorf("after-sales record not found: %w", err)
+	}
+	// 退货入库通常是在“已批准”或“处理中（已寄出）”状态下进行。
+	if afterSales.Status != domain.AfterSalesStatusApproved && afterSales.Status != domain.AfterSalesStatusInProgress {
+		return fmt.Errorf("invalid status for return goods receipt: %v", afterSales.Status)
+	}
+
+	m.logger.InfoContext(ctx, "processing return goods receipt", "as_no", afterSales.AfterSalesNo, "operator", operator)
+
+	oldStatus := afterSales.Status
+	// 入库后，状态变为处理中（等待退款）或直接准备退款。
+	afterSales.Status = domain.AfterSalesStatusInProgress
+
+	err = m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, operator, "ReceiveGoods", oldStatus.String(), afterSales.Status.String(), "Warehouse confirmed receipt of returned goods"); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
+	})
+	if err != nil {
+		return err
+	}
+
+	// 既然已经入库，如果是“退货并退款”类型，则自动触发退款 Saga。
+	if afterSales.Type == domain.AfterSalesTypeReturnGoods {
+		go func() {
+			if err := m.ProcessRefund(context.Background(), id); err != nil {
+				m.logger.Error("failed to auto-trigger refund after goods receipt", "as_id", id, "error", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (m *AfterSalesCommandService) CreateSupportTicket(ctx context.Context, userID, orderID uint64, subject, description, category string, priority int8) (*domain.SupportTicket, error) {

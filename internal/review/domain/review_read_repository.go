@@ -12,4 +12,8 @@ type ReviewReadRepository interface {
 	GetByID(ctx context.Context, reviewID uint64) (*Review, error)
 	// Delete 删除读模型数据。
 	Delete(ctx context.Context, reviewID uint64) error
+	// SaveProductStats 保存商品评分统计。
+	SaveProductStats(ctx context.Context, stats *ProductRatingStats) error
+	// GetProductStats 获取商品评分统计。
+	GetProductStats(ctx context.Context, productID uint64) (*ProductRatingStats, error)
 }

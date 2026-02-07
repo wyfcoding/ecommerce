@@ -14,6 +14,7 @@ import (
 
 const (
 	reviewDetailPrefix = "review:detail:"
+	statsPrefix        = "review:stats:"
 )
 
 type reviewReadRepository struct {
@@ -59,6 +60,36 @@ func (r *reviewReadRepository) Delete(ctx context.Context, reviewID uint64) erro
 	return r.client.Del(ctx, r.reviewKey(reviewID)).Err()
 }
 
+func (r *reviewReadRepository) SaveProductStats(ctx context.Context, stats *domain.ProductRatingStats) error {
+	if stats == nil {
+		return nil
+	}
+	data, err := json.Marshal(stats)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(ctx, r.statsKey(stats.ProductID), data, r.ttl).Err()
+}
+
+func (r *reviewReadRepository) GetProductStats(ctx context.Context, productID uint64) (*domain.ProductRatingStats, error) {
+	data, err := r.client.Get(ctx, r.statsKey(productID)).Bytes()
+	if err == redis.Nil {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var stats domain.ProductRatingStats
+	if err := json.Unmarshal(data, &stats); err != nil {
+		return nil, err
+	}
+	return &stats, nil
+}
+
 func (r *reviewReadRepository) reviewKey(reviewID uint64) string {
 	return fmt.Sprintf("%s%d", reviewDetailPrefix, reviewID)
+}
+
+func (r *reviewReadRepository) statsKey(productID uint64) string {
+	return fmt.Sprintf("%s%d", statsPrefix, productID)
 }

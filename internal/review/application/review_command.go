@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/contextx"
@@ -13,24 +14,48 @@ import (
 
 // ReviewCommandService 处理评论模块的写操作和核心业务流程。
 type ReviewCommandService struct {
-	repo      domain.ReviewRepository
-	publisher domain.EventPublisher
-	logger    *slog.Logger
-	simHash   *algorithm.SimHash
+	repo        domain.ReviewRepository
+	publisher   domain.EventPublisher
+	logger      *slog.Logger
+	simHash     *algorithm.SimHash
+	orderClient orderv1.OrderServiceClient
 }
 
 // NewReviewCommandService 创建并返回一个新的 ReviewCommandService 实例。
-func NewReviewCommandService(repo domain.ReviewRepository, publisher domain.EventPublisher, logger *slog.Logger) *ReviewCommandService {
+func NewReviewCommandService(
+	repo domain.ReviewRepository,
+	publisher domain.EventPublisher,
+	logger *slog.Logger,
+	orderClient orderv1.OrderServiceClient,
+) *ReviewCommandService {
 	return &ReviewCommandService{
-		repo:      repo,
-		publisher: publisher,
-		logger:    logger,
-		simHash:   algorithm.NewSimHash(),
+		repo:        repo,
+		publisher:   publisher,
+		logger:      logger,
+		simHash:     algorithm.NewSimHash(),
+		orderClient: orderClient,
 	}
 }
 
 // CreateReview 提交一条新的评论。
 func (m *ReviewCommandService) CreateReview(ctx context.Context, userID, productID, orderID, skuID uint64, rating int, content string, images []string) (*domain.Review, error) {
+	// 1. 校验订单状态：仅允许已完成的订单评价
+	if m.orderClient != nil && orderID > 0 {
+		order, err := m.orderClient.GetOrderByID(ctx, &orderv1.GetOrderByIDRequest{Id: orderID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify order status: %w", err)
+		}
+		if order == nil {
+			return nil, fmt.Errorf("order not found")
+		}
+		if order.Status != orderv1.OrderStatus_COMPLETED {
+			return nil, fmt.Errorf("only completed orders can be reviewed (current status: %s)", order.Status.String())
+		}
+		if order.UserId != userID {
+			return nil, fmt.Errorf("permission denied: order does not belong to user")
+		}
+	}
+
 	// 简单校验：评分范围。
 	if rating < 1 || rating > 5 {
 		return nil, fmt.Errorf("rating must be between 1 and 5")

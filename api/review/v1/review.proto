@@ -53,6 +53,10 @@ message CreateReviewRequest {
   string title = 4;
   // 正文。
   string content = 5;
+  // 订单 ID (可选)。
+  string order_id = 6;
+  // SKU ID (可选)。
+  string sku_id = 7;
 }
 
 // 发布结果。

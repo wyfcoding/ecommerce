@@ -29,12 +29,23 @@ func NewReviewProjectionService(repo domain.ReviewRepository, readRepo domain.Re
 
 // OnReviewCreated 处理评论创建事件。
 func (s *ReviewProjectionService) OnReviewCreated(ctx context.Context, event *domain.ReviewCreatedEvent) error {
-	return s.refreshReview(ctx, event.ReviewID)
+	if err := s.refreshReview(ctx, event.ReviewID); err != nil {
+		return err
+	}
+	return s.refreshStats(ctx, event.ProductID)
 }
 
 // OnReviewUpdated 处理评论更新事件。
 func (s *ReviewProjectionService) OnReviewUpdated(ctx context.Context, event *domain.ReviewUpdatedEvent) error {
-	return s.refreshReview(ctx, event.ReviewID)
+	if err := s.refreshReview(ctx, event.ReviewID); err != nil {
+		return err
+	}
+	// 需要先获取 Review 实体以获得 ProductID
+	review, err := s.repo.Get(ctx, event.ReviewID)
+	if err != nil || review == nil {
+		return err
+	}
+	return s.refreshStats(ctx, review.ProductID)
 }
 
 // OnReviewDeleted 处理评论删除事件。
@@ -42,11 +53,20 @@ func (s *ReviewProjectionService) OnReviewDeleted(ctx context.Context, event *do
 	if event == nil {
 		return nil
 	}
+	// 删除操作前通常已经失去了对实体的引用，如果事件中没有 ProductID，可能需要额外查询或者在事件中包含它。
+	// 这里假设事件没有 ProductID，我们尝试从读模型中获取（如果还存在）。
+	var productID uint64
 	if s.readRepo != nil {
+		if r, _ := s.readRepo.GetByID(ctx, event.ReviewID); r != nil {
+			productID = r.ProductID
+		}
 		_ = s.readRepo.Delete(ctx, event.ReviewID)
 	}
 	if s.searchRepo != nil {
 		_ = s.searchRepo.Delete(ctx, event.ReviewID)
+	}
+	if productID > 0 {
+		return s.refreshStats(ctx, productID)
 	}
 	return nil
 }
@@ -81,6 +101,22 @@ func (s *ReviewProjectionService) refreshReview(ctx context.Context, reviewID ui
 			s.logger.ErrorContext(ctx, "failed to index review", "review_id", reviewID, "error", err)
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *ReviewProjectionService) refreshStats(ctx context.Context, productID uint64) error {
+	if productID == 0 || s.readRepo == nil {
+		return nil
+	}
+	stats, err := s.repo.GetProductStats(ctx, productID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to calculate product stats for projection", "product_id", productID, "error", err)
+		return err
+	}
+	if err := s.readRepo.SaveProductStats(ctx, stats); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save product stats read model", "product_id", productID, "error", err)
+		return err
 	}
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
+	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	pb "github.com/wyfcoding/ecommerce/goapi/review/v1"
 	"github.com/wyfcoding/ecommerce/internal/review/application"
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
@@ -63,7 +64,7 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	// 目前 Review 服务无下游强依赖
+	Order orderv1.OrderServiceClient
 }
 
 func main() {
@@ -209,7 +210,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 6.2 Application (Service)
 	querySvc := application.NewReviewQueryService(reviewRepo, reviewReadRepo, reviewSearchRepo, logger.Logger)
-	commandSvc := application.NewReviewCommandService(reviewRepo, outbox.NewPublisher(outboxMgr), logger.Logger)
+	commandSvc := application.NewReviewCommandService(reviewRepo, outbox.NewPublisher(outboxMgr), logger.Logger, clients.Order)
 
 	// 5.3 Projection Consumers (Review Events -> Read Model)
 	projectionService := application.NewReviewProjectionService(reviewRepo, reviewReadRepo, reviewSearchRepo, logger.Logger)

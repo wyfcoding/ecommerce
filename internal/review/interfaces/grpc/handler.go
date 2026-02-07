@@ -34,7 +34,7 @@ func (s *Server) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) 
 	start := time.Now()
 	slog.Info("gRPC CreateReview received", "user_id", req.UserId, "product_id", req.ProductId, "rating", req.Rating)
 
-	// 将字符串类型的用户ID和商品ID转换为uint64。
+	// 将字符串类型的用户ID、商品ID、订单ID和SKUID转换为uint64。
 	userID, err := strconv.ParseUint(req.UserId, 10, 64)
 	if err != nil {
 		slog.Warn("gRPC CreateReview invalid user_id", "user_id", req.UserId, "error", err)
@@ -46,8 +46,16 @@ func (s *Server) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) 
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid product_id: %v", err))
 	}
 
+	var orderID, skuID uint64
+	if req.OrderId != "" {
+		orderID, _ = strconv.ParseUint(req.OrderId, 10, 64)
+	}
+	if req.SkuId != "" {
+		skuID, _ = strconv.ParseUint(req.SkuId, 10, 64)
+	}
+
 	// 映射 Proto 字段到应用服务层.
-	review, err := s.cmd.CreateReview(ctx, userID, productID, 0, 0, int(req.Rating), req.Content, nil)
+	review, err := s.cmd.CreateReview(ctx, userID, productID, orderID, skuID, int(req.Rating), req.Content, nil)
 	if err != nil {
 		slog.Error("gRPC CreateReview failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create review: %v", err))
