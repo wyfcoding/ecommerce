@@ -17,12 +17,16 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedPointsmallServiceServer
-	app *application.PointsmallService
+	cmd   *application.PointsmallCommandService
+	query *application.PointsmallQueryService
 }
 
 // NewServer 函数。
-func NewServer(app *application.PointsmallService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.PointsmallCommandService, query *application.PointsmallQueryService) *Server {
+	return &Server{
+		cmd:   cmd,
+		query: query,
+	}
 }
 
 func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest) (*pb.CreateProductResponse, error) {
@@ -36,7 +40,7 @@ func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest
 		Status:       domain.PointsProductStatus(req.Status),
 	}
 
-	if err := s.app.CreateProduct(ctx, product); err != nil {
+	if err := s.cmd.CreateProduct(ctx, product); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create product: %v", err))
 	}
 
@@ -58,7 +62,7 @@ func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) 
 		statusPtr = &st
 	}
 
-	products, total, err := s.app.ListProducts(ctx, statusPtr, page, pageSize)
+	products, total, err := s.query.ListProducts(ctx, statusPtr, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list products: %v", err))
 	}
@@ -75,7 +79,7 @@ func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) 
 }
 
 func (s *Server) ExchangeProduct(ctx context.Context, req *pb.ExchangeProductRequest) (*pb.ExchangeProductResponse, error) {
-	order, err := s.app.ExchangeProduct(ctx, req.UserId, req.ProductId, req.Quantity, req.Address, req.Phone, req.Receiver)
+	order, err := s.cmd.ExchangeProduct(ctx, req.UserId, req.ProductId, req.Quantity, req.Address, req.Phone, req.Receiver)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to exchange product: %v", err))
 	}
@@ -98,7 +102,7 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 		statusPtr = &st
 	}
 
-	orders, total, err := s.app.ListOrders(ctx, req.UserId, statusPtr, page, pageSize)
+	orders, total, err := s.query.ListOrders(ctx, req.UserId, statusPtr, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list orders: %v", err))
 	}
@@ -115,7 +119,7 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb
 }
 
 func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
-	account, err := s.app.GetAccount(ctx, req.UserId)
+	account, err := s.query.GetAccount(ctx, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get account: %v", err))
 	}
@@ -126,7 +130,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 }
 
 func (s *Server) AddPoints(ctx context.Context, req *pb.AddPointsRequest) (*emptypb.Empty, error) {
-	if err := s.app.AddPoints(ctx, req.UserId, req.Points, req.Description, req.RefId); err != nil {
+	if err := s.cmd.AddPoints(ctx, req.UserId, req.Points, req.Description, req.RefId); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to add points: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -196,12 +200,3 @@ func convertAccountToProto(a *domain.PointsAccount) *pb.PointsAccount {
 		UpdatedAt:   timestamppb.New(a.UpdatedAt),
 	}
 }
-
-// 手动添加此函数，因为它不在查看的文件中，但可能需要或有用。
-// 如果它没被使用，也不会有什么坏处，但保险起见还是加上。
-// 实际上，timestamppb.New 处理的是 time.Time。
-// 等等，timestamppb.New 接受 *time.Time 吗？不，它通常直接接受 time.Time。
-// 查阅 protobuf 文档... New 接受 time.Time。
-// 所以如果 CreatedAt 是 time.Time (gorm.Model)，那就没问题。
-// 但如果 ShippedAt 是 *time.Time，我们需要在传递给 New 之前解引用，但要先检查 nil。
-// 我已经在 convertOrderToProto 中处理了 nil 检查。

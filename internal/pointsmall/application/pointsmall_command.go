@@ -31,7 +31,20 @@ func NewPointsmallCommandService(repo domain.PointsRepository, publisher domain.
 
 // CreateProduct 创建积分商品。
 func (m *PointsmallCommandService) CreateProduct(ctx context.Context, product *domain.PointsProduct) error {
-	return m.repo.SaveProduct(ctx, product)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveProductInTx(ctx, tx, product); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.PointsProductCreatedEventType, fmt.Sprintf("%d", product.ID), &domain.PointsProductCreatedEvent{
+			ProductID: uint64(product.ID),
+			Status:    product.Status,
+			Stock:     product.Stock,
+			Timestamp: time.Now(),
+		})
+	})
 }
 
 // ExchangeProduct 兑换商品。
@@ -56,6 +69,9 @@ func (m *PointsmallCommandService) ExchangeProduct(ctx context.Context, userID, 
 	if err != nil {
 		return nil, err
 	}
+	if account == nil {
+		account = &domain.PointsAccount{UserID: userID}
+	}
 
 	// 3. 检查积分
 	totalPoints := product.Points * int64(quantity)
@@ -63,21 +79,7 @@ func (m *PointsmallCommandService) ExchangeProduct(ctx context.Context, userID, 
 		return nil, errors.New("insufficient points")
 	}
 
-	// 4. 扣减积分
-	account.UsedPoints += totalPoints
-	if err := m.repo.SaveAccount(ctx, account); err != nil {
-		return nil, err
-	}
-
-	// 5. 扣减库存
-	product.Stock -= quantity
-	product.SoldCount += quantity
-	if err := m.repo.SaveProduct(ctx, product); err != nil {
-		// 如果需要回滚（为简洁起见省略）
-		return nil, err
-	}
-
-	// 6. 创建订单
+	// 4. 事务内更新积分、库存与订单
 	orderID := m.idGen.Generate()
 	orderNo := fmt.Sprintf("P%s%d", time.Now().Format("20060102"), orderID)
 	order := &domain.PointsOrder{
@@ -93,19 +95,77 @@ func (m *PointsmallCommandService) ExchangeProduct(ctx context.Context, userID, 
 		Phone:       phone,
 		Receiver:    receiver,
 	}
-	if err := m.repo.SaveOrder(ctx, order); err != nil {
-		return nil, err
-	}
 
-	// 7. 记录流水
-	tx := &domain.PointsTransaction{
-		UserID:      userID,
-		Type:        "spend",
-		Points:      -totalPoints,
-		Description: fmt.Sprintf("Exchange product: %s", product.Name),
-		RefID:       orderNo,
-	}
-	if err := m.repo.SaveTransaction(ctx, tx); err != nil {
+	err = m.repo.WithTx(ctx, func(tx any) error {
+		// 扣减积分
+		account.UsedPoints += totalPoints
+		if err := m.repo.SaveAccountInTx(ctx, tx, account); err != nil {
+			return err
+		}
+
+		// 扣减库存
+		product.Stock -= quantity
+		product.SoldCount += quantity
+		if err := m.repo.SaveProductInTx(ctx, tx, product); err != nil {
+			return err
+		}
+
+		// 创建订单
+		if err := m.repo.SaveOrderInTx(ctx, tx, order); err != nil {
+			return err
+		}
+
+		// 记录流水
+		txRecord := &domain.PointsTransaction{
+			UserID:      userID,
+			Type:        "spend",
+			Points:      -totalPoints,
+			Description: fmt.Sprintf("Exchange product: %s", product.Name),
+			RefID:       orderNo,
+		}
+		if err := m.repo.SaveTransactionInTx(ctx, tx, txRecord); err != nil {
+			return err
+		}
+
+		// 发布事件
+		if m.publisher == nil {
+			return nil
+		}
+		if err := m.publisher.PublishInTx(ctx, tx, domain.PointsAccountUpdatedEventType, fmt.Sprintf("%d", account.UserID), &domain.PointsAccountUpdatedEvent{
+			UserID:      account.UserID,
+			TotalPoints: account.TotalPoints,
+			UsedPoints:  account.UsedPoints,
+			Timestamp:   time.Now(),
+		}); err != nil {
+			return err
+		}
+		if err := m.publisher.PublishInTx(ctx, tx, domain.PointsStockUpdatedEventType, fmt.Sprintf("%d", product.ID), &domain.PointsStockUpdatedEvent{
+			ItemID:    uint64(product.ID),
+			NewStock:  product.Stock,
+			Timestamp: time.Now(),
+		}); err != nil {
+			return err
+		}
+		if err := m.publisher.PublishInTx(ctx, tx, domain.PointsOrderCreatedEventType, fmt.Sprintf("%d", order.ID), &domain.PointsOrderCreatedEvent{
+			OrderID:     uint64(order.ID),
+			OrderNo:     order.OrderNo,
+			UserID:      order.UserID,
+			ProductID:   order.ProductID,
+			Quantity:    order.Quantity,
+			TotalPoints: order.TotalPoints,
+			Timestamp:   time.Now(),
+		}); err != nil {
+			return err
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.PointItemExchangedEventType, fmt.Sprintf("%d", order.ID), &domain.PointItemExchangedEvent{
+			ExchangeID: uint64(order.ID),
+			UserID:     userID,
+			ItemID:     productID,
+			Points:     int32(totalPoints),
+			Timestamp:  time.Now(),
+		})
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -121,17 +181,35 @@ func (m *PointsmallCommandService) AddPoints(ctx context.Context, userID uint64,
 	}
 	// 注意：如果 repo 实现中不存在，GetAccount 会自动创建
 
-	account.TotalPoints += points
-	if err := m.repo.SaveAccount(ctx, account); err != nil {
-		return err
+	if account == nil {
+		account = &domain.PointsAccount{UserID: userID}
 	}
 
-	tx := &domain.PointsTransaction{
-		UserID:      userID,
-		Type:        "earn",
-		Points:      points,
-		Description: description,
-		RefID:       refID,
-	}
-	return m.repo.SaveTransaction(ctx, tx)
+	return m.repo.WithTx(ctx, func(tx any) error {
+		account.TotalPoints += points
+		if err := m.repo.SaveAccountInTx(ctx, tx, account); err != nil {
+			return err
+		}
+
+		txRecord := &domain.PointsTransaction{
+			UserID:      userID,
+			Type:        "earn",
+			Points:      points,
+			Description: description,
+			RefID:       refID,
+		}
+		if err := m.repo.SaveTransactionInTx(ctx, tx, txRecord); err != nil {
+			return err
+		}
+
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.PointsAccountUpdatedEventType, fmt.Sprintf("%d", account.UserID), &domain.PointsAccountUpdatedEvent{
+			UserID:      account.UserID,
+			TotalPoints: account.TotalPoints,
+			UsedPoints:  account.UsedPoints,
+			Timestamp:   time.Now(),
+		})
+	})
 }

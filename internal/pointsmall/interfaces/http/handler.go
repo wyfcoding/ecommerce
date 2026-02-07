@@ -14,15 +14,17 @@ import (
 
 // Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
-	service *application.PointsmallService
-	logger  *slog.Logger
+	cmd    *application.PointsmallCommandService
+	query  *application.PointsmallQueryService
+	logger *slog.Logger
 }
 
 // NewHandler 处理 HTTP 或 gRPC 请求。
-func NewHandler(service *application.PointsmallService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.PointsmallCommandService, query *application.PointsmallQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		cmd:    cmd,
+		query:  query,
+		logger: logger,
 	}
 }
 
@@ -33,7 +35,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CreateProduct(c.Request.Context(), &req); err != nil {
+	if err := h.cmd.CreateProduct(c.Request.Context(), &req); err != nil {
 		h.logger.Error("Failed to create product", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to create product", err.Error())
 		return
@@ -63,7 +65,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		status = &s
 	}
 
-	list, total, err := h.service.ListProducts(c.Request.Context(), status, page, pageSize)
+	list, total, err := h.query.ListProducts(c.Request.Context(), status, page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list products", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list products", err.Error())
@@ -93,7 +95,7 @@ func (h *Handler) ExchangeProduct(c *gin.Context) {
 		return
 	}
 
-	order, err := h.service.ExchangeProduct(c.Request.Context(), req.UserID, req.ProductID, req.Quantity, req.Address, req.Phone, req.Receiver)
+	order, err := h.cmd.ExchangeProduct(c.Request.Context(), req.UserID, req.ProductID, req.Quantity, req.Address, req.Phone, req.Receiver)
 	if err != nil {
 		h.logger.Error("Failed to exchange product", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to exchange product", err.Error())
@@ -110,7 +112,7 @@ func (h *Handler) GetAccount(c *gin.Context) {
 		return
 	}
 
-	account, err := h.service.GetAccount(c.Request.Context(), userID)
+	account, err := h.query.GetAccount(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.Error("Failed to get account", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get account", err.Error())
@@ -133,7 +135,7 @@ func (h *Handler) AddPoints(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.AddPoints(c.Request.Context(), req.UserID, req.Points, req.Description, req.RefID); err != nil {
+	if err := h.cmd.AddPoints(c.Request.Context(), req.UserID, req.Points, req.Description, req.RefID); err != nil {
 		h.logger.Error("Failed to add points", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to add points", err.Error())
 		return
@@ -169,7 +171,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		status = &s
 	}
 
-	list, total, err := h.service.ListOrders(c.Request.Context(), userID, status, page, pageSize)
+	list, total, err := h.query.ListOrders(c.Request.Context(), userID, status, page, pageSize)
 	if err != nil {
 		h.logger.Error("Failed to list orders", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list orders", err.Error())

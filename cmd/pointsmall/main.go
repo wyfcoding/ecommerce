@@ -14,7 +14,11 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/goapi/pointsmall/v1"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
-	"github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence"
+	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
+	pointsmallsearch "github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence/elasticsearch"
+	pointsmallmysql "github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence/mysql"
+	pointsmallredis "github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence/redis"
+	pointsmallconsumer "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/consumer"
 	pointsmallgrpc "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/grpc"
 	pointsmallhttp "github.com/wyfcoding/ecommerce/internal/pointsmall/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -25,9 +29,11 @@ import (
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/limiter"
 	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/search"
 )
 
 // BootstrapName 服务唯一标识
@@ -39,12 +45,17 @@ const IdempotencyPrefix = "pointsmall:idem"
 // Config 服务扩展配置
 type Config struct {
 	configpkg.Config `mapstructure:",squash"`
+	Search           struct {
+		ProductsIndex string `mapstructure:"products_index" toml:"products_index"`
+		OrdersIndex   string `mapstructure:"orders_index" toml:"orders_index"`
+	} `mapstructure:"search" toml:"search"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
 	Config      *Config
-	Pointsmall  *application.PointsmallService
+	Cmd         *application.PointsmallCommandService
+	Query       *application.PointsmallQueryService
 	Clients     *ServiceClients
 	Handler     *pointsmallhttp.Handler
 	Metrics     *metrics.Metrics
@@ -76,7 +87,7 @@ func main() {
 
 // registerGRPC 注册 gRPC 服务
 func registerGRPC(s *grpc.Server, ctx *AppContext) {
-	pb.RegisterPointsmallServiceServer(s, pointsmallgrpc.NewServer(ctx.Pointsmall))
+	pb.RegisterPointsmallServiceServer(s, pointsmallgrpc.NewServer(ctx.Cmd, ctx.Query))
 }
 
 // registerGin 注册 HTTP 路由
@@ -122,6 +133,9 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	bootLog := slog.With("module", "bootstrap")
 	logger := logging.Default() // 获取全局 Logger
 
+	// 打印脱敏配置
+	configpkg.PrintWithMask(c)
+
 	// 1. 初始化数据库 (MySQL)
 	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
@@ -135,6 +149,23 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 			sqlDB.Close()
 		}
 		return nil, nil, fmt.Errorf("redis init error: %w", err)
+	}
+
+	// 2.1 初始化 Elasticsearch 客户端 (读模型搜索)
+	bootLog.Info("initializing elasticsearch client...")
+	esClient, err := search.NewClient(&search.Config{
+		ServiceName:         BootstrapName,
+		ElasticsearchConfig: c.Data.Elasticsearch,
+		BreakerConfig:       c.CircuitBreaker,
+		SlowThreshold:       800 * time.Millisecond,
+		MaxRetries:          3,
+	}, logger, m)
+	if err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("elasticsearch init error: %w", err)
 	}
 
 	// 3. 初始化治理组件 (限流器、幂等管理器、ID 生成器)
@@ -151,10 +182,28 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("id generator init error: %w", err)
 	}
 
+	// 3.1 初始化消息队列与 Outbox
+	bootLog.Info("initializing kafka producer and outbox...")
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	if err := db.RawDB().AutoMigrate(&outbox.Message{}); err != nil {
+		redisCache.Close()
+		if sqlDB, err := db.RawDB().DB(); err == nil {
+			sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("failed to migrate outbox table: %w", err)
+	}
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
 	// 4. 初始化下游微服务客户端
 	clients := &ServiceClients{}
 	clientCleanup, err := grpcclient.InitClients(c.Services, m, c.CircuitBreaker, clients)
 	if err != nil {
+		outboxProcessor.Stop()
+		producer.Close()
 		redisCache.Close()
 		if sqlDB, err := db.RawDB().DB(); err == nil {
 			sqlDB.Close()
@@ -162,35 +211,56 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		return nil, nil, fmt.Errorf("grpc clients init error: %w", err)
 	}
 
-	// 5. 初始化 Outbox 管理器与发布者
-	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
-	outboxPublisher := outbox.NewPublisher(outboxMgr)
-
-	// 启动 Outbox 处理器
-	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
-		bootLog.Info("outbox msg produced (dummy)", "topic", topic, "key", key)
-		return nil
-	}, 100, 5*time.Second)
-	outboxProcessor.Start()
-
-	// 6. DDD 分层装配
+	// 5. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
 	// 5.1 Infrastructure (Persistence)
-	pointsmallRepo := persistence.NewPointsRepository(db.RawDB())
+	pointsmallRepo := pointsmallmysql.NewPointsRepository(db.RawDB())
+	productReadRepo := pointsmallredis.NewProductReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	orderReadRepo := pointsmallredis.NewOrderReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	accountReadRepo := pointsmallredis.NewAccountReadRepository(redisCache.GetClient(), c.Cache.DefaultExpiration)
+	productSearchRepo := pointsmallsearch.NewProductSearchRepository(esClient, c.Search.ProductsIndex)
+	orderSearchRepo := pointsmallsearch.NewOrderSearchRepository(esClient, c.Search.OrdersIndex)
 
-	// 6.2 Application (Service)
-	querySvc := application.NewPointsmallQueryService(pointsmallRepo)
-	commandSvc := application.NewPointsmallCommandService(pointsmallRepo, outboxPublisher, idGenerator, logger.Logger)
-	pointsmallService := application.NewPointsmallService(commandSvc, querySvc)
+	// 5.2 Application (Service)
+	publisher := outbox.NewPublisher(outboxMgr)
+	querySvc := application.NewPointsmallQueryService(pointsmallRepo, productReadRepo, orderReadRepo, accountReadRepo, productSearchRepo, orderSearchRepo, logger.Logger)
+	commandSvc := application.NewPointsmallCommandService(pointsmallRepo, publisher, idGenerator, logger.Logger)
 
-	// 5.3 Interface (HTTP Handlers)
-	handler := pointsmallhttp.NewHandler(pointsmallService, logger.Logger)
+	// 5.3 Projection Consumers (Points Events -> Read Model)
+	projectionService := application.NewPointsmallProjectionService(pointsmallRepo, productReadRepo, orderReadRepo, accountReadRepo, productSearchRepo, orderSearchRepo, logger.Logger)
+	projectionHandler := pointsmallconsumer.NewPointsmallProjectionHandler(projectionService, logger.Logger)
+	projectionTopics := []string{
+		domain.PointsProductCreatedEventType,
+		domain.PointsStockUpdatedEventType,
+		domain.PointsOrderCreatedEventType,
+		domain.PointsAccountUpdatedEventType,
+	}
+	projectionConsumers := make([]*kafka.Consumer, 0, len(projectionTopics))
+	for _, topic := range projectionTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-projection-group"
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 3, projectionHandler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 5.4 Interface (HTTP Handlers)
+	handler := pointsmallhttp.NewHandler(commandSvc, querySvc, logger.Logger)
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
+		for _, c := range projectionConsumers {
+			if c != nil {
+				c.Close()
+			}
+		}
 		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
 		clientCleanup()
 		if redisCache != nil {
 			if err := redisCache.Close(); err != nil {
@@ -207,7 +277,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 返回应用上下文与清理函数
 	return &AppContext{
 		Config:      c,
-		Pointsmall:  pointsmallService,
+		Cmd:         commandSvc,
+		Query:       querySvc,
 		Clients:     clients,
 		Handler:     handler,
 		Metrics:     m,
