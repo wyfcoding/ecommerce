@@ -194,6 +194,31 @@ func toCompetitorPriceInfo(model *CompetitorPriceInfoModel) *domain.CompetitorPr
 	}
 }
 
+func toCompetitorPriceInfoModel(info *domain.CompetitorPriceInfo) *CompetitorPriceInfoModel {
+	if info == nil {
+		return nil
+	}
+	competitors := make([]CompetitorPriceModel, len(info.Competitors))
+	for i, c := range info.Competitors {
+		competitors[i] = *toCompetitorPriceModel(c)
+	}
+	return &CompetitorPriceInfoModel{
+		Model: gorm.Model{
+			ID:        info.ID,
+			CreatedAt: info.CreatedAt,
+			UpdatedAt: info.UpdatedAt,
+		},
+		SKUID:        info.SKUID,
+		OurPrice:     info.OurPrice,
+		AveragePrice: info.AveragePrice,
+		LowestPrice:  info.LowestPrice,
+		HighestPrice: info.HighestPrice,
+		PriceRank:    info.PriceRank,
+		LastUpdated:  info.LastUpdated,
+		Competitors:  competitors,
+	}
+}
+
 func toCompetitorPrice(model *CompetitorPriceModel) *domain.CompetitorPrice {
 	if model == nil {
 		return nil
@@ -207,6 +232,24 @@ func toCompetitorPrice(model *CompetitorPriceModel) *domain.CompetitorPrice {
 		Price:          model.Price,
 		URL:            model.URL,
 		LastUpdated:    model.LastUpdated,
+	}
+}
+
+func toCompetitorPriceModel(price *domain.CompetitorPrice) *CompetitorPriceModel {
+	if price == nil {
+		return nil
+	}
+	return &CompetitorPriceModel{
+		Model: gorm.Model{
+			ID:        price.ID,
+			CreatedAt: price.CreatedAt,
+			UpdatedAt: price.UpdatedAt,
+		},
+		InfoID:         price.InfoID,
+		CompetitorName: price.CompetitorName,
+		Price:          price.Price,
+		URL:            price.URL,
+		LastUpdated:    price.LastUpdated,
 	}
 }
 

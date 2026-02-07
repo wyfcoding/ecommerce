@@ -72,6 +72,18 @@ func (r *pricingRepository) GetLatestDynamicPrice(ctx context.Context, skuID uin
 
 // --- CompetitorPrice methods ---
 
+func (r *pricingRepository) SaveCompetitorPrice(ctx context.Context, price *domain.CompetitorPrice) error {
+	return r.saveCompetitorPriceWithTx(ctx, r.db, price)
+}
+
+func (r *pricingRepository) SaveCompetitorPriceInTx(ctx context.Context, tx any, price *domain.CompetitorPrice) error {
+	gormTx, ok := tx.(*gorm.DB)
+	if !ok || gormTx == nil {
+		return errors.New("invalid transaction")
+	}
+	return r.saveCompetitorPriceWithTx(ctx, gormTx, price)
+}
+
 func (r *pricingRepository) GetCompetitorPriceInfo(ctx context.Context, skuID uint64) (*domain.CompetitorPriceInfo, error) {
 	var info CompetitorPriceInfoModel
 	if err := r.db.WithContext(ctx).Preload("Competitors").Where("sku_id = ?", skuID).Order("created_at desc").First(&info).Error; err != nil {
@@ -81,6 +93,18 @@ func (r *pricingRepository) GetCompetitorPriceInfo(ctx context.Context, skuID ui
 		return nil, err
 	}
 	return toCompetitorPriceInfo(&info), nil
+}
+
+func (r *pricingRepository) SaveCompetitorPriceInfo(ctx context.Context, info *domain.CompetitorPriceInfo) error {
+	return r.saveCompetitorPriceInfoWithTx(ctx, r.db, info)
+}
+
+func (r *pricingRepository) SaveCompetitorPriceInfoInTx(ctx context.Context, tx any, info *domain.CompetitorPriceInfo) error {
+	gormTx, ok := tx.(*gorm.DB)
+	if !ok || gormTx == nil {
+		return errors.New("invalid transaction")
+	}
+	return r.saveCompetitorPriceInfoWithTx(ctx, gormTx, info)
 }
 
 // --- PriceHistory methods ---
@@ -196,5 +220,33 @@ func (r *pricingRepository) savePricingStrategyWithTx(ctx context.Context, tx *g
 	strategy.ID = model.ID
 	strategy.CreatedAt = model.CreatedAt
 	strategy.UpdatedAt = model.UpdatedAt
+	return nil
+}
+
+func (r *pricingRepository) saveCompetitorPriceWithTx(ctx context.Context, tx *gorm.DB, price *domain.CompetitorPrice) error {
+	model := toCompetitorPriceModel(price)
+	if model == nil {
+		return nil
+	}
+	if err := tx.WithContext(ctx).Save(model).Error; err != nil {
+		return err
+	}
+	price.ID = model.ID
+	price.CreatedAt = model.CreatedAt
+	price.UpdatedAt = model.UpdatedAt
+	return nil
+}
+
+func (r *pricingRepository) saveCompetitorPriceInfoWithTx(ctx context.Context, tx *gorm.DB, info *domain.CompetitorPriceInfo) error {
+	model := toCompetitorPriceInfoModel(info)
+	if model == nil {
+		return nil
+	}
+	if err := tx.WithContext(ctx).Save(model).Error; err != nil {
+		return err
+	}
+	info.ID = model.ID
+	info.CreatedAt = model.CreatedAt
+	info.UpdatedAt = model.UpdatedAt
 	return nil
 }

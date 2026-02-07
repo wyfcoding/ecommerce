@@ -214,3 +214,44 @@ func (m *DynamicPricingCommandService) SaveStrategy(ctx context.Context, strateg
 
 	return nil
 }
+
+// UpdateCompetitorPrice 记录并更新竞争对手对特定 SKU 的最新报价。
+func (m *DynamicPricingCommandService) UpdateCompetitorPrice(ctx context.Context, skuID uint64, competitorName string, price int64, url string) error {
+	// 1. 获取（或创建）汇总信息
+	info, err := m.repo.GetCompetitorPriceInfo(ctx, skuID)
+	if err != nil {
+		return fmt.Errorf("failed to get competitor price info: %w", err)
+	}
+
+	if info == nil {
+		info = &domain.CompetitorPriceInfo{
+			SKUID:       skuID,
+			LastUpdated: time.Now(),
+		}
+	}
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		// 2. 如果汇总信息不存在，先创建
+		if info.ID == 0 {
+			if err := m.repo.SaveCompetitorPriceInfoInTx(ctx, tx, info); err != nil {
+				return err
+			}
+		}
+
+		// 3. 保存明细数据
+		newSub := &domain.CompetitorPrice{
+			InfoID:         uint64(info.ID),
+			CompetitorName: competitorName,
+			Price:          price,
+			URL:            url,
+			LastUpdated:    time.Now(),
+		}
+
+		if err := m.repo.SaveCompetitorPriceInTx(ctx, tx, newSub); err != nil {
+			return err
+		}
+
+		// 4. (可选) 可以在此处触发重新计算汇总信息（平均价、最低价等）
+		return nil
+	})
+}

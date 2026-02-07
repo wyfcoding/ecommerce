@@ -21,7 +21,11 @@ type PricingRepository interface {
 	GetPricingStrategy(ctx context.Context, skuID uint64) (*PricingStrategy, error)
 	ListPricingStrategies(ctx context.Context, query *PricingStrategyQuery) ([]*PricingStrategy, int64, error)
 
-	// 高级数据获取
+	// 竞品与弹性数据
+	SaveCompetitorPrice(ctx context.Context, price *CompetitorPrice) error
+	SaveCompetitorPriceInTx(ctx context.Context, tx any, price *CompetitorPrice) error
+	SaveCompetitorPriceInfo(ctx context.Context, info *CompetitorPriceInfo) error
+	SaveCompetitorPriceInfoInTx(ctx context.Context, tx any, info *CompetitorPriceInfo) error
 	GetPriceElasticity(ctx context.Context, skuID uint64) (*PriceElasticity, error)
 	GetCompetitorPriceInfo(ctx context.Context, skuID uint64) (*CompetitorPriceInfo, error)
 	GetPriceHistory(ctx context.Context, skuID uint64, limit int) ([]PriceHistoryData, error)

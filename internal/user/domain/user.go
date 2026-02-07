@@ -1,44 +1,46 @@
 package domain
 
 import (
-	"fmt"  // 导入格式化库，用于错误信息。
-	"time" // 导入时间库。
-
-	"gorm.io/gorm" // 导入GORM库。
+	"fmt"
+	"time"
 )
 
 // User 实体是用户模块的聚合根。
 // 包含了用户的基本信息、认证凭据、个人资料、状态以及关联的地址列表。
 type User struct {
-	gorm.Model            // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	Username   string     `gorm:"column:username;type:varchar(255);uniqueIndex;not null" json:"username"` // 用户名，唯一索引，不允许为空。
-	Email      string     `gorm:"column:email;type:varchar(255);uniqueIndex;not null" json:"email"`       // 邮箱，唯一索引，不允许为空。
-	FullName   string     `gorm:"column:full_name;type:varchar(100);comment:全名" json:"full_name"`         // 全名。
-	Password   string     `gorm:"column:password;type:varchar(255);not null" json:"-"`                    // 密码（加密存储），JSON序列化时忽略。
-	Phone      string     `gorm:"column:phone;type:varchar(20);index" json:"phone"`                       // 手机号，索引字段。
-	Nickname   string     `gorm:"column:nickname;type:varchar(255)" json:"nickname"`                      // 昵称。
-	Avatar     string     `gorm:"column:avatar;type:varchar(1024)" json:"avatar"`                         // 头像URL。
-	Gender     int8       `gorm:"column:gender;type:tinyint;default:0" json:"gender"`                     // 性别 0:未知 1:男 2:女，默认为未知。
-	Birthday   *time.Time `gorm:"column:birthday;type:date" json:"birthday"`                              // 生日。
-	Status     int8       `gorm:"column:status;type:tinyint;default:1" json:"status"`                     // 状态 1:正常 2:禁用，默认为正常。
-	Addresses  []*Address `gorm:"foreignKey:UserID" json:"addresses"`                                     // 关联的地址列表，一对多关系。
-	Roles      []*Role    `gorm:"many2many:user_roles;" json:"roles"`                                     // 关联的角色列表。
-	Tier       *UserTier  `gorm:"foreignKey:UserID" json:"tier"`                                          // 关联的用户等级信息。
+	ID        uint       `json:"id"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	Username  string     `json:"username"`   // 用户名，唯一索引，不允许为空。
+	Email     string     `json:"email"`      // 邮箱，唯一索引，不允许为空。
+	FullName  string     `json:"full_name"`  // 全名。
+	Password  string     `json:"-"`          // 密码（加密存储），JSON序列化时忽略。
+	Phone     string     `json:"phone"`      // 手机号，索引字段。
+	Nickname  string     `json:"nickname"`   // 昵称。
+	Avatar    string     `json:"avatar"`     // 头像URL。
+	Gender    int8       `json:"gender"`     // 性别 0:未知 1:男 2:女，默认为未知。
+	Birthday  *time.Time `json:"birthday"`   // 生日。
+	Status    int8       `json:"status"`     // 状态 1:正常 2:禁用，默认为正常。
+	Addresses []*Address `json:"addresses"`  // 关联的地址列表，一对多关系。
+	Roles     []*Role    `json:"roles"`      // 关联的角色列表。
+	Tier      *UserTier  `json:"user_tier"`  // 关联的用户等级信息。
 }
 
 // Address 实体代表用户的收货地址信息。
 // 它是User聚合根的一部分。
 type Address struct {
-	gorm.Model             // 嵌入gorm.Model。
-	UserID          uint   `gorm:"column:user_id;index;not null" json:"user_id"`                     // 所属用户ID，索引字段，不允许为空。
-	RecipientName   string `gorm:"column:recipient_name;type:varchar(255);not null" json:"name"`     // 收货人姓名，不允许为空。
-	PhoneNumber     string `gorm:"column:phone_number;type:varchar(20);not null" json:"phone"`       // 收货人电话，不允许为空。
-	Province        string `gorm:"column:province;type:varchar(64);not null" json:"province"`        // 省份，不允许为空。
-	City            string `gorm:"column:city;type:varchar(64);not null" json:"city"`                // 城市，不允许为空。
-	District        string `gorm:"column:district;type:varchar(64);not null" json:"district"`        // 区/县，不允许为空。
-	DetailedAddress string `gorm:"column:detailed_address;type:varchar(255);not null" json:"detail"` // 详细地址，不允许为空。
-	PostalCode      string `gorm:"column:postal_code;type:varchar(20)" json:"postal_code"`           // 邮政编码。
-	IsDefault       bool   `gorm:"column:is_default;default:false" json:"is_default"`                // 是否默认地址，默认为否。
+	ID              uint      `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	UserID          uint      `json:"user_id"`      // 所属用户ID，索引字段，不允许为空。
+	RecipientName   string    `json:"name"`         // 收货人姓名，不允许为空。
+	PhoneNumber     string    `json:"phone"`        // 收货人电话，不允许为空。
+	Province        string    `json:"province"`     // 省份，不允许为空。
+	City            string    `json:"city"`         // 城市，不允许为空。
+	District        string    `json:"district"`     // 区/县，不允许为空。
+	DetailedAddress string    `json:"detail"`       // 详细地址，不允许为空。
+	PostalCode      string    `json:"postal_code"`  // 邮政编码。
+	IsDefault       bool      `json:"is_default"`   // 是否默认地址，默认为否。
 }
 
 // NewUser 是一个工厂方法，用于创建并返回一个新的 User 实体实例。

@@ -21,6 +21,9 @@ service DynamicPricingService {
 
   // 分页列出系统中的定价策略。
   rpc ListStrategies(ListStrategiesRequest) returns (ListStrategiesResponse);
+  
+  // 更新采集到的竞品价格。
+  rpc UpdateCompetitorPrice(UpdateCompetitorPriceRequest) returns (google.protobuf.Empty);
 }
 
 // 调价请求。
@@ -123,4 +126,15 @@ message ListStrategiesResponse {
   repeated PricingStrategy strategies = 1;
   // 总笔数。
   uint64 total_count = 2;
+}
+// 竞品价格更新请求。
+message UpdateCompetitorPriceRequest {
+  // SKU ID。
+  uint64 sku_id = 1;
+  // 竞争对手名称。
+  string competitor_name = 2;
+  // 价格。
+  int64 price = 3;
+  // 商品链接。
+  string url = 4;
 }
