@@ -32,6 +32,7 @@ import (
 	"github.com/wyfcoding/pkg/middleware"
 	"github.com/wyfcoding/pkg/response"
 	"github.com/wyfcoding/pkg/search"
+	"github.com/wyfcoding/pkg/server"
 )
 
 // BootstrapName 服务唯一标识
@@ -51,14 +52,16 @@ type Config struct {
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
 type AppContext struct {
-	Config      *Config
-	Cmd         *application.NotificationCommandService
-	Query       *application.NotificationQueryService
-	Clients     *ServiceClients
-	Handler     *notificationhttp.Handler
-	Metrics     *metrics.Metrics
-	Limiter     limiter.Limiter
-	Idempotency idempotency.Manager
+	Config       *Config
+	Cmd          *application.NotificationCommandService
+	Query        *application.NotificationQueryService
+	Clients      *ServiceClients
+	Handler      *notificationhttp.Handler
+	WsHandler    *notificationhttp.WebsocketHandler
+	WebsocketMgr *server.WSManager
+	Metrics      *metrics.Metrics
+	Limiter      limiter.Limiter
+	Idempotency  idempotency.Manager
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -117,6 +120,7 @@ func registerGin(e *gin.Engine, ctx *AppContext) {
 	api := e.Group("/api/v1")
 	{
 		ctx.Handler.RegisterRoutes(api)
+		ctx.WsHandler.RegisterRoutes(api)
 	}
 }
 
@@ -209,7 +213,11 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	webhookSender := application.NewWebhookSender()
 
 	// 5.2 Application (Service)
-	commandSvc := application.NewNotificationCommandService(notificationRepo, templateReadRepo, outbox.NewPublisher(outboxMgr), emailSender, smsSender, webhookSender, logger.Logger)
+	// 初始化 WebsocketManager (复用 pkg/server)
+	websocketMgr := server.NewWSManager(logger.Logger)
+	go websocketMgr.Run(context.Background())
+
+	commandSvc := application.NewNotificationCommandService(notificationRepo, templateReadRepo, outbox.NewPublisher(outboxMgr), emailSender, smsSender, webhookSender, websocketMgr, logger.Logger)
 	querySvc := application.NewNotificationQueryService(notificationRepo, notificationReadRepo, templateReadRepo, notificationSearchRepo, templateSearchRepo, logger.Logger)
 
 	// 5.3 Projection Consumers (Notification Events -> Read Model)
@@ -233,6 +241,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5.4 Interface (HTTP Handlers)
 	handler := notificationhttp.NewHandler(commandSvc, querySvc, logger.Logger)
+	wsHandler := notificationhttp.NewWebsocketHandler(websocketMgr, c.JWT.Secret, logger.Logger)
 
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
@@ -259,13 +268,15 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	}
 
 	return &AppContext{
-		Config:      c,
-		Cmd:         commandSvc,
-		Query:       querySvc,
-		Clients:     clients,
-		Handler:     handler,
-		Metrics:     m,
-		Limiter:     rateLimiter,
-		Idempotency: idemManager,
+		Config:       c,
+		Cmd:          commandSvc,
+		Query:        querySvc,
+		Clients:      clients,
+		Handler:      handler,
+		WsHandler:    wsHandler,
+		WebsocketMgr: websocketMgr,
+		Metrics:      m,
+		Limiter:      rateLimiter,
+		Idempotency:  idemManager,
 	}, cleanup, nil
 }

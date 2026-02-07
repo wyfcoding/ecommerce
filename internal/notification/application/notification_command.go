@@ -5,21 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/wyfcoding/ecommerce/internal/notification/domain"
+	"github.com/wyfcoding/pkg/server"
 )
 
 // NotificationCommandService 处理通知的写操作（发送、标记已读、模板管理）。
 type NotificationCommandService struct {
-	repo            domain.NotificationRepository
+	repo             domain.NotificationRepository
 	templateReadRepo domain.NotificationTemplateReadRepository
-	publisher       domain.EventPublisher
-	emailSender     domain.Sender
-	smsSender       domain.Sender
-	webhookSender   domain.Sender
-	logger          *slog.Logger
+	publisher        domain.EventPublisher
+	emailSender      domain.Sender
+	smsSender        domain.Sender
+	webhookSender    domain.Sender
+	websocketMgr     *server.WSManager
+	logger           *slog.Logger
 }
 
 // NewNotificationCommandService 创建写服务实例。
@@ -28,16 +33,18 @@ func NewNotificationCommandService(
 	templateReadRepo domain.NotificationTemplateReadRepository,
 	publisher domain.EventPublisher,
 	emailSender, smsSender, webhookSender domain.Sender,
+	websocketMgr *server.WSManager,
 	logger *slog.Logger,
 ) *NotificationCommandService {
 	return &NotificationCommandService{
-		repo:            repo,
+		repo:             repo,
 		templateReadRepo: templateReadRepo,
-		publisher:       publisher,
-		emailSender:     emailSender,
-		smsSender:       smsSender,
-		webhookSender:   webhookSender,
-		logger:          logger,
+		publisher:        publisher,
+		emailSender:      emailSender,
+		smsSender:        smsSender,
+		webhookSender:    webhookSender,
+		websocketMgr:     websocketMgr,
+		logger:           logger,
 	}
 }
 
@@ -84,6 +91,19 @@ func (m *NotificationCommandService) SendNotification(ctx context.Context, userI
 		}
 	case domain.NotificationChannelApp:
 		m.logger.Info("in-app notification persisted", "user_id", userID)
+		// 通过 Websocket 推送给在线用户
+		userIDStr := strconv.FormatUint(userID, 10)
+		if m.websocketMgr != nil && m.websocketMgr.IsUserOnline(userIDStr) {
+			payload, _ := json.Marshal(map[string]any{
+				"type":    "notification",
+				"id":      notification.ID,
+				"title":   title,
+				"content": content,
+				"data":    data,
+			})
+			m.websocketMgr.SendToUserRaw(userIDStr, payload)
+			m.logger.Info("notification pushed via websocket", "user_id", userID)
+		}
 	case domain.NotificationChannelWebhook:
 		if m.webhookSender != nil {
 			sendErr = m.webhookSender.Send(ctx, target, title, content)
