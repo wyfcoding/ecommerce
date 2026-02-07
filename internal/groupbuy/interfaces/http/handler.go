@@ -14,14 +14,16 @@ import (
 
 // Handler 结构体定义了Groupbuy模块的HTTP处理层。
 type Handler struct {
-	app    *application.GroupbuyService
+	cmd    *application.GroupbuyCommandService
+	query  *application.GroupbuyQueryService
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Groupbuy HTTP Handler 实例。
-func NewHandler(app *application.GroupbuyService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.GroupbuyCommandService, query *application.GroupbuyQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -46,7 +48,7 @@ func (h *Handler) CreateGroupbuy(c *gin.Context) {
 		return
 	}
 
-	groupbuy, err := h.app.CreateGroupbuy(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.GroupPrice,
+	groupbuy, err := h.cmd.CreateGroupbuy(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.GroupPrice,
 		req.MinPeople, req.MaxPeople, req.TotalStock, req.StartTime, req.EndTime)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to create groupbuy", "error", err)
@@ -68,7 +70,7 @@ func (h *Handler) ListGroupbuys(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListGroupbuys(c.Request.Context(), page, pageSize)
+	list, total, err := h.query.ListGroupbuys(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to list groupbuys", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list groupbuys", err.Error())
@@ -95,7 +97,7 @@ func (h *Handler) InitiateTeam(c *gin.Context) {
 		return
 	}
 
-	team, order, err := h.app.InitiateTeam(c.Request.Context(), req.GroupbuyID, req.UserID)
+	team, order, err := h.cmd.InitiateTeam(c.Request.Context(), req.GroupbuyID, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to initiate team", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to initiate team", err.Error())
@@ -120,7 +122,7 @@ func (h *Handler) JoinTeam(c *gin.Context) {
 		return
 	}
 
-	order, err := h.app.JoinTeam(c.Request.Context(), req.TeamNo, req.UserID)
+	order, err := h.cmd.JoinTeam(c.Request.Context(), req.TeamNo, req.UserID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to join team", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to join team", err.Error())
@@ -138,7 +140,7 @@ func (h *Handler) GetTeamDetails(c *gin.Context) {
 		return
 	}
 
-	team, orders, err := h.app.GetTeamDetails(c.Request.Context(), teamID)
+	team, orders, err := h.query.GetTeamDetails(c.Request.Context(), teamID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to get team details", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get team details", err.Error())

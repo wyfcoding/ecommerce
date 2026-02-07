@@ -36,8 +36,21 @@ func (m *GroupbuyCommandService) CreateGroupbuy(ctx context.Context, name string
 ) (*domain.Groupbuy, error) {
 	groupbuy := domain.NewGroupbuy(name, productID, skuID, originalPrice, groupPrice, minPeople, maxPeople, totalStock, startTime, endTime)
 
-	if err := m.repo.CreateGroupbuy(ctx, groupbuy); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create groupbuy", "name", name, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.CreateGroupbuyInTx(ctx, tx, groupbuy); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create groupbuy", "name", name, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.GroupbuyCreatedEventType, fmt.Sprintf("%d", groupbuy.ID), &domain.GroupBuyCreatedEvent{
+			GroupBuyID: uint64(groupbuy.ID),
+			ProductID:  groupbuy.ProductID,
+			CreatorID:  0,
+			Timestamp:  time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "groupbuy created successfully", "groupbuy_id", groupbuy.ID, "name", name)
@@ -61,17 +74,31 @@ func (m *GroupbuyCommandService) InitiateTeam(ctx context.Context, groupbuyID, u
 	}
 
 	team := domain.NewGroupbuyTeam(groupbuyID, teamNo, userID, groupbuy.MaxPeople, expireAt)
-	if err := m.repo.CreateTeam(ctx, team); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create groupbuy team", "groupbuy_id", groupbuyID, "error", err)
+	order := domain.NewGroupbuyOrder(groupbuyID, uint64(team.ID), teamNo, userID, groupbuy.ProductID, groupbuy.SkuID, groupbuy.GroupPrice, 1, true)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.CreateTeamInTx(ctx, tx, team); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create groupbuy team", "groupbuy_id", groupbuyID, "error", err)
+			return err
+		}
+		order.TeamID = uint64(team.ID)
+		if err := m.repo.CreateOrderInTx(ctx, tx, order); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create groupbuy order", "team_id", team.ID, "user_id", userID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.GroupbuyJoinedEventType, fmt.Sprintf("%d", order.ID), &domain.GroupBuyJoinedEvent{
+			GroupBuyID: groupbuyID,
+			UserID:     userID,
+			OrderID:    uint64(order.ID),
+			TeamID:     uint64(team.ID),
+			Timestamp:  time.Now(),
+		})
+	}); err != nil {
 		return nil, nil, err
 	}
 	m.logger.InfoContext(ctx, "groupbuy team created successfully", "team_id", team.ID, "team_no", teamNo)
-
-	order := domain.NewGroupbuyOrder(groupbuyID, uint64(team.ID), teamNo, userID, groupbuy.ProductID, groupbuy.SkuID, groupbuy.GroupPrice, 1, true)
-	if err := m.repo.CreateOrder(ctx, order); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create groupbuy order", "team_id", team.ID, "user_id", userID, "error", err)
-		return nil, nil, err
-	}
 	m.logger.InfoContext(ctx, "groupbuy order created successfully", "order_id", order.ID, "team_id", team.ID)
 
 	return team, order, nil
@@ -92,13 +119,36 @@ func (m *GroupbuyCommandService) JoinTeam(ctx context.Context, teamNo string, us
 		return nil, err
 	}
 
-	if err := m.repo.UpdateTeam(ctx, team); err != nil {
-		return nil, err
-	}
-
 	order := domain.NewGroupbuyOrder(team.GroupbuyID, uint64(team.ID), teamNo, userID, groupbuy.ProductID, groupbuy.SkuID, groupbuy.GroupPrice, 1, false)
-	if err := m.repo.CreateOrder(ctx, order); err != nil {
-		m.logger.ErrorContext(ctx, "failed to join groupbuy team", "team_no", teamNo, "user_id", userID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateTeamInTx(ctx, tx, team); err != nil {
+			return err
+		}
+		if err := m.repo.CreateOrderInTx(ctx, tx, order); err != nil {
+			m.logger.ErrorContext(ctx, "failed to join groupbuy team", "team_no", teamNo, "user_id", userID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		if err := m.publisher.PublishInTx(ctx, tx, domain.GroupbuyJoinedEventType, fmt.Sprintf("%d", order.ID), &domain.GroupBuyJoinedEvent{
+			GroupBuyID: team.GroupbuyID,
+			UserID:     userID,
+			OrderID:    uint64(order.ID),
+			TeamID:     uint64(team.ID),
+			Timestamp:  time.Now(),
+		}); err != nil {
+			return err
+		}
+		if team.Status == domain.GroupbuyTeamStatusSuccess {
+			return m.publisher.PublishInTx(ctx, tx, domain.GroupbuyCompletedEventType, fmt.Sprintf("%d", team.ID), &domain.GroupBuyCompletedEvent{
+				GroupBuyID: team.GroupbuyID,
+				TeamID:     uint64(team.ID),
+				Timestamp:  time.Now(),
+			})
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "joined groupbuy team successfully", "team_no", teamNo, "user_id", userID)
@@ -109,7 +159,11 @@ func (m *GroupbuyCommandService) JoinTeam(ctx context.Context, teamNo string, us
 // AutoJoinTeam 自动匹配并加入一个最合适的拼团团队。
 func (m *GroupbuyCommandService) AutoJoinTeam(ctx context.Context, groupbuyID, userID uint64) (*domain.GroupbuyOrder, error) {
 	// 1. 获取活跃的团队列表 (获取前100个作为候选)
-	teams, _, err := m.repo.ListTeamsByGroupbuyID(ctx, groupbuyID, 1, 100)
+	teams, _, err := m.repo.ListTeamsByGroupbuyID(ctx, &domain.GroupbuyTeamQuery{
+		GroupbuyID: groupbuyID,
+		Page:       1,
+		PageSize:   100,
+	})
 	if err != nil {
 		return nil, err
 	}

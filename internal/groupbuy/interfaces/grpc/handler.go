@@ -16,17 +16,21 @@ import (
 // Server 结构体实现了 GroupbuyService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedGroupbuyServiceServer
-	app *application.GroupbuyService
+	cmd   *application.GroupbuyCommandService
+	query *application.GroupbuyQueryService
 }
 
 // NewServer 创建并返回一个新的 Groupbuy gRPC 服务端实例。
-func NewServer(app *application.GroupbuyService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.GroupbuyCommandService, query *application.GroupbuyQueryService) *Server {
+	return &Server{
+		cmd:   cmd,
+		query: query,
+	}
 }
 
 // CreateGroupbuy 处理创建拼团活动的gRPC请求。
 func (s *Server) CreateGroupbuy(ctx context.Context, req *pb.CreateGroupbuyRequest) (*pb.CreateGroupbuyResponse, error) {
-	groupbuy, err := s.app.CreateGroupbuy(
+	groupbuy, err := s.cmd.CreateGroupbuy(
 		ctx,
 		req.Name,
 		req.ProductId,
@@ -56,7 +60,7 @@ func (s *Server) ListGroupbuys(ctx context.Context, req *pb.ListGroupbuysRequest
 		pageSize = 10
 	}
 
-	groupbuys, total, err := s.app.ListGroupbuys(ctx, page, pageSize)
+	groupbuys, total, err := s.query.ListGroupbuys(ctx, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list groupbuys: %v", err))
 	}
@@ -74,7 +78,7 @@ func (s *Server) ListGroupbuys(ctx context.Context, req *pb.ListGroupbuysRequest
 
 // InitiateTeam 处理发起拼团团队的gRPC请求。
 func (s *Server) InitiateTeam(ctx context.Context, req *pb.InitiateTeamRequest) (*pb.InitiateTeamResponse, error) {
-	team, order, err := s.app.InitiateTeam(ctx, req.GroupbuyId, req.UserId)
+	team, order, err := s.cmd.InitiateTeam(ctx, req.GroupbuyId, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to initiate team: %v", err))
 	}
@@ -87,7 +91,7 @@ func (s *Server) InitiateTeam(ctx context.Context, req *pb.InitiateTeamRequest) 
 
 // JoinTeam 处理加入拼团团队的gRPC请求。
 func (s *Server) JoinTeam(ctx context.Context, req *pb.JoinTeamRequest) (*pb.JoinTeamResponse, error) {
-	order, err := s.app.JoinTeam(ctx, req.TeamNo, req.UserId)
+	order, err := s.cmd.JoinTeam(ctx, req.TeamNo, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to join team: %v", err))
 	}
@@ -99,7 +103,7 @@ func (s *Server) JoinTeam(ctx context.Context, req *pb.JoinTeamRequest) (*pb.Joi
 
 // GetTeamDetails 处理获取拼团团队详情的gRPC请求。
 func (s *Server) GetTeamDetails(ctx context.Context, req *pb.GetTeamDetailsRequest) (*pb.GetTeamDetailsResponse, error) {
-	team, orders, err := s.app.GetTeamDetails(ctx, req.TeamId)
+	team, orders, err := s.query.GetTeamDetails(ctx, req.TeamId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get team details: %v", err))
 	}

@@ -3,8 +3,6 @@ package domain
 import (
 	"errors"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // 定义Groupbuy模块的业务错误。
@@ -28,20 +26,22 @@ const (
 
 // Groupbuy 实体代表一个拼团活动。
 type Groupbuy struct {
-	gorm.Model
-	Name          string         `gorm:"type:varchar(255);not null;comment:活动名称" json:"name"`
-	ProductID     uint64         `gorm:"not null;comment:商品ID" json:"product_id"`
-	SkuID         uint64         `gorm:"not null;comment:SKU ID" json:"sku_id"`
-	OriginalPrice uint64         `gorm:"not null;comment:原价(分)" json:"original_price"`
-	GroupPrice    uint64         `gorm:"not null;comment:拼团价(分)" json:"group_price"`
-	MinPeople     int32          `gorm:"not null;comment:最小成团人数" json:"min_people"`
-	MaxPeople     int32          `gorm:"not null;comment:最大成团人数" json:"max_people"`
-	TotalStock    int32          `gorm:"not null;comment:总库存" json:"total_stock"`
-	SoldCount     int32          `gorm:"not null;default:0;comment:已售数量" json:"sold_count"`
-	StartTime     time.Time      `gorm:"not null;comment:开始时间" json:"start_time"`
-	EndTime       time.Time      `gorm:"not null;comment:结束时间" json:"end_time"`
-	Status        GroupbuyStatus `gorm:"type:tinyint;not null;default:0;comment:状态" json:"status"`
-	Description   string         `gorm:"type:text;comment:活动描述" json:"description"`
+	ID            uint           `json:"id"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	Name          string         `json:"name"`
+	ProductID     uint64         `json:"product_id"`
+	SkuID         uint64         `json:"sku_id"`
+	OriginalPrice uint64         `json:"original_price"`
+	GroupPrice    uint64         `json:"group_price"`
+	MinPeople     int32          `json:"min_people"`
+	MaxPeople     int32          `json:"max_people"`
+	TotalStock    int32          `json:"total_stock"`
+	SoldCount     int32          `json:"sold_count"`
+	StartTime     time.Time      `json:"start_time"`
+	EndTime       time.Time      `json:"end_time"`
+	Status        GroupbuyStatus `json:"status"`
+	Description   string         `json:"description"`
 }
 
 // NewGroupbuy 创建并返回一个新的 Groupbuy 实体实例。
@@ -95,15 +95,17 @@ func (g *Groupbuy) Cancel() {
 
 // GroupbuyTeam 实体代表一个拼团团队。
 type GroupbuyTeam struct {
-	gorm.Model
-	GroupbuyID    uint64             `gorm:"not null;index;comment:拼团活动ID" json:"groupbuy_id"`
-	TeamNo        string             `gorm:"type:varchar(64);uniqueIndex;not null;comment:拼团编号" json:"team_no"`
-	LeaderID      uint64             `gorm:"not null;comment:团长用户ID" json:"leader_id"`
-	CurrentPeople int32              `gorm:"not null;default:1;comment:当前人数" json:"current_people"`
-	MaxPeople     int32              `gorm:"not null;comment:最大人数" json:"max_people"`
-	Status        GroupbuyTeamStatus `gorm:"type:tinyint;not null;default:0;comment:状态" json:"status"`
-	ExpireAt      time.Time          `gorm:"not null;comment:过期时间" json:"expire_at"`
-	SuccessAt     *time.Time         `gorm:"comment:成团时间" json:"success_at"`
+	ID            uint               `json:"id"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+	GroupbuyID    uint64             `json:"groupbuy_id"`
+	TeamNo        string             `json:"team_no"`
+	LeaderID      uint64             `json:"leader_id"`
+	CurrentPeople int32              `json:"current_people"`
+	MaxPeople     int32              `json:"max_people"`
+	Status        GroupbuyTeamStatus `json:"status"`
+	ExpireAt      time.Time          `json:"expire_at"`
+	SuccessAt     *time.Time         `json:"success_at"`
 }
 
 // GroupbuyTeamStatus 定义了拼团团队的生命周期状态。
@@ -180,20 +182,22 @@ func (t *GroupbuyTeam) Cancel() {
 
 // GroupbuyOrder 实体代表一个拼团订单。
 type GroupbuyOrder struct {
-	gorm.Model
-	GroupbuyID  uint64              `gorm:"not null;index;comment:拼团活动ID" json:"groupbuy_id"`
-	TeamID      uint64              `gorm:"not null;index;comment:拼团团队ID" json:"team_id"`
-	TeamNo      string              `gorm:"type:varchar(64);not null;comment:拼团编号" json:"team_no"`
-	UserID      uint64              `gorm:"not null;index;comment:用户ID" json:"user_id"`
-	ProductID   uint64              `gorm:"not null;comment:商品ID" json:"product_id"`
-	SkuID       uint64              `gorm:"not null;comment:SKU ID" json:"sku_id"`
-	Price       uint64              `gorm:"not null;comment:单价(分)" json:"price"`
-	Quantity    int32               `gorm:"not null;comment:数量" json:"quantity"`
-	TotalAmount uint64              `gorm:"not null;comment:总金额(分)" json:"total_amount"`
-	IsLeader    bool                `gorm:"not null;default:false;comment:是否团长" json:"is_leader"`
-	Status      GroupbuyOrderStatus `gorm:"type:tinyint;not null;default:0;comment:状态" json:"status"`
-	PaidAt      *time.Time          `gorm:"comment:支付时间" json:"paid_at"`
-	RefundedAt  *time.Time          `gorm:"comment:退款时间" json:"refunded_at"`
+	ID          uint                `json:"id"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	GroupbuyID  uint64              `json:"groupbuy_id"`
+	TeamID      uint64              `json:"team_id"`
+	TeamNo      string              `json:"team_no"`
+	UserID      uint64              `json:"user_id"`
+	ProductID   uint64              `json:"product_id"`
+	SkuID       uint64              `json:"sku_id"`
+	Price       uint64              `json:"price"`
+	Quantity    int32               `json:"quantity"`
+	TotalAmount uint64              `json:"total_amount"`
+	IsLeader    bool                `json:"is_leader"`
+	Status      GroupbuyOrderStatus `json:"status"`
+	PaidAt      *time.Time          `json:"paid_at"`
+	RefundedAt  *time.Time          `json:"refunded_at"`
 }
 
 // GroupbuyOrderStatus 定义了拼团订单的生命周期状态。

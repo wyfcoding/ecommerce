@@ -2,6 +2,13 @@ package domain
 
 import "time"
 
+const (
+	GroupbuyCreatedEventType   = "groupbuy.created"
+	GroupbuyJoinedEventType    = "groupbuy.joined"
+	GroupbuyCompletedEventType = "groupbuy.completed"
+	GroupbuyCancelledEventType = "groupbuy.cancelled"
+)
+
 // GroupBuyCreatedEvent 团购创建事件。
 type GroupBuyCreatedEvent struct {
 	GroupBuyID uint64    `json:"group_buy_id"`
@@ -15,12 +22,14 @@ type GroupBuyJoinedEvent struct {
 	GroupBuyID uint64    `json:"group_buy_id"`
 	UserID     uint64    `json:"user_id"`
 	OrderID    uint64    `json:"order_id"`
+	TeamID     uint64    `json:"team_id"`
 	Timestamp  time.Time `json:"timestamp"`
 }
 
 // GroupBuyCompletedEvent 团购成团事件。
 type GroupBuyCompletedEvent struct {
 	GroupBuyID uint64    `json:"group_buy_id"`
+	TeamID     uint64    `json:"team_id"`
 	Timestamp  time.Time `json:"timestamp"`
 }
 
