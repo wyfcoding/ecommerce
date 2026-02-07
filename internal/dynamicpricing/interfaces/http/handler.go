@@ -14,14 +14,16 @@ import (
 
 // Handler 结构体定义了DynamicPricing模块的HTTP处理层。
 type Handler struct {
-	app    *application.DynamicPricingService
+	cmd    *application.DynamicPricingCommandService
+	query  *application.DynamicPricingQueryService
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 DynamicPricing HTTP Handler 实例。
-func NewHandler(app *application.DynamicPricingService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.DynamicPricingCommandService, query *application.DynamicPricingQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -34,7 +36,7 @@ func (h *Handler) CalculatePrice(c *gin.Context) {
 		return
 	}
 
-	price, err := h.app.CalculatePrice(c.Request.Context(), &req)
+	price, err := h.cmd.CalculatePrice(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to calculate price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to calculate price", err.Error())
@@ -52,7 +54,7 @@ func (h *Handler) GetLatestPrice(c *gin.Context) {
 		return
 	}
 
-	price, err := h.app.GetLatestPrice(c.Request.Context(), skuID)
+	price, err := h.query.GetLatestPrice(c.Request.Context(), skuID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get latest price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get latest price", err.Error())
@@ -70,7 +72,7 @@ func (h *Handler) SaveStrategy(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.SaveStrategy(c.Request.Context(), &strategy); err != nil {
+	if err := h.cmd.SaveStrategy(c.Request.Context(), &strategy); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to save strategy", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to save strategy", err.Error())
 		return
@@ -90,7 +92,7 @@ func (h *Handler) ListStrategies(c *gin.Context) {
 		pageSize = 10
 	}
 
-	list, total, err := h.app.ListStrategies(c.Request.Context(), page, pageSize)
+	list, total, err := h.query.ListStrategies(c.Request.Context(), page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list strategies", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list strategies", err.Error())

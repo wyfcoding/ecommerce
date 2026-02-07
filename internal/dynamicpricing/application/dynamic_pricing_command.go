@@ -57,16 +57,13 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 	engine := algorithm.NewPricingEngine(req.BasePrice, minPrice, maxPrice, elasticityVal)
 
 	var finalPrice int64
-	var algoFactors domain.DynamicPrice // Reuse struct to store factors
+	var algoFactors domain.DynamicPrice
 
 	// 4. 根据策略类型执行计算
 	switch strategy.StrategyType {
 	case "profit_maximization":
 		// 利润最大化策略
-		// 获取历史数据用于需求预测
-		history, _ := m.repo.GetPriceHistory(ctx, req.SKUID, 30) // 最近30条记录
-
-		// 转换历史数据格式
+		history, _ := m.repo.GetPriceHistory(ctx, req.SKUID, 30)
 		var demandData []algorithm.DemandData
 		for _, h := range history {
 			demandData = append(demandData, algorithm.DemandData{
@@ -75,21 +72,16 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 			})
 		}
 
-		// 定义需求预测函数
 		demandFunc := func(p int64) int64 {
 			return engine.PredictDemand(p, demandData)
 		}
 
-		// 估算成本 (假设 30% 毛利空间，即成本为 BasePrice * 0.7)
 		cost := int64(float64(req.BasePrice) * 0.7)
 		finalPrice = engine.OptimalPriceForProfit(cost, demandFunc)
 
-		// 填充默认因子
 		algoFactors.DemandFactor = 1.0
 		algoFactors.InventoryFactor = 1.0
-
 	case "competitive":
-		// 竞争定价策略
 		compInfo, _ := m.repo.GetCompetitorPriceInfo(ctx, req.SKUID)
 		var compPrices []int64
 		if compInfo != nil {
@@ -97,12 +89,9 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 				compPrices = append(compPrices, c.Price)
 			}
 		}
-		// 使用 "average" 跟随策略 (也可以从 strategy 配置中读取子策略)
 		finalPrice = engine.CompetitivePricing(compPrices, "average")
 		algoFactors.CompetitorFactor = float64(finalPrice) / float64(req.BasePrice)
-
 	default:
-		// 默认 dynamic 策略 (综合因子)
 		now := time.Now()
 		demandLevel := 0.5
 		if req.AverageDailyDemand > 0 {
@@ -121,11 +110,10 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 			userLevel = 5
 		}
 
-		// 尝试获取竞品价格
 		compPrice := req.CompetitorPrice
 		if compPrice == 0 {
 			if compInfo, err := m.repo.GetCompetitorPriceInfo(ctx, req.SKUID); err == nil && compInfo != nil {
-				compPrice = compInfo.LowestPrice // 使用最低竞品价作为参考
+				compPrice = compInfo.LowestPrice
 			}
 		}
 
@@ -143,8 +131,6 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 
 		result := engine.CalculatePrice(factors)
 		finalPrice = result.FinalPrice
-
-		// 记录因子
 		algoFactors.InventoryFactor = result.InventoryFactor
 		algoFactors.DemandFactor = result.DemandFactor
 		algoFactors.CompetitorFactor = result.CompetitorFactor
@@ -172,38 +158,59 @@ func (m *DynamicPricingCommandService) CalculatePrice(ctx context.Context, req *
 		ExpiryTime:       time.Now().Add(24 * time.Hour),
 	}
 
-	if err := m.repo.SaveDynamicPrice(ctx, price); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save dynamic price", "sku_id", req.SKUID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveDynamicPriceInTx(ctx, tx, price); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save dynamic price", "sku_id", req.SKUID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.DynamicPriceCalculatedEventType, fmt.Sprintf("%d", req.SKUID), &domain.PriceCalculatedEvent{
+			SKUID:      req.SKUID,
+			BasePrice:  req.BasePrice,
+			FinalPrice: finalPrice,
+			Timestamp:  time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 
-	// 发布领域事件 (异步)
-	_ = m.publisher.Publish(ctx, "dynamic_pricing_calculated", fmt.Sprintf("%d", req.SKUID), &domain.PriceCalculatedEvent{
-		SKUID:      req.SKUID,
-		BasePrice:  req.BasePrice,
-		FinalPrice: finalPrice,
-		Timestamp:  time.Now(),
-	})
-
 	m.logger.InfoContext(ctx, "dynamic price calculated successfully", "sku_id", req.SKUID, "strategy", strategy.StrategyType, "final_price", finalPrice)
-
 	return price, nil
 }
 
 // SaveStrategy 保存（创建或更新）一个定价策略。
 func (m *DynamicPricingCommandService) SaveStrategy(ctx context.Context, strategy *domain.PricingStrategy) error {
-	if err := m.repo.SavePricingStrategy(ctx, strategy); err != nil {
-		return err
+	if strategy == nil {
+		return nil
 	}
 
-	// 发布策略更新事件
-	_ = m.publisher.Publish(ctx, "pricing_strategy_updated", fmt.Sprintf("%d", strategy.SKUID), &domain.StrategyUpdatedEvent{
-		StrategyID:   uint64(strategy.ID),
-		SKUID:        strategy.SKUID,
-		StrategyType: strategy.StrategyType,
-		Enabled:      strategy.Enabled,
-		Timestamp:    time.Now(),
-	})
+	existing, _ := m.repo.GetPricingStrategy(ctx, strategy.SKUID)
+	created := existing == nil
+
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SavePricingStrategyInTx(ctx, tx, strategy); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.StrategyUpdatedEvent{
+			StrategyID:   uint64(strategy.ID),
+			SKUID:        strategy.SKUID,
+			StrategyType: strategy.StrategyType,
+			Enabled:      strategy.Enabled,
+			Timestamp:    time.Now(),
+		}
+		topic := domain.PricingStrategyUpdatedEventType
+		if created {
+			topic = domain.PricingStrategyCreatedEventType
+		}
+		return m.publisher.PublishInTx(ctx, tx, topic, fmt.Sprintf("%d", strategy.SKUID), event)
+	}); err != nil {
+		return err
+	}
 
 	return nil
 }

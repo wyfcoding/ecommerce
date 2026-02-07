@@ -17,12 +17,13 @@ import (
 // Server 结构体实现了 DynamicPricingService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedDynamicPricingServiceServer
-	app *application.DynamicPricingService
+	cmd   *application.DynamicPricingCommandService
+	query *application.DynamicPricingQueryService
 }
 
 // NewServer 创建并返回一个新的 DynamicPricing gRPC 服务端实例。
-func NewServer(app *application.DynamicPricingService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.DynamicPricingCommandService, query *application.DynamicPricingQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // CalculatePrice 处理计算动态价格的gRPC请求。
@@ -37,7 +38,7 @@ func (s *Server) CalculatePrice(ctx context.Context, req *pb.CalculatePriceReque
 		CompetitorPrice:    req.CompetitorPrice,
 	}
 
-	price, err := s.app.CalculatePrice(ctx, pricingReq)
+	price, err := s.cmd.CalculatePrice(ctx, pricingReq)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to calculate dynamic price: %v", err))
 	}
@@ -49,7 +50,7 @@ func (s *Server) CalculatePrice(ctx context.Context, req *pb.CalculatePriceReque
 
 // GetLatestPrice 处理获取最新动态价格的gRPC请求。
 func (s *Server) GetLatestPrice(ctx context.Context, req *pb.GetLatestPriceRequest) (*pb.GetLatestPriceResponse, error) {
-	price, err := s.app.GetLatestPrice(ctx, req.SkuId)
+	price, err := s.query.GetLatestPrice(ctx, req.SkuId)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("latest price not found for sku %d: %v", req.SkuId, err))
 	}
@@ -74,7 +75,7 @@ func (s *Server) SaveStrategy(ctx context.Context, req *pb.SaveStrategyRequest) 
 		strategy.ID = uint(req.Strategy.Id)
 	}
 
-	if err := s.app.SaveStrategy(ctx, strategy); err != nil {
+	if err := s.cmd.SaveStrategy(ctx, strategy); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to save pricing strategy: %v", err))
 	}
 
@@ -89,7 +90,7 @@ func (s *Server) ListStrategies(ctx context.Context, req *pb.ListStrategiesReque
 		pageSize = 10
 	}
 
-	strategies, total, err := s.app.ListStrategies(ctx, page, pageSize)
+	strategies, total, err := s.query.ListStrategies(ctx, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list pricing strategies: %v", err))
 	}

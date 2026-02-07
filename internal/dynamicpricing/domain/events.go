@@ -2,6 +2,14 @@ package domain
 
 import "time"
 
+const (
+	DynamicPriceCalculatedEventType  = "dynamicpricing.price.calculated"
+	PricingStrategyCreatedEventType  = "dynamicpricing.strategy.created"
+	PricingStrategyUpdatedEventType  = "dynamicpricing.strategy.updated"
+	PriceElasticityAnalyzedEventType = "dynamicpricing.elasticity.analyzed"
+	CompetitorPriceUpdatedEventType  = "dynamicpricing.competitor.updated"
+)
+
 // PriceCalculatedEvent 动态价格计算完成事件。
 type PriceCalculatedEvent struct {
 	SKUID      uint64    `json:"sku_id"`
