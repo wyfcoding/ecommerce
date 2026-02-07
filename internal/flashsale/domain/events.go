@@ -1,7 +1,13 @@
 package domain
 
-import (
-	"time"
+import "time"
+
+const (
+	FlashsaleCreatedEventType        = "flashsale.created"
+	FlashsaleOrderCreatedEventType   = "flashsale.order.created"
+	FlashsaleOrderPaidEventType      = "flashsale.order.paid"
+	FlashsaleOrderCancelledEventType = "flashsale.order.cancelled"
+	FlashsaleStockExhaustedEventType = "flashsale.stock.exhausted"
 )
 
 // FlashSaleEventCreatedEvent 秒杀活动创建事件

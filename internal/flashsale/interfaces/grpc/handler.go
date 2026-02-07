@@ -18,12 +18,13 @@ import (
 // Server 结构体实现了 FlashSaleService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedFlashSaleServiceServer
-	app *application.FlashSale // 依赖FlashSale应用服务，处理核心业务逻辑。
+	cmd   *application.FlashSaleCommandService
+	query *application.FlashSaleQueryService
 }
 
 // NewServer 创建并返回一个新的 FlashSale gRPC 服务端实例。
-func NewServer(app *application.FlashSale) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.FlashSaleCommandService, query *application.FlashSaleQueryService) *Server {
+	return &Server{cmd: cmd, query: query}
 }
 
 // CreateFlashSaleEvent 处理创建秒杀活动的gRPC请求。
@@ -39,7 +40,7 @@ func (s *Server) CreateFlashSaleEvent(ctx context.Context, req *pb.CreateFlashSa
 	}
 	flashPrice := int64(prod.FlashPrice * 100)
 
-	fs, err := s.app.CreateFlashsale(ctx, req.Name, pID, pID, 0, flashPrice, prod.TotalStock, prod.MaxPerUser, req.StartTime.AsTime(), req.EndTime.AsTime())
+	fs, err := s.cmd.CreateFlashsale(ctx, req.Name, pID, pID, 0, flashPrice, prod.TotalStock, prod.MaxPerUser, req.StartTime.AsTime(), req.EndTime.AsTime())
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create flash sale event: %v", err))
 	}
@@ -56,9 +57,12 @@ func (s *Server) GetFlashSaleEvent(ctx context.Context, req *pb.GetFlashSaleEven
 		return nil, status.Error(codes.InvalidArgument, "invalid event_id format")
 	}
 
-	fs, err := s.app.GetFlashsale(ctx, id)
+	fs, err := s.query.GetFlashsale(ctx, id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("flash sale event not found: %v", err))
+	}
+	if fs == nil {
+		return nil, status.Error(codes.NotFound, "flash sale event not found")
 	}
 
 	return &pb.GetFlashSaleEventResponse{
@@ -69,7 +73,7 @@ func (s *Server) GetFlashSaleEvent(ctx context.Context, req *pb.GetFlashSaleEven
 // ListActiveFlashSaleEvents 处理列出正在进行的秒杀活动的gRPC请求。
 func (s *Server) ListActiveFlashSaleEvents(ctx context.Context, _ *pb.ListActiveFlashSaleEventsRequest) (*pb.ListActiveFlashSaleEventsResponse, error) {
 	statusOngoing := domain.FlashsaleStatusOngoing
-	list, total, err := s.app.ListFlashsales(ctx, &statusOngoing, 1, 100)
+	list, total, err := s.query.ListFlashsales(ctx, &statusOngoing, 1, 100)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list active flash sale events: %v", err))
 	}
@@ -96,7 +100,7 @@ func (s *Server) ParticipateInFlashSale(ctx context.Context, req *pb.Participate
 		return nil, status.Error(codes.InvalidArgument, "invalid event_id format")
 	}
 
-	order, err := s.app.PlaceOrder(ctx, userID, eventID, req.Quantity)
+	order, err := s.cmd.PlaceOrder(ctx, userID, eventID, req.Quantity)
 	if err != nil {
 		if errors.Is(err, domain.ErrFlashsaleSoldOut) || errors.Is(err, domain.ErrFlashsaleLimit) || errors.Is(err, domain.ErrFlashsaleNotStarted) || errors.Is(err, domain.ErrFlashsaleEnded) {
 			return &pb.ParticipateInFlashSaleResponse{
@@ -121,9 +125,12 @@ func (s *Server) GetFlashSaleProductDetails(ctx context.Context, req *pb.GetFlas
 		return nil, status.Error(codes.InvalidArgument, "invalid event_id format")
 	}
 
-	fs, err := s.app.GetFlashsale(ctx, id)
+	fs, err := s.query.GetFlashsale(ctx, id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("flash sale event not found: %v", err))
+	}
+	if fs == nil {
+		return nil, status.Error(codes.NotFound, "flash sale event not found")
 	}
 
 	return &pb.GetFlashSaleProductDetailsResponse{

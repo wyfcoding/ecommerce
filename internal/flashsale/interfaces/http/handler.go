@@ -15,14 +15,16 @@ import (
 
 // Handler 结构体定义了FlashSale模块的HTTP处理层。
 type Handler struct {
-	app    *application.FlashSale
+	cmd    *application.FlashSaleCommandService
+	query  *application.FlashSaleQueryService
 	logger *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 FlashSale HTTP Handler 实例。
-func NewHandler(app *application.FlashSale, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.FlashSaleCommandService, query *application.FlashSaleQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
+		cmd:    cmd,
+		query:  query,
 		logger: logger,
 	}
 }
@@ -46,7 +48,7 @@ func (h *Handler) CreateFlashsale(c *gin.Context) {
 		return
 	}
 
-	flashsale, err := h.app.CreateFlashsale(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.FlashPrice, req.TotalStock, req.LimitPerUser, req.StartTime, req.EndTime)
+	flashsale, err := h.cmd.CreateFlashsale(c.Request.Context(), req.Name, req.ProductID, req.SkuID, req.OriginalPrice, req.FlashPrice, req.TotalStock, req.LimitPerUser, req.StartTime, req.EndTime)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create flashsale", "error", err)
 		response.Error(c, err)
@@ -64,10 +66,14 @@ func (h *Handler) GetFlashsale(c *gin.Context) {
 		return
 	}
 
-	flashsale, err := h.app.GetFlashsale(c.Request.Context(), id)
+	flashsale, err := h.query.GetFlashsale(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get flashsale detail", "flashsale_id", id, "error", err)
 		response.Error(c, err)
+		return
+	}
+	if flashsale == nil {
+		response.ErrorWithStatus(c, http.StatusNotFound, "flashsale not found", "")
 		return
 	}
 
@@ -94,7 +100,7 @@ func (h *Handler) ListFlashsales(c *gin.Context) {
 		}
 	}
 
-	list, total, err := h.app.ListFlashsales(c.Request.Context(), status, page, pageSize)
+	list, total, err := h.query.ListFlashsales(c.Request.Context(), status, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list flashsales", "error", err)
 		response.Error(c, err)
@@ -117,7 +123,7 @@ func (h *Handler) PlaceOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := h.app.PlaceOrder(c.Request.Context(), req.UserID, req.FlashsaleID, req.Quantity)
+	order, err := h.cmd.PlaceOrder(c.Request.Context(), req.UserID, req.FlashsaleID, req.Quantity)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to place flashsale order", "user_id", req.UserID, "flashsale_id", req.FlashsaleID, "error", err)
 		response.Error(c, err)

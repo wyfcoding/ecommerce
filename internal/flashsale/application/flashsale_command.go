@@ -10,7 +10,6 @@ import (
 	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/pkg/idgen"
-	"gorm.io/gorm"
 )
 
 // FlashSaleCommandService 负责处理 Flashsale 相关的写操作和业务逻辑。
@@ -18,7 +17,6 @@ type FlashSaleCommandService struct {
 	repo       domain.FlashSaleRepository
 	cache      domain.FlashSaleCache
 	publisher  domain.EventPublisher
-	db         *gorm.DB
 	idGen      idgen.Generator
 	logger     *slog.Logger
 	riskClient risksecurityv1.RiskSecurityServiceClient
@@ -29,7 +27,6 @@ func NewFlashSaleCommandService(
 	repo domain.FlashSaleRepository,
 	cache domain.FlashSaleCache,
 	publisher domain.EventPublisher,
-	db *gorm.DB,
 	idGen idgen.Generator,
 	logger *slog.Logger,
 	riskClient risksecurityv1.RiskSecurityServiceClient,
@@ -38,7 +35,6 @@ func NewFlashSaleCommandService(
 		repo:       repo,
 		cache:      cache,
 		publisher:  publisher,
-		db:         db,
 		idGen:      idGen,
 		logger:     logger,
 		riskClient: riskClient,
@@ -48,24 +44,31 @@ func NewFlashSaleCommandService(
 // CreateFlashsale 创建一个新的秒杀活动。
 func (m *FlashSaleCommandService) CreateFlashsale(ctx context.Context, name string, productID, skuID uint64, originalPrice, flashPrice int64, totalStock, limitPerUser int32, startTime, endTime time.Time) (*domain.Flashsale, error) {
 	flashsale := domain.NewFlashsale(name, productID, skuID, originalPrice, flashPrice, totalStock, limitPerUser, startTime, endTime)
-	if err := m.repo.SaveFlashsale(ctx, flashsale); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save flashsale", "name", name, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveFlashsaleInTx(ctx, tx, flashsale); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save flashsale", "name", name, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.FlashSaleEventCreatedEvent{
+			EventID:   flashsale.ID,
+			Name:      name,
+			StartTime: startTime,
+			EndTime:   endTime,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.FlashsaleCreatedEventType, fmt.Sprintf("%d", flashsale.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 
-	if err := m.cache.SetStock(ctx, uint64(flashsale.ID), totalStock); err != nil {
-		m.logger.WarnContext(ctx, "failed to pre-warm cache", "flashsale_id", flashsale.ID, "error", err)
+	if m.cache != nil {
+		if err := m.cache.SetStock(ctx, uint64(flashsale.ID), totalStock); err != nil {
+			m.logger.WarnContext(ctx, "failed to pre-warm cache", "flashsale_id", flashsale.ID, "error", err)
+		}
 	}
-
-	// 发布领域事件
-	event := &domain.FlashSaleEventCreatedEvent{
-		EventID:   flashsale.ID,
-		Name:      name,
-		StartTime: startTime,
-		EndTime:   endTime,
-		Timestamp: time.Now(),
-	}
-	_ = m.publisher.Publish(ctx, "flashsale.event.created", fmt.Sprintf("%d", flashsale.ID), event)
 
 	m.logger.InfoContext(ctx, "flashsale created successfully", "flashsale_id", flashsale.ID, "name", name)
 	return flashsale, nil
@@ -73,15 +76,20 @@ func (m *FlashSaleCommandService) CreateFlashsale(ctx context.Context, name stri
 
 // PlaceOrder 下达一个秒杀订单。
 func (m *FlashSaleCommandService) PlaceOrder(ctx context.Context, userID, flashsaleID uint64, quantity int32) (*domain.FlashsaleOrder, error) {
-	// 1. 获取活动信息 (Local Cache 降级或直接 Repo)
 	flashsale, err := m.repo.GetFlashsale(ctx, flashsaleID)
 	if err != nil {
 		return nil, err
 	}
+	if flashsale == nil {
+		return nil, domain.ErrFlashsaleNotFound
+	}
 
 	now := time.Now()
-	if now.Before(flashsale.StartTime) || now.After(flashsale.EndTime) {
-		return nil, errors.New("flashsale is not active")
+	if now.Before(flashsale.StartTime) {
+		return nil, domain.ErrFlashsaleNotStarted
+	}
+	if now.After(flashsale.EndTime) {
+		return nil, domain.ErrFlashsaleEnded
 	}
 
 	// 2. 风控检查
@@ -97,6 +105,9 @@ func (m *FlashSaleCommandService) PlaceOrder(ctx context.Context, userID, flashs
 	}
 
 	// 3. Redis 预扣减 (高性能屏障)
+	if m.cache == nil {
+		return nil, errors.New("flashsale cache not initialized")
+	}
 	success, err := m.cache.DeductStock(ctx, flashsaleID, userID, quantity, flashsale.LimitPerUser)
 	if err != nil {
 		return nil, err
@@ -110,12 +121,13 @@ func (m *FlashSaleCommandService) PlaceOrder(ctx context.Context, userID, flashs
 	order := domain.NewFlashsaleOrder(flashsaleID, userID, flashsale.ProductID, flashsale.SkuID, quantity, flashsale.FlashPrice)
 	order.ID = uint(orderID)
 
-	err = m.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.WithContext(ctx).Create(order).Error; err != nil {
+	err = m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveOrderInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		// 发布 Typed 领域事件
+		if m.publisher == nil {
+			return nil
+		}
 		event := &domain.FlashSaleOrderCreatedEvent{
 			OrderID:     orderID,
 			FlashsaleID: flashsaleID,
@@ -126,7 +138,7 @@ func (m *FlashSaleCommandService) PlaceOrder(ctx context.Context, userID, flashs
 			Price:       flashsale.FlashPrice,
 			Timestamp:   time.Now(),
 		}
-		return m.publisher.PublishInTx(ctx, tx, "flashsale.order.created", fmt.Sprintf("%d", orderID), event)
+		return m.publisher.PublishInTx(ctx, tx, domain.FlashsaleOrderCreatedEventType, fmt.Sprintf("%d", orderID), event)
 	})
 	if err != nil {
 		m.logger.ErrorContext(ctx, "failed to commit flashsale transaction", "order_id", orderID, "error", err)
@@ -147,18 +159,21 @@ func (m *FlashSaleCommandService) CancelOrder(ctx context.Context, orderID uint6
 	if err != nil {
 		return err
 	}
-
+	if order == nil {
+		return nil
+	}
 	if order.Status != domain.FlashsaleOrderStatusPending {
 		return nil
 	}
 
-	err = m.db.Transaction(func(tx *gorm.DB) error {
+	err = m.repo.WithTx(ctx, func(tx any) error {
 		order.Cancel()
-		if err := tx.WithContext(ctx).Save(order).Error; err != nil {
+		if err := m.repo.SaveOrderInTx(ctx, tx, order); err != nil {
 			return err
 		}
-
-		// 发布取消事件
+		if m.publisher == nil {
+			return nil
+		}
 		event := &domain.FlashSaleOrderCancelledEvent{
 			OrderID:     uint64(orderID),
 			FlashsaleID: order.FlashsaleID,
@@ -166,13 +181,15 @@ func (m *FlashSaleCommandService) CancelOrder(ctx context.Context, orderID uint6
 			Quantity:    order.Quantity,
 			Timestamp:   time.Now(),
 		}
-		return m.publisher.PublishInTx(ctx, tx, "flashsale.order.cancelled", fmt.Sprintf("%d", orderID), event)
+		return m.publisher.PublishInTx(ctx, tx, domain.FlashsaleOrderCancelledEventType, fmt.Sprintf("%d", orderID), event)
 	})
 	if err != nil {
 		return err
 	}
 
-	_ = m.cache.RevertStock(ctx, order.FlashsaleID, order.UserID, order.Quantity)
+	if m.cache != nil {
+		_ = m.cache.RevertStock(ctx, order.FlashsaleID, order.UserID, order.Quantity)
+	}
 	return nil
 }
 

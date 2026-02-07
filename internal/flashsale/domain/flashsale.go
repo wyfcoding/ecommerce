@@ -1,10 +1,8 @@
 package domain
 
 import (
-	"errors" // 导入标准错误处理库。
-	"time"   // 导入时间库。
-
-	"gorm.io/gorm" // 导入GORM库。
+	"errors"
+	"time"
 )
 
 // 定义Flashsale模块的业务错误。
@@ -29,20 +27,22 @@ const (
 // Flashsale 实体是秒杀模块的聚合根。
 // 它代表一个秒杀活动，包含了秒杀商品的详细信息、价格、库存、时间范围和状态。
 type Flashsale struct {
-	gorm.Model                    // 嵌入gorm.Model，包含ID, CreatedAt, UpdatedAt, DeletedAt等通用字段。
-	Name          string          `gorm:"type:varchar(255);not null;comment:活动名称" json:"name"`     // 活动名称。
-	ProductID     uint64          `gorm:"not null;index;comment:商品ID" json:"product_id"`           // 关联的商品ID，索引字段。
-	SkuID         uint64          `gorm:"not null;index;comment:SKU ID" json:"sku_id"`             // 关联的SKU ID，索引字段。
-	OriginalPrice int64           `gorm:"not null;comment:原价" json:"original_price"`               // 商品原价（单位：分）。
-	FlashPrice    int64           `gorm:"not null;comment:秒杀价" json:"flash_price"`                 // 秒杀价格（单位：分）。
-	TotalStock    int32           `gorm:"not null;comment:总库存" json:"total_stock"`                 // 秒杀活动的总库存。
-	SoldCount     int32           `gorm:"not null;default:0;comment:已售数量" json:"sold_count"`       // 已售出的数量。
-	LimitPerUser  int32           `gorm:"not null;default:1;comment:每人限购数量" json:"limit_per_user"` // 每位用户限购数量。
-	StartTime     time.Time       `gorm:"not null;comment:开始时间" json:"start_time"`                 // 秒杀活动开始时间。
-	EndTime       time.Time       `gorm:"not null;comment:结束时间" json:"end_time"`                   // 秒杀活动结束时间。
-	Status        FlashsaleStatus `gorm:"default:0;comment:状态" json:"status"`                      // 秒杀活动状态，默认为未开始。
-	Description   string          `gorm:"type:text;comment:描述" json:"description"`                 // 活动描述。
-	Version       int64           `gorm:"default:1;comment:乐观锁版本" json:"version"`                  // 乐观锁版本
+	ID            uint            `json:"id"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
+	Name          string          `json:"name"`
+	ProductID     uint64          `json:"product_id"`
+	SkuID         uint64          `json:"sku_id"`
+	OriginalPrice int64           `json:"original_price"`
+	FlashPrice    int64           `json:"flash_price"`
+	TotalStock    int32           `json:"total_stock"`
+	SoldCount     int32           `json:"sold_count"`
+	LimitPerUser  int32           `json:"limit_per_user"`
+	StartTime     time.Time       `json:"start_time"`
+	EndTime       time.Time       `json:"end_time"`
+	Status        FlashsaleStatus `json:"status"`
+	Description   string          `json:"description"`
+	Version       int64           `json:"version"`
 }
 
 // NewFlashsale 创建并返回一个新的 Flashsale 实体实例。
@@ -159,15 +159,17 @@ const (
 // FlashsaleOrder 实体代表一个秒杀订单。
 // 它记录了秒杀活动、用户、商品、数量和价格等信息。
 type FlashsaleOrder struct {
-	gorm.Model                       // 嵌入gorm.Model。
-	FlashsaleID uint64               `gorm:"not null;index;comment:秒杀活动ID" json:"flashsale_id"` // 关联的秒杀活动ID，索引字段。
-	UserID      uint64               `gorm:"not null;index;comment:用户ID" json:"user_id"`        // 下单用户ID，索引字段。
-	ProductID   uint64               `gorm:"not null;comment:商品ID" json:"product_id"`           // 商品ID。
-	SkuID       uint64               `gorm:"not null;comment:SKU ID" json:"sku_id"`             // SKU ID。
-	Quantity    int32                `gorm:"not null;comment:数量" json:"quantity"`               // 购买数量。
-	Price       int64                `gorm:"not null;comment:单价" json:"price"`                  // 商品单价（秒杀价格）。
-	TotalAmount int64                `gorm:"not null;comment:总金额" json:"total_amount"`          // 订单总金额。
-	Status      FlashsaleOrderStatus `gorm:"default:0;comment:状态" json:"status"`                // 订单状态，默认为待支付。
+	ID          uint                 `json:"id"`
+	CreatedAt   time.Time            `json:"created_at"`
+	UpdatedAt   time.Time            `json:"updated_at"`
+	FlashsaleID uint64               `json:"flashsale_id"`
+	UserID      uint64               `json:"user_id"`
+	ProductID   uint64               `json:"product_id"`
+	SkuID       uint64               `json:"sku_id"`
+	Quantity    int32                `json:"quantity"`
+	Price       int64                `json:"price"`
+	TotalAmount int64                `json:"total_amount"`
+	Status      FlashsaleOrderStatus `json:"status"`
 }
 
 // NewFlashsaleOrder 创建并返回一个新的 FlashsaleOrder 实体实例。
