@@ -15,17 +15,17 @@ const (
 // UserTier 实体是用户等级模块的聚合根。
 // 它记录了用户的当前等级、成长值、升级进度和所享受的折扣等信息。
 type UserTier struct {
-	ID                 uint      `json:"id"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
-	UserID             uint64    `json:"user_id"`                // 用户ID，唯一索引，不允许为空。
-	Level              TierLevel `json:"level"`                  // 用户当前等级，默认为普通会员。
-	LevelName          string    `json:"level_name"`             // 等级名称，例如“普通会员”，“黄金会员”。
-	Score              int64     `json:"score"`                  // 用户当前的成长值。
-	NextLevelScore     int64     `json:"next_level_score"`       // 升级到下一级所需的成长值。
-	ProgressToNextLevel float64  `json:"progress_to_next_level"` // 升级进度百分比。
-	DiscountRate       float64   `json:"discount_rate"`          // 折扣率。
-	Points             float64   `json:"points"`                 // 当前积分。
+	ID                  uint      `json:"id"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	UserID              uint64    `json:"user_id"`                // 用户ID，唯一索引，不允许为空。
+	Level               TierLevel `json:"level"`                  // 用户当前等级，默认为普通会员。
+	LevelName           string    `json:"level_name"`             // 等级名称，例如“普通会员”，“黄金会员”。
+	Score               int64     `json:"score"`                  // 用户当前的成长值。
+	NextLevelScore      int64     `json:"next_level_score"`       // 升级到下一级所需的成长值。
+	ProgressToNextLevel float64   `json:"progress_to_next_level"` // 升级进度百分比。
+	DiscountRate        float64   `json:"discount_rate"`          // 折扣率。
+	Points              float64   `json:"points"`                 // 当前积分。
 }
 
 // TierConfig 实体定义了不同等级的配置和权益。

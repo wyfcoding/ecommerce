@@ -116,16 +116,16 @@ func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
 	}
 	db := r.getDB(ctx).WithContext(ctx)
 	if err := db.Model(&UserModel{}).Where("id = ?", model.ID).Updates(map[string]any{
-		"full_name":  model.FullName,
-		"nickname":   model.Nickname,
-		"avatar":     model.Avatar,
-		"gender":     model.Gender,
-		"birthday":   model.Birthday,
-		"status":     model.Status,
-		"phone":      model.Phone,
-		"email":      model.Email,
-		"username":   model.Username,
-		"password":   model.Password,
+		"full_name": model.FullName,
+		"nickname":  model.Nickname,
+		"avatar":    model.Avatar,
+		"gender":    model.Gender,
+		"birthday":  model.Birthday,
+		"status":    model.Status,
+		"phone":     model.Phone,
+		"email":     model.Email,
+		"username":  model.Username,
+		"password":  model.Password,
 	}).Error; err != nil {
 		return err
 	}

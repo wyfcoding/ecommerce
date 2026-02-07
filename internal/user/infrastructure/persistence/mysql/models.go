@@ -10,16 +10,16 @@ import (
 // UserModel 用户表模型
 type UserModel struct {
 	gorm.Model
-	Username string `gorm:"column:username;type:varchar(255);uniqueIndex;not null"`
-	Email    string `gorm:"column:email;type:varchar(255);uniqueIndex;not null"`
-	FullName string `gorm:"column:full_name;type:varchar(100)"`
-	Password string `gorm:"column:password;type:varchar(255);not null"`
-	Phone    string `gorm:"column:phone;type:varchar(20);index"`
-	Nickname string `gorm:"column:nickname;type:varchar(255)"`
-	Avatar   string `gorm:"column:avatar;type:varchar(1024)"`
-	Gender   int8   `gorm:"column:gender;type:tinyint;default:0"`
-	Birthday *time.Time `gorm:"column:birthday;type:date"`
-	Status   int8       `gorm:"column:status;type:tinyint;default:1"`
+	Username  string         `gorm:"column:username;type:varchar(255);uniqueIndex;not null"`
+	Email     string         `gorm:"column:email;type:varchar(255);uniqueIndex;not null"`
+	FullName  string         `gorm:"column:full_name;type:varchar(100)"`
+	Password  string         `gorm:"column:password;type:varchar(255);not null"`
+	Phone     string         `gorm:"column:phone;type:varchar(20);index"`
+	Nickname  string         `gorm:"column:nickname;type:varchar(255)"`
+	Avatar    string         `gorm:"column:avatar;type:varchar(1024)"`
+	Gender    int8           `gorm:"column:gender;type:tinyint;default:0"`
+	Birthday  *time.Time     `gorm:"column:birthday;type:date"`
+	Status    int8           `gorm:"column:status;type:tinyint;default:1"`
 	Addresses []AddressModel `gorm:"foreignKey:UserID"`
 }
 
@@ -53,16 +53,16 @@ func toUserModel(u *domain.User) *UserModel {
 			CreatedAt: u.CreatedAt,
 			UpdatedAt: u.UpdatedAt,
 		},
-		Username:  u.Username,
-		Email:     u.Email,
-		FullName:  u.FullName,
-		Password:  u.Password,
-		Phone:     u.Phone,
-		Nickname:  u.Nickname,
-		Avatar:    u.Avatar,
-		Gender:    u.Gender,
-		Birthday:  u.Birthday,
-		Status:    u.Status,
+		Username: u.Username,
+		Email:    u.Email,
+		FullName: u.FullName,
+		Password: u.Password,
+		Phone:    u.Phone,
+		Nickname: u.Nickname,
+		Avatar:   u.Avatar,
+		Gender:   u.Gender,
+		Birthday: u.Birthday,
+		Status:   u.Status,
 	}
 }
 

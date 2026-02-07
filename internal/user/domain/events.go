@@ -14,19 +14,19 @@ const (
 
 // UserCreatedEvent 用户创建事件
 type UserCreatedEvent struct {
-	UserID    uint      `json:"user_id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	Phone     string    `json:"phone"`
-	Status    int8      `json:"status"`
-	CreatedAt int64     `json:"created_at"`
+	UserID     uint      `json:"user_id"`
+	Username   string    `json:"username"`
+	Email      string    `json:"email"`
+	Phone      string    `json:"phone"`
+	Status     int8      `json:"status"`
+	CreatedAt  int64     `json:"created_at"`
 	OccurredOn time.Time `json:"occurred_on"`
 }
 
 // UserUpdatedEvent 用户更新事件
 type UserUpdatedEvent struct {
-	UserID    uint      `json:"user_id"`
-	UpdatedAt int64     `json:"updated_at"`
+	UserID     uint      `json:"user_id"`
+	UpdatedAt  int64     `json:"updated_at"`
 	OccurredOn time.Time `json:"occurred_on"`
 }
 
@@ -39,10 +39,10 @@ type UserPasswordChangedEvent struct {
 
 // UserAddressAddedEvent 地址添加事件
 type UserAddressAddedEvent struct {
-	UserID      uint      `json:"user_id"`
-	AddressID   uint      `json:"address_id"`
-	IsDefault   bool      `json:"is_default"`
-	OccurredOn  time.Time `json:"occurred_on"`
+	UserID     uint      `json:"user_id"`
+	AddressID  uint      `json:"address_id"`
+	IsDefault  bool      `json:"is_default"`
+	OccurredOn time.Time `json:"occurred_on"`
 }
 
 // UserAddressUpdatedEvent 地址更新事件
@@ -66,4 +66,3 @@ type UserAddressDefaultEvent struct {
 	AddressID  uint      `json:"address_id"`
 	OccurredOn time.Time `json:"occurred_on"`
 }
-
