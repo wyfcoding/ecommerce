@@ -13,15 +13,17 @@ import (
 
 // Handler 处理 HTTP 或 gRPC 请求。
 type Handler struct {
-	service *application.OrderOptimizationService
-	logger  *slog.Logger
+	cmd    *application.OptimizationCommandService
+	query  *application.OptimizationQueryService
+	logger *slog.Logger
 }
 
 // NewHandler 处理 HTTP 或 gRPC 请求。
-func NewHandler(service *application.OrderOptimizationService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.OptimizationCommandService, query *application.OptimizationQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		cmd:    cmd,
+		query:  query,
+		logger: logger,
 	}
 }
 
@@ -36,7 +38,7 @@ func (h *Handler) MergeOrders(c *gin.Context) {
 		return
 	}
 
-	mergedOrder, err := h.service.MergeOrders(c.Request.Context(), req.UserID, req.OrderIDs)
+	mergedOrder, err := h.cmd.MergeOrders(c.Request.Context(), req.UserID, req.OrderIDs)
 	if err != nil {
 		h.logger.Error("Failed to merge orders", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to merge orders", err.Error())
@@ -56,7 +58,7 @@ func (h *Handler) SplitOrder(c *gin.Context) {
 		return
 	}
 
-	splitOrders, err := h.service.SplitOrder(c.Request.Context(), req.OrderID)
+	splitOrders, err := h.cmd.SplitOrder(c.Request.Context(), req.OrderID)
 	if err != nil {
 		h.logger.Error("Failed to split order", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to split order", err.Error())
@@ -73,7 +75,7 @@ func (h *Handler) AllocateWarehouse(c *gin.Context) {
 		return
 	}
 
-	plan, err := h.service.AllocateWarehouse(c.Request.Context(), orderID)
+	plan, err := h.cmd.AllocateWarehouse(c.Request.Context(), orderID)
 	if err != nil {
 		h.logger.Error("Failed to allocate warehouse", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to allocate warehouse", err.Error())
@@ -90,7 +92,7 @@ func (h *Handler) GetMergedOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := h.service.GetMergedOrder(c.Request.Context(), id)
+	order, err := h.query.GetMergedOrder(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("Failed to get merged order", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get merged order", err.Error())
@@ -111,7 +113,7 @@ func (h *Handler) ListSplitOrders(c *gin.Context) {
 		return
 	}
 
-	orders, err := h.service.ListSplitOrders(c.Request.Context(), orderID)
+	orders, err := h.query.ListSplitOrders(c.Request.Context(), orderID)
 	if err != nil {
 		h.logger.Error("Failed to list split orders", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to list split orders", err.Error())
@@ -128,7 +130,7 @@ func (h *Handler) GetAllocationPlan(c *gin.Context) {
 		return
 	}
 
-	plan, err := h.service.GetAllocationPlan(c.Request.Context(), orderID)
+	plan, err := h.query.GetAllocationPlan(c.Request.Context(), orderID)
 	if err != nil {
 		h.logger.Error("Failed to get allocation plan", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get allocation plan", err.Error())

@@ -16,16 +16,20 @@ import (
 // Server 结构体定义。
 type Server struct {
 	pb.UnimplementedOrderOptimizationServiceServer
-	app *application.OrderOptimizationService
+	cmd   *application.OptimizationCommandService
+	query *application.OptimizationQueryService
 }
 
 // NewServer 函数。
-func NewServer(app *application.OrderOptimizationService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.OptimizationCommandService, query *application.OptimizationQueryService) *Server {
+	return &Server{
+		cmd:   cmd,
+		query: query,
+	}
 }
 
 func (s *Server) MergeOrders(ctx context.Context, req *pb.MergeOrdersRequest) (*pb.MergeOrdersResponse, error) {
-	mergedOrder, err := s.app.MergeOrders(ctx, req.UserId, req.OrderIds)
+	mergedOrder, err := s.cmd.MergeOrders(ctx, req.UserId, req.OrderIds)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to merge orders: %v", err))
 	}
@@ -36,7 +40,7 @@ func (s *Server) MergeOrders(ctx context.Context, req *pb.MergeOrdersRequest) (*
 }
 
 func (s *Server) SplitOrder(ctx context.Context, req *pb.SplitOrderRequest) (*pb.SplitOrderResponse, error) {
-	splitOrders, err := s.app.SplitOrder(ctx, req.OrderId)
+	splitOrders, err := s.cmd.SplitOrder(ctx, req.OrderId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to split order: %v", err))
 	}
@@ -52,7 +56,7 @@ func (s *Server) SplitOrder(ctx context.Context, req *pb.SplitOrderRequest) (*pb
 }
 
 func (s *Server) AllocateWarehouse(ctx context.Context, req *pb.AllocateWarehouseRequest) (*pb.AllocateWarehouseResponse, error) {
-	plan, err := s.app.AllocateWarehouse(ctx, req.OrderId)
+	plan, err := s.cmd.AllocateWarehouse(ctx, req.OrderId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to allocate warehouse: %v", err))
 	}

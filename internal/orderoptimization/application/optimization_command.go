@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
@@ -43,7 +44,20 @@ func (m *OptimizationCommandService) mergeOrdersInternal(ctx context.Context, us
 		Status:           "merged",
 	}
 	// 实际应从 orderCli 获取所有订单详情并合并 Items
-	if err := m.repo.SaveMergedOrder(ctx, mergedOrder); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveMergedOrderInTx(ctx, tx, mergedOrder); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.OrderMergedEventType, fmt.Sprintf("%d", mergedOrder.ID), &domain.OrderMergedEvent{
+			MergedOrderID:    uint64(mergedOrder.ID),
+			UserID:           mergedOrder.UserID,
+			OriginalOrderIDs: mergedOrder.OriginalOrderIDs,
+			Timestamp:        time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 	return mergedOrder, nil
@@ -51,6 +65,9 @@ func (m *OptimizationCommandService) mergeOrdersInternal(ctx context.Context, us
 
 // SplitOrder 拆分订单：基于库存服务的真实分配结果。
 func (m *OptimizationCommandService) SplitOrder(ctx context.Context, orderID uint64) ([]*domain.SplitOrder, error) {
+	if m.orderCli == nil || m.inventoryCli == nil {
+		return nil, fmt.Errorf("order or inventory client not initialized")
+	}
 	// 1. 获取订单详情
 	orderResp, err := m.orderCli.GetOrderByID(ctx, &orderv1.GetOrderByIDRequest{Id: orderID})
 	if err != nil {
@@ -122,10 +139,27 @@ func (m *OptimizationCommandService) SplitOrder(ctx context.Context, orderID uin
 			Status:          "optimized_suggestion",
 		}
 
-		if err := m.repo.SaveSplitOrder(ctx, split); err != nil {
-			m.logger.WarnContext(ctx, "failed to save optimized split suggestion", "error", err)
-		}
 		splits = append(splits, split)
+	}
+
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		splitIDs := make([]uint64, 0, len(splits))
+		for _, split := range splits {
+			if err := m.repo.SaveSplitOrderInTx(ctx, tx, split); err != nil {
+				return err
+			}
+			splitIDs = append(splitIDs, uint64(split.ID))
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.OrderSplitEventType, fmt.Sprintf("%d", orderID), &domain.OrderSplitEvent{
+			OriginalOrderID: orderID,
+			SplitOrderIDs:   splitIDs,
+			Timestamp:       time.Now(),
+		})
+	}); err != nil {
+		return nil, err
 	}
 
 	m.logger.InfoContext(ctx, "order optimized split completed", "order_id", orderID, "splits_count", len(splits))
@@ -140,7 +174,19 @@ func (m *OptimizationCommandService) AllocateWarehouse(ctx context.Context, orde
 		Allocations: []*domain.WarehouseAllocation{},
 	}
 
-	if err := m.repo.SaveAllocationPlan(ctx, plan); err != nil {
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveAllocationPlanInTx(ctx, tx, plan); err != nil {
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.OrderAllocationPlanCreatedType, fmt.Sprintf("%d", orderID), &domain.OrderAllocationPlanCreatedEvent{
+			OrderID:   orderID,
+			PlanID:    uint64(plan.ID),
+			Timestamp: time.Now(),
+		})
+	}); err != nil {
 		return nil, err
 	}
 

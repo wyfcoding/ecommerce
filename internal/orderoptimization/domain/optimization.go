@@ -4,8 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-
-	"gorm.io/gorm"
+	"time"
 )
 
 // JSONMap 定义了一个map类型，实现了 sql.Scanner 和 driver.Valuer 接口。
@@ -109,27 +108,31 @@ func (a *Uint64Array) Scan(value any) error {
 
 // MergedOrder 实体代表一个合并后的订单。
 type MergedOrder struct {
-	gorm.Model
-	UserID           uint64          `gorm:"not null;index;comment:用户ID" json:"user_id"`
-	OriginalOrderIDs Uint64Array     `gorm:"type:json;comment:原始订单ID列表" json:"original_order_ids"`
-	Items            OrderItemArray  `gorm:"type:json;comment:订单项" json:"items"`
-	TotalAmount      int64           `gorm:"not null;default:0;comment:总金额(分)" json:"total_amount"`
-	DiscountAmount   int64           `gorm:"not null;default:0;comment:优惠金额(分)" json:"discount_amount"`
-	FinalAmount      int64           `gorm:"not null;default:0;comment:最终金额(分)" json:"final_amount"`
-	ShippingAddress  ShippingAddress `gorm:"type:json;comment:配送地址" json:"shipping_address"`
-	Status           string          `gorm:"type:varchar(32);not null;comment:状态" json:"status"`
+	ID               uint            `json:"id"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	UserID           uint64          `json:"user_id"`
+	OriginalOrderIDs Uint64Array     `json:"original_order_ids"`
+	Items            OrderItemArray  `json:"items"`
+	TotalAmount      int64           `json:"total_amount"`
+	DiscountAmount   int64           `json:"discount_amount"`
+	FinalAmount      int64           `json:"final_amount"`
+	ShippingAddress  ShippingAddress `json:"shipping_address"`
+	Status           string          `json:"status"`
 }
 
 // SplitOrder 实体代表一个拆分后的子订单。
 type SplitOrder struct {
-	gorm.Model
-	OriginalOrderID uint64          `gorm:"not null;index;comment:原始订单ID" json:"original_order_id"`
-	SplitIndex      int32           `gorm:"not null;comment:拆分序号" json:"split_index"`
-	Items           OrderItemArray  `gorm:"type:json;comment:订单项" json:"items"`
-	Amount          int64           `gorm:"not null;default:0;comment:金额(分)" json:"amount"`
-	WarehouseID     uint64          `gorm:"not null;comment:仓库ID" json:"warehouse_id"`
-	ShippingAddress ShippingAddress `gorm:"type:json;comment:配送地址" json:"shipping_address"`
-	Status          string          `gorm:"type:varchar(32);not null;comment:状态" json:"status"`
+	ID              uint            `json:"id"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	OriginalOrderID uint64          `json:"original_order_id"`
+	SplitIndex      int32           `json:"split_index"`
+	Items           OrderItemArray  `json:"items"`
+	Amount          int64           `json:"amount"`
+	WarehouseID     uint64          `json:"warehouse_id"`
+	ShippingAddress ShippingAddress `json:"shipping_address"`
+	Status          string          `json:"status"`
 }
 
 // WarehouseAllocation 值对象定义了仓库分配的详细信息。
@@ -164,7 +167,9 @@ func (a *WarehouseAllocationArray) Scan(value any) error {
 
 // WarehouseAllocationPlan 实体代表一个订单的仓库分配计划。
 type WarehouseAllocationPlan struct {
-	gorm.Model
-	OrderID     uint64                   `gorm:"not null;index;comment:订单ID" json:"order_id"`
-	Allocations WarehouseAllocationArray `gorm:"type:json;comment:分配详情" json:"allocations"`
+	ID          uint                     `json:"id"`
+	CreatedAt   time.Time                `json:"created_at"`
+	UpdatedAt   time.Time                `json:"updated_at"`
+	OrderID     uint64                   `json:"order_id"`
+	Allocations WarehouseAllocationArray `json:"allocations"`
 }
