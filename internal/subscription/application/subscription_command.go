@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -35,8 +36,21 @@ func (m *SubscriptionCommandService) CreatePlan(ctx context.Context, name, desc 
 		Features:    features,
 		Enabled:     true,
 	}
-	if err := m.repo.SavePlan(ctx, plan); err != nil {
-		m.logger.ErrorContext(ctx, "failed to create plan", "name", name, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SavePlanInTx(ctx, tx, plan); err != nil {
+			m.logger.ErrorContext(ctx, "failed to create plan", "name", name, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SubscriptionPlanCreatedEvent{
+			PlanID:    uint64(plan.ID),
+			Name:      plan.Name,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SubscriptionPlanCreatedEventType, fmt.Sprintf("%d", plan.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "plan created successfully", "plan_id", plan.ID, "name", name)
@@ -73,8 +87,22 @@ func (m *SubscriptionCommandService) Subscribe(ctx context.Context, userID, plan
 		AutoRenew: true,
 	}
 
-	if err := m.repo.SaveSubscription(ctx, sub); err != nil {
-		m.logger.ErrorContext(ctx, "failed to save subscription", "user_id", userID, "plan_id", planID, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveSubscriptionInTx(ctx, tx, sub); err != nil {
+			m.logger.ErrorContext(ctx, "failed to save subscription", "user_id", userID, "plan_id", planID, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SubscriptionCreatedEvent{
+			SubscriptionID: uint64(sub.ID),
+			UserID:         sub.UserID,
+			PlanID:         sub.PlanID,
+			Timestamp:      time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SubscriptionCreatedEventType, fmt.Sprintf("%d", sub.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "subscription created successfully", "subscription_id", sub.ID, "user_id", userID)
@@ -96,8 +124,21 @@ func (m *SubscriptionCommandService) Cancel(ctx context.Context, id uint64) erro
 	now := time.Now()
 	sub.CanceledAt = &now
 
-	if err := m.repo.SaveSubscription(ctx, sub); err != nil {
-		m.logger.ErrorContext(ctx, "failed to cancel subscription", "subscription_id", id, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveSubscriptionInTx(ctx, tx, sub); err != nil {
+			m.logger.ErrorContext(ctx, "failed to cancel subscription", "subscription_id", id, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SubscriptionCancelledEvent{
+			SubscriptionID: uint64(sub.ID),
+			UserID:         sub.UserID,
+			Timestamp:      time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SubscriptionCancelledEventType, fmt.Sprintf("%d", sub.ID), event)
+	}); err != nil {
 		return err
 	}
 	m.logger.InfoContext(ctx, "subscription canceled successfully", "subscription_id", id)
@@ -130,8 +171,22 @@ func (m *SubscriptionCommandService) Renew(ctx context.Context, id uint64) error
 	}
 	sub.Status = domain.SubscriptionStatusActive
 
-	if err := m.repo.SaveSubscription(ctx, sub); err != nil {
-		m.logger.ErrorContext(ctx, "failed to renew subscription", "subscription_id", id, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SaveSubscriptionInTx(ctx, tx, sub); err != nil {
+			m.logger.ErrorContext(ctx, "failed to renew subscription", "subscription_id", id, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SubscriptionRenewedEvent{
+			SubscriptionID: uint64(sub.ID),
+			UserID:         sub.UserID,
+			NewExpiryDate:  sub.EndDate,
+			Timestamp:      time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SubscriptionRenewedEventType, fmt.Sprintf("%d", sub.ID), event)
+	}); err != nil {
 		return err
 	}
 	m.logger.InfoContext(ctx, "subscription renewed successfully", "subscription_id", id)
@@ -167,8 +222,21 @@ func (m *SubscriptionCommandService) UpdatePlan(ctx context.Context, id uint64, 
 		plan.Enabled = *enabled
 	}
 
-	if err := m.repo.SavePlan(ctx, plan); err != nil {
-		m.logger.ErrorContext(ctx, "failed to update plan", "plan_id", id, "error", err)
+	if err := m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.SavePlanInTx(ctx, tx, plan); err != nil {
+			m.logger.ErrorContext(ctx, "failed to update plan", "plan_id", id, "error", err)
+			return err
+		}
+		if m.publisher == nil {
+			return nil
+		}
+		event := &domain.SubscriptionPlanUpdatedEvent{
+			PlanID:    uint64(plan.ID),
+			Name:      plan.Name,
+			Timestamp: time.Now(),
+		}
+		return m.publisher.PublishInTx(ctx, tx, domain.SubscriptionPlanUpdatedEventType, fmt.Sprintf("%d", plan.ID), event)
+	}); err != nil {
 		return nil, err
 	}
 	m.logger.InfoContext(ctx, "plan updated successfully", "plan_id", id)

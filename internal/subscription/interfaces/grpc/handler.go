@@ -17,17 +17,18 @@ import (
 // Server 结构体实现了 SubscriptionService 的 gRPC 服务端接口。
 type Server struct {
 	pb.UnimplementedSubscriptionServiceServer
-	app *application.SubscriptionService
+	cmdService   *application.SubscriptionCommandService
+	queryService *application.SubscriptionQueryService
 }
 
 // NewServer 创建并返回一个新的 Subscription gRPC 服务端实例。
-func NewServer(app *application.SubscriptionService) *Server {
-	return &Server{app: app}
+func NewServer(cmd *application.SubscriptionCommandService, query *application.SubscriptionQueryService) *Server {
+	return &Server{cmdService: cmd, queryService: query}
 }
 
 // CreatePlan 处理创建订阅计划的gRPC请求。
 func (s *Server) CreatePlan(ctx context.Context, req *pb.CreatePlanRequest) (*pb.CreatePlanResponse, error) {
-	plan, err := s.app.CreatePlan(ctx, req.Name, req.Description, req.Price, req.Duration, req.Features)
+	plan, err := s.cmdService.CreatePlan(ctx, req.Name, req.Description, req.Price, req.Duration, req.Features)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create plan: %v", err))
 	}
@@ -39,7 +40,7 @@ func (s *Server) CreatePlan(ctx context.Context, req *pb.CreatePlanRequest) (*pb
 
 // ListPlans 处理列出订阅计划的gRPC请求。
 func (s *Server) ListPlans(ctx context.Context, _ *emptypb.Empty) (*pb.ListPlansResponse, error) {
-	plans, err := s.app.ListPlans(ctx)
+	plans, err := s.queryService.ListPlans(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list plans: %v", err))
 	}
@@ -56,7 +57,7 @@ func (s *Server) ListPlans(ctx context.Context, _ *emptypb.Empty) (*pb.ListPlans
 
 // Subscribe 处理用户订阅计划的gRPC请求。
 func (s *Server) Subscribe(ctx context.Context, req *pb.SubscribeRequest) (*pb.SubscribeResponse, error) {
-	sub, err := s.app.Subscribe(ctx, req.UserId, req.PlanId)
+	sub, err := s.cmdService.Subscribe(ctx, req.UserId, req.PlanId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to subscribe: %v", err))
 	}
@@ -68,7 +69,7 @@ func (s *Server) Subscribe(ctx context.Context, req *pb.SubscribeRequest) (*pb.S
 
 // Cancel 处理取消订阅的gRPC请求。
 func (s *Server) Cancel(ctx context.Context, req *pb.CancelRequest) (*emptypb.Empty, error) {
-	if err := s.app.Cancel(ctx, req.Id); err != nil {
+	if err := s.cmdService.Cancel(ctx, req.Id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to cancel subscription: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -76,7 +77,7 @@ func (s *Server) Cancel(ctx context.Context, req *pb.CancelRequest) (*emptypb.Em
 
 // Renew 处理续订的gRPC请求。
 func (s *Server) Renew(ctx context.Context, req *pb.RenewRequest) (*emptypb.Empty, error) {
-	if err := s.app.Renew(ctx, req.Id); err != nil {
+	if err := s.cmdService.Renew(ctx, req.Id); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to renew subscription: %v", err))
 	}
 	return &emptypb.Empty{}, nil
@@ -90,7 +91,7 @@ func (s *Server) ListSubscriptions(ctx context.Context, req *pb.ListSubscription
 		pageSize = 10
 	}
 
-	subs, total, err := s.app.ListSubscriptions(ctx, req.UserId, page, pageSize)
+	subs, total, err := s.queryService.ListSubscriptions(ctx, req.UserId, page, pageSize)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to list subscriptions: %v", err))
 	}

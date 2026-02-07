@@ -13,15 +13,17 @@ import (
 
 // Handler 结构体定义了Subscription模块的HTTP处理层。
 type Handler struct {
-	app    *application.SubscriptionService
-	logger *slog.Logger
+	cmdService   *application.SubscriptionCommandService
+	queryService *application.SubscriptionQueryService
+	logger       *slog.Logger
 }
 
 // NewHandler 创建并返回一个新的 Subscription HTTP Handler 实例。
-func NewHandler(app *application.SubscriptionService, logger *slog.Logger) *Handler {
+func NewHandler(cmd *application.SubscriptionCommandService, query *application.SubscriptionQueryService, logger *slog.Logger) *Handler {
 	return &Handler{
-		app:    app,
-		logger: logger,
+		cmdService:   cmd,
+		queryService: query,
+		logger:       logger,
 	}
 }
 
@@ -61,7 +63,7 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 		return
 	}
 
-	plan, err := h.app.CreatePlan(c.Request.Context(), req.Name, req.Description, req.Price, req.Duration, req.Features)
+	plan, err := h.cmdService.CreatePlan(c.Request.Context(), req.Name, req.Description, req.Price, req.Duration, req.Features)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to create plan", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -73,7 +75,7 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 
 // ListPlans 处理获取订阅计划列表的HTTP请求。
 func (h *Handler) ListPlans(c *gin.Context) {
-	plans, err := h.app.ListPlans(c.Request.Context())
+	plans, err := h.queryService.ListPlans(c.Request.Context())
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list plans", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -94,7 +96,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	sub, err := h.app.Subscribe(c.Request.Context(), req.UserID, req.PlanID)
+	sub, err := h.cmdService.Subscribe(c.Request.Context(), req.UserID, req.PlanID)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to subscribe", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -112,7 +114,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.Cancel(c.Request.Context(), id); err != nil {
+	if err := h.cmdService.Cancel(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to cancel subscription", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
@@ -129,7 +131,7 @@ func (h *Handler) Renew(c *gin.Context) {
 		return
 	}
 
-	if err := h.app.Renew(c.Request.Context(), id); err != nil {
+	if err := h.cmdService.Renew(c.Request.Context(), id); err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to renew subscription", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
 		return
@@ -154,7 +156,7 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 		pageSize = 10
 	}
 
-	subs, total, err := h.app.ListSubscriptions(c.Request.Context(), userID, page, pageSize)
+	subs, total, err := h.queryService.ListSubscriptions(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to list subscriptions", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -175,7 +177,7 @@ func (h *Handler) GetPlan(c *gin.Context) {
 		return
 	}
 
-	plan, err := h.app.GetPlan(c.Request.Context(), id)
+	plan, err := h.queryService.GetPlan(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get plan", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -210,7 +212,7 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 		return
 	}
 
-	plan, err := h.app.UpdatePlan(c.Request.Context(), id, req.Name, req.Description, req.Price, req.Duration, req.Features, req.Enabled)
+	plan, err := h.cmdService.UpdatePlan(c.Request.Context(), id, req.Name, req.Description, req.Price, req.Duration, req.Features, req.Enabled)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to update plan", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
@@ -228,7 +230,7 @@ func (h *Handler) GetSubscription(c *gin.Context) {
 		return
 	}
 
-	sub, err := h.app.GetSubscription(c.Request.Context(), id)
+	sub, err := h.queryService.GetSubscription(c.Request.Context(), id)
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "failed to get subscription", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, err.Error(), "")
