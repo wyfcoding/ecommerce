@@ -10,7 +10,8 @@ option go_package = "github.com/wyfcoding/ecommerce/goapi/order/v1;orderv1";
 // 订单主流程状态。
 enum OrderStatus {
   ORDER_STATUS_UNSPECIFIED = 0;
-  PENDING_PAYMENT = 1; // 待支付
+  PENDING_PAYMENT = 1; // 待支付 (全款或定金)
+  PENDING_BALANCE = 11; // 待支付尾款 (预售模式)
   ALLOCATING = 2; // 分配中 (分布式事务处理中)
   PAID = 3; // 已支付，待发货
   SHIPPED = 4; // 已发货，运输中
@@ -20,6 +21,7 @@ enum OrderStatus {
   REFUND_REQUESTED = 8; // 退款审核中
   REFUNDED = 9; // 退款已到账
   CLOSED = 10; // 异常或超时关闭
+
 }
 
 // 订单支付环节状态。
@@ -108,7 +110,22 @@ message SagaOrderRequest {
   string reason = 3;
 }
 
+// 订单类型
+enum OrderType {
+  ORDER_TYPE_UNSPECIFIED = 0;
+  NORMAL = 1; // 普通订单
+  PRE_SALE = 2; // 预售订单 (定金+尾款)
+}
+
+// 商品类型
+enum ProductType {
+  PRODUCT_TYPE_UNSPECIFIED = 0;
+  PHYSICAL = 1; // 实物商品
+  VIRTUAL = 2; // 虚拟商品
+}
+
 // Saga 订单回调响应
+
 message SagaOrderResponse {
   bool success = 1;
 }
@@ -169,7 +186,14 @@ message OrderInfo {
   int64 refund_amount = 26;
   // 退款原因。
   string refund_reason = 27;
+  // 订单类型
+  OrderType order_type = 28;
+  // 定金金额 (分)
+  int64 deposit_amount = 29;
+  // 尾款金额 (分)
+  int64 balance_amount = 30;
 }
+
 
 // 订单包含的商品。
 message OrderItem {
@@ -193,7 +217,10 @@ message OrderItem {
   int32 quantity = 9;
   // 该项小计（分）。
   int64 total_price = 10;
+  // 商品类型
+  ProductType product_type = 11;
 }
+
 
 // 收货信息快照。
 message ShippingAddress {
@@ -265,7 +292,14 @@ message CreateOrderRequest {
   string payment_method = 5;
   // 选用的优惠券。
   google.protobuf.StringValue coupon_code = 6;
+  // 订单类型
+  OrderType order_type = 7;
+  // 定金金额 (预售模式)
+  int64 deposit_amount = 8;
+  // 尾款金额 (预售模式)
+  int64 balance_amount = 9;
 }
+
 
 // 待购项模板。
 message OrderItemCreate {

@@ -16,13 +16,15 @@ type CreateOrderCommand struct {
 	PaymentMethod   string
 	ClientIP        string
 	DeviceID        string
+	OrderType       pb.OrderType
 }
 
 type CreateOrderItemCommand struct {
-	SkuID     uint64
-	ProductID uint64
-	Quantity  int32
-	Price     int64 // Optional validation or logic
+	SkuID       uint64
+	ProductID   uint64
+	Quantity    int32
+	Price       int64 // Optional validation or logic
+	ProductType pb.ProductType
 }
 
 type PayOrderCommand struct {

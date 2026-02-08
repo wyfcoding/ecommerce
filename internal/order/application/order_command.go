@@ -119,6 +119,7 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			ProductName: sku.Name,
 			SkuName:     sku.Name,
 			TotalPrice:  sku.Price * int64(it.Quantity),
+			ProductType: it.ProductType,
 		}
 		items = append(items, item)
 		totalAmount += item.TotalPrice
@@ -136,7 +137,7 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 
 	orderID := s.idGen.Generate()
 	orderNo := fmt.Sprintf("%s%d", time.Now().Format("20060102"), orderID)
-	order := domain.NewOrder(orderNo, cmd.UserID, items, cmd.ShippingAddress)
+	order := domain.NewOrder(orderNo, cmd.UserID, cmd.OrderType, items, cmd.ShippingAddress)
 	order.Status = orderv1.OrderStatus_ALLOCATING
 	if cmd.Remark != "" {
 		order.Remark = cmd.Remark
@@ -189,6 +190,9 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			RefundReason:         order.RefundReason,
 			ShippingAddress:      order.ShippingAddress,
 			Items:                order.Items,
+			OrderType:            order.OrderType,
+			DepositAmount:        order.DepositAmount,
+			BalanceAmount:        order.BalanceAmount,
 			CreatedAt:            order.CreatedAt,
 			InitLog:              buildEventLogFromOrder(order),
 		}
@@ -272,13 +276,26 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			if paymentMethod == "" {
 				paymentMethod = "WECHAT"
 			}
-			resp, err := s.paymentCli.InitiatePayment(reqCtx, &paymentv1.InitiatePaymentRequest{
-				OrderId:       uint64(order.ID),
-				UserId:        cmd.UserID,
-				PaymentMethod: paymentMethod,
-				Amount:        order.TotalAmount,
-				ClientIp:      cmd.ClientIP,
-			})
+			var resp *paymentv1.PaymentResponse
+			var err error
+			if order.OrderType == orderv1.OrderType_PRE_SALE {
+				// 预售订单初始仅发起定金支付
+				resp, err = s.paymentCli.InitiatePayment(reqCtx, &paymentv1.InitiatePaymentRequest{
+					OrderId:       uint64(order.ID),
+					UserId:        cmd.UserID,
+					PaymentMethod: paymentMethod,
+					Amount:        order.DepositAmount,
+					ClientIp:      cmd.ClientIP,
+				})
+			} else {
+				resp, err = s.paymentCli.InitiatePayment(reqCtx, &paymentv1.InitiatePaymentRequest{
+					OrderId:       uint64(order.ID),
+					UserId:        cmd.UserID,
+					PaymentMethod: paymentMethod,
+					Amount:        order.TotalAmount,
+					ClientIp:      cmd.ClientIP,
+				})
+			}
 			if err != nil {
 				s.logger.Error("failed to initiate payment in background", "order_id", order.ID, "error", err)
 				return
@@ -863,7 +880,7 @@ func (s *OrderCommandService) HandleFlashsaleOrder(ctx context.Context, orderID,
 		SkuID: skuID, ProductID: productID, Quantity: quantity, Price: price, TotalPrice: price * int64(quantity),
 		ProductName: "Flashsale", SkuName: "Flashsale",
 	}}
-	order := domain.NewOrder(orderNo, userID, items, nil)
+	order := domain.NewOrder(orderNo, userID, orderv1.OrderType_NORMAL, items, nil)
 	order.ID = uint(orderID)
 	order.Status = orderv1.OrderStatus_PENDING_PAYMENT
 	return s.repo.WithTx(ctx, userID, func(tx any) error {

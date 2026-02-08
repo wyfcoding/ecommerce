@@ -48,23 +48,27 @@ type Order struct {
 	DeliveredAt          *time.Time                   `json:"delivered_at"`
 	CompletedAt          *time.Time                   `json:"completed_at"`
 	CancelledAt          *time.Time                   `json:"cancelled_at"`
+	OrderType            pb.OrderType                 `json:"order_type"`
+	DepositAmount        int64                        `json:"deposit_amount"`
+	BalanceAmount        int64                        `json:"balance_amount"`
 	fsm                  *fsm.Machine[string, string] `json:"-"`
 }
 
 // OrderItem 实体代表订单中的一个商品项。
 type OrderItem struct {
-	ID              uint      `json:"id"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	OrderID         uint64    `json:"order_id"`
-	ProductID       uint64    `json:"product_id"`
-	SkuID           uint64    `json:"sku_id"`
-	ProductName     string    `json:"product_name"`
-	SkuName         string    `json:"sku_name"`
-	ProductImageURL string    `json:"product_image_url"`
-	Price           int64     `json:"price"`
-	Quantity        int32     `json:"quantity"`
-	TotalPrice      int64     `json:"total_price"`
+	ID              uint           `json:"id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	OrderID         uint64         `json:"order_id"`
+	ProductID       uint64         `json:"product_id"`
+	SkuID           uint64         `json:"sku_id"`
+	ProductName     string         `json:"product_name"`
+	SkuName         string         `json:"sku_name"`
+	ProductImageURL string         `json:"product_image_url"`
+	Price           int64          `json:"price"`
+	Quantity        int32          `json:"quantity"`
+	TotalPrice      int64          `json:"total_price"`
+	ProductType     pb.ProductType `json:"product_type"`
 }
 
 // ShippingAddress 值对象定义了订单的收货地址信息。
@@ -94,7 +98,7 @@ type OrderLog struct {
 }
 
 // NewOrder 创建并返回一个新的 Order 实体实例。
-func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *ShippingAddress) *Order {
+func NewOrder(orderNo string, userID uint64, orderType pb.OrderType, items []*OrderItem, shippingAddr *ShippingAddress) *Order {
 	var totalAmount int64
 	for _, item := range items {
 		item.TotalPrice = item.Price * int64(item.Quantity)
@@ -104,6 +108,7 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 	order := &Order{
 		OrderNo:         orderNo,
 		UserID:          userID,
+		OrderType:       orderType,
 		Status:          pb.OrderStatus_PENDING_PAYMENT,
 		PaymentStatus:   pb.PaymentStatus_UNPAID,
 		ShippingStatus:  pb.ShippingStatus_PENDING_SHIPMENT,
@@ -116,7 +121,13 @@ func NewOrder(orderNo string, userID uint64, items []*OrderItem, shippingAddr *S
 		Logs:            []*OrderLog{},
 	}
 
-	order.AddLog("System", "Order Created", "", pb.OrderStatus_PENDING_PAYMENT.String(), "Initial order creation")
+	if orderType == pb.OrderType_PRE_SALE {
+		// 预售订单逻辑：定金默认为 20% (示例)
+		order.DepositAmount = totalAmount * 20 / 100
+		order.BalanceAmount = totalAmount - order.DepositAmount
+	}
+
+	order.AddLog("System", "Order Created", "", pb.OrderStatus_PENDING_PAYMENT.String(), fmt.Sprintf("Order Type: %s", orderType.String()))
 	order.initFSM()
 	return order
 }
@@ -139,6 +150,14 @@ func (o *Order) initFSM() {
 	m.AddTransition(pb.OrderStatus_SHIPPED.String(), "REFUND_REQ", pb.OrderStatus_REFUND_REQUESTED.String())
 	m.AddTransition(pb.OrderStatus_DELIVERED.String(), "REFUND_REQ", pb.OrderStatus_REFUND_REQUESTED.String())
 	m.AddTransition(pb.OrderStatus_REFUND_REQUESTED.String(), "REFUND_APPROVE", pb.OrderStatus_REFUNDED.String())
+
+	// 预售流程
+	m.AddTransition(pb.OrderStatus_PENDING_PAYMENT.String(), "PAY_DEPOSIT", pb.OrderStatus_PENDING_BALANCE.String())
+	m.AddTransition(pb.OrderStatus_PENDING_BALANCE.String(), "PAY_BALANCE", pb.OrderStatus_PAID.String())
+	m.AddTransition(pb.OrderStatus_PENDING_BALANCE.String(), "CANCEL", pb.OrderStatus_CANCELLED.String())
+
+	// 虚拟商品流转 (直接从 PAID 到 COMPLETED)
+	m.AddTransition(pb.OrderStatus_PAID.String(), "PROCESS_VIRTUAL", pb.OrderStatus_COMPLETED.String())
 
 	o.fsm = m
 }
@@ -178,10 +197,30 @@ func (o *Order) Trigger(ctx context.Context, event string, operator string, rema
 
 // Pay 支付订单。
 func (o *Order) Pay(ctx context.Context, paymentMethod string, operator string) error {
-	if err := o.Trigger(ctx, "PAY", operator, fmt.Sprintf("Payment method: %s", paymentMethod)); err != nil {
+	event := "PAY"
+	if o.OrderType == pb.OrderType_PRE_SALE && o.Status == pb.OrderStatus_PENDING_PAYMENT {
+		event = "PAY_DEPOSIT"
+	}
+
+	if err := o.Trigger(ctx, event, operator, fmt.Sprintf("Payment method: %s", paymentMethod)); err != nil {
 		return err
 	}
 	o.PaymentMethod = paymentMethod
+	if o.Status == pb.OrderStatus_PAID {
+		o.PaymentStatus = pb.PaymentStatus_SUCCESS
+		now := time.Now()
+		o.PaidAt = &now
+	} else {
+		o.PaymentStatus = pb.PaymentStatus_PROCESSING // 定金支付完成，等待尾款
+	}
+	return nil
+}
+
+// PayBalance 支付预售尾款。
+func (o *Order) PayBalance(ctx context.Context, paymentMethod string, operator string) error {
+	if err := o.Trigger(ctx, "PAY_BALANCE", operator, "Balance paid"); err != nil {
+		return err
+	}
 	o.PaymentStatus = pb.PaymentStatus_SUCCESS
 	now := time.Now()
 	o.PaidAt = &now
@@ -309,4 +348,21 @@ func (o *Order) GetTotalQuantity() int32 {
 		total += item.Quantity
 	}
 	return total
+}
+
+// ProcessVirtual 处理虚拟商品订单。
+func (o *Order) ProcessVirtual(ctx context.Context, operator string) error {
+	// 简单校验：是否所有商品都是虚拟商品
+	for _, item := range o.Items {
+		if item.ProductType != pb.ProductType_VIRTUAL {
+			return fmt.Errorf("order contains physical products, cannot skip shipping")
+		}
+	}
+
+	if err := o.Trigger(ctx, "PROCESS_VIRTUAL", operator, "Virtual order processed"); err != nil {
+		return err
+	}
+	now := time.Now()
+	o.CompletedAt = &now
+	return nil
 }

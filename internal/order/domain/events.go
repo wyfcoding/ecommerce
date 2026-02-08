@@ -15,6 +15,9 @@ type OrderCreatedEvent struct {
 	Status         pb.OrderStatus    `json:"status"`
 	PaymentStatus  pb.PaymentStatus  `json:"payment_status"`
 	ShippingStatus pb.ShippingStatus `json:"shipping_status"`
+	OrderType      pb.OrderType      `json:"order_type"`
+	DepositAmount  int64             `json:"deposit_amount"`
+	BalanceAmount  int64             `json:"balance_amount"`
 	Timestamp      time.Time         `json:"timestamp"`
 }
 

@@ -67,6 +67,9 @@ type OrderCreatedPayload struct {
 	RefundReason         string            `json:"refund_reason"`
 	ShippingAddress      *ShippingAddress  `json:"shipping_address"`
 	Items                []*OrderItem      `json:"items"`
+	OrderType            pb.OrderType      `json:"order_type"`
+	DepositAmount        int64             `json:"deposit_amount"`
+	BalanceAmount        int64             `json:"balance_amount"`
 	CreatedAt            time.Time         `json:"created_at"`
 	InitLog              *OrderEventLog    `json:"init_log"`
 }
@@ -247,6 +250,9 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 		order.RefundReason = payload.RefundReason
 		order.ShippingAddress = payload.ShippingAddress
 		order.Items = payload.Items
+		order.OrderType = payload.OrderType
+		order.DepositAmount = payload.DepositAmount
+		order.BalanceAmount = payload.BalanceAmount
 		order.CreatedAt = payload.CreatedAt
 		order.Logs = []*OrderLog{}
 		appendEventLog(order, payload.OrderID, payload.InitLog)
