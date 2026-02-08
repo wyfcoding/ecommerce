@@ -32,6 +32,9 @@ service LogisticsService {
 
   // 计算并优化配送路线。
   rpc OptimizeDeliveryRoute(OptimizeDeliveryRouteRequest) returns (OptimizeDeliveryRouteResponse);
+
+  // 全局物流网络流优化（MCMF）。
+  rpc OptimizeGlobalDistribution(OptimizeGlobalDistributionRequest) returns (OptimizeGlobalDistributionResponse);
 }
 
 // 物流信息实体。
@@ -244,4 +247,26 @@ message OptimizeDeliveryRouteRequest {
 message OptimizeDeliveryRouteResponse {
   // 计算出的最优配送路线。
   DeliveryRoute route = 1;
+}
+
+// 运输链路。
+message TransportLink {
+  int32 from_id = 1;
+  int32 to_id = 2;
+  int64 capacity = 3;
+  int64 unit_cost = 4;
+}
+
+// 全局发货流优化请求。
+message OptimizeGlobalDistributionRequest {
+  int32 nodes = 1;
+  repeated TransportLink links = 2;
+  int32 source = 3;
+  int32 sink = 4;
+}
+
+// 全局发货流优化响应。
+message OptimizeGlobalDistributionResponse {
+  int64 max_flow = 1;
+  int64 min_cost = 2;
 }

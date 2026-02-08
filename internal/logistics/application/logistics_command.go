@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
+	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/network"
 	"github.com/wyfcoding/pkg/algorithm/graph"
 	"github.com/wyfcoding/pkg/algorithm/math"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
@@ -19,6 +20,7 @@ type LogisticsCommandService struct {
 	repo             domain.LogisticsRepository
 	publisher        messagequeue.EventPublisher
 	optimizer        *algorithm.RouteOptimizer
+	networkOptimizer *network.Optimizer
 	packingOptimizer *algorithm.BinPackingOptimizer
 	logger           *slog.Logger
 }
@@ -47,6 +49,7 @@ func NewLogisticsCommandService(
 		repo:             repo,
 		publisher:        publisher,
 		optimizer:        algorithm.NewRouteOptimizer(),
+		networkOptimizer: network.NewOptimizer(),
 		packingOptimizer: algorithm.NewBinPackingOptimizer(1000.0),
 		logger:           logger,
 	}
@@ -289,4 +292,16 @@ func (s *LogisticsCommandService) OptimizeDeliveryRoute(ctx context.Context, log
 // CalculatePackaging 计算订单的打包方案
 func (s *LogisticsCommandService) CalculatePackaging(items []algorithm.Item) []*algorithm.Bin {
 	return s.packingOptimizer.FFD(items)
+}
+
+// OptimizeGlobalDistribution 执行全局供应链网络流优化。
+// 场景：在多个中转仓库和配送中心之间分配货物，使得总运输容量最大且总成本最低。
+func (s *LogisticsCommandService) OptimizeGlobalDistribution(ctx context.Context, nodes int, links []network.TransportLink, source, sink int) (int64, int64, error) {
+	s.logger.InfoContext(ctx, "optimizing global distribution network", "nodes", nodes, "links_count", len(links))
+
+	maxFlow, minCost := s.networkOptimizer.OptimizeFlow(nodes, links, source, sink)
+
+	s.logger.InfoContext(ctx, "network optimization completed", "max_flow", maxFlow, "min_cost", minCost)
+
+	return maxFlow, minCost, nil
 }

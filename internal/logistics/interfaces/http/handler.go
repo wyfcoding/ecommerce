@@ -8,6 +8,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域实体。
+	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/network"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/response" // 导入统一的响应处理工具。
 
@@ -292,19 +293,47 @@ func (h *Handler) OptimizeRoute(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Route optimized successfully", route)
 }
 
+// OptimizeGlobalDistribution 处理广域供应链网络流优化的HTTP请求。
+func (h *Handler) OptimizeGlobalDistribution(c *gin.Context) {
+	var req struct {
+		Nodes  int                     `json:"nodes" binding:"required"`
+		Links  []network.TransportLink `json:"links" binding:"required"`
+		Source int                     `json:"source" binding:"required"`
+		Sink   int                     `json:"sink" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	maxFlow, minCost, err := h.cmdService.OptimizeGlobalDistribution(c.Request.Context(), req.Nodes, req.Links, req.Source, req.Sink)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to optimize global distribution", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to optimize global distribution", err.Error())
+		return
+	}
+
+	response.SuccessWithStatus(c, http.StatusOK, "Global distribution optimized successfully", gin.H{
+		"max_flow": maxFlow,
+		"min_cost": minCost,
+	})
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Logistics模块的HTTP路由。
 // r: Gin的路由组。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// /logistics 路由组，用于所有物流相关接口。
 	group := r.Group("/logistics")
 	{
-		group.POST("", h.CreateLogistics)                      // 创建物流单。
-		group.GET("", h.ListLogistics)                         // 获取物流单列表。
-		group.GET("/:id", h.GetLogistics)                      // 获取物流单详情。
-		group.GET("/tracking/:tracking_no", h.GetByTrackingNo) // 根据运单号查询详情。
-		group.PUT("/:id/status", h.UpdateStatus)               // 更新物流状态。
-		group.POST("/:id/traces", h.AddTrace)                  // 添加物流轨迹。
-		group.PUT("/:id/estimated_time", h.SetEstimatedTime)   // 设置预计送达时间。
-		group.POST("/:id/optimize-route", h.OptimizeRoute)     // 优化配送路线。
+		group.POST("", h.CreateLogistics)                             // 创建物流单。
+		group.GET("", h.ListLogistics)                                // 获取物流单列表。
+		group.GET("/:id", h.GetLogistics)                             // 获取物流单详情。
+		group.GET("/tracking/:tracking_no", h.GetByTrackingNo)        // 根据运单号查询详情。
+		group.PUT("/:id/status", h.UpdateStatus)                      // 更新物流状态。
+		group.POST("/:id/traces", h.AddTrace)                         // 添加物流轨迹。
+		group.PUT("/:id/estimated_time", h.SetEstimatedTime)          // 设置预计送达时间。
+		group.POST("/:id/optimize-route", h.OptimizeRoute)            // 优化配送路线。
+		group.POST("/optimize-network", h.OptimizeGlobalDistribution) // 全局网络优化。
 	}
 }

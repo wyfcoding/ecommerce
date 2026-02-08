@@ -7,7 +7,8 @@ import (
 	pb "github.com/wyfcoding/ecommerce/goapi/logistics/v1"          // 导入物流模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域层。
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"     // 导入算法包，用于路线优化。
+	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/network"
+	algorithm "github.com/wyfcoding/pkg/algorithm/optimization" // 导入算法包，用于路线优化。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -176,6 +177,29 @@ func (s *Server) OptimizeDeliveryRoute(ctx context.Context, req *pb.OptimizeDeli
 
 	return &pb.OptimizeDeliveryRouteResponse{
 		Route: convertRouteToProto(route),
+	}, nil
+}
+
+// OptimizeGlobalDistribution 处理全局供应链网络流优化的 gRPC 请求。
+func (s *Server) OptimizeGlobalDistribution(ctx context.Context, req *pb.OptimizeGlobalDistributionRequest) (*pb.OptimizeGlobalDistributionResponse, error) {
+	links := make([]network.TransportLink, len(req.Links))
+	for i, l := range req.Links {
+		links[i] = network.TransportLink{
+			FromID:   int(l.FromId),
+			ToID:     int(l.ToId),
+			Capacity: l.Capacity,
+			UnitCost: l.UnitCost,
+		}
+	}
+
+	maxFlow, minCost, err := s.cmdService.OptimizeGlobalDistribution(ctx, int(req.Nodes), links, int(req.Source), int(req.Sink))
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to optimize global distribution: %v", err))
+	}
+
+	return &pb.OptimizeGlobalDistributionResponse{
+		MaxFlow: maxFlow,
+		MinCost: minCost,
 	}, nil
 }
 
