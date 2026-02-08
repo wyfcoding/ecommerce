@@ -1,0 +1,33 @@
+# 发票服务配置文件
+[server]
+http_port = 8082
+grpc_port = 9082
+read_timeout = "15s"
+write_timeout = "15s"
+shutdown_timeout = "30s"
+
+[database]
+dsn = "${MYSQL_DSN:root:password@tcp(localhost:3306)/invoice?charset=utf8mb4&parseTime=True&loc=Local}"
+max_open_conns = 100
+max_idle_conns = 10
+conn_max_lifetime = "1h"
+
+[redis]
+addr = "${REDIS_ADDR:localhost:6379}"
+db = 2
+pool_size = 100
+
+[kafka]
+brokers = ["${KAFKA_BROKER:localhost:9092}"]
+group_id = "invoice-service"
+topics = ["invoice.events"]
+
+[log]
+level = "${LOG_LEVEL:info}"
+format = "json"
+
+[invoice]
+# 税控服务地址（模拟）
+tax_service_addr = "http://localhost:9999"
+# 电子发票下载有效期 (天)
+electronic_invoice_valid_days = 365

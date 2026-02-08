@@ -1,0 +1,332 @@
+// 履约服务 Proto 定义
+// 管理订单从确认到发货的完整履约流程
+syntax = "proto3";
+
+package ecommerce.fulfillment.v1;
+
+option go_package = "github.com/wyfcoding/go-api/ecommerce/fulfillment/v1;fulfillmentv1";
+
+import "google/protobuf/timestamp.proto";
+
+// 履约单服务
+service FulfillmentService {
+  // 创建履约单
+  rpc CreateFulfillment(CreateFulfillmentRequest) returns (CreateFulfillmentResponse);
+  // 获取履约单详情
+  rpc GetFulfillment(GetFulfillmentRequest) returns (GetFulfillmentResponse);
+  // 列出履约单
+  rpc ListFulfillments(ListFulfillmentsRequest) returns (ListFulfillmentsResponse);
+  
+  // 分配拣货任务
+  rpc AssignPicking(AssignPickingRequest) returns (AssignPickingResponse);
+  // 开始拣货
+  rpc StartPicking(StartPickingRequest) returns (StartPickingResponse);
+  // 完成拣货
+  rpc CompletePicking(CompletePickingRequest) returns (CompletePickingResponse);
+  // 报告拣货异常
+  rpc ReportPickingException(ReportPickingExceptionRequest) returns (ReportPickingExceptionResponse);
+  
+  // 开始打包
+  rpc StartPacking(StartPackingRequest) returns (StartPackingResponse);
+  // 完成打包
+  rpc CompletePacking(CompletePackingRequest) returns (CompletePackingResponse);
+  
+  // 安排发货
+  rpc ArrangeShipment(ArrangeShipmentRequest) returns (ArrangeShipmentResponse);
+  // 确认发货
+  rpc ConfirmShipment(ConfirmShipmentRequest) returns (ConfirmShipmentResponse);
+  
+  // 取消履约单
+  rpc CancelFulfillment(CancelFulfillmentRequest) returns (CancelFulfillmentResponse);
+}
+
+// 履约单状态
+enum FulfillmentStatus {
+  FULFILLMENT_STATUS_UNSPECIFIED = 0;
+  FULFILLMENT_STATUS_PENDING = 1;           // 待处理
+  FULFILLMENT_STATUS_PICKING = 2;           // 拣货中
+  FULFILLMENT_STATUS_PICKED = 3;            // 已拣货
+  FULFILLMENT_STATUS_PACKING = 4;           // 打包中
+  FULFILLMENT_STATUS_PACKED = 5;            // 已打包
+  FULFILLMENT_STATUS_READY_TO_SHIP = 6;     // 待发货
+  FULFILLMENT_STATUS_SHIPPED = 7;           // 已发货
+  FULFILLMENT_STATUS_COMPLETED = 8;         // 已完成
+  FULFILLMENT_STATUS_CANCELLED = 9;         // 已取消
+  FULFILLMENT_STATUS_EXCEPTION = 10;        // 异常
+}
+
+// 履约类型
+enum FulfillmentType {
+  FULFILLMENT_TYPE_UNSPECIFIED = 0;
+  FULFILLMENT_TYPE_NORMAL = 1;              // 普通履约
+  FULFILLMENT_TYPE_EXPRESS = 2;             // 加急履约
+  FULFILLMENT_TYPE_SCHEDULED = 3;           // 预约履约
+  FULFILLMENT_TYPE_SAME_DAY = 4;            // 当日达
+  FULFILLMENT_TYPE_NEXT_DAY = 5;            // 次日达
+}
+
+// 履约单
+message Fulfillment {
+  uint64 id = 1;
+  string fulfillment_no = 2;                // 履约单号
+  string order_no = 3;                      // 订单号
+  uint64 merchant_id = 4;                   // 商家ID
+  uint64 store_id = 5;                      // 店铺ID
+  uint64 warehouse_id = 6;                  // 仓库ID
+  FulfillmentType type = 7;
+  FulfillmentStatus status = 8;
+  
+  // 收货信息
+  ShippingAddress shipping_address = 9;
+  
+  // 商品明细
+  repeated FulfillmentItem items = 10;
+  
+  // 拣货信息
+  PickingInfo picking_info = 11;
+  
+  // 打包信息
+  PackingInfo packing_info = 12;
+  
+  // 物流信息
+  ShipmentInfo shipment_info = 13;
+  
+  // 时间信息
+  google.protobuf.Timestamp expected_ship_time = 14;
+  google.protobuf.Timestamp actual_ship_time = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  
+  string remark = 18;
+}
+
+// 收货地址
+message ShippingAddress {
+  string receiver_name = 1;
+  string receiver_phone = 2;
+  string province = 3;
+  string city = 4;
+  string district = 5;
+  string address = 6;
+  string postal_code = 7;
+}
+
+// 履约商品项
+message FulfillmentItem {
+  uint64 id = 1;
+  string sku_id = 2;
+  string product_name = 3;
+  string sku_name = 4;
+  string image_url = 5;
+  int32 quantity = 6;                       // 应发数量
+  int32 picked_quantity = 7;                // 已拣数量
+  int32 packed_quantity = 8;                // 已打包数量
+  string location = 9;                      // 库位
+  string batch_no = 10;                     // 批次号
+}
+
+// 拣货信息
+message PickingInfo {
+  uint64 picker_id = 1;                     // 拣货员ID
+  string picker_name = 2;
+  google.protobuf.Timestamp assigned_at = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+  repeated PickingException exceptions = 6;
+}
+
+// 拣货异常
+message PickingException {
+  string sku_id = 1;
+  int32 expected_quantity = 2;
+  int32 actual_quantity = 3;
+  string reason = 4;
+  google.protobuf.Timestamp reported_at = 5;
+}
+
+// 打包信息
+message PackingInfo {
+  uint64 packer_id = 1;
+  string packer_name = 2;
+  repeated Package packages = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+}
+
+// 包裹
+message Package {
+  string package_no = 1;
+  float weight = 2;                         // 重量(kg)
+  float length = 3;                         // 长(cm)
+  float width = 4;                          // 宽(cm)
+  float height = 5;                         // 高(cm)
+  repeated string sku_ids = 6;              // 包含的SKU
+}
+
+// 物流信息
+message ShipmentInfo {
+  string carrier_code = 1;                  // 物流商编码
+  string carrier_name = 2;                  // 物流商名称
+  string tracking_no = 3;                   // 运单号
+  int64 shipping_fee = 4;                   // 运费(分)
+  google.protobuf.Timestamp shipped_at = 5;
+}
+
+// 创建履约单请求
+message CreateFulfillmentRequest {
+  string order_no = 1;
+  uint64 merchant_id = 2;
+  uint64 store_id = 3;
+  uint64 warehouse_id = 4;
+  FulfillmentType type = 5;
+  ShippingAddress shipping_address = 6;
+  repeated CreateFulfillmentItem items = 7;
+  google.protobuf.Timestamp expected_ship_time = 8;
+  string remark = 9;
+}
+
+message CreateFulfillmentItem {
+  string sku_id = 1;
+  string product_name = 2;
+  string sku_name = 3;
+  string image_url = 4;
+  int32 quantity = 5;
+  string location = 6;
+  string batch_no = 7;
+}
+
+message CreateFulfillmentResponse {
+  uint64 fulfillment_id = 1;
+  string fulfillment_no = 2;
+}
+
+// 获取履约单请求
+message GetFulfillmentRequest {
+  uint64 fulfillment_id = 1;
+}
+
+message GetFulfillmentResponse {
+  Fulfillment fulfillment = 1;
+}
+
+// 列出履约单请求
+message ListFulfillmentsRequest {
+  uint64 merchant_id = 1;
+  uint64 warehouse_id = 2;
+  string order_no = 3;
+  FulfillmentStatus status = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  int32 page = 7;
+  int32 page_size = 8;
+}
+
+message ListFulfillmentsResponse {
+  repeated Fulfillment fulfillments = 1;
+  int64 total = 2;
+}
+
+// 分配拣货请求
+message AssignPickingRequest {
+  uint64 fulfillment_id = 1;
+  uint64 picker_id = 2;
+  string picker_name = 3;
+}
+
+message AssignPickingResponse {
+  bool success = 1;
+}
+
+// 开始拣货请求
+message StartPickingRequest {
+  uint64 fulfillment_id = 1;
+  uint64 picker_id = 2;
+}
+
+message StartPickingResponse {
+  bool success = 1;
+}
+
+// 完成拣货请求
+message CompletePickingRequest {
+  uint64 fulfillment_id = 1;
+  repeated PickedItem items = 2;
+}
+
+message PickedItem {
+  string sku_id = 1;
+  int32 picked_quantity = 2;
+}
+
+message CompletePickingResponse {
+  bool success = 1;
+  bool has_exception = 2;
+}
+
+// 报告拣货异常请求
+message ReportPickingExceptionRequest {
+  uint64 fulfillment_id = 1;
+  string sku_id = 2;
+  int32 expected_quantity = 3;
+  int32 actual_quantity = 4;
+  string reason = 5;
+}
+
+message ReportPickingExceptionResponse {
+  bool success = 1;
+}
+
+// 开始打包请求
+message StartPackingRequest {
+  uint64 fulfillment_id = 1;
+  uint64 packer_id = 2;
+  string packer_name = 3;
+}
+
+message StartPackingResponse {
+  bool success = 1;
+}
+
+// 完成打包请求
+message CompletePackingRequest {
+  uint64 fulfillment_id = 1;
+  repeated Package packages = 2;
+}
+
+message CompletePackingResponse {
+  bool success = 1;
+}
+
+// 安排发货请求
+message ArrangeShipmentRequest {
+  uint64 fulfillment_id = 1;
+  string carrier_code = 2;
+  string carrier_name = 3;
+  int64 shipping_fee = 4;
+}
+
+message ArrangeShipmentResponse {
+  bool success = 1;
+}
+
+// 确认发货请求
+message ConfirmShipmentRequest {
+  uint64 fulfillment_id = 1;
+  string tracking_no = 2;
+}
+
+message ConfirmShipmentResponse {
+  bool success = 1;
+  string tracking_no = 2;
+}
+
+// 取消履约单请求
+message CancelFulfillmentRequest {
+  uint64 fulfillment_id = 1;
+  string reason = 2;
+  string operator = 3;
+}
+
+message CancelFulfillmentResponse {
+  bool success = 1;
+}

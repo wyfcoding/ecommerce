@@ -1,0 +1,315 @@
+syntax = "proto3";
+
+package ecommerce.merchant.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/merchant/v1;merchantv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// MerchantService 商家服务
+service MerchantService {
+  // Apply 商家入驻申请
+  rpc Apply(ApplyRequest) returns (ApplyResponse);
+  // Approve 审核通过
+  rpc Approve(ApproveRequest) returns (google.protobuf.Empty);
+  // Reject 审核拒绝
+  rpc Reject(RejectRequest) returns (google.protobuf.Empty);
+  // Update 更新商家信息
+  rpc Update(UpdateMerchantRequest) returns (Merchant);
+  // Get 获取商家信息
+  rpc Get(GetMerchantRequest) returns (Merchant);
+  // GetByUserID 根据用户ID获取商家信息
+  rpc GetByUserID(GetByUserIDRequest) returns (Merchant);
+  // List 商家列表
+  rpc List(ListMerchantsRequest) returns (ListMerchantsResponse);
+  // Disable 禁用商家
+  rpc Disable(DisableMerchantRequest) returns (google.protobuf.Empty);
+  // Enable 启用商家
+  rpc Enable(EnableMerchantRequest) returns (google.protobuf.Empty);
+  // UpdateSettings 更新商家设置
+  rpc UpdateSettings(UpdateSettingsRequest) returns (MerchantSettings);
+  // GetSettings 获取商家设置
+  rpc GetSettings(GetSettingsRequest) returns (MerchantSettings);
+  // CreateStore 创建店铺
+  rpc CreateStore(CreateStoreRequest) returns (Store);
+  // UpdateStore 更新店铺
+  rpc UpdateStore(UpdateStoreRequest) returns (Store);
+  // GetStore 获取店铺
+  rpc GetStore(GetStoreRequest) returns (Store);
+  // ListStores 店铺列表
+  rpc ListStores(ListStoresRequest) returns (ListStoresResponse);
+}
+
+// MerchantStatus 商家状态
+enum MerchantStatus {
+  MERCHANT_STATUS_UNSPECIFIED = 0;
+  MERCHANT_STATUS_PENDING = 1;     // 待审核
+  MERCHANT_STATUS_APPROVED = 2;    // 已通过
+  MERCHANT_STATUS_REJECTED = 3;    // 已拒绝
+  MERCHANT_STATUS_DISABLED = 4;    // 已禁用
+  MERCHANT_STATUS_SUSPENDED = 5;   // 已暂停
+}
+
+// MerchantType 商家类型
+enum MerchantType {
+  MERCHANT_TYPE_UNSPECIFIED = 0;
+  MERCHANT_TYPE_INDIVIDUAL = 1;    // 个人
+  MERCHANT_TYPE_ENTERPRISE = 2;    // 企业
+  MERCHANT_TYPE_BRAND = 3;         // 品牌旗舰店
+}
+
+// MerchantLevel 商家等级
+enum MerchantLevel {
+  MERCHANT_LEVEL_UNSPECIFIED = 0;
+  MERCHANT_LEVEL_BRONZE = 1;       // 青铜
+  MERCHANT_LEVEL_SILVER = 2;       // 白银
+  MERCHANT_LEVEL_GOLD = 3;         // 黄金
+  MERCHANT_LEVEL_PLATINUM = 4;     // 铂金
+  MERCHANT_LEVEL_DIAMOND = 5;      // 钻石
+}
+
+// Merchant 商家实体
+message Merchant {
+  uint64 id = 1;
+  uint64 user_id = 2;                         // 关联用户ID
+  string merchant_no = 3;                      // 商家编号
+  string name = 4;                             // 商家名称
+  string legal_name = 5;                       // 法人姓名
+  string legal_id_card = 6;                    // 法人身份证号
+  string contact_name = 7;                     // 联系人姓名
+  string contact_phone = 8;                    // 联系人电话
+  string contact_email = 9;                    // 联系人邮箱
+  MerchantType type = 10;                      // 商家类型
+  MerchantStatus status = 11;                  // 商家状态
+  MerchantLevel level = 12;                    // 商家等级
+  BusinessLicense business_license = 13;       // 营业执照
+  BankAccount bank_account = 14;               // 银行账户
+  string logo_url = 15;                        // 商家logo
+  string description = 16;                     // 商家简介
+  double commission_rate = 17;                 // 佣金费率
+  double credit_score = 18;                    // 信用评分
+  int64 total_sales = 19;                      // 总销售额(分)
+  int32 total_orders = 20;                     // 总订单数
+  double rating = 21;                          // 综合评分
+  string reject_reason = 22;                   // 拒绝原因
+  google.protobuf.Timestamp approved_at = 23;  // 通过时间
+  google.protobuf.Timestamp created_at = 24;
+  google.protobuf.Timestamp updated_at = 25;
+}
+
+// BusinessLicense 营业执照
+message BusinessLicense {
+  string license_no = 1;           // 执照编号
+  string company_name = 2;         // 公司名称
+  string company_type = 3;         // 公司类型
+  string registered_capital = 4;   // 注册资本
+  string establishment_date = 5;   // 成立日期
+  string valid_until = 6;          // 有效期至
+  string business_scope = 7;       // 经营范围
+  string registered_address = 8;   // 注册地址
+  string license_image_url = 9;    // 执照图片URL
+}
+
+// BankAccount 银行账户
+message BankAccount {
+  string account_name = 1;         // 账户名称
+  string account_no = 2;           // 账户号码
+  string bank_name = 3;            // 银行名称
+  string bank_branch = 4;          // 开户支行
+  string bank_code = 5;            // 银行代码
+}
+
+// MerchantSettings 商家设置
+message MerchantSettings {
+  uint64 merchant_id = 1;
+  bool auto_confirm_order = 2;            // 自动确认订单
+  int32 auto_confirm_days = 3;            // 自动确认天数
+  bool enable_cod = 4;                    // 支持货到付款
+  bool enable_invoice = 5;                // 支持开发票
+  repeated string supported_payments = 6; // 支持的支付方式
+  ShippingSettings shipping_settings = 7; // 物流设置
+  NotificationSettings notification_settings = 8; // 通知设置
+}
+
+// ShippingSettings 物流设置
+message ShippingSettings {
+  repeated uint64 supported_carrier_ids = 1; // 支持的物流公司
+  int64 free_shipping_threshold = 2;          // 包邮门槛(分)
+  int64 default_shipping_fee = 3;             // 默认运费(分)
+  bool enable_same_day_delivery = 4;          // 支持当日达
+}
+
+// NotificationSettings 通知设置
+message NotificationSettings {
+  bool order_notification = 1;      // 订单通知
+  bool stock_alert = 2;             // 库存预警
+  bool review_notification = 3;     // 评价通知
+  bool settlement_notification = 4; // 结算通知
+  string notification_phone = 5;    // 通知手机号
+  string notification_email = 6;    // 通知邮箱
+}
+
+// Store 店铺
+message Store {
+  uint64 id = 1;
+  uint64 merchant_id = 2;
+  string store_no = 3;              // 店铺编号
+  string name = 4;                  // 店铺名称
+  string logo_url = 5;              // 店铺logo
+  string banner_url = 6;            // 店铺banner
+  string description = 7;           // 店铺简介
+  string announcement = 8;          // 店铺公告
+  repeated string categories = 9;   // 经营类目
+  double rating = 10;               // 店铺评分
+  int32 product_count = 11;         // 商品数量
+  int64 monthly_sales = 12;         // 月销售额
+  bool is_open = 13;                // 是否营业
+  string business_hours = 14;       // 营业时间
+  string address = 15;              // 店铺地址
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+// ApplyRequest 入驻申请请求
+message ApplyRequest {
+  uint64 user_id = 1;
+  string name = 2;
+  string legal_name = 3;
+  string legal_id_card = 4;
+  string contact_name = 5;
+  string contact_phone = 6;
+  string contact_email = 7;
+  MerchantType type = 8;
+  BusinessLicense business_license = 9;
+  BankAccount bank_account = 10;
+  string logo_url = 11;
+  string description = 12;
+}
+
+// ApplyResponse 入驻申请响应
+message ApplyResponse {
+  uint64 merchant_id = 1;
+  string merchant_no = 2;
+}
+
+// ApproveRequest 审核通过请求
+message ApproveRequest {
+  uint64 merchant_id = 1;
+  double commission_rate = 2;       // 佣金费率
+  string operator = 3;              // 操作人
+  string remark = 4;                // 备注
+}
+
+// RejectRequest 审核拒绝请求
+message RejectRequest {
+  uint64 merchant_id = 1;
+  string reason = 2;                // 拒绝原因
+  string operator = 3;              // 操作人
+}
+
+// UpdateMerchantRequest 更新商家请求
+message UpdateMerchantRequest {
+  uint64 merchant_id = 1;
+  optional string name = 2;
+  optional string contact_name = 3;
+  optional string contact_phone = 4;
+  optional string contact_email = 5;
+  optional string logo_url = 6;
+  optional string description = 7;
+  optional BankAccount bank_account = 8;
+}
+
+// GetMerchantRequest 获取商家请求
+message GetMerchantRequest {
+  uint64 merchant_id = 1;
+}
+
+// GetByUserIDRequest 根据用户ID获取请求
+message GetByUserIDRequest {
+  uint64 user_id = 1;
+}
+
+// ListMerchantsRequest 商家列表请求
+message ListMerchantsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  optional MerchantStatus status = 3;
+  optional MerchantType type = 4;
+  optional MerchantLevel level = 5;
+  optional string keyword = 6;      // 搜索关键词
+}
+
+// ListMerchantsResponse 商家列表响应
+message ListMerchantsResponse {
+  repeated Merchant merchants = 1;
+  int32 total = 2;
+}
+
+// DisableMerchantRequest 禁用商家请求
+message DisableMerchantRequest {
+  uint64 merchant_id = 1;
+  string reason = 2;
+  string operator = 3;
+}
+
+// EnableMerchantRequest 启用商家请求
+message EnableMerchantRequest {
+  uint64 merchant_id = 1;
+  string operator = 2;
+}
+
+// UpdateSettingsRequest 更新设置请求
+message UpdateSettingsRequest {
+  uint64 merchant_id = 1;
+  MerchantSettings settings = 2;
+}
+
+// GetSettingsRequest 获取设置请求
+message GetSettingsRequest {
+  uint64 merchant_id = 1;
+}
+
+// CreateStoreRequest 创建店铺请求
+message CreateStoreRequest {
+  uint64 merchant_id = 1;
+  string name = 2;
+  string logo_url = 3;
+  string banner_url = 4;
+  string description = 5;
+  repeated string categories = 6;
+  string business_hours = 7;
+  string address = 8;
+}
+
+// UpdateStoreRequest 更新店铺请求
+message UpdateStoreRequest {
+  uint64 store_id = 1;
+  optional string name = 2;
+  optional string logo_url = 3;
+  optional string banner_url = 4;
+  optional string description = 5;
+  optional string announcement = 6;
+  repeated string categories = 7;
+  optional bool is_open = 8;
+  optional string business_hours = 9;
+  optional string address = 10;
+}
+
+// GetStoreRequest 获取店铺请求
+message GetStoreRequest {
+  uint64 store_id = 1;
+}
+
+// ListStoresRequest 店铺列表请求
+message ListStoresRequest {
+  uint64 merchant_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+// ListStoresResponse 店铺列表响应
+message ListStoresResponse {
+  repeated Store stores = 1;
+  int32 total = 2;
+}

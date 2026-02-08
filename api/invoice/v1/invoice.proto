@@ -1,0 +1,208 @@
+// 发票服务 Proto 定义
+// 管理发票申请、开具、红冲等
+syntax = "proto3";
+
+package ecommerce.invoice.v1;
+
+option go_package = "github.com/wyfcoding/go-api/ecommerce/invoice/v1;invoicev1";
+
+import "google/protobuf/timestamp.proto";
+
+// 发票服务
+service InvoiceService {
+  // 申请发票
+  rpc ApplyInvoice(ApplyInvoiceRequest) returns (ApplyInvoiceResponse);
+  // 获取发票详情
+  rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse);
+  // 列出发票
+  rpc ListInvoices(ListInvoicesRequest) returns (ListInvoicesResponse);
+  
+  // 开具发票（电子发票自动开具，纸质发票手动录入）
+  rpc IssueInvoice(IssueInvoiceRequest) returns (IssueInvoiceResponse);
+  // 申请红冲
+  rpc ApplyRedInvoice(ApplyRedInvoiceRequest) returns (ApplyRedInvoiceResponse);
+  // 确认红冲
+  rpc ConfirmRedInvoice(ConfirmRedInvoiceRequest) returns (ConfirmRedInvoiceResponse);
+  
+  // 下载发票
+  rpc DownloadInvoice(DownloadInvoiceRequest) returns (DownloadInvoiceResponse);
+}
+
+// 发票类型
+enum InvoiceType {
+  INVOICE_TYPE_UNSPECIFIED = 0;
+  INVOICE_TYPE_PERSONAL_NORMAL = 1;         // 个人普通发票
+  INVOICE_TYPE_COMPANY_NORMAL = 2;          // 企业普通发票
+  INVOICE_TYPE_COMPANY_SPECIAL = 3;         // 企业专用发票
+}
+
+// 发票介质
+enum InvoiceMedium {
+  INVOICE_MEDIUM_UNSPECIFIED = 0;
+  INVOICE_MEDIUM_ELECTRONIC = 1;            // 电子发票
+  INVOICE_MEDIUM_PAPER = 2;                 // 纸质发票
+}
+
+// 发票状态
+enum InvoiceStatus {
+  INVOICE_STATUS_UNSPECIFIED = 0;
+  INVOICE_STATUS_PENDING = 1;               // 待开票
+  INVOICE_STATUS_ISSUED = 2;                // 已开票
+  INVOICE_STATUS_FAILED = 3;                // 开票失败
+  INVOICE_STATUS_RED_PENDING = 4;           // 待红冲
+  INVOICE_STATUS_RED_ISSUED = 5;            // 已红冲
+  INVOICE_STATUS_CANCELLED = 6;             // 已取消
+}
+
+// 发票详情
+message Invoice {
+  uint64 id = 1;
+  string invoice_no = 2;                    // 发票号码
+  string invoice_code = 3;                  // 发票代码
+  string application_no = 4;                // 申请单号
+  string order_no = 5;                      // 订单号
+  uint64 user_id = 6;
+  uint64 merchant_id = 7;
+  
+  InvoiceType type = 8;
+  InvoiceMedium medium = 9;
+  InvoiceStatus status = 10;
+  
+  // 抬头信息
+  InvoiceTitle title = 11;
+  
+  // 金额信息
+  int64 amount = 12;                        // 开票金额(分)
+  int64 tax_amount = 13;                    // 税额(分)
+  string tax_rate = 14;                     // 税率(如 0.13)
+  
+  // 内容明细
+  repeated InvoiceItem items = 15;
+  
+  // 文件信息
+  string pdf_url = 16;
+  string xml_url = 17;
+  
+  // 红冲关联
+  uint64 related_invoice_id = 18;           // 关联的原发票ID（红冲时使用）
+  
+  // 时间信息
+  google.protobuf.Timestamp created_at = 19;
+  google.protobuf.Timestamp issued_at = 20;
+  
+  string remark = 21;
+}
+
+// 发票抬头
+message InvoiceTitle {
+  string title_name = 1;                    // 抬头名称
+  string tax_id = 2;                        // 税号
+  string bank_name = 3;                     // 开户行
+  string bank_account = 4;                  // 银行账号
+  string address = 5;                       // 注册地址
+  string phone = 6;                         // 注册电话
+  string receiver_email = 7;                // 收票邮箱
+  string receiver_phone = 8;                // 收票手机
+}
+
+// 发票明细
+message InvoiceItem {
+  string product_name = 1;
+  string spec = 2;
+  string unit = 3;
+  int32 quantity = 4;
+  int64 price = 5;                          // 单价(分)
+  int64 amount = 6;                         // 金额(分)
+  string tax_rate = 7;                      // 税率
+  int64 tax_amount = 8;                     // 税额
+}
+
+// 申请发票请求
+message ApplyInvoiceRequest {
+  string order_no = 1;
+  uint64 user_id = 2;
+  uint64 merchant_id = 3;
+  int64 amount = 4;
+  InvoiceType type = 5;
+  InvoiceMedium medium = 6;
+  InvoiceTitle title = 7;
+  repeated InvoiceItem items = 8;
+  string remark = 9;
+}
+
+message ApplyInvoiceResponse {
+  uint64 invoice_id = 1;
+  string application_no = 2;
+}
+
+// 获取发票请求
+message GetInvoiceRequest {
+  uint64 invoice_id = 1;
+}
+
+message GetInvoiceResponse {
+  Invoice invoice = 1;
+}
+
+// 列出发票请求
+message ListInvoicesRequest {
+  uint64 user_id = 1;
+  uint64 merchant_id = 2;
+  string order_no = 3;
+  InvoiceStatus status = 4;
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+message ListInvoicesResponse {
+  repeated Invoice invoices = 1;
+  int64 total = 2;
+}
+
+// 开具发票请求
+message IssueInvoiceRequest {
+  uint64 invoice_id = 1;
+  string invoice_code = 2;
+  string invoice_no = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  string pdf_url = 5;
+  string xml_url = 6;
+  string check_code = 7;                    // 校验码
+}
+
+message IssueInvoiceResponse {
+  bool success = 1;
+}
+
+// 申请红冲请求
+message ApplyRedInvoiceRequest {
+  uint64 origin_invoice_id = 1;
+  string reason = 2;
+  int64 amount = 3;                         // 红冲金额（负数）
+}
+
+message ApplyRedInvoiceResponse {
+  uint64 red_invoice_id = 1;
+}
+
+// 确认红冲请求
+message ConfirmRedInvoiceRequest {
+  uint64 red_invoice_id = 1;
+  string invoice_code = 2;
+  string invoice_no = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  string pdf_url = 5;
+}
+
+message ConfirmRedInvoiceResponse {
+  bool success = 1;
+}
+
+// 下载发票请求
+message DownloadInvoiceRequest {
+  uint64 invoice_id = 1;
+}
+
+message DownloadInvoiceResponse {
+  string download_url = 1;
+}
