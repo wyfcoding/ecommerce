@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package i18n.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/i18n/v1;i18nv1";
+
+// I18nService 国际化翻译服务
+service I18nService {
+    // GetTranslation 获取单个翻译
+    rpc GetTranslation(GetTranslationRequest) returns (GetTranslationResponse);
+
+    // ListTranslations 批量获取翻译（按语言或Keys）
+    rpc ListTranslations(ListTranslationsRequest) returns (ListTranslationsResponse);
+
+    // PutTranslation 添加或更新翻译
+    rpc PutTranslation(PutTranslationRequest) returns (PutTranslationResponse);
+
+    // ListLanguages 获取支持的语言列表
+    rpc ListLanguages(ListLanguagesRequest) returns (ListLanguagesResponse);
+}
+
+message GetTranslationRequest {
+    string lang_code = 1; // e.g. "en-US", "zh-CN"
+    string key = 2;
+    string context = 3; // Optional, for context-specific translations
+}
+
+message GetTranslationResponse {
+    string value = 1;
+    bool found = 2;
+}
+
+message ListTranslationsRequest {
+    string lang_code = 1;
+    repeated string keys = 2; // If empty, return all for the language (use with pagination in real world)
+    string namespace = 3; // Optional grouping
+}
+
+message TranslationItem {
+    string key = 1;
+    string value = 2;
+}
+
+message ListTranslationsResponse {
+    map<string, string> translations = 1; // map<key, value>
+}
+
+message PutTranslationRequest {
+    string lang_code = 1;
+    string key = 2;
+    string value = 3;
+    string context = 4;
+    string namespace = 5;
+}
+
+message PutTranslationResponse {
+    bool success = 1;
+}
+
+message ListLanguagesRequest {}
+
+message Language {
+    string code = 1;
+    string name = 2;
+    string direction = 3; // LTR, RTL
+}
+
+message ListLanguagesResponse {
+    repeated Language languages = 1;
+}

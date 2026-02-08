@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package supplier.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/supplier/v1;supplierv1";
+
+// SupplierService 供应商服务
+service SupplierService {
+    // RegisterSupplier 注册供应商
+    rpc RegisterSupplier(RegisterSupplierRequest) returns (RegisterSupplierResponse);
+
+    // GetSupplier 获取供应商详情
+    rpc GetSupplier(GetSupplierRequest) returns (GetSupplierResponse);
+
+    // UpdateSupplierStatus 更新供应商状态
+    rpc UpdateSupplierStatus(UpdateSupplierStatusRequest) returns (UpdateSupplierStatusResponse);
+
+    // AddProduct supply 添加供应商品
+    rpc AddProductSupply(AddProductSupplyRequest) returns (AddProductSupplyResponse);
+    
+    // ListProductSupply 列出供应商品
+    rpc ListProductSupply(ListProductSupplyRequest) returns (ListProductSupplyResponse);
+}
+
+message RegisterSupplierRequest {
+    string name = 1;
+    string contact_name = 2;
+    string contact_phone = 3;
+    string email = 4;
+    string address = 5;
+    string license_no = 6;
+}
+
+message RegisterSupplierResponse {
+    string supplier_id = 1;
+}
+
+message GetSupplierRequest {
+    string supplier_id = 1;
+}
+
+message Supplier {
+    string supplier_id = 1;
+    string name = 2;
+    string status = 3; // ACTIVE, INACTIVE, SUSPENDED
+    string contact_name = 4;
+    string created_at = 5;
+    double rating = 6;
+}
+
+message GetSupplierResponse {
+    Supplier supplier = 1;
+}
+
+message UpdateSupplierStatusRequest {
+    string supplier_id = 1;
+    string status = 2;
+}
+
+message UpdateSupplierStatusResponse {
+    bool success = 1;
+}
+
+message AddProductSupplyRequest {
+    string supplier_id = 1;
+    string sku_id = 2;
+    double price = 3;
+    int32 lead_time_days = 4;
+}
+
+message AddProductSupplyResponse {
+    bool success = 1;
+}
+
+message ListProductSupplyRequest {
+    string supplier_id = 1;
+}
+
+message ProductSupply {
+    string sku_id = 1;
+    double price = 2;
+    int32 lead_time_days = 3;
+}
+
+message ListProductSupplyResponse {
+    repeated ProductSupply supplies = 1;
+}

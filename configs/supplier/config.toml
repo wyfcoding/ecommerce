@@ -1,0 +1,15 @@
+[server]
+name = "supplier-service"
+environment = "dev"
+zone = "shanghai"
+
+[http]
+addr = ":8085"
+timeout = "5s"
+
+[grpc]
+addr = ":9005"
+timeout = "5s"
+
+[mysql]
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_supplier?charset=utf8mb4&parseTime=True&loc=Local"

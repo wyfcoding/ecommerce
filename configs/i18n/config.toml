@@ -1,0 +1,15 @@
+[server]
+name = "i18n-service"
+environment = "dev"
+zone = "shanghai"
+
+[http]
+addr = ":8086"
+timeout = "5s"
+
+[grpc]
+addr = ":9006"
+timeout = "5s"
+
+[mysql]
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_i18n?charset=utf8mb4&parseTime=True&loc=Local"

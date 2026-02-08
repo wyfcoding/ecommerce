@@ -37,6 +37,7 @@ fi
 # 批量生成，比循环调用 protoc 快得多
 echo "Generating code for all services..."
 protoc --proto_path="$API_ROOT" \
+       --proto_path="./third_party" \
        --go_out="$OUT_ROOT" --go_opt=paths=source_relative \
        --go-grpc_out="$OUT_ROOT" --go-grpc_opt=paths=source_relative \
        $PROTO_FILES

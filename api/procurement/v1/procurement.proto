@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package procurement.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/api/procurement/v1;procurementv1";
+
+// ProcurementService 采购服务
+service ProcurementService {
+    // CreatePurchaseRequest 创建采购申请
+    rpc CreatePurchaseRequest(CreatePurchaseRequestRequest) returns (CreatePurchaseRequestResponse);
+
+    // ApprovePurchaseRequest 审批采购申请
+    rpc ApprovePurchaseRequest(ApprovePurchaseRequestRequest) returns (ApprovePurchaseRequestResponse);
+
+    // CreatePurchaseOrder 创建采购单
+    rpc CreatePurchaseOrder(CreatePurchaseOrderRequest) returns (CreatePurchaseOrderResponse);
+
+    // UpdatePurchaseOrderStatus 更新采购单状态
+    rpc UpdatePurchaseOrderStatus(UpdatePurchaseOrderStatusRequest) returns (UpdatePurchaseOrderStatusResponse);
+
+    // GetPurchaseOrder 获取采购单详情
+    rpc GetPurchaseOrder(GetPurchaseOrderRequest) returns (GetPurchaseOrderResponse);
+}
+
+message PurchaseRequestItem {
+    string sku_id = 1;
+    string product_name = 2;
+    int32 quantity = 3;
+    string expected_date = 4; // YYYY-MM-DD
+}
+
+message CreatePurchaseRequestRequest {
+    string applicant_id = 1;
+    string reason = 2;
+    repeated PurchaseRequestItem items = 3;
+}
+
+message CreatePurchaseRequestResponse {
+    string request_id = 1;
+}
+
+message ApprovePurchaseRequestRequest {
+    string request_id = 1;
+    string approver_id = 2;
+    bool approved = 3;
+    string comment = 4;
+}
+
+message ApprovePurchaseRequestResponse {
+    bool success = 1;
+}
+
+message PurchaseOrderItem {
+    string sku_id = 1;
+    string product_name = 2;
+    int32 quantity = 3;
+    double unit_price = 4;
+    double total_amount = 5;
+}
+
+message CreatePurchaseOrderRequest {
+    string purchase_request_id = 1; // 可选，关联PR
+    string supplier_id = 2;
+    string warehouse_id = 3;
+    repeated PurchaseOrderItem items = 4;
+    string remark = 5;
+}
+
+message CreatePurchaseOrderResponse {
+    string order_id = 1;
+}
+
+message UpdatePurchaseOrderStatusRequest {
+    string order_id = 1;
+    string status = 2; // PENDING, CONFIRMED, SHIPPED, RECEIVED, COMPLETED, CANCELLED
+    string operator = 3;
+}
+
+message UpdatePurchaseOrderStatusResponse {
+    bool success = 1;
+}
+
+message GetPurchaseOrderRequest {
+    string order_id = 1;
+}
+
+message PurchaseOrder {
+    string order_id = 1;
+    string supplier_id = 2;
+    string status = 3;
+    double total_amount = 4;
+    string created_at = 5;
+    repeated PurchaseOrderItem items = 6;
+}
+
+message GetPurchaseOrderResponse {
+    PurchaseOrder order = 1;
+}

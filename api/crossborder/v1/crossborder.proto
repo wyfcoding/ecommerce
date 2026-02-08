@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package crossborder.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/crossborder/v1;crossborderv1";
+
+// CrossBorderService 跨境电商服务
+service CrossBorderService {
+    // CalculateDuty 计算关税
+    rpc CalculateDuty(CalculateDutyRequest) returns (CalculateDutyResponse);
+
+    // CreateDeclaration 创建报关单
+    rpc CreateDeclaration(CreateDeclarationRequest) returns (CreateDeclarationResponse);
+
+    // GetDeclaration 获取报关单详情
+    rpc GetDeclaration(GetDeclarationRequest) returns (GetDeclarationResponse);
+
+    // UpdateDeclarationStatus 更新报关状态
+    rpc UpdateDeclarationStatus(UpdateDeclarationStatusRequest) returns (UpdateDeclarationStatusResponse);
+}
+
+message CalculateDutyRequest {
+    double total_amount = 1;
+    string currency = 2;
+    repeated DutyItem items = 3;
+    string destination_country = 4;
+}
+
+message DutyItem {
+    string sku_id = 1;
+    string hs_code = 2;
+    double price = 3;
+    int32 quantity = 4;
+}
+
+message CalculateDutyResponse {
+    double duty_amount = 1;
+    double tax_amount = 2; // VAT or GST
+    double total_cost = 3; // Duty + Tax
+    string currency = 4;
+}
+
+message CreateDeclarationRequest {
+    string order_id = 1;
+    string user_id = 2;
+    string logistics_no = 3;
+    repeated DutyItem items = 4;
+    double declared_value = 5;
+    string currency = 6;
+}
+
+message CreateDeclarationResponse {
+    string declaration_id = 1;
+}
+
+message GetDeclarationRequest {
+    string declaration_id = 1;
+}
+
+message GetDeclarationResponse {
+    string declaration_id = 1;
+    string order_id = 2;
+    string status = 3; // PENDING, SUBMITTED, CLEARED, REJECTED
+    double total_tax = 4;
+    string created_at = 5;
+}
+
+message UpdateDeclarationStatusRequest {
+    string declaration_id = 1;
+    string status = 2;
+    string reject_reason = 3; // Optional
+}
+
+message UpdateDeclarationStatusResponse {
+    bool success = 1;
+}
