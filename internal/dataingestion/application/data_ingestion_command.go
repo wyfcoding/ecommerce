@@ -6,17 +6,18 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/dataingestion/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // DataIngestionCommandService 处理数据采集的写操作。
 type DataIngestionCommandService struct {
 	repo      domain.DataIngestionRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewDataIngestionCommandService 创建并返回一个新的 DataIngestionCommandService 实例。
-func NewDataIngestionCommandService(repo domain.DataIngestionRepository, publisher domain.EventPublisher, logger *slog.Logger) *DataIngestionCommandService {
+func NewDataIngestionCommandService(repo domain.DataIngestionRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *DataIngestionCommandService {
 	return &DataIngestionCommandService{
 		repo:      repo,
 		publisher: publisher,

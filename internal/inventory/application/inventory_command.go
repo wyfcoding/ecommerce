@@ -13,13 +13,14 @@ import (
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/eventsourcing"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // InventoryCommandService 处理库存的写操作，集成了乐观锁重试、布隆过滤器预检及领域事件发布。
 type InventoryCommandService struct {
 	repo           domain.InventoryRepository                    // 库存仓储
 	warehouseRepo  domain.WarehouseRepository                    // 仓库仓储
-	publisher      domain.EventPublisher                         // 事件发布者
+	publisher      messagequeue.EventPublisher                   // 事件发布者
 	eventStore     domain.EventStore                             // 事件存储
 	allocator      *algorithm.WarehouseAllocator                 // 最优库存分配算法引擎
 	logger         *slog.Logger                                  // 日志记录器
@@ -32,7 +33,7 @@ type InventoryCommandService struct {
 func NewInventoryCommandService(
 	repo domain.InventoryRepository,
 	warehouseRepo domain.WarehouseRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	eventStore domain.EventStore,
 	logger *slog.Logger,
 ) (*InventoryCommandService, error) {

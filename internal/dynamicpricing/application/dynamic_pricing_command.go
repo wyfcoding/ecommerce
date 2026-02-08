@@ -8,18 +8,19 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
+	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/utils"
 )
 
 // DynamicPricingCommandService 处理动态定价的写操作。
 type DynamicPricingCommandService struct {
 	repo      domain.PricingRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewDynamicPricingCommandService 创建并返回一个新的 DynamicPricingCommandService 实例。
-func NewDynamicPricingCommandService(repo domain.PricingRepository, publisher domain.EventPublisher, logger *slog.Logger) *DynamicPricingCommandService {
+func NewDynamicPricingCommandService(repo domain.PricingRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *DynamicPricingCommandService {
 	return &DynamicPricingCommandService{
 		repo:      repo,
 		publisher: publisher,

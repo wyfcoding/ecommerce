@@ -11,6 +11,7 @@ import (
 	"github.com/wyfcoding/pkg/algorithm/graph"
 	"github.com/wyfcoding/pkg/algorithm/sim"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/redis"
 )
 
@@ -18,7 +19,7 @@ import (
 // 引入树状数组（FenwickTree）用于实时、高频的订单金额和数量统计。
 type AnalyticsCommandService struct {
 	repo        domain.AnalyticsRepository
-	publisher   domain.EventPublisher
+	publisher   messagequeue.EventPublisher
 	logger      *slog.Logger
 	redisClient redis.Client
 	idGenerator idgen.Generator
@@ -29,7 +30,7 @@ type AnalyticsCommandService struct {
 }
 
 // NewAnalyticsCommandService 创建并返回一个新的 AnalyticsCommandService 实例。
-func NewAnalyticsCommandService(repo domain.AnalyticsRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, redisClient redis.Client, logger *slog.Logger) *AnalyticsCommandService {
+func NewAnalyticsCommandService(repo domain.AnalyticsRepository, publisher messagequeue.EventPublisher, idGenerator idgen.Generator, redisClient redis.Client, logger *slog.Logger) *AnalyticsCommandService {
 	return &AnalyticsCommandService{
 		repo:        repo,
 		publisher:   publisher,

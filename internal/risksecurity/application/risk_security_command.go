@@ -14,12 +14,13 @@ import (
 	graph "github.com/wyfcoding/pkg/algorithm/graph"
 	"github.com/wyfcoding/pkg/algorithm/infra"
 	"github.com/wyfcoding/pkg/contextx"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // RiskSecurityCommandService 处理风控安全的写操作。
 type RiskSecurityCommandService struct {
 	repo          domain.RiskRepository
-	publisher     domain.EventPublisher
+	publisher     messagequeue.EventPublisher
 	logger        *slog.Logger
 	detector      *infra.AntiBotDetector
 	calculator    *finance.RiskCalculator
@@ -27,7 +28,7 @@ type RiskSecurityCommandService struct {
 }
 
 // NewRiskSecurityCommandService creates a new RiskSecurityCommandService instance.
-func NewRiskSecurityCommandService(repo domain.RiskRepository, publisher domain.EventPublisher, logger *slog.Logger) *RiskSecurityCommandService {
+func NewRiskSecurityCommandService(repo domain.RiskRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *RiskSecurityCommandService {
 	return &RiskSecurityCommandService{
 		repo:       repo,
 		publisher:  publisher,

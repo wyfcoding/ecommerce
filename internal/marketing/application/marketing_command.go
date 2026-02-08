@@ -9,12 +9,13 @@ import (
 	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // MarketingCommandService 处理营销的写操作。
 type MarketingCommandService struct {
 	repo           domain.MarketingRepository
-	publisher      domain.EventPublisher
+	publisher      messagequeue.EventPublisher
 	logger         *slog.Logger
 	userFilter     *algorithm.BloomFilter[algorithm.ByteHash]
 	segmentService *UserSegmentService
@@ -23,7 +24,7 @@ type MarketingCommandService struct {
 // NewMarketingCommandService 构造函数。
 func NewMarketingCommandService(
 	repo domain.MarketingRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	couponCli couponv1.CouponServiceClient,
 	logger *slog.Logger,
 ) (*MarketingCommandService, error) {

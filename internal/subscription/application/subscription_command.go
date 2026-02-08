@@ -8,17 +8,18 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/subscription/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // SubscriptionCommandService 处理订阅的写操作。
 type SubscriptionCommandService struct {
 	repo      domain.SubscriptionRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewSubscriptionCommandService creates a new SubscriptionCommandService instance.
-func NewSubscriptionCommandService(repo domain.SubscriptionRepository, publisher domain.EventPublisher, logger *slog.Logger) *SubscriptionCommandService {
+func NewSubscriptionCommandService(repo domain.SubscriptionRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *SubscriptionCommandService {
 	return &SubscriptionCommandService{
 		repo:      repo,
 		publisher: publisher,

@@ -11,19 +11,20 @@ import (
 	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // ModerationCommandService 处理内容审核的写操作。
 type ModerationCommandService struct {
 	repo          domain.ModerationRepository
-	publisher     domain.EventPublisher
+	publisher     messagequeue.EventPublisher
 	logger        *slog.Logger
 	sensitiveTrie *algorithm.Trie[*domain.SensitiveWord]
 	aimodelCli    aimodelv1.AIModelServiceClient
 }
 
 // NewModerationCommandService 创建并返回一个新的 ModerationCommandService 实例。
-func NewModerationCommandService(repo domain.ModerationRepository, publisher domain.EventPublisher, logger *slog.Logger, aimodelCli aimodelv1.AIModelServiceClient) *ModerationCommandService {
+func NewModerationCommandService(repo domain.ModerationRepository, publisher messagequeue.EventPublisher, logger *slog.Logger, aimodelCli aimodelv1.AIModelServiceClient) *ModerationCommandService {
 	return &ModerationCommandService{
 		repo:          repo,
 		publisher:     publisher,

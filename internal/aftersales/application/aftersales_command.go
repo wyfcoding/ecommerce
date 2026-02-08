@@ -12,12 +12,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain"
 	"github.com/wyfcoding/pkg/dtm"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // AfterSalesCommandService 处理所有售后相关的写入操作（Commands）。
 type AfterSalesCommandService struct {
 	repo          domain.AfterSalesRepository
-	publisher     domain.EventPublisher
+	publisher     messagequeue.EventPublisher
 	idGenerator   idgen.Generator
 	logger        *slog.Logger
 	orderClient   orderv1.OrderServiceClient
@@ -31,7 +32,7 @@ type AfterSalesCommandService struct {
 // NewAfterSalesCommandService 构造函数。
 func NewAfterSalesCommandService(
 	repo domain.AfterSalesRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	idGenerator idgen.Generator,
 	logger *slog.Logger,
 	orderClient orderv1.OrderServiceClient,

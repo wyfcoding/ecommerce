@@ -6,17 +6,18 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/dataprocessing/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // DataProcessingCommandService 处理所有数据处理相关的写入操作（Commands）。
 type DataProcessingCommandService struct {
 	repo      domain.DataProcessingRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewDataProcessingCommandService 构造函数。
-func NewDataProcessingCommandService(repo domain.DataProcessingRepository, publisher domain.EventPublisher, logger *slog.Logger) *DataProcessingCommandService {
+func NewDataProcessingCommandService(repo domain.DataProcessingRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *DataProcessingCommandService {
 	return &DataProcessingCommandService{
 		repo:      repo,
 		publisher: publisher,

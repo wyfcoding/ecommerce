@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 
 	"github.com/wyfcoding/ecommerce/internal/notification/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/server"
 )
 
@@ -19,7 +20,7 @@ import (
 type NotificationCommandService struct {
 	repo             domain.NotificationRepository
 	templateReadRepo domain.NotificationTemplateReadRepository
-	publisher        domain.EventPublisher
+	publisher        messagequeue.EventPublisher
 	emailSender      domain.Sender
 	smsSender        domain.Sender
 	webhookSender    domain.Sender
@@ -31,7 +32,7 @@ type NotificationCommandService struct {
 func NewNotificationCommandService(
 	repo domain.NotificationRepository,
 	templateReadRepo domain.NotificationTemplateReadRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	emailSender, smsSender, webhookSender domain.Sender,
 	websocketMgr *server.WSManager,
 	logger *slog.Logger,

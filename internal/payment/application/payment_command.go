@@ -11,6 +11,7 @@ import (
 	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/lock"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 type PaymentCommandService struct {
@@ -22,7 +23,7 @@ type PaymentCommandService struct {
 	riskService domain.RiskService
 	idGenerator idgen.Generator
 	gateways    map[domain.GatewayType]domain.PaymentGateway
-	publisher   domain.EventPublisher
+	publisher   messagequeue.EventPublisher
 	lockSvc     *lock.RedisLock
 	logger      *slog.Logger
 }
@@ -35,7 +36,7 @@ func NewPaymentCommandService(
 	riskService domain.RiskService,
 	idGenerator idgen.Generator,
 	gateways map[domain.GatewayType]domain.PaymentGateway,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	lockSvc *lock.RedisLock,
 	logger *slog.Logger,
 ) *PaymentCommandService {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // JobHandler 定义了任务处理函数的原型
@@ -17,14 +18,14 @@ type JobHandler func(ctx context.Context, params string) (string, error)
 // SchedulerCommandService 处理调度任务和日志的写操作。
 type SchedulerCommandService struct {
 	repo       domain.SchedulerRepository
-	publisher  domain.EventPublisher
+	publisher  messagequeue.EventPublisher
 	logger     *slog.Logger
 	timerWheel *algorithm.TimingWheel
 	handlers   map[string]JobHandler
 }
 
 // NewSchedulerCommandService creates a new SchedulerCommandService instance.
-func NewSchedulerCommandService(repo domain.SchedulerRepository, publisher domain.EventPublisher, logger *slog.Logger) (*SchedulerCommandService, error) {
+func NewSchedulerCommandService(repo domain.SchedulerRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) (*SchedulerCommandService, error) {
 	tw, err := algorithm.NewTimingWheel(time.Second, 3600)
 	if err != nil {
 		return nil, err

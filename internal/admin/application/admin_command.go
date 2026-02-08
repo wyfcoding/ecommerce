@@ -14,6 +14,7 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
+	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/security"
 )
 
@@ -26,7 +27,7 @@ type AdminCommandService struct {
 	approvalRepo domain.ApprovalRepository
 
 	opsDeps   SystemOpsDependencies
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
@@ -37,7 +38,7 @@ func NewAdminCommandService(
 	settingRepo domain.SettingRepository,
 	approvalRepo domain.ApprovalRepository,
 	opsDeps SystemOpsDependencies,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 ) *AdminCommandService {
 	return &AdminCommandService{

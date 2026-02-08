@@ -7,18 +7,19 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/cart/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // CartCommandService 处理购物车的写操作（增删改）。
 type CartCommandService struct {
 	repo      domain.CartRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 	query     *CartQueryService // 用于获取购物车实体进行内部操作
 }
 
 // NewCartCommandService 负责处理 NewCart 相关的写操作和业务逻辑。
-func NewCartCommandService(repo domain.CartRepository, publisher domain.EventPublisher, logger *slog.Logger, query *CartQueryService) *CartCommandService {
+func NewCartCommandService(repo domain.CartRepository, publisher messagequeue.EventPublisher, logger *slog.Logger, query *CartQueryService) *CartCommandService {
 	return &CartCommandService{
 		repo:      repo,
 		publisher: publisher,

@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // WishlistCommandService 处理收藏夹模块的写操作和核心业务逻辑。
 type WishlistCommandService struct {
 	repo      domain.WishlistRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewWishlistCommandService 创建并返回一个新的 WishlistCommandService 实例。
-func NewWishlistCommandService(repo domain.WishlistRepository, publisher domain.EventPublisher, logger *slog.Logger) *WishlistCommandService {
+func NewWishlistCommandService(repo domain.WishlistRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *WishlistCommandService {
 	return &WishlistCommandService{
 		repo:      repo,
 		publisher: publisher,

@@ -8,17 +8,18 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/recommendation/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // RecommendationCommandService 处理推荐模块的写操作和业务逻辑。
 type RecommendationCommandService struct {
 	repo      domain.RecommendationRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewRecommendationCommandService 创建并返回一个新的 RecommendationCommandService 实例。
-func NewRecommendationCommandService(repo domain.RecommendationRepository, publisher domain.EventPublisher, logger *slog.Logger) *RecommendationCommandService {
+func NewRecommendationCommandService(repo domain.RecommendationRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *RecommendationCommandService {
 	return &RecommendationCommandService{
 		repo:      repo,
 		publisher: publisher,

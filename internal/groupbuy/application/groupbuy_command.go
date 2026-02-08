@@ -9,19 +9,20 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // GroupbuyCommandService 负责处理 Groupbuy 相关的写操作和业务逻辑。
 type GroupbuyCommandService struct {
 	repo        domain.GroupbuyRepository
-	publisher   domain.EventPublisher
+	publisher   messagequeue.EventPublisher
 	idGenerator idgen.Generator
 	logger      *slog.Logger
 	matcher     *algorithm.GroupBuyMatcher
 }
 
 // NewGroupbuyCommandService 构造函数。
-func NewGroupbuyCommandService(repo domain.GroupbuyRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *GroupbuyCommandService {
+func NewGroupbuyCommandService(repo domain.GroupbuyRepository, publisher messagequeue.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *GroupbuyCommandService {
 	return &GroupbuyCommandService{
 		repo:        repo,
 		publisher:   publisher,

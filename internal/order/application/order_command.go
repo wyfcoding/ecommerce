@@ -20,6 +20,7 @@ import (
 	"github.com/wyfcoding/pkg/dtm"
 	"github.com/wyfcoding/pkg/eventsourcing"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/security/risk"
 	"github.com/wyfcoding/pkg/tracing"
@@ -33,7 +34,7 @@ type OrderCommandService struct {
 	repo              domain.OrderRepository
 	eventStore        domain.OrderEventStore
 	idGen             idgen.Generator
-	publisher         domain.EventPublisher
+	publisher         messagequeue.EventPublisher
 	logger            *slog.Logger
 	dtmServer         string
 	warehouseGrpcAddr string
@@ -58,7 +59,7 @@ func NewOrderCommandService(
 	repo domain.OrderRepository,
 	eventStore domain.OrderEventStore,
 	idGen idgen.Generator,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 	dtmServer, warehouseGrpcAddr string,
 	m *metrics.Metrics,

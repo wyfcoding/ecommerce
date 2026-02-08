@@ -8,18 +8,19 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // CouponCommandService 处理优惠券模块的写操作和核心业务流程。
 type CouponCommandService struct {
 	repo      domain.CouponRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 	optimizer *algorithm.CouponOptimizer
 }
 
 // NewCouponCommandService 创建并返回一个新的 CouponCommandService 实例。
-func NewCouponCommandService(repo domain.CouponRepository, publisher domain.EventPublisher, logger *slog.Logger) *CouponCommandService {
+func NewCouponCommandService(repo domain.CouponRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *CouponCommandService {
 	return &CouponCommandService{
 		repo:      repo,
 		publisher: publisher,

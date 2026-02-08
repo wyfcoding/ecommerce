@@ -9,18 +9,19 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // PointsmallCommandService 处理积分商城的写操作。
 type PointsmallCommandService struct {
 	repo      domain.PointsRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	idGen     idgen.Generator
 	logger    *slog.Logger
 }
 
 // NewPointsmallCommandService creates a new PointsmallCommandService instance.
-func NewPointsmallCommandService(repo domain.PointsRepository, publisher domain.EventPublisher, idGen idgen.Generator, logger *slog.Logger) *PointsmallCommandService {
+func NewPointsmallCommandService(repo domain.PointsRepository, publisher messagequeue.EventPublisher, idGen idgen.Generator, logger *slog.Logger) *PointsmallCommandService {
 	return &PointsmallCommandService{
 		repo:      repo,
 		publisher: publisher,

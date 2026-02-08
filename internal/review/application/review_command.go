@@ -10,12 +10,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/contextx"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // ReviewCommandService 处理评论模块的写操作和核心业务流程。
 type ReviewCommandService struct {
 	repo        domain.ReviewRepository
-	publisher   domain.EventPublisher
+	publisher   messagequeue.EventPublisher
 	logger      *slog.Logger
 	simHash     *algorithm.SimHash
 	orderClient orderv1.OrderServiceClient
@@ -24,7 +25,7 @@ type ReviewCommandService struct {
 // NewReviewCommandService 创建并返回一个新的 ReviewCommandService 实例。
 func NewReviewCommandService(
 	repo domain.ReviewRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 	orderClient orderv1.OrderServiceClient,
 ) *ReviewCommandService {

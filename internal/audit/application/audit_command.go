@@ -9,18 +9,19 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/audit/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // AuditCommandService 处理审计模块的写操作和业务逻辑。
 type AuditCommandService struct {
 	repo        domain.AuditRepository
-	publisher   domain.EventPublisher
+	publisher   messagequeue.EventPublisher
 	idGenerator idgen.Generator
 	logger      *slog.Logger
 }
 
 // NewAuditCommandService 创建并返回一个新的 AuditCommandService 实例。
-func NewAuditCommandService(repo domain.AuditRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *AuditCommandService {
+func NewAuditCommandService(repo domain.AuditRepository, publisher messagequeue.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *AuditCommandService {
 	return &AuditCommandService{
 		repo:        repo,
 		publisher:   publisher,

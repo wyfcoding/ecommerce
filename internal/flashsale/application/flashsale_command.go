@@ -10,13 +10,14 @@ import (
 	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // FlashSaleCommandService 负责处理 Flashsale 相关的写操作和业务逻辑。
 type FlashSaleCommandService struct {
 	repo       domain.FlashSaleRepository
 	cache      domain.FlashSaleCache
-	publisher  domain.EventPublisher
+	publisher  messagequeue.EventPublisher
 	idGen      idgen.Generator
 	logger     *slog.Logger
 	riskClient risksecurityv1.RiskSecurityServiceClient
@@ -26,7 +27,7 @@ type FlashSaleCommandService struct {
 func NewFlashSaleCommandService(
 	repo domain.FlashSaleRepository,
 	cache domain.FlashSaleCache,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	idGen idgen.Generator,
 	logger *slog.Logger,
 	riskClient risksecurityv1.RiskSecurityServiceClient,

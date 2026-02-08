@@ -8,18 +8,19 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/loyalty/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // LoyaltyCommandService 负责处理 Loyalty 相关的写操作和业务逻辑。
 type LoyaltyCommandService struct {
 	repo      domain.LoyaltyRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 	rankList  *algorithm.SkipList[int64, uint64] // 内存积分排行榜 (Points -> UserID)
 }
 
 // NewLoyaltyCommandService 创建并返回一个新的 LoyaltyCommandService 实例。
-func NewLoyaltyCommandService(repo domain.LoyaltyRepository, publisher domain.EventPublisher, logger *slog.Logger) *LoyaltyCommandService {
+func NewLoyaltyCommandService(repo domain.LoyaltyRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *LoyaltyCommandService {
 	return &LoyaltyCommandService{
 		repo:      repo,
 		publisher: publisher,

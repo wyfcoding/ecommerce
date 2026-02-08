@@ -9,19 +9,20 @@ import (
 	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
 	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // OptimizationCommandService 处理订单优化的写操作。
 type OptimizationCommandService struct {
 	repo         domain.OrderOptimizationRepository
-	publisher    domain.EventPublisher
+	publisher    messagequeue.EventPublisher
 	orderCli     orderv1.OrderServiceClient
 	inventoryCli inventoryv1.InventoryServiceClient
 	logger       *slog.Logger
 }
 
 // NewOptimizationCommandService 创建一个新的 OptimizationCommandService 实例。
-func NewOptimizationCommandService(repo domain.OrderOptimizationRepository, publisher domain.EventPublisher, orderCli orderv1.OrderServiceClient, inventoryCli inventoryv1.InventoryServiceClient, logger *slog.Logger) *OptimizationCommandService {
+func NewOptimizationCommandService(repo domain.OrderOptimizationRepository, publisher messagequeue.EventPublisher, orderCli orderv1.OrderServiceClient, inventoryCli inventoryv1.InventoryServiceClient, logger *slog.Logger) *OptimizationCommandService {
 	return &OptimizationCommandService{
 		repo:         repo,
 		publisher:    publisher,

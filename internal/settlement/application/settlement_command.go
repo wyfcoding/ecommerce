@@ -9,13 +9,14 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // SettlementCommandService 处理所有结算相关的写入操作（Commands）。
 type SettlementCommandService struct {
 	repo             domain.SettlementRepository
 	ledgerService    *domain.LedgerService
-	publisher        domain.EventPublisher
+	publisher        messagequeue.EventPublisher
 	logger           *slog.Logger
 	remoteAccountCli accountv1.AccountServiceClient
 }
@@ -24,7 +25,7 @@ type SettlementCommandService struct {
 func NewSettlementCommandService(
 	repo domain.SettlementRepository,
 	ledgerService *domain.LedgerService,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 ) *SettlementCommandService {
 	return &SettlementCommandService{

@@ -12,6 +12,7 @@ import (
 	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
+	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/security"
 )
 
@@ -22,7 +23,7 @@ type UserCommandService struct {
 	userReadRepo    domain.UserReadRepository
 	addressReadRepo domain.AddressReadRepository
 	searchRepo      domain.UserSearchRepository
-	publisher       domain.EventPublisher
+	publisher       messagequeue.EventPublisher
 	jwtSecret       string
 	jwtIssuer       string
 	jwtExpiry       time.Duration
@@ -38,7 +39,7 @@ func NewUserCommandService(
 	userReadRepo domain.UserReadRepository,
 	addressReadRepo domain.AddressReadRepository,
 	searchRepo domain.UserSearchRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	topic string,
 	jwtSecret string,
 	jwtIssuer string,

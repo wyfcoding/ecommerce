@@ -9,17 +9,18 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/support/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // SupportCommandService 处理客户服务的写操作。
 type SupportCommandService struct {
 	repo      domain.TicketRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewSupportCommandService 创建并返回一个新的 SupportCommandService 实例。
-func NewSupportCommandService(repo domain.TicketRepository, publisher domain.EventPublisher, logger *slog.Logger) *SupportCommandService {
+func NewSupportCommandService(repo domain.TicketRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *SupportCommandService {
 	return &SupportCommandService{
 		repo:      repo,
 		publisher: publisher,

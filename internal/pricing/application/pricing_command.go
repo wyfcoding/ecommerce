@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // PricingCommandService 处理定价规则和历史记录的写操作。
 type PricingCommandService struct {
 	repo      domain.PricingRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewPricingCommandService creates a new PricingCommandService instance.
-func NewPricingCommandService(repo domain.PricingRepository, publisher domain.EventPublisher, logger *slog.Logger) *PricingCommandService {
+func NewPricingCommandService(repo domain.PricingRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *PricingCommandService {
 	return &PricingCommandService{
 		repo:      repo,
 		publisher: publisher,

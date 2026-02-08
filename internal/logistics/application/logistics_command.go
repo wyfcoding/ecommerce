@@ -11,12 +11,13 @@ import (
 	"github.com/wyfcoding/pkg/algorithm/graph"
 	"github.com/wyfcoding/pkg/algorithm/math"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // LogisticsCommandService 处理物流的写操作（创建、状态更新、轨迹追踪、路线优化）。
 type LogisticsCommandService struct {
 	repo             domain.LogisticsRepository
-	publisher        domain.EventPublisher
+	publisher        messagequeue.EventPublisher
 	optimizer        *algorithm.RouteOptimizer
 	packingOptimizer *algorithm.BinPackingOptimizer
 	logger           *slog.Logger
@@ -39,7 +40,7 @@ type OrderInfo struct {
 // NewLogisticsCommandService 构造函数。
 func NewLogisticsCommandService(
 	repo domain.LogisticsRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 ) *LogisticsCommandService {
 	return &LogisticsCommandService{

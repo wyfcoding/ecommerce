@@ -11,12 +11,13 @@ import (
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
 	"github.com/wyfcoding/pkg/idgen"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // AIModelCommandService 负责AI模型模块的写操作和业务逻辑。
 type AIModelCommandService struct {
 	repo         domain.AIModelRepository
-	publisher    domain.EventPublisher
+	publisher    messagequeue.EventPublisher
 	idGenerator  idgen.Generator
 	logger       *slog.Logger
 	loadedModels map[uint64]*algorithm.NaiveBayes
@@ -24,7 +25,7 @@ type AIModelCommandService struct {
 }
 
 // NewAIModelCommandService 创建一个新的 AIModelCommandService 实例。
-func NewAIModelCommandService(repo domain.AIModelRepository, publisher domain.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *AIModelCommandService {
+func NewAIModelCommandService(repo domain.AIModelRepository, publisher messagequeue.EventPublisher, idGenerator idgen.Generator, logger *slog.Logger) *AIModelCommandService {
 	return &AIModelCommandService{
 		repo:         repo,
 		publisher:    publisher,

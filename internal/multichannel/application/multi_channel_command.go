@@ -7,18 +7,19 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/multichannel/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // MultiChannelCommandService 处理渠道的写操作。
 type MultiChannelCommandService struct {
 	repo      domain.MultiChannelRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 	adapters  map[string]domain.ChannelAdapter
 }
 
 // NewMultiChannelCommandService creates a new MultiChannelCommandService instance.
-func NewMultiChannelCommandService(repo domain.MultiChannelRepository, publisher domain.EventPublisher, logger *slog.Logger) *MultiChannelCommandService {
+func NewMultiChannelCommandService(repo domain.MultiChannelRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *MultiChannelCommandService {
 	return &MultiChannelCommandService{
 		repo:      repo,
 		publisher: publisher,

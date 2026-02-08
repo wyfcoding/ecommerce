@@ -7,19 +7,20 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // WarehouseCommandService 处理所有仓库相关的写入操作。
 type WarehouseCommandService struct {
 	repo      domain.WarehouseRepository
-	publisher domain.EventPublisher
+	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewWarehouseCommandService 构造函数。
 func NewWarehouseCommandService(
 	repo domain.WarehouseRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 ) *WarehouseCommandService {
 	return &WarehouseCommandService{

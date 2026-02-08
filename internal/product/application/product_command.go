@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 type ProductCommandService struct {
@@ -15,7 +16,7 @@ type ProductCommandService struct {
 	skuRepo      domain.SKURepository
 	brandRepo    domain.BrandRepository
 	categoryRepo domain.CategoryRepository
-	publisher    domain.EventPublisher
+	publisher    messagequeue.EventPublisher
 	logger       *slog.Logger
 }
 
@@ -24,7 +25,7 @@ func NewProductCommandService(
 	skuRepo domain.SKURepository,
 	brandRepo domain.BrandRepository,
 	categoryRepo domain.CategoryRepository,
-	publisher domain.EventPublisher,
+	publisher messagequeue.EventPublisher,
 	logger *slog.Logger,
 ) *ProductCommandService {
 	return &ProductCommandService{
