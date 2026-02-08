@@ -49,7 +49,7 @@ func main() {
 	s := grpc.NewServer()
 	procurementv1.RegisterProcurementServiceServer(s, handler)
 
-	fmt.Printf("server listening at %v\n", lis.Addr())
+	fmt.Printf("%s listening at %v\n", cfg.Name, lis.Addr())
 
 	go func() {
 		if err := s.Serve(lis); err != nil {

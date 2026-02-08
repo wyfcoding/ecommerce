@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package openapi.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/openapi/v1;openapiv1";
+
+// OpenApiService 开放平台服务
+service OpenApiService {
+    // CreateApp 创建开放平台应用 (获取 API Key/Secret)
+    rpc CreateApp(CreateAppRequest) returns (CreateAppResponse);
+    
+    // GetAppStatus 获取应用状态与权限
+    rpc GetAppStatus(GetAppStatusRequest) returns (GetAppStatusResponse);
+    
+    // InvokeApi 代理调用内部 API (演示用)
+    rpc InvokeApi(InvokeApiRequest) returns (InvokeApiResponse);
+}
+
+message CreateAppRequest {
+    string user_id = 1;
+    string app_name = 2;
+    string description = 3;
+}
+
+message CreateAppResponse {
+    string app_id = 1;
+    string api_key = 2;
+    string api_secret = 3;
+}
+
+message GetAppStatusRequest {
+    string api_key = 1;
+}
+
+message GetAppStatusResponse {
+    string app_id = 1;
+    string status = 2; // ACTIVE, DISABLED
+    repeated string scopes = 3;
+}
+
+message InvokeApiRequest {
+    string api_key = 1;
+    string method = 2;
+    string path = 3;
+    string payload = 4;
+}
+
+message InvokeApiResponse {
+    int32 code = 1;
+    string data = 2;
+    string error_msg = 3;
+}

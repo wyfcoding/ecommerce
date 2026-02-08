@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package influencer.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/influencer/v1;influencerv1";
+
+// InfluencerService 网红/KOL 带货服务
+service InfluencerService {
+    // RegisterInfluencer 注册/申请成为网红
+    rpc RegisterInfluencer(RegisterInfluencerRequest) returns (RegisterInfluencerResponse);
+    
+    // CreateCampaign 创建推广活动
+    rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+    
+    // GetEarnings 获取收益统计
+    rpc GetEarnings(GetEarningsRequest) returns (GetEarningsResponse);
+    
+    // ListCampaigns 获取活动列表
+    rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+}
+
+message RegisterInfluencerRequest {
+    string user_id = 1;
+    string name = 2;
+    string platform = 3; // TikTok, Instagram, YouTube
+    string handle = 4;
+    int32 follower_count = 5;
+}
+
+message RegisterInfluencerResponse {
+    string influencer_id = 1;
+    string status = 2;
+}
+
+message CreateCampaignRequest {
+    string influencer_id = 1;
+    string product_id = 2;
+    string commission_rate = 3;
+    google.protobuf.Timestamp start_at = 4;
+    google.protobuf.Timestamp end_at = 5;
+}
+
+message CreateCampaignResponse {
+    string campaign_id = 1;
+}
+
+message GetEarningsRequest {
+    string influencer_id = 1;
+}
+
+message GetEarningsResponse {
+    string influencer_id = 1;
+    string total_earnings = 2;
+    string pending_earnings = 3;
+    int32 total_sales = 4;
+}
+
+message CampaignItem {
+    string campaign_id = 1;
+    string product_id = 2;
+    string status = 3;
+    string commission_rate = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message ListCampaignsRequest {
+    string influencer_id = 1;
+}
+
+message ListCampaignsResponse {
+    repeated CampaignItem campaigns = 1;
+}

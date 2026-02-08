@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package livestream.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/livestream/v1;livestreamv1";
+
+// LivestreamService 直播电商服务
+service LivestreamService {
+    // CreateRoom 创建直播间
+    rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+    
+    // StartStream 开始直播
+    rpc StartStream(StartStreamRequest) returns (StartStreamResponse);
+    
+    // EndStream 结束直播
+    rpc EndStream(EndStreamRequest) returns (EndStreamResponse);
+    
+    // GetRoom 获取直播间详情
+    rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+    
+    // ListRooms 获取直播间列表
+    rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+    
+    // AddProductToStream 添加商品到直播间
+    rpc AddProductToStream(AddProductToStreamRequest) returns (AddProductToStreamResponse);
+}
+
+message CreateRoomRequest {
+    string owner_id = 1;
+    string title = 2;
+    string cover_url = 3;
+}
+
+message CreateRoomResponse {
+    string room_id = 1;
+    string status = 2;
+}
+
+message StartStreamRequest {
+    string room_id = 1;
+}
+
+message StartStreamResponse {
+    string stream_url = 1;
+}
+
+message EndStreamRequest {
+    string room_id = 1;
+}
+
+message EndStreamResponse {
+    bool success = 1;
+}
+
+message GetRoomRequest {
+    string room_id = 1;
+}
+
+message GetRoomResponse {
+    RoomDetail room = 1;
+}
+
+message RoomDetail {
+    string room_id = 1;
+    string owner_id = 2;
+    string title = 3;
+    string status = 4; // CREATED, LIVING, ENDED
+    int32 viewer_count = 5;
+    google.protobuf.Timestamp created_at = 6;
+    repeated StreamProduct products = 7;
+}
+
+message StreamProduct {
+    string product_id = 1;
+    string price = 2;
+    int32 stock = 3;
+}
+
+message ListRoomsRequest {
+    string status = 1;
+    int32 page = 2;
+    int32 size = 3;
+}
+
+message ListRoomsResponse {
+    repeated RoomDetail rooms = 1;
+}
+
+message AddProductToStreamRequest {
+    string room_id = 1;
+    string product_id = 2;
+}
+
+message AddProductToStreamResponse {
+    bool success = 1;
+}
