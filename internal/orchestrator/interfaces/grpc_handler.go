@@ -45,21 +45,29 @@ func (h *OrchestratorHandler) GetSagaStatus(ctx context.Context, req *pb.GetSaga
 
 	steps := make([]*pb.SagaStep, 0, len(instance.Steps))
 	for _, s := range instance.Steps {
+		var startedAt, finishedAt *timestamppb.Timestamp
+		if s.ScheduledAt != nil {
+			startedAt = timestamppb.New(*s.ScheduledAt)
+		}
+		if s.FinishedAt != nil {
+			finishedAt = timestamppb.New(*s.FinishedAt)
+		}
+
 		steps = append(steps, &pb.SagaStep{
-			StepName:   s.StepName,
-			Status:     s.Status,
+			StepName:   s.Name,
+			Status:     string(s.Status),
 			Error:      s.Error,
-			StartedAt:  timestamppb.New(s.StartedAt),
-			FinishedAt: timestamppb.New(s.FinishedAt),
+			StartedAt:  startedAt,
+			FinishedAt: finishedAt,
 		})
 	}
 
 	return &pb.GetSagaStatusResponse{
-		SagaId:      instance.SagaID,
+		SagaId:      instance.ID,
 		SagaType:    instance.SagaType,
-		BusinessKey: instance.BusinessKey,
-		Status:      instance.Status,
+		BusinessKey: instance.OriginalRefID,
+		Status:      string(instance.Status),
 		Steps:       steps,
-		CreatedAt:   timestamppb.New(instance.CreatedAt),
+		CreatedAt:   timestamppb.New(instance.StartTime),
 	}, nil
 }

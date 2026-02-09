@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/kyc/v1"
+	pb "github.com/wyfcoding/ecommerce/goapi/kyc"
 	"github.com/wyfcoding/ecommerce/internal/kyc/application"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -53,6 +53,38 @@ type FiatRepository interface {
 	GetExchangeRate(ctx context.Context, from, to string) (*ExchangeRate, error)
 }
 
+// FiatService 法币服务实现
+type FiatService struct {
+	repo FiatRepository
+}
+
+func NewFiatService(repo FiatRepository) *FiatService {
+	return &FiatService{repo: repo}
+}
+
+// Exchange 兑换货币
+func (s *FiatService) Exchange(ctx context.Context, from, to string, amount int64) (int64, float64, error) {
+	if from == to {
+		return amount, 1.0, nil
+	}
+	rate, err := s.repo.GetExchangeRate(ctx, from, to)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	exchangedAmount := decimal.NewFromInt(amount).Mul(rate.Rate).IntPart()
+	return exchangedAmount, rate.Rate.InexactFloat64(), nil
+}
+
+// GetRate 获取汇率
+func (s *FiatService) GetRate(ctx context.Context, from, to string) (float64, error) {
+	rate, err := s.repo.GetExchangeRate(ctx, from, to)
+	if err != nil {
+		return 0, err
+	}
+	return rate.Rate.InexactFloat64(), nil
+}
+
 // FiatPaymentService 法币支付通道服务
 type FiatPaymentService interface {
 	// InitiateDeposit 发起充值/付款

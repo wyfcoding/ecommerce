@@ -35,12 +35,12 @@ func (s *OrchestratorApplicationService) StartSaga(ctx context.Context, cmd Star
 	s.logger.Info("starting new saga transaction", "saga_id", sagaID, "type", cmd.SagaType)
 
 	instance := &domain.SagaInstance{
-		SagaID:      sagaID,
-		SagaType:    cmd.SagaType,
-		BusinessKey: cmd.BusinessKey,
-		Payload:     cmd.Payload,
-		Status:      "STARTED",
-		CreatedAt:   time.Now(),
+		ID:            sagaID,
+		SagaType:      cmd.SagaType,
+		OriginalRefID: cmd.BusinessKey,
+		ContextData:   cmd.Payload,
+		Status:        domain.SagaStarted,
+		StartTime:     time.Now(),
 	}
 
 	if err := s.repo.SaveInstance(ctx, instance); err != nil {

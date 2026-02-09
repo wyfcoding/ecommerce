@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package tax.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/tax/v1;v1";
+
+// TaxService 税务服务
+service TaxService {
+  // CalculateTax 计算订单税费
+  rpc CalculateTax(CalculateTaxRequest) returns (CalculateTaxResponse);
+  
+  // GetTaxRates 获取适用税率
+  rpc GetTaxRates(GetTaxRatesRequest) returns (GetTaxRatesResponse);
+}
+
+// TaxLineItem 税费明细
+message TaxLineItem {
+  string title = 1;       // 税目名称 (e.g. VAT, Sales Tax)
+  double rate = 2;        // 税率 (0.0 - 1.0)
+  double amount = 3;      // 税额
+  string type = 4;        // 类型 (STANDARD, REDUCED, ZERO)
+}
+
+message CalculateTaxRequest {
+  string order_id = 1;
+  string currency = 2;
+  double subtotal = 3;            // 商品总价
+  double shipping_fee = 4;        // 运费
+  double discount_amount = 5;     // 折扣金额
+  
+  message Address {
+    string country_code = 1;      // ISO 3166-1 alpha-2
+    string state_code = 2;        // ISO 3166-2
+    string city = 3;
+    string postal_code = 4;
+    string address_line1 = 5;
+  }
+  
+  Address shipping_address = 6;   //由此决定税率
+  Address billing_address = 7;
+  
+  message Item {
+    string product_id = 1;
+    string category_code = 2;     // 商品税务分类编码
+    double unit_price = 3;
+    int32 quantity = 4;
+  }
+  
+  repeated Item items = 8;
+  string customer_id = 9;
+}
+
+message CalculateTaxResponse {
+  double total_tax_amount = 1;
+  repeated TaxLineItem details = 2;
+  bool inclusive = 3;             // 价格是否含税
+}
+
+message GetTaxRatesRequest {
+  string country_code = 1;
+  string state_code = 2;
+  string product_category = 3;
+}
+
+message GetTaxRatesResponse {
+  repeated TaxLineItem rates = 1;
+}

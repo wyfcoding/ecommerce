@@ -250,6 +250,17 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		projectionConsumers = append(projectionConsumers, consumer)
 	}
 
+	// 5.4 Audit Event Consumer (From pkg/audit clients)
+	// 消费来自其他服务的通用审计日志事件 (audit.event)
+	auditEventHandler := auditconsumer.NewAuditEventHandler(command, logger.Logger)
+	auditEventCfg := c.MessageQueue.Kafka
+	auditEventCfg.Topic = "audit.event"
+	auditEventCfg.GroupID = BootstrapName + "-event-group"
+
+	auditEventConsumer := kafka.NewConsumer(&auditEventCfg, logger, m)
+	auditEventConsumer.Start(context.Background(), 5, auditEventHandler.Handle)
+	projectionConsumers = append(projectionConsumers, auditEventConsumer)
+
 	// 5.4 Interface (HTTP Handlers)
 	handler := audithttp.NewHandler(command, query, logger.Logger)
 

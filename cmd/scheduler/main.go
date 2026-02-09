@@ -8,6 +8,7 @@ import (
 
 	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/response"
+	"github.com/wyfcoding/pkg/server"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -23,10 +24,12 @@ import (
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
 	"github.com/wyfcoding/pkg/limiter"
+	"github.com/wyfcoding/pkg/lock"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	pkgScheduler "github.com/wyfcoding/pkg/scheduler"
 )
 
 // BootstrapName 服务唯一标识
@@ -63,6 +66,7 @@ func main() {
 		WithService(initService).
 		WithGRPC(registerGRPC).
 		WithGin(registerGin).
+		WithServerRunner(func(ctx *AppContext) server.Server { return ctx.Scheduler.Command }).
 		WithGinMiddleware(
 			middleware.CORS(), // 跨域处理
 			middleware.TimeoutMiddleware(30*time.Second), // 全局超时
@@ -171,12 +175,22 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 5.1 Infrastructure (Persistence)
 	schedulerRepo := persistence.NewSchedulerRepository(db.RawDB())
 
+	// 5.2 Helper components (Lock, Scheduler Engine)
+	redisLock := lock.NewRedisLock(redisCache.GetClient())
+	cronEngine := pkgScheduler.NewScheduler(logger, m)
+
 	// 6.2 Application (Service)
 	querySvc := application.NewSchedulerQueryService(schedulerRepo)
-	manager, err := application.NewSchedulerCommandService(schedulerRepo, outboxPublisher, logger.Logger)
+	manager, err := application.NewSchedulerCommandService(schedulerRepo, outboxPublisher, cronEngine, redisLock, logger.Logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create scheduler manager: %w", err)
 	}
+
+	// Load initial jobs
+	if err := manager.LoadJobs(context.Background()); err != nil {
+		bootLog.Warn("failed to load initial jobs", "error", err)
+	}
+
 	schedulerService := application.NewSchedulerService(manager, querySvc)
 
 	// 5.3 Interface (HTTP Handlers)

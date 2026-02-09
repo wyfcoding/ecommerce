@@ -12,6 +12,31 @@ read_timeout = "3s"
 write_timeout = "3s"
 idle_timeout = "60s"
 
+[email]
+provider = "smtp"
+smtp_host = "smtp.example.com"
+smtp_port = 587
+username = "user"
+password = "password"
+from_address = "no-reply@ecommerce.com"
+from_name = "Ecommerce Notification"
+use_tls = true
+api_key = "" # for sendgrid
+timeout = "10s"
+
+[sms]
+provider = "aliyun"
+access_key_id = "access_key"
+access_key_secret = "secret"
+sign_name = "Ecommerce"
+region = "cn-hangzhou"
+app_id = "" # for tencent
+timeout = "10s"
+
+[webhook]
+timeout = "10s"
+user_agent = "Ecommerce-Notification-Worker/1.0"
+
 [server.grpc]
 addr = "0.0.0.0"
 port = 9008

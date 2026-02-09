@@ -30,6 +30,7 @@ import (
 	"github.com/wyfcoding/pkg/messagequeue/outbox"
 	"github.com/wyfcoding/pkg/metrics"
 	"github.com/wyfcoding/pkg/middleware"
+	"github.com/wyfcoding/pkg/notification"
 	"github.com/wyfcoding/pkg/response"
 	"github.com/wyfcoding/pkg/search"
 	"github.com/wyfcoding/pkg/server"
@@ -48,6 +49,10 @@ type Config struct {
 		NotificationIndex string `mapstructure:"notification_index" toml:"notification_index"`
 		TemplateIndex     string `mapstructure:"template_index" toml:"template_index"`
 	} `mapstructure:"search" toml:"search"`
+
+	Email   notification.EmailConfig   `mapstructure:"email" toml:"email"`
+	SMS     notification.SMSConfig     `mapstructure:"sms" toml:"sms"`
+	Webhook notification.WebhookConfig `mapstructure:"webhook" toml:"webhook"`
 }
 
 // AppContext 应用上下文 (包含对外服务实例与依赖)
@@ -237,6 +242,33 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
 		consumer.Start(context.Background(), 3, projectionHandler.Handle)
 		projectionConsumers = append(projectionConsumers, consumer)
+	}
+
+	// 5.5 Notification Worker Consumers (Actual Sending)
+	// 初始化真实发送器 SDK
+	pkgEmailSender := notification.NewEmailSender(&c.Email, logger.Logger)
+	pkgSMSSender := notification.NewSMSSender(&c.SMS, logger.Logger)
+	pkgWebhookSender := notification.NewWebhookSender(&c.Webhook, logger.Logger)
+
+	// 初始化处理器
+	emailHandler := notificationconsumer.NewNotificationSenderHandler(pkgEmailSender, logger.Logger)
+	smsHandler := notificationconsumer.NewNotificationSenderHandler(pkgSMSSender, logger.Logger)
+	webhookHandler := notificationconsumer.NewNotificationSenderHandler(pkgWebhookSender, logger.Logger)
+
+	// 启动消费者
+	workerTopics := map[string]*notificationconsumer.NotificationSenderHandler{
+		"notification.email":   emailHandler,
+		"notification.sms":     smsHandler,
+		"notification.webhook": webhookHandler,
+	}
+
+	for topic, handler := range workerTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-worker-group" // 使用独立消费组
+		consumer := kafka.NewConsumer(&consumerCfg, logger, m)
+		consumer.Start(context.Background(), 5, handler.Handle)
+		projectionConsumers = append(projectionConsumers, consumer) // 加入清理列表
 	}
 
 	// 5.4 Interface (HTTP Handlers)

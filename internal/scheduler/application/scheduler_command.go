@@ -9,7 +9,9 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/lock"
 	"github.com/wyfcoding/pkg/messagequeue"
+	pkgScheduler "github.com/wyfcoding/pkg/scheduler"
 )
 
 // JobHandler 定义了任务处理函数的原型
@@ -21,11 +23,19 @@ type SchedulerCommandService struct {
 	publisher  messagequeue.EventPublisher
 	logger     *slog.Logger
 	timerWheel *algorithm.TimingWheel
+	cronSched  *pkgScheduler.Scheduler
+	distLock   lock.DistributedLock
 	handlers   map[string]JobHandler
 }
 
 // NewSchedulerCommandService creates a new SchedulerCommandService instance.
-func NewSchedulerCommandService(repo domain.SchedulerRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) (*SchedulerCommandService, error) {
+func NewSchedulerCommandService(
+	repo domain.SchedulerRepository,
+	publisher messagequeue.EventPublisher,
+	cronSched *pkgScheduler.Scheduler,
+	distLock lock.DistributedLock,
+	logger *slog.Logger,
+) (*SchedulerCommandService, error) {
 	tw, err := algorithm.NewTimingWheel(time.Second, 3600)
 	if err != nil {
 		return nil, err
@@ -36,15 +46,67 @@ func NewSchedulerCommandService(repo domain.SchedulerRepository, publisher messa
 		publisher:  publisher,
 		logger:     logger,
 		timerWheel: tw,
+		cronSched:  cronSched,
+		distLock:   distLock,
 		handlers:   make(map[string]JobHandler),
 	}
 	service.timerWheel.Start()
 	return service, nil
 }
 
+// Start 启动调度器 (非阻塞启动，然后阻塞等待上下文取消)。
+func (m *SchedulerCommandService) Start(ctx context.Context) error {
+	m.cronSched.Start(ctx)
+	// 阻塞直到上下文取消，模拟 Server 行为
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// Stop 停止调度器。
+func (m *SchedulerCommandService) Stop(ctx context.Context) error {
+	m.timerWheel.Stop()
+	return m.cronSched.Stop(ctx)
+}
+
 // RegisterHandler 注册任务处理器
 func (m *SchedulerCommandService) RegisterHandler(name string, handler JobHandler) {
 	m.handlers[name] = handler
+}
+
+// LoadJobs 从数据库加载所有启用的 Cron 任务到调度器。
+func (m *SchedulerCommandService) LoadJobs(ctx context.Context) error {
+	status := domain.JobStatusEnabled
+	jobs, _, err := m.repo.ListJobs(ctx, &status, 1, 1000) // 假设不超过 1000 个任务
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs {
+		if err := m.addJobToScheduler(ctx, job); err != nil {
+			m.logger.ErrorContext(ctx, "failed to load job to scheduler", "job_name", job.Name, "error", err)
+			continue
+		}
+	}
+	return nil
+}
+
+// addJobToScheduler 辅助方法：将 domain.Job 转换为 pkg/scheduler 任务并添加。
+func (m *SchedulerCommandService) addJobToScheduler(ctx context.Context, job *domain.Job) error {
+	jobID := uint64(job.ID)
+	cfg := pkgScheduler.JobConfig{
+		Name:            job.Name,
+		CronExpr:        job.CronExpr,
+		Retry:           0,                // 数据库未存 retry 次数，默认 0
+		Timeout:         30 * time.Minute, // 默认超时
+		Lock:            m.distLock,       // 启用分布式锁
+		LockTTL:         5 * time.Minute,
+		AllowConcurrent: false,
+	}
+
+	return m.cronSched.AddJob(cfg, func(jobCtx context.Context) error {
+		// 任务触发时调用 RunJob 逻辑
+		return m.RunJob(jobCtx, jobID)
+	})
 }
 
 // ScheduleDelayJob 调度一个延迟任务。
@@ -88,6 +150,12 @@ func (m *SchedulerCommandService) CreateJob(ctx context.Context, name, desc, cro
 		m.logger.ErrorContext(ctx, "failed to save job", "job_name", name, "error", err)
 		return nil, err
 	}
+
+	// 添加到调度器
+	if err := m.addJobToScheduler(ctx, job); err != nil {
+		m.logger.WarnContext(ctx, "failed to add new job to scheduler immediately", "job_name", name, "error", err)
+	}
+
 	m.logger.InfoContext(ctx, "job created successfully", "job_id", job.ID, "job_name", name)
 	return job, nil
 }
@@ -109,6 +177,14 @@ func (m *SchedulerCommandService) UpdateJob(ctx context.Context, id uint64, cron
 		m.logger.ErrorContext(ctx, "failed to update job", "job_id", id, "error", err)
 		return err
 	}
+
+	// 更新调度器
+	if job.Status == domain.JobStatusEnabled {
+		if err := m.addJobToScheduler(ctx, job); err != nil {
+			m.logger.WarnContext(ctx, "failed to update job in scheduler", "job_id", id, "error", err)
+		}
+	}
+
 	m.logger.InfoContext(ctx, "job updated successfully", "job_id", id)
 	return nil
 }
@@ -133,6 +209,16 @@ func (m *SchedulerCommandService) ToggleJobStatus(ctx context.Context, id uint64
 		m.logger.ErrorContext(ctx, "failed to toggle job status", "job_id", id, "enable", enable, "error", err)
 		return err
 	}
+
+	// 同步状态到调度器
+	if enable {
+		if err := m.addJobToScheduler(ctx, job); err != nil {
+			m.logger.ErrorContext(ctx, "failed to enable job in scheduler", "job_id", id, "error", err)
+		}
+	} else {
+		m.cronSched.RemoveJob(job.Name)
+	}
+
 	m.logger.InfoContext(ctx, "job status toggled successfully", "job_id", id, "enable", enable)
 	return nil
 }
