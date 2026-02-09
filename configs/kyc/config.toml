@@ -1,0 +1,20 @@
+[service]
+name = "kyc"
+version = "v1.0.0"
+
+[server]
+grpc_port = 50063
+
+[database]
+driver = "mysql"
+dsn = "root:root1234@tcp(127.0.0.1:3306)/ecommerce?charset=utf8mb4&parseTime=True&loc=Local"
+
+[log]
+level = "info"
+format = "json"
+
+[kyc]
+# 身份验证策略：MANUAL, AI
+verification_mode = "AI"
+# AI 验证模型端点
+ai_endpoint = "http://ai-model:8080/v1/verify"

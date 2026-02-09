@@ -62,6 +62,7 @@ type OrderItem struct {
 	OrderID         uint64         `json:"order_id"`
 	ProductID       uint64         `json:"product_id"`
 	SkuID           uint64         `json:"sku_id"`
+	MerchantID      uint64         `json:"merchant_id"` // 商家ID，用于多商家拆单
 	ProductName     string         `json:"product_name"`
 	SkuName         string         `json:"sku_name"`
 	ProductImageURL string         `json:"product_image_url"`

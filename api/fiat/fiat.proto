@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package fiat.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/fiat/v1;pb";
+
+import "google/protobuf/timestamp.proto";
+
+service FiatService {
+    // 基础货币兑换
+    rpc Exchange(ExchangeRequest) returns (ExchangeResponse);
+    // 汇率查询
+    rpc GetRate(GetRateRequest) returns (GetRateResponse);
+}
+
+message ExchangeRequest {
+    string from_currency = 1;
+    string to_currency = 2;
+    int64 amount = 3;
+}
+
+message ExchangeResponse {
+    int64 exchanged_amount = 1;
+    double rate = 2;
+}
+
+message GetRateRequest {
+    string from_currency = 1;
+    string to_currency = 2;
+}
+
+message GetRateResponse {
+    double rate = 1;
+    google.protobuf.Timestamp updated_at = 2;
+}

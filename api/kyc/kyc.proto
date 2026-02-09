@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package kyc.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/kyc/v1;pb";
+
+import "google/protobuf/timestamp.proto";
+
+service KYCService {
+    // 提交 KYC 申请
+    rpc SubmitKYC(SubmitKYCRequest) returns (SubmitKYCResponse);
+    // 获取验证状态
+    rpc GetKYCStatus(GetKYCStatusRequest) returns (GetKYCStatusResponse);
+}
+
+message SubmitKYCRequest {
+    uint64 user_id = 1;
+    string full_name = 2;
+    string id_number = 3;
+    string id_type = 4; // PASSPORT, ID_CARD
+    string id_document_url = 5;
+}
+
+message SubmitKYCResponse {
+    string application_id = 1;
+    string status = 2;
+}
+
+message GetKYCStatusRequest {
+    uint64 user_id = 1;
+}
+
+message GetKYCStatusResponse {
+    uint64 user_id = 1;
+    string status = 2; // PENDING, APPROVED, REJECTED
+    string reason = 3;
+    google.protobuf.Timestamp verified_at = 4;
+}

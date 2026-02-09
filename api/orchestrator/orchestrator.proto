@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package orchestrator.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/goapi/orchestrator/v1;pb";
+
+import "google/protobuf/timestamp.proto";
+
+service OrchestratorService {
+    // 启动 Saga 事务
+    rpc StartSaga(StartSagaRequest) returns (StartSagaResponse);
+    // 查询 Saga 状态
+    rpc GetSagaStatus(GetSagaStatusRequest) returns (GetSagaStatusResponse);
+}
+
+message StartSagaRequest {
+    string saga_type = 1;
+    string business_key = 2;
+    string payload = 3; // JSON 格式的初始数据
+}
+
+message StartSagaResponse {
+    string saga_id = 1;
+    string status = 2;
+}
+
+message GetSagaStatusRequest {
+    string saga_id = 1;
+}
+
+message GetSagaStatusResponse {
+    string saga_id = 1;
+    string saga_type = 2;
+    string business_key = 3;
+    string status = 4; // STARTED, COMPLETED, COMPENSATING, FAILED
+    repeated SagaStep steps = 5;
+    google.protobuf.Timestamp created_at = 6;
+}
+
+message SagaStep {
+    string step_name = 1;
+    string status = 2;
+    string error = 3;
+    google.protobuf.Timestamp started_at = 4;
+    google.protobuf.Timestamp finished_at = 5;
+}

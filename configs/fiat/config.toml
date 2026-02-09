@@ -1,0 +1,16 @@
+[service]
+name = "fiat"
+version = "v1.0.0"
+
+[server]
+grpc_port = 50061
+
+[log]
+level = "info"
+format = "json"
+
+[fiat]
+# 汇率刷新间隔
+rate_refresh_seconds = 3600
+# 默认本位币
+base_currency = "USD"
