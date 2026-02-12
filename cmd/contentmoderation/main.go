@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
-	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
+	aimodelv1 "github.com/wyfcoding/ecommerce/go-api/aimodel/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/contentmoderation/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/application"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
 	moderationsearch "github.com/wyfcoding/ecommerce/internal/contentmoderation/infrastructure/persistence/elasticsearch"

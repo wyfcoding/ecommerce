@@ -4,7 +4,7 @@ package api.support.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/support/v1;supportv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/support/v1;supportv1";
 
 // 客户服务系统，负责在线咨询工单的生命周期管理及座席交互。
 service SupportService {

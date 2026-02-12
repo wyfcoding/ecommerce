@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/fiat/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/fiat/v1"
 	"github.com/wyfcoding/ecommerce/internal/fiat/application"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

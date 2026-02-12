@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api.smartproductselection.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/smartproductselection/v1;smartproductselectionv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/smartproductselection/v1;smartproductselectionv1";
 
 // 智能选品服务，利用大数据分析辅助商家进行商品铺货建议及选品决策。
 service SmartProductSelectionService {

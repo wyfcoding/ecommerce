@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/notification/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/notification/v1"
 	"github.com/wyfcoding/ecommerce/internal/notification/application"
 	"github.com/wyfcoding/ecommerce/internal/notification/domain"
 	notificationsearch "github.com/wyfcoding/ecommerce/internal/notification/infrastructure/persistence/elasticsearch"

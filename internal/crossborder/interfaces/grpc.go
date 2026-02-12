@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/crossborder/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/crossborder/v1"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/application"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/domain"
 )

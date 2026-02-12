@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/livestream/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/livestream/v1"
 	"github.com/wyfcoding/ecommerce/internal/livestream/application"
 )
 

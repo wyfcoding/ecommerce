@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/pkg/eventsourcing"
 )
 

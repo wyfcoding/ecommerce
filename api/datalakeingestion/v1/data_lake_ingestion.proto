@@ -4,7 +4,7 @@ package api.datalakeingestion.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/datalakeingestion/v1;datalakeingestionv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/datalakeingestion/v1;datalakeingestionv1";
 
 // 数据湖摄取服务，负责将各类异构数据源的原始数据流式或批量导入数据湖。
 service DataLakeIngestionService {

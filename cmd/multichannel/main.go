@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/multichannel/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/multichannel/v1"
 	"github.com/wyfcoding/ecommerce/internal/multichannel/application"
 	"github.com/wyfcoding/ecommerce/internal/multichannel/domain"
 	channelsearch "github.com/wyfcoding/ecommerce/internal/multichannel/infrastructure/persistence/elasticsearch"

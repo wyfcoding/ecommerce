@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/logistics/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"
 	"github.com/wyfcoding/ecommerce/internal/logistics/application"
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
 	logisticssearch "github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/persistence/elasticsearch"

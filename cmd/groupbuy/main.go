@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/groupbuy/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/groupbuy/v1"
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/application"
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
 	groupbuysearch "github.com/wyfcoding/ecommerce/internal/groupbuy/infrastructure/persistence/elasticsearch"

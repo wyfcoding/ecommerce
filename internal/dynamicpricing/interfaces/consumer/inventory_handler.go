@@ -6,8 +6,8 @@ import (
 	"log/slog"
 
 	kafkago "github.com/segmentio/kafka-go"
-	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
-	productv1 "github.com/wyfcoding/ecommerce/goapi/product/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
+	productv1 "github.com/wyfcoding/ecommerce/go-api/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/application"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
 )

@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/user/v1"
 	"github.com/wyfcoding/ecommerce/internal/user/application"
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	usersearch "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/elasticsearch"

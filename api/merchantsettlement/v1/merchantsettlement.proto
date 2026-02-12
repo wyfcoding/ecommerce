@@ -4,7 +4,7 @@ package merchantsettlement.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/merchantsettlement/v1;merchantsettlementv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/merchantsettlement/v1;merchantsettlementv1";
 
 // MerchantSettlementService 商家结算服务
 service MerchantSettlementService {

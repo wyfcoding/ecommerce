@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/database/sharding"

@@ -4,7 +4,7 @@ package influencer.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/influencer/v1;influencerv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/influencer/v1;influencerv1";
 
 // InfluencerService 网红/KOL 带货服务
 service InfluencerService {

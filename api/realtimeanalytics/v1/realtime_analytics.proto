@@ -4,7 +4,7 @@ package api.realtimeanalytics.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/realtimeanalytics/v1;realtimeanalyticsv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/realtimeanalytics/v1;realtimeanalyticsv1";
 
 // 实时分析服务，提供系统层面的销售、活跃度指标监控及实时埋点接收。
 service RealtimeAnalyticsService {

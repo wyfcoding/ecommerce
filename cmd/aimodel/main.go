@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
-	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/aimodel/v1"
+	recommendationv1 "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/application"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 	aimodelsearch "github.com/wyfcoding/ecommerce/internal/aimodel/infrastructure/persistence/elasticsearch"

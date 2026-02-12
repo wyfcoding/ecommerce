@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	recommendationv1 "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
+	recommendationv1 "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 )
 

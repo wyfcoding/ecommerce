@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api.recommendation.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/recommendation/v1;recommendationv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/recommendation/v1;recommendationv1";
 
 // 推荐服务，利用图算法及 AI 引擎为用户提供个性化商品及关联商品推荐。
 service RecommendationService {

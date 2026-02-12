@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 )
 
 // --- 交易账户支付聚合 ---

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api.datawarehousequery.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/datawarehousequery/v1;datawarehousequeryv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/datawarehousequery/v1;datawarehousequeryv1";
 
 // 数据仓库查询服务，负责执行 OLAP 复杂查询并获取大规模分析结果。
 service DataWarehouseQueryService {

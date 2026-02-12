@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	merchantv1 "github.com/wyfcoding/ecommerce/go-api/merchant/v1"
 	"github.com/wyfcoding/ecommerce/internal/merchant/application"
 	"github.com/wyfcoding/ecommerce/internal/merchant/infrastructure"
 	"github.com/wyfcoding/ecommerce/internal/merchant/interfaces"
@@ -114,6 +115,7 @@ func main() {
 
 	// 初始化 HTTP Handler
 	httpHandler := interfaces.NewHTTPHandler(commandService, queryService)
+	grpcHandler := interfaces.NewGRPCHandler(commandService, queryService)
 
 	// 创建 Gin 引擎
 	gin.SetMode(gin.ReleaseMode)
@@ -140,8 +142,7 @@ func main() {
 
 	// 创建 gRPC 服务器
 	grpcServer := grpc.NewServer()
-	// TODO: 注册 gRPC 服务
-	// merchantv1.RegisterMerchantServiceServer(grpcServer, grpcHandler)
+	merchantv1.RegisterMerchantServiceServer(grpcServer, grpcHandler)
 
 	// 使用 errgroup 管理服务生命周期
 	ctx, cancel := context.WithCancel(context.Background())

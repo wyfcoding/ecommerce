@@ -4,7 +4,7 @@ package api.userprofile.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/userprofile/v1;userprofilev1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/userprofile/v1;userprofilev1";
 
 // 用户画像服务，负责聚合用户行为、偏好标签及消费特征，支持精准营销。
 service UserProfileService {

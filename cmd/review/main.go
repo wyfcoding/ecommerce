@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
-	pb "github.com/wyfcoding/ecommerce/goapi/review/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/review/v1"
 	"github.com/wyfcoding/ecommerce/internal/review/application"
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 	reviewsearch "github.com/wyfcoding/ecommerce/internal/review/infrastructure/persistence/elasticsearch"

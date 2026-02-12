@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	supplierv1 "github.com/wyfcoding/ecommerce/goapi/supplier/v1"
+	supplierv1 "github.com/wyfcoding/ecommerce/go-api/supplier/v1"
 	"github.com/wyfcoding/ecommerce/internal/supplier/application"
 	"github.com/wyfcoding/ecommerce/internal/supplier/domain"
 	"github.com/wyfcoding/ecommerce/internal/supplier/infrastructure"

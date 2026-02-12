@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/contentmoderation/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/contentmoderation/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/application"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
 

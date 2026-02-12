@@ -9,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
-	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/aftersales/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/application"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain"
 	aftersalessearch "github.com/wyfcoding/ecommerce/internal/aftersales/infrastructure/persistence/elasticsearch"

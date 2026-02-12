@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/flashsale/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"

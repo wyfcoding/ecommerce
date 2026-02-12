@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/dataingestion/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/dataingestion/v1"
 	"github.com/wyfcoding/ecommerce/internal/dataingestion/application"
 	"github.com/wyfcoding/ecommerce/internal/dataingestion/infrastructure/persistence"
 	ingestiongrpc "github.com/wyfcoding/ecommerce/internal/dataingestion/interfaces/grpc"

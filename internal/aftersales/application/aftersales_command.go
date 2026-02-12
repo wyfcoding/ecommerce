@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"time"
 
-	aftersalesv1 "github.com/wyfcoding/ecommerce/goapi/aftersales/v1"
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
-	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	aftersalesv1 "github.com/wyfcoding/ecommerce/go-api/aftersales/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/aftersales/domain"
 	"github.com/wyfcoding/pkg/dtm"
 	"github.com/wyfcoding/pkg/idgen"

@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
-	pb "github.com/wyfcoding/ecommerce/goapi/orderoptimization/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/orderoptimization/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/application"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/domain"
 	optimizationsearch "github.com/wyfcoding/ecommerce/internal/orderoptimization/infrastructure/persistence/elasticsearch"

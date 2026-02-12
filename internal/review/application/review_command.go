@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/contextx"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	dynamicpricingv1 "github.com/wyfcoding/ecommerce/goapi/dynamicpricing/v1"
+	dynamicpricingv1 "github.com/wyfcoding/ecommerce/go-api/dynamicpricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
 	marketdatav1 "github.com/wyfcoding/financialtrading/go-api/marketdata/v1"
 )

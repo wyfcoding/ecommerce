@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package kyc.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/kyc/v1;pb";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/kyc/v1;pb";
 
 import "google/protobuf/timestamp.proto";
 

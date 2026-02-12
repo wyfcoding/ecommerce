@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/pointsmall/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/pointsmall/v1"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/application"
 	"github.com/wyfcoding/ecommerce/internal/pointsmall/domain"
 	pointsmallsearch "github.com/wyfcoding/ecommerce/internal/pointsmall/infrastructure/persistence/elasticsearch"

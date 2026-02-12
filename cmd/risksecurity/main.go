@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/application"
 	"github.com/wyfcoding/ecommerce/internal/risksecurity/domain"
 	risksearch "github.com/wyfcoding/ecommerce/internal/risksecurity/infrastructure/persistence/elasticsearch"

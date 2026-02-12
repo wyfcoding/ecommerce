@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/orchestrator/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/orchestrator/v1"
 	"github.com/wyfcoding/ecommerce/internal/orchestrator/application"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/wishlist/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/wishlist/v1"
 	"github.com/wyfcoding/ecommerce/internal/wishlist/application"
 	"github.com/wyfcoding/ecommerce/internal/wishlist/domain"
 	wishlistsearch "github.com/wyfcoding/ecommerce/internal/wishlist/infrastructure/persistence/elasticsearch"

@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/i18n/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/i18n/v1"
 	"github.com/wyfcoding/ecommerce/internal/i18n/application"
 	"github.com/wyfcoding/ecommerce/internal/i18n/domain"
 )

@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/recommendation/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"
 	"github.com/wyfcoding/ecommerce/internal/recommendation/application"
 	"github.com/wyfcoding/ecommerce/internal/recommendation/domain"
 	recommendationsearch "github.com/wyfcoding/ecommerce/internal/recommendation/infrastructure/persistence/elasticsearch"

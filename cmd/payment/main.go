@@ -11,9 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
-	settlementv1 "github.com/wyfcoding/ecommerce/goapi/settlement/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
+	settlementv1 "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/ecommerce/internal/payment/infrastructure/gateway"

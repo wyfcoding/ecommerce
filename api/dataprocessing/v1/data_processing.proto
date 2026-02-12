@@ -4,7 +4,7 @@ package api.dataprocessing.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/dataprocessing/v1;dataprocessingv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/dataprocessing/v1;dataprocessingv1";
 
 // 数据处理服务，负责对摄取的原始数据进行清洗、转换及聚合。
 service DataProcessingService {

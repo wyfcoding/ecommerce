@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	risksecurityv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
+	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"

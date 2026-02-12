@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
-	pb "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 )
 
 // ReconcileStatus 对账结果状态

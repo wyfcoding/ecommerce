@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	crossborderv1 "github.com/wyfcoding/ecommerce/goapi/crossborder/v1"
+	crossborderv1 "github.com/wyfcoding/ecommerce/go-api/crossborder/v1"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/application"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/domain"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/infrastructure"

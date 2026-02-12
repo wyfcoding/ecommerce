@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/orderoptimization/domain"
 	"github.com/wyfcoding/pkg/messagequeue"
 )

@@ -15,7 +15,7 @@ import (
 
 	kafkago "github.com/segmentio/kafka-go"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/search/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"
 	"github.com/wyfcoding/ecommerce/internal/search/application"
 	"github.com/wyfcoding/ecommerce/internal/search/infrastructure/persistence"
 	searchgrpc "github.com/wyfcoding/ecommerce/internal/search/interfaces/grpc"

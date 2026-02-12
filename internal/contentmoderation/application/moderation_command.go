@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	aimodelv1 "github.com/wyfcoding/ecommerce/goapi/aimodel/v1"
+	aimodelv1 "github.com/wyfcoding/ecommerce/go-api/aimodel/v1"
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/messagequeue"

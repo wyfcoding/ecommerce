@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/dataprocessing/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/dataprocessing/v1"
 	"github.com/wyfcoding/ecommerce/internal/dataprocessing/application"
 	"github.com/wyfcoding/ecommerce/internal/dataprocessing/infrastructure/persistence"
 	processinggrpc "github.com/wyfcoding/ecommerce/internal/dataprocessing/interfaces/grpc"

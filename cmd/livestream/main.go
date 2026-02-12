@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/livestream/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/livestream/v1"
 	"github.com/wyfcoding/ecommerce/internal/livestream/application"
 	"github.com/wyfcoding/ecommerce/internal/livestream/domain"
 	"github.com/wyfcoding/ecommerce/internal/livestream/infrastructure"

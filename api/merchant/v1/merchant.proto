@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ecommerce.merchant.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/merchant/v1;merchantv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/merchant/v1;merchantv1";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";

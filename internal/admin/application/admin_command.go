@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
-	paymentv1 "github.com/wyfcoding/ecommerce/goapi/payment/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	paymentv1 "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/admin/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"

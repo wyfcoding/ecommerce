@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/kyc"
+	pb "github.com/wyfcoding/ecommerce/go-api/kyc"
 	"github.com/wyfcoding/ecommerce/internal/kyc/application"
 	"github.com/wyfcoding/ecommerce/internal/kyc/domain"
 	"github.com/wyfcoding/ecommerce/internal/kyc/infrastructure"

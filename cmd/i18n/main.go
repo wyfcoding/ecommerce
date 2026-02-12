@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	i18nv1 "github.com/wyfcoding/ecommerce/goapi/i18n/v1"
+	i18nv1 "github.com/wyfcoding/ecommerce/go-api/i18n/v1"
 	"github.com/wyfcoding/ecommerce/internal/i18n/application"
 	"github.com/wyfcoding/ecommerce/internal/i18n/domain"
 	"github.com/wyfcoding/ecommerce/internal/i18n/infrastructure"

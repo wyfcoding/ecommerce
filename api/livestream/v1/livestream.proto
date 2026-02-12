@@ -4,7 +4,7 @@ package livestream.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/livestream/v1;livestreamv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/livestream/v1;livestreamv1";
 
 // LivestreamService 直播电商服务
 service LivestreamService {

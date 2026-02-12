@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/dtm-labs/client/dtmgrpc"
-	pb "github.com/wyfcoding/ecommerce/goapi/warehouse/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/warehouse/v1"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/application"
 	"github.com/wyfcoding/ecommerce/internal/warehouse/domain"
 

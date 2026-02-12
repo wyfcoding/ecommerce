@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"
 )
 
 // OrderCreatedEvent 订单创建事件

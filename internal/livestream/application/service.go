@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/livestream/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/livestream/v1"
 	"github.com/wyfcoding/ecommerce/internal/livestream/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	riskv1 "github.com/wyfcoding/ecommerce/goapi/risksecurity/v1"
+	riskv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 )
 

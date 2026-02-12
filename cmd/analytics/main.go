@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/analytics/v1"
 	"github.com/wyfcoding/ecommerce/internal/analytics/application"
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
 	analyticssearch "github.com/wyfcoding/ecommerce/internal/analytics/infrastructure/persistence/elasticsearch"

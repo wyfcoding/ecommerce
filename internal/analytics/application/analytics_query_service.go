@@ -10,7 +10,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
-	analyticsv1 "github.com/wyfcoding/ecommerce/goapi/analytics/v1"
+	analyticsv1 "github.com/wyfcoding/ecommerce/go-api/analytics/v1"
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
 	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 	positionv1 "github.com/wyfcoding/financialtrading/go-api/position/v1"

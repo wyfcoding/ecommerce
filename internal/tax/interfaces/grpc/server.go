@@ -19,53 +19,61 @@ func NewServer(app *application.TaxService) *Server {
 }
 
 func (s *Server) CalculateTax(ctx context.Context, req *v1.CalculateTaxRequest) (*v1.CalculateTaxResponse, error) {
-	// Map request to domain params
-	// Simplified: utilizing the first item's category for now or doing per-item calculation?
-	// The application service currently supports single category calculation.
-	// For production, we should loop items.
+	if req.Amount < 0 {
+		return nil, status.Error(codes.InvalidArgument, "amount must be non-negative")
+	}
 
-	var totalTax int64
-	var details []*v1.TaxLineItem
+	result, err := s.app.CalculateOrderTax(
+		ctx,
+		req.UserId,
+		req.DestinationCountry,
+		"",
+		req.ProductCategory,
+		req.Amount,
+	)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to calculate tax: %v", err)
+	}
 
-	// Assuming customer_id can be parsed to uint64, or use 0
-	// This is a simplification. Actual implementation needs robust string->uint64 parsing or ID mapping.
-	var userID uint64 = 0
+	taxRate := 0.0
+	if req.Amount > 0 {
+		taxRate = float64(result.TotalTaxAmount) / float64(req.Amount)
+	}
 
-	for _, item := range req.Items {
-		amount := int64(item.UnitPrice * float64(item.Quantity) * 100) // Convert to cents
-
-		res, err := s.app.CalculateOrderTax(
-			ctx,
-			userID,
-			req.ShippingAddress.CountryCode,
-			req.ShippingAddress.StateCode,
-			item.CategoryCode,
-			amount,
-		)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to calculate tax: %v", err)
-		}
-
-		totalTax += res.TotalTaxAmount
-
-		for _, detail := range res.Items {
-			details = append(details, &v1.TaxLineItem{
-				Title:  detail.RuleName,
-				Rate:   detail.Rate,
-				Amount: float64(detail.Amount) / 100.0,
-				Type:   detail.TaxType.String(),
-			})
-		}
+	taxType := "UNKNOWN"
+	if len(result.Items) > 0 {
+		taxType = result.Items[0].TaxType.String()
 	}
 
 	return &v1.CalculateTaxResponse{
-		TotalTaxAmount: float64(totalTax) / 100.0,
-		Details:        details,
-		Inclusive:      false,
+		TotalTax:     result.TotalTaxAmount,
+		TaxRate:      taxRate,
+		Jurisdiction: req.DestinationCountry,
+		TaxType:      taxType,
 	}, nil
 }
 
-func (s *Server) GetTaxRates(ctx context.Context, req *v1.GetTaxRatesRequest) (*v1.GetTaxRatesResponse, error) {
-	// Not implemented in app service yet, returning empty
-	return &v1.GetTaxRatesResponse{}, nil
+func (s *Server) ValidateTaxID(_ context.Context, req *v1.ValidateTaxIDRequest) (*v1.ValidateTaxIDResponse, error) {
+	if req.CountryCode == "" || req.TaxId == "" {
+		return nil, status.Error(codes.InvalidArgument, "country_code and tax_id are required")
+	}
+
+	// 当前服务仅提供基础格式校验，外部税号校验网关后续接入。
+	isValid := len(req.TaxId) >= 6
+	return &v1.ValidateTaxIDResponse{
+		IsValid:      isValid,
+		BusinessName: "",
+	}, nil
+}
+
+func (s *Server) GetTaxSummary(_ context.Context, req *v1.GetTaxSummaryRequest) (*v1.GetTaxSummaryResponse, error) {
+	if req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	// 当前版本先返回空汇总，后续由对账/报表任务异步聚合。
+	return &v1.GetTaxSummaryResponse{
+		TotalTaxPaid: 0,
+		Breakdown:    []*v1.TaxBreakdown{},
+	}, nil
 }

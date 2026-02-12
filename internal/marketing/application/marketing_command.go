@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	couponv1 "github.com/wyfcoding/ecommerce/goapi/coupon/v1"
+	couponv1 "github.com/wyfcoding/ecommerce/go-api/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
 	"github.com/wyfcoding/pkg/messagequeue"

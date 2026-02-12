@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/dynamicpricing/v1"
-	inventoryv1 "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
-	productv1 "github.com/wyfcoding/ecommerce/goapi/product/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/dynamicpricing/v1"
+	inventoryv1 "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
+	productv1 "github.com/wyfcoding/ecommerce/go-api/product/v1"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/application"
 	"github.com/wyfcoding/ecommerce/internal/dynamicpricing/domain"
 	pricingsearch "github.com/wyfcoding/ecommerce/internal/dynamicpricing/infrastructure/persistence/elasticsearch"

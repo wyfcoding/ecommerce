@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/order/domain"
 )
 

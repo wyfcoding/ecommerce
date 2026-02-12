@@ -4,7 +4,7 @@ package crossborder.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/crossborder/v1;crossborderv1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/crossborder/v1;crossborderv1";
 
 // CrossBorderService 跨境电商服务
 service CrossBorderService {

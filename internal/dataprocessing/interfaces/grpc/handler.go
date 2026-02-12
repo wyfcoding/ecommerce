@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"strconv" // 导入字符串和数字转换工具。
 
-	pb "github.com/wyfcoding/ecommerce/goapi/dataprocessing/v1"          // 导入数据处理模块的protobuf定义。
+	pb "github.com/wyfcoding/ecommerce/go-api/dataprocessing/v1"         // 导入数据处理模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/dataprocessing/application" // 导入数据处理模块的应用服务。
 
 	"google.golang.org/grpc/codes"  // gRPC状态码。

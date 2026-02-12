@@ -13,8 +13,8 @@ import (
 	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/inventory/v1"
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
 	inventorysearch "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/elasticsearch"
 	persistence "github.com/wyfcoding/ecommerce/internal/inventory/infrastructure/persistence/mysql"

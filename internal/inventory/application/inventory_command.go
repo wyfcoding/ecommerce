@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	orderv1 "github.com/wyfcoding/ecommerce/goapi/order/v1"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/algorithm/structures"

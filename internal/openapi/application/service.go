@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/openapi/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/openapi/v1"
 	"github.com/wyfcoding/ecommerce/internal/openapi/domain"
 )
 

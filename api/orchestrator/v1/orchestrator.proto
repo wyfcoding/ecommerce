@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package orchestrator.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/goapi/orchestrator/v1;pb";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/orchestrator/v1;pb";
 
 import "google/protobuf/timestamp.proto";
 

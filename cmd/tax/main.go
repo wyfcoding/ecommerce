@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"net"
@@ -10,12 +12,32 @@ import (
 
 	v1 "github.com/wyfcoding/ecommerce/go-api/tax/v1"
 	"github.com/wyfcoding/ecommerce/internal/tax/application"
+	"github.com/wyfcoding/ecommerce/internal/tax/domain"
 	persistence_mysql "github.com/wyfcoding/ecommerce/internal/tax/infrastructure/persistence/mysql"
 	grpc_server "github.com/wyfcoding/ecommerce/internal/tax/interfaces/grpc"
 	"google.golang.org/grpc"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
+
+// noopCrossBorderTaxRepository 提供跨境税务仓储的兜底实现，避免启动阶段因未接入而阻塞构建。
+type noopCrossBorderTaxRepository struct{}
+
+func (noopCrossBorderTaxRepository) FindConfig(_ context.Context, _, _ string, _ domain.TradeType) (*domain.CrossBorderTaxConfig, error) {
+	return nil, fmt.Errorf("cross-border tax config repository is not configured")
+}
+
+func (noopCrossBorderTaxRepository) SaveConfig(_ context.Context, _ *domain.CrossBorderTaxConfig) error {
+	return fmt.Errorf("cross-border tax config repository is not configured")
+}
+
+func (noopCrossBorderTaxRepository) FindAgreement(_ context.Context, _ string) (*domain.PreferentialAgreement, error) {
+	return nil, fmt.Errorf("cross-border tax config repository is not configured")
+}
+
+func (noopCrossBorderTaxRepository) ListAgreements(_ context.Context, _, _ string) ([]*domain.PreferentialAgreement, error) {
+	return nil, fmt.Errorf("cross-border tax config repository is not configured")
+}
 
 func main() {
 	// 1. Logger
@@ -46,7 +68,8 @@ func main() {
 
 	// 4. Layers
 	repo := persistence_mysql.NewTaxRepository(db)
-	app := application.NewTaxService(repo, logger)
+	crossBorderRepo := noopCrossBorderTaxRepository{}
+	app := application.NewTaxService(repo, crossBorderRepo, nil, logger)
 	svc := grpc_server.NewServer(app)
 
 	// 5. Server

@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/user/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/user/v1"
 	"github.com/wyfcoding/ecommerce/internal/user/application"
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
 	"google.golang.org/grpc/codes"

@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/merchantsettlement/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/merchantsettlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/merchantsettlement/application"
 )
 

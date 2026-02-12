@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	pb "github.com/wyfcoding/ecommerce/goapi/support/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/support/v1"
 	"github.com/wyfcoding/ecommerce/internal/support/application"
 	"github.com/wyfcoding/ecommerce/internal/support/domain"
 	supportsearch "github.com/wyfcoding/ecommerce/internal/support/infrastructure/persistence/elasticsearch"
