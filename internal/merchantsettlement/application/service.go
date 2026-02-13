@@ -2,102 +2,172 @@ package application
 
 import (
 	"context"
-	"fmt"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	pb "github.com/wyfcoding/ecommerce/go-api/merchantsettlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/merchantsettlement/domain"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type MerchantSettlementService struct {
-	repo domain.SettlementRepository
+	settlementRepo    domain.SettlementRepository
+	bankAccountRepo   domain.MerchantBankAccountRepository
+	configRepo        domain.MerchantSettlementConfigRepository
+	calculator        domain.SettlementCalculatorService
+	paymentGateway    domain.PaymentGateway
 }
 
-func NewMerchantSettlementService(repo domain.SettlementRepository) *MerchantSettlementService {
-	return &MerchantSettlementService{repo: repo}
+func NewMerchantSettlementService(
+	settlementRepo domain.SettlementRepository,
+	bankAccountRepo domain.MerchantBankAccountRepository,
+	configRepo domain.MerchantSettlementConfigRepository,
+	calculator domain.SettlementCalculatorService,
+	paymentGateway domain.PaymentGateway,
+) *MerchantSettlementService {
+	return &MerchantSettlementService{
+		settlementRepo:  settlementRepo,
+		bankAccountRepo: bankAccountRepo,
+		configRepo:      configRepo,
+		calculator:      calculator,
+		paymentGateway:  paymentGateway,
+	}
 }
 
-func (s *MerchantSettlementService) GenerateSettlement(ctx context.Context, req *pb.GenerateSettlementRequest) (*pb.GenerateSettlementResponse, error) {
-	// 简单模拟生成逻辑：生成一个随机金额的结算单
-	settlementID := fmt.Sprintf("set_%d", time.Now().UnixNano())
-	amount := decimal.NewFromFloat(100.0) // 演示数据
+func (s *MerchantSettlementService) CreateSettlement(ctx context.Context, merchantID uint64, cycle domain.SettlementCycle, periodStart, periodEnd string) (*SettlementDTO, error) {
+	handler := NewCreateSettlementHandler(s.settlementRepo, s.configRepo)
+	cmd := &CreateSettlementCommand{
+		MerchantID: merchantID,
+		Cycle:      cycle,
+	}
+	settlement, err := handler.Handle(ctx, cmd)
+	if err != nil {
+		return nil, err
+	}
+	return toSettlementDTO(settlement), nil
+}
 
-	settlement := &domain.Settlement{
+func (s *MerchantSettlementService) CalculateSettlement(ctx context.Context, settlementID string) error {
+	handler := NewCalculateSettlementHandler(s.settlementRepo, s.calculator, s.configRepo)
+	return handler.Handle(ctx, &CalculateSettlementCommand{SettlementID: settlementID})
+}
+
+func (s *MerchantSettlementService) ApproveSettlement(ctx context.Context, settlementID string, approvedBy uint64) error {
+	handler := NewApproveSettlementHandler(s.settlementRepo)
+	return handler.Handle(ctx, &ApproveSettlementCommand{
 		SettlementID: settlementID,
-		MerchantID:   req.MerchantId,
-		Amount:       amount,
-		Status:       domain.StatusUnpaid,
-		PeriodStart:  req.StartDate.AsTime(),
-		PeriodEnd:    req.EndDate.AsTime(),
-	}
-
-	if err := s.repo.Save(ctx, settlement); err != nil {
-		return nil, err
-	}
-
-	return &pb.GenerateSettlementResponse{
-		SettlementId: settlementID,
-		Amount:       amount.String(),
-	}, nil
+		ApprovedBy:   approvedBy,
+	})
 }
 
-func (s *MerchantSettlementService) GetSettlement(ctx context.Context, id string) (*pb.GetSettlementResponse, error) {
-	settlement, err := s.repo.GetByID(ctx, id)
+func (s *MerchantSettlementService) RejectSettlement(ctx context.Context, settlementID, reason string) error {
+	handler := NewRejectSettlementHandler(s.settlementRepo)
+	return handler.Handle(ctx, &RejectSettlementCommand{
+		SettlementID: settlementID,
+		Reason:       reason,
+	})
+}
+
+func (s *MerchantSettlementService) PaySettlement(ctx context.Context, settlementID string, bankAccountID uint64) error {
+	handler := NewPaySettlementHandler(s.settlementRepo, s.bankAccountRepo, s.paymentGateway)
+	return handler.Handle(ctx, &PaySettlementCommand{
+		SettlementID:  settlementID,
+		BankAccountID: bankAccountID,
+	})
+}
+
+func (s *MerchantSettlementService) AdjustSettlement(ctx context.Context, settlementID string, amount decimal.Decimal, reason string) error {
+	handler := NewAdjustSettlementHandler(s.settlementRepo)
+	return handler.Handle(ctx, &AdjustSettlementCommand{
+		SettlementID:     settlementID,
+		AdjustmentAmount: amount,
+		Reason:           reason,
+	})
+}
+
+func (s *MerchantSettlementService) CancelSettlement(ctx context.Context, settlementID, reason string) error {
+	handler := NewCancelSettlementHandler(s.settlementRepo)
+	return handler.Handle(ctx, &CancelSettlementCommand{
+		SettlementID: settlementID,
+		Reason:       reason,
+	})
+}
+
+func (s *MerchantSettlementService) GetSettlement(ctx context.Context, settlementID string) (*SettlementDTO, error) {
+	handler := NewGetSettlementHandler(s.settlementRepo)
+	return handler.Handle(ctx, &GetSettlementQuery{SettlementID: settlementID})
+}
+
+func (s *MerchantSettlementService) ListSettlements(ctx context.Context, merchantID uint64, status domain.SettlementStatus, page, pageSize int) (*ListSettlementsResult, error) {
+	handler := NewListSettlementsHandler(s.settlementRepo)
+	return handler.Handle(ctx, &ListSettlementsQuery{
+		MerchantID: merchantID,
+		Status:     status,
+		Page:       page,
+		PageSize:   pageSize,
+	})
+}
+
+func (s *MerchantSettlementService) GetSettlementDetails(ctx context.Context, settlementID string) ([]*SettlementDetailDTO, error) {
+	handler := NewGetSettlementDetailsHandler(s.settlementRepo)
+	return handler.Handle(ctx, &GetSettlementDetailsQuery{SettlementID: settlementID})
+}
+
+func (s *MerchantSettlementService) AddBankAccount(ctx context.Context, merchantID uint64, bankName, bankCode, accountName, accountNo, branchName string, isDefault bool) (*BankAccountDTO, error) {
+	account := &domain.MerchantBankAccount{
+		ID:          uint64(uuid.New().ID()),
+		MerchantID:  merchantID,
+		BankName:    bankName,
+		BankCode:    bankCode,
+		AccountName: accountName,
+		AccountNo:   accountNo,
+		BranchName:  branchName,
+		IsDefault:   isDefault,
+		Status:      domain.AccountStatusActive,
+	}
+	if err := s.bankAccountRepo.Save(ctx, account); err != nil {
+		return nil, err
+	}
+	return toBankAccountDTO(account), nil
+}
+
+func (s *MerchantSettlementService) ListBankAccounts(ctx context.Context, merchantID uint64) ([]*BankAccountDTO, error) {
+	handler := NewListBankAccountsHandler(s.bankAccountRepo)
+	return handler.Handle(ctx, &ListBankAccountsQuery{MerchantID: merchantID})
+}
+
+func (s *MerchantSettlementService) SetDefaultBankAccount(ctx context.Context, merchantID, accountID uint64) error {
+	accounts, err := s.bankAccountRepo.GetByMerchantID(ctx, merchantID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if settlement == nil {
-		return nil, fmt.Errorf("settlement %s not found", id)
+	for _, a := range accounts {
+		if a.ID == accountID {
+			a.IsDefault = true
+		} else {
+			a.IsDefault = false
+		}
+		if err := s.bankAccountRepo.Update(ctx, a); err != nil {
+			return err
+		}
 	}
-
-	return &pb.GetSettlementResponse{
-		Settlement: mapToPb(settlement),
-	}, nil
+	return nil
 }
 
-func (s *MerchantSettlementService) ListSettlements(ctx context.Context, merchantID, status string) (*pb.ListSettlementsResponse, error) {
-	settlements, err := s.repo.ListByMerchant(ctx, merchantID, status)
+func (s *MerchantSettlementService) DeleteBankAccount(ctx context.Context, accountID uint64) error {
+	return s.bankAccountRepo.Delete(ctx, accountID)
+}
+
+func (s *MerchantSettlementService) GetSettlementConfig(ctx context.Context, merchantID uint64) (*SettlementConfigDTO, error) {
+	handler := NewGetSettlementConfigHandler(s.configRepo)
+	return handler.Handle(ctx, &GetSettlementConfigQuery{MerchantID: merchantID})
+}
+
+func (s *MerchantSettlementService) UpdateSettlementConfig(ctx context.Context, config *domain.MerchantSettlementConfig) error {
+	existing, err := s.configRepo.GetByMerchantID(ctx, config.MerchantID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var pbSettlements []*pb.SettlementDetail
-	for _, st := range settlements {
-		pbSettlements = append(pbSettlements, mapToPb(st))
+	if existing == nil {
+		return s.configRepo.Save(ctx, config)
 	}
-
-	return &pb.ListSettlementsResponse{Settlements: pbSettlements}, nil
-}
-
-func (s *MerchantSettlementService) MarkAsPaid(ctx context.Context, id, txRef string) (*pb.MarkAsPaidResponse, error) {
-	settlement, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if settlement == nil {
-		return nil, fmt.Errorf("settlement %s not found", id)
-	}
-
-	settlement.Status = domain.StatusPaid
-	settlement.TransactionRef = txRef
-
-	if err := s.repo.Save(ctx, settlement); err != nil {
-		return nil, err
-	}
-
-	return &pb.MarkAsPaidResponse{Success: true}, nil
-}
-
-func mapToPb(s *domain.Settlement) *pb.SettlementDetail {
-	return &pb.SettlementDetail{
-		SettlementId: s.SettlementID,
-		MerchantId:   s.MerchantID,
-		Amount:       s.Amount.String(),
-		Status:       string(s.Status),
-		PeriodStart:  timestamppb.New(s.PeriodStart),
-		PeriodEnd:    timestamppb.New(s.PeriodEnd),
-		CreatedAt:    timestamppb.New(s.CreatedAt),
-	}
+	return s.configRepo.Update(ctx, config)
 }

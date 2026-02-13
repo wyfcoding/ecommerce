@@ -95,7 +95,7 @@ func (a *TaxCalculatorAdapter) CalculateDuty(ctx context.Context, items []*domai
 			}
 		}
 
-		itemValue := decimal.NewFromFloat(item.Price * float64(item.Quantity))
+		itemValue := item.Price.Mul(decimal.NewFromInt(int64(item.Quantity)))
 
 		dutyReq := &DutyCalculationRequest{
 			HSCode:             item.HSCode,
@@ -192,7 +192,7 @@ type CustomsItem struct {
 	HSCode      string
 	ProductName string
 	Quantity    int32
-	Price       float64
+	Price       decimal.Decimal
 	Currency    string
 }
 
@@ -240,12 +240,12 @@ func (a *CustomsGatewayAdapter) SubmitDeclaration(ctx context.Context, decl *dom
 	}
 
 	req := &CustomsSubmitRequest{
-		DeclarationID: decl.ID,
+		DeclarationID: decl.DeclarationID,
 		OrderID:       decl.OrderID,
 		CustomsCode:   decl.CustomsCode,
 		TradeMode:     decl.TradeMode.String(),
 		Items:         items,
-		TotalValue:    decl.TotalValue(),
+		TotalValue:    decl.DeclaredValue,
 		Currency:      "CNY",
 	}
 

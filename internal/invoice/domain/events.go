@@ -44,3 +44,48 @@ type InvoiceFailedEvent struct {
 
 func (e *InvoiceFailedEvent) EventName() string     { return "invoice.failed" }
 func (e *InvoiceFailedEvent) OccurredAt() time.Time { return e.Timestamp }
+
+// InvoiceBlueAppliedEvent 蓝冲申请事件
+type InvoiceBlueAppliedEvent struct {
+	InvoiceID     uint64    `json:"invoice_id"`
+	ApplicationNo string    `json:"application_no"`
+	Reason        string    `json:"reason"`
+	Timestamp     time.Time `json:"timestamp"`
+}
+
+func (e *InvoiceBlueAppliedEvent) EventName() string     { return "invoice.blue_applied" }
+func (e *InvoiceBlueAppliedEvent) OccurredAt() time.Time { return e.Timestamp }
+
+// InvoiceCancelledEvent 发票取消事件
+type InvoiceCancelledEvent struct {
+	InvoiceID     uint64    `json:"invoice_id"`
+	ApplicationNo string    `json:"application_no"`
+	Reason        string    `json:"reason"`
+	Timestamp     time.Time `json:"timestamp"`
+}
+
+func (e *InvoiceCancelledEvent) EventName() string     { return "invoice.cancelled" }
+func (e *InvoiceCancelledEvent) OccurredAt() time.Time { return e.Timestamp }
+
+// InvoiceRedAppliedEvent 红冲申请事件
+type InvoiceRedAppliedEvent struct {
+	InvoiceID       uint64    `json:"invoice_id"`
+	RedInvoiceID    uint64    `json:"red_invoice_id"`
+	Reason          string    `json:"reason"`
+	Timestamp       time.Time `json:"timestamp"`
+}
+
+func (e *InvoiceRedAppliedEvent) EventName() string     { return "invoice.red_applied" }
+func (e *InvoiceRedAppliedEvent) OccurredAt() time.Time { return e.Timestamp }
+
+// InvoiceVerifiedEvent 发票验真事件
+type InvoiceVerifiedEvent struct {
+	InvoiceID   uint64    `json:"invoice_id"`
+	InvoiceCode string    `json:"invoice_code"`
+	InvoiceNo   string    `json:"invoice_no"`
+	Valid       bool      `json:"valid"`
+	Timestamp   time.Time `json:"timestamp"`
+}
+
+func (e *InvoiceVerifiedEvent) EventName() string     { return "invoice.verified" }
+func (e *InvoiceVerifiedEvent) OccurredAt() time.Time { return e.Timestamp }

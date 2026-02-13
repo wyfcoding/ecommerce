@@ -259,18 +259,107 @@ func (i *Invoice) ApplyRed(reason string) (*Invoice, error) {
 	redInv.RedReason = reason
 	redInv.Status = InvoiceStatusRedPending
 
-	// 复制抬头
 	redInv.SetTitle(i.TitleName, i.TitleTaxID, i.TitleBank, i.TitleAccount, i.TitleAddress, i.TitlePhone, i.ReceiverEmail, i.ReceiverPhone)
 
-	// 复制明细（金额取反）
 	for _, item := range i.Items {
 		redInv.AddItem(item.ProductName, item.Spec, item.Unit, item.Quantity, item.Price, -item.Amount, item.TaxRate, -item.TaxAmount)
 	}
 
-	// 标记原发票状态（可选，或者保持 Issued 状态，但在关联表中查询红票）
-	// 这里简单处理，原发票状态不变，通过关联关系查找
-
 	return redInv, nil
+}
+
+// ApplyBlue 申请蓝冲（重新开具）
+func (i *Invoice) ApplyBlue(reason string, newTitle InvoiceTitle) (*Invoice, error) {
+	if i.Status != InvoiceStatusRedIssued {
+		return nil, errors.New("only red-issued invoice can be blue reissued")
+	}
+
+	blueInv := NewInvoice(i.OrderNo, i.UserID, i.MerchantID, -i.Amount, i.Type, i.Medium)
+	blueInv.IsRed = false
+	blueInv.RelatedInvoiceID = i.RelatedInvoiceID
+	blueInv.RedReason = reason
+	blueInv.Status = InvoiceStatusPending
+
+	blueInv.SetTitle(newTitle.Name, newTitle.TaxID, newTitle.Bank, newTitle.Account, newTitle.Address, newTitle.Phone, newTitle.Email, newTitle.ReceiverPhone)
+
+	for _, item := range i.Items {
+		blueInv.AddItem(item.ProductName, item.Spec, item.Unit, item.Quantity, item.Price, -item.Amount, item.TaxRate, -item.TaxAmount)
+	}
+
+	blueInv.addEvent(&InvoiceBlueAppliedEvent{
+		InvoiceID:     uint64(i.ID),
+		ApplicationNo: blueInv.ApplicationNo,
+		Reason:        reason,
+		Timestamp:     time.Now(),
+	})
+
+	return blueInv, nil
+}
+
+// Cancel 取消发票
+func (i *Invoice) Cancel(reason string) error {
+	if i.Status == InvoiceStatusIssued || i.Status == InvoiceStatusRedIssued {
+		return errors.New("issued invoice cannot be cancelled directly, use red flush instead")
+	}
+	
+	i.Status = InvoiceStatusCancelled
+	i.Remark = reason
+	
+	i.addEvent(&InvoiceCancelledEvent{
+		InvoiceID:     uint64(i.ID),
+		ApplicationNo: i.ApplicationNo,
+		Reason:        reason,
+		Timestamp:     time.Now(),
+	})
+	
+	return nil
+}
+
+// CanRedFlush 检查是否可以红冲
+func (i *Invoice) CanRedFlush() bool {
+	return i.Status == InvoiceStatusIssued && !i.IsRed
+}
+
+// CanBlueReissue 检查是否可以蓝冲
+func (i *Invoice) CanBlueReissue() bool {
+	return i.Status == InvoiceStatusRedIssued && i.IsRed
+}
+
+// GetOriginalInvoiceID 获取原始蓝票ID
+func (i *Invoice) GetOriginalInvoiceID() uint64 {
+	if i.IsRed {
+		return i.RelatedInvoiceID
+	}
+	return uint64(i.ID)
+}
+
+// InvoiceTitle 发票抬头值对象
+type InvoiceTitle struct {
+	Name          string
+	TaxID         string
+	Bank          string
+	Account       string
+	Address       string
+	Phone         string
+	Email         string
+	ReceiverPhone string
+}
+
+// InvoiceVerification 发票验真结果
+type InvoiceVerification struct {
+	InvoiceCode     string
+	InvoiceNo       string
+	Valid           bool
+	VerifyTime      time.Time
+	InvoiceStatus   string
+	SellerName      string
+	SellerTaxID     string
+	BuyerName       string
+	BuyerTaxID      string
+	Amount          int64
+	TaxAmount       int64
+	IssueDate       string
+	InvalidationMark string
 }
 
 // addEvent 添加领域事件

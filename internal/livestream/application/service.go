@@ -393,3 +393,67 @@ func (s *LivestreamQueryService) GetLivingRooms(ctx context.Context, page, pageS
 func (s *LivestreamQueryService) GetRoomStats(ctx context.Context, roomID string) (*domain.RoomStats, error) {
 	return s.roomRepo.GetRoomStats(ctx, roomID)
 }
+
+type LivestreamApplicationService struct {
+	cmdSvc   *LivestreamCommandService
+	querySvc *LivestreamQueryService
+}
+
+func NewLivestreamApplicationService(cmdSvc *LivestreamCommandService, querySvc *LivestreamQueryService) *LivestreamApplicationService {
+	return &LivestreamApplicationService{
+		cmdSvc:   cmdSvc,
+		querySvc: querySvc,
+	}
+}
+
+func (s *LivestreamApplicationService) CreateRoom(ctx context.Context, ownerID, title, description, coverURL string) (*domain.Room, error) {
+	return s.cmdSvc.CreateRoom(ctx, ownerID, title, description, coverURL)
+}
+
+func (s *LivestreamApplicationService) StartRoom(ctx context.Context, roomID, streamURL, playURL string) error {
+	return s.cmdSvc.StartRoom(ctx, roomID, streamURL, playURL)
+}
+
+func (s *LivestreamApplicationService) EndRoom(ctx context.Context, roomID string) error {
+	return s.cmdSvc.EndRoom(ctx, roomID)
+}
+
+func (s *LivestreamApplicationService) AddProduct(ctx context.Context, roomID, productID, productName, productImage string, originalPrice, livePrice uint64, stock int32) error {
+	return s.cmdSvc.AddProduct(ctx, roomID, productID, productName, productImage, originalPrice, livePrice, stock)
+}
+
+func (s *LivestreamApplicationService) PurchaseProduct(ctx context.Context, roomID, productID, userID string, quantity int32) error {
+	return s.cmdSvc.PurchaseProduct(ctx, roomID, productID, userID, quantity)
+}
+
+func (s *LivestreamApplicationService) AddInteraction(ctx context.Context, roomID, userID string, interactionType domain.InteractionType, content string) error {
+	return s.cmdSvc.AddInteraction(ctx, roomID, userID, interactionType, content)
+}
+
+func (s *LivestreamApplicationService) SendGift(ctx context.Context, roomID, userID string, gift *domain.Gift, count int32) error {
+	return s.cmdSvc.SendGift(ctx, roomID, userID, gift, count)
+}
+
+func (s *LivestreamApplicationService) JoinRoom(ctx context.Context, roomID, userID, nickname string) error {
+	return s.cmdSvc.JoinRoom(ctx, roomID, userID, nickname)
+}
+
+func (s *LivestreamApplicationService) LeaveRoom(ctx context.Context, roomID, userID string) error {
+	return s.cmdSvc.LeaveRoom(ctx, roomID, userID)
+}
+
+func (s *LivestreamApplicationService) GetRoom(ctx context.Context, roomID string) (*domain.Room, error) {
+	return s.querySvc.GetRoom(ctx, roomID)
+}
+
+func (s *LivestreamApplicationService) ListRooms(ctx context.Context, status string, page, pageSize int) ([]*domain.Room, int64, error) {
+	return s.querySvc.ListRooms(ctx, status, page, pageSize)
+}
+
+func (s *LivestreamApplicationService) GetLivingRooms(ctx context.Context, page, pageSize int) ([]*domain.Room, error) {
+	return s.querySvc.GetLivingRooms(ctx, page, pageSize)
+}
+
+func (s *LivestreamApplicationService) GetRoomStats(ctx context.Context, roomID string) (*domain.RoomStats, error) {
+	return s.querySvc.GetRoomStats(ctx, roomID)
+}

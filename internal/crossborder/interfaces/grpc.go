@@ -19,17 +19,18 @@ func NewCrossBorderHandler(app *application.CrossBorderService, repo domain.Cros
 }
 
 func (h *CrossBorderHandler) CalculateDuty(ctx context.Context, req *pb.CalculateDutyRequest) (*pb.CalculateDutyResponse, error) {
-	var items []struct {
+	items := make([]struct {
 		HSCode string
 		Price  float64
 		Qty    int32
-	}
-	for _, it := range req.Items {
-		items = append(items, struct {
+	}, len(req.Items))
+	
+	for i, it := range req.Items {
+		items[i] = struct {
 			HSCode string
 			Price  float64
 			Qty    int32
-		}{it.HsCode, it.Price, it.Quantity})
+		}{it.HsCode, it.Price, it.Quantity}
 	}
 
 	duty, tax, err := h.app.CalculateDuty(ctx, items, req.DestinationCountry)
@@ -46,19 +47,20 @@ func (h *CrossBorderHandler) CalculateDuty(ctx context.Context, req *pb.Calculat
 }
 
 func (h *CrossBorderHandler) CreateDeclaration(ctx context.Context, req *pb.CreateDeclarationRequest) (*pb.CreateDeclarationResponse, error) {
-	var items []struct {
+	items := make([]struct {
 		SKUID  string
 		HSCode string
 		Price  float64
 		Qty    int32
-	}
-	for _, it := range req.Items {
-		items = append(items, struct {
+	}, len(req.Items))
+	
+	for i, it := range req.Items {
+		items[i] = struct {
 			SKUID  string
 			HSCode string
 			Price  float64
 			Qty    int32
-		}{it.SkuId, it.HsCode, it.Price, it.Quantity})
+		}{it.SkuId, it.HsCode, it.Price, it.Quantity}
 	}
 
 	id, err := h.app.CreateDeclaration(ctx, req.OrderId, req.UserId, req.LogisticsNo, req.Currency, req.DeclaredValue, items)
