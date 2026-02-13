@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package insurance.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/insurance/v1;v1";
+
+// InsuranceService 保险服务
+service InsuranceService {
+  // CreatePolicy 创建保单
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  
+  // GetPolicy 获取保单详情
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  
+  // FileClaim 提交理赔申请
+  rpc FileClaim(FileClaimRequest) returns (FileClaimResponse);
+  
+  // GetClaim 获取理赔详情
+  rpc GetClaim(GetClaimRequest) returns (GetClaimResponse);
+
+  // ListPolicies 列出用户的保单
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+}
+
+enum PolicyType {
+  POLICY_TYPE_UNSPECIFIED = 0;
+  POLICY_TYPE_SHIPPING_RETURN = 1; // 运费险
+  POLICY_TYPE_PRICE_PROTECTION = 2; // 保价险
+  POLICY_TYPE_QUALITY_ASSURANCE = 3; // 延保/质保
+}
+
+enum PolicyStatus {
+  POLICY_STATUS_UNSPECIFIED = 0;
+  POLICY_STATUS_ACTIVE = 1;     // 生效中
+  POLICY_STATUS_EXPIRED = 2;    // 已过期
+  POLICY_STATUS_CANCELLED = 3;  // 已取消
+  POLICY_STATUS_CLAIMED = 4;    // 已理赔
+}
+
+enum ClaimStatus {
+  CLAIM_STATUS_UNSPECIFIED = 0;
+  CLAIM_STATUS_PENDING = 1;     // 审核中
+  CLAIM_STATUS_APPROVED = 2;    // 已通过
+  CLAIM_STATUS_REJECTED = 3;    // 已拒绝
+  CLAIM_STATUS_PAID = 4;        // 已赔付
+}
+
+message Policy {
+  string id = 1;
+  string order_id = 2;
+  string user_id = 3;
+  PolicyType type = 4;
+  double premium = 5;       // 保费
+  double coverage_amount = 6; // 保额
+  PolicyStatus status = 7;
+  int64 start_time = 8;     // Unix timestamp
+  int64 end_time = 9;       // Unix timestamp
+  int64 created_at = 10;
+}
+
+message Claim {
+  string id = 1;
+  string policy_id = 2;
+  string user_id = 3;
+  string reason = 4;
+  double amount_requested = 5;
+  double amount_approved = 6;
+  ClaimStatus status = 7;
+  string reject_reason = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+  repeated string evidence_urls = 11; // 证据图片/文件
+}
+
+message CreatePolicyRequest {
+  string order_id = 1;
+  string user_id = 2;
+  PolicyType type = 3;
+  double premium = 4;
+  double coverage_amount = 5;
+  int32 duration_days = 6; // 保障时长(天)
+}
+
+message CreatePolicyResponse {
+  string policy_id = 1;
+  PolicyStatus status = 2;
+}
+
+message GetPolicyRequest {
+  string policy_id = 1;
+}
+
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+
+message FileClaimRequest {
+  string policy_id = 1;
+  string user_id = 2;
+  string reason = 3;
+  double amount = 4;
+  repeated string evidence_urls = 5;
+}
+
+message FileClaimResponse {
+  string claim_id = 1;
+  ClaimStatus status = 2;
+}
+
+message GetClaimRequest {
+  string claim_id = 1;
+}
+
+message GetClaimResponse {
+  Claim claim = 1;
+}
+
+message ListPoliciesRequest {
+  string user_id = 1;
+  string order_id = 2; // Optional filter
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListPoliciesResponse {
+  repeated Policy policies = 1;
+  string next_page_token = 2;
+}

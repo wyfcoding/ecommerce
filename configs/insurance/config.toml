@@ -1,0 +1,10 @@
+[server]
+  name = "insurance"
+  port = 9091
+
+[database]
+  driver = "mysql"
+  source = "root:password@tcp(127.0.0.1:3306)/ecommerce_insurance?charset=utf8mb4&parseTime=True&loc=Local"
+
+[log]
+  level = "info"

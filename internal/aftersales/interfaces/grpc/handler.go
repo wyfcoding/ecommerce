@@ -119,18 +119,30 @@ func (s *Server) UpdateReturnRequestStatus(ctx context.Context, req *pb.UpdateRe
 		if err := s.cmd.Reject(ctx, req.Id, "admin", reason); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to reject return request: %v", err))
 		}
+	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_SHIPPED_BACK:
+		if err := s.cmd.MarkShippedBack(ctx, req.Id, "user", req.GetTrackingNumber()); err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to mark shipped back: %v", err))
+		}
 	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_RECEIVED:
 		// 仓库确认收货。
 		if err := s.cmd.ProcessReturnGoods(ctx, req.Id, "warehouse"); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process return goods receipt: %v", err))
+		}
+	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REFUNDED:
+		if err := s.cmd.ProcessRefund(ctx, req.Id); err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process refund: %v", err))
 		}
 	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_EXCHANGED:
 		// 换货处理。
 		if err := s.cmd.ProcessExchange(ctx, req.Id); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to process exchange: %v", err))
 		}
+	case pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_CLOSED:
+		if err := s.cmd.Cancel(ctx, req.Id, "admin", req.GetAdminNote()); err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to close return request: %v", err))
+		}
 	default:
-		return nil, status.Error(codes.Unimplemented, "unsupported status transition via this API")
+		return nil, status.Error(codes.InvalidArgument, "unsupported status transition")
 	}
 
 	// 获取更新后的售后申请详情，以便在响应中返回最新状态。
@@ -438,6 +450,8 @@ func (s *Server) toProto(as *domain.AfterSales) *pb.ReturnRequest {
 		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_APPROVED
 	case domain.AfterSalesStatusRejected:
 		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REJECTED
+	case domain.AfterSalesStatusInProgress:
+		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_SHIPPED_BACK
 	case domain.AfterSalesStatusCompleted:
 		if as.Type == domain.AfterSalesTypeExchange {
 			status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_EXCHANGED

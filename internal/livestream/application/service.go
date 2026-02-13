@@ -1,150 +1,395 @@
+// 变更说明：完善直播间应用服务，实现完整的业务逻辑
 package application
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/livestream/v1"
 	"github.com/wyfcoding/ecommerce/internal/livestream/domain"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/wyfcoding/pkg/messagequeue"
 )
 
-type LivestreamService struct {
-	repo domain.LivestreamRepository
+// LivestreamCommandService 直播间命令服务
+type LivestreamCommandService struct {
+	roomRepo   domain.LivestreamRepository
+	publisher  messagequeue.EventPublisher
+	logger     *slog.Logger
 }
 
-func NewLivestreamService(repo domain.LivestreamRepository) *LivestreamService {
-	return &LivestreamService{repo: repo}
+// NewLivestreamCommandService 创建直播间命令服务
+func NewLivestreamCommandService(
+	roomRepo domain.LivestreamRepository,
+	publisher messagequeue.EventPublisher,
+	logger *slog.Logger,
+) *LivestreamCommandService {
+	return &LivestreamCommandService{
+		roomRepo:  roomRepo,
+		publisher: publisher,
+		logger:    logger,
+	}
 }
 
-func (s *LivestreamService) CreateRoom(ctx context.Context, ownerID, title, coverURL string) (*pb.CreateRoomResponse, error) {
-	roomID := fmt.Sprintf("room_%d", time.Now().UnixNano())
-	room := &domain.Room{
+// CreateRoom 创建直播间
+func (s *LivestreamCommandService) CreateRoom(ctx context.Context, ownerID, title, description, coverURL string) (*domain.Room, error) {
+	room := domain.NewRoom(ownerID, title, description, coverURL)
+	
+	if err := s.roomRepo.SaveRoom(ctx, room); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create room", "owner_id", ownerID, "error", err)
+		return nil, err
+	}
+	
+	s.publishEvent(ctx, domain.RoomCreatedEventType, room.RoomID, &domain.RoomCreatedEvent{
+		RoomID:      room.RoomID,
+		OwnerID:     room.OwnerID,
+		Title:       room.Title,
+		Description: room.Description,
+		CoverURL:    room.CoverURL,
+		Timestamp:   time.Now(),
+	})
+	
+	s.logger.InfoContext(ctx, "room created successfully", "room_id", room.RoomID)
+	return room, nil
+}
+
+// StartRoom 开始直播
+func (s *LivestreamCommandService) StartRoom(ctx context.Context, roomID, streamURL, playURL string) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	if err := room.Start(streamURL, playURL); err != nil {
+		return err
+	}
+	
+	if err := s.roomRepo.SaveRoom(ctx, room); err != nil {
+		s.logger.ErrorContext(ctx, "failed to start room", "room_id", roomID, "error", err)
+		return err
+	}
+	
+	s.publishEvent(ctx, domain.RoomStartedEventType, room.RoomID, &domain.RoomStartedEvent{
+		RoomID:    room.RoomID,
+		OwnerID:   room.OwnerID,
+		StreamURL: room.StreamURL,
+		PlayURL:   room.PlayURL,
+		Timestamp: time.Now(),
+	})
+	
+	s.logger.InfoContext(ctx, "room started successfully", "room_id", roomID)
+	return nil
+}
+
+// EndRoom 结束直播
+func (s *LivestreamCommandService) EndRoom(ctx context.Context, roomID string) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	if err := room.End(); err != nil {
+		return err
+	}
+	
+	if err := s.roomRepo.SaveRoom(ctx, room); err != nil {
+		s.logger.ErrorContext(ctx, "failed to end room", "room_id", roomID, "error", err)
+		return err
+	}
+	
+	s.publishEvent(ctx, domain.RoomEndedEventType, room.RoomID, &domain.RoomEndedEvent{
+		RoomID:          room.RoomID,
+		OwnerID:         room.OwnerID,
+		Duration:        room.Duration,
+		PeakViewerCount: room.PeakViewerCount,
+		TotalLikes:      room.LikeCount,
+		Timestamp:       time.Now(),
+	})
+	
+	s.logger.InfoContext(ctx, "room ended successfully", "room_id", roomID)
+	return nil
+}
+
+// AddProduct 添加商品
+func (s *LivestreamCommandService) AddProduct(ctx context.Context, roomID, productID, productName, productImage string, originalPrice, livePrice uint64, stock int32) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	product := room.AddProduct(productID, productName, productImage, originalPrice, livePrice, stock)
+	
+	if err := s.roomRepo.AddProduct(ctx, product); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add product", "room_id", roomID, "product_id", productID, "error", err)
+		return err
+	}
+	
+	if err := s.roomRepo.SaveRoom(ctx, room); err != nil {
+		return err
+	}
+	
+	s.publishEvent(ctx, domain.ProductAddedEventType, productID, &domain.ProductAddedEvent{
+		RoomID:        roomID,
+		ProductID:     productID,
+		ProductName:   productName,
+		OriginalPrice: originalPrice,
+		LivePrice:     livePrice,
+		Stock:         stock,
+		Timestamp:     time.Now(),
+	})
+	
+	s.logger.InfoContext(ctx, "product added to room", "room_id", roomID, "product_id", productID)
+	return nil
+}
+
+// PurchaseProduct 购买商品
+func (s *LivestreamCommandService) PurchaseProduct(ctx context.Context, roomID, productID, userID string, quantity int32) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	if room.Status != domain.StatusLiving {
+		return domain.ErrRoomNotLiving
+	}
+	
+	var targetProduct *domain.Product
+	for i := range room.Products {
+		if room.Products[i].ProductID == productID {
+			targetProduct = &room.Products[i]
+			break
+		}
+	}
+	
+	if targetProduct == nil {
+		return domain.ErrProductNotFound
+	}
+	
+	if err := targetProduct.RecordPurchase(quantity); err != nil {
+		return err
+	}
+	
+	if err := s.roomRepo.UpdateProduct(ctx, targetProduct); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update product", "product_id", productID, "error", err)
+		return err
+	}
+	
+	totalPrice := targetProduct.LivePrice * uint64(quantity)
+	
+	s.publishEvent(ctx, domain.ProductPurchasedEventType, productID, &domain.ProductPurchasedEvent{
+		RoomID:     roomID,
+		ProductID:  productID,
+		UserID:     userID,
+		Quantity:   quantity,
+		TotalPrice: totalPrice,
+		Timestamp:  time.Now(),
+	})
+	
+	s.logger.InfoContext(ctx, "product purchased", "room_id", roomID, "product_id", productID, "user_id", userID)
+	return nil
+}
+
+// AddInteraction 添加互动
+func (s *LivestreamCommandService) AddInteraction(ctx context.Context, roomID, userID string, interactionType domain.InteractionType, content string) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	if room.Status != domain.StatusLiving {
+		return domain.ErrRoomNotLiving
+	}
+	
+	interaction := room.CreateInteraction(userID, interactionType, content)
+	
+	if err := s.roomRepo.SaveInteraction(ctx, interaction); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save interaction", "room_id", roomID, "error", err)
+		return err
+	}
+	
+	if interactionType == domain.InteractionTypeLike {
+		room.AddLike()
+		_ = s.roomRepo.SaveRoom(ctx, room)
+	}
+	
+	s.publishEvent(ctx, domain.InteractionCreatedEventType, interaction.RoomID, &domain.InteractionCreatedEvent{
+		RoomID:          roomID,
+		UserID:          userID,
+		InteractionType: interactionType,
+		Content:         content,
+		Timestamp:       time.Now(),
+	})
+	
+	return nil
+}
+
+// SendGift 发送礼物
+func (s *LivestreamCommandService) SendGift(ctx context.Context, roomID, userID string, gift *domain.Gift, count int32) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	if room.Status != domain.StatusLiving {
+		return domain.ErrRoomNotLiving
+	}
+	
+	interaction := room.SendGift(userID, gift, count)
+	
+	if err := s.roomRepo.SaveInteraction(ctx, interaction); err != nil {
+		s.logger.ErrorContext(ctx, "failed to save gift interaction", "room_id", roomID, "error", err)
+		return err
+	}
+	
+	s.publishEvent(ctx, domain.GiftSentEventType, interaction.RoomID, &domain.GiftSentEvent{
+		RoomID:     roomID,
+		UserID:     userID,
+		GiftID:     gift.GiftID,
+		GiftName:   gift.Name,
+		Count:      count,
+		TotalValue: interaction.GiftValue,
+		Timestamp:  time.Now(),
+	})
+	
+	s.logger.InfoContext(ctx, "gift sent", "room_id", roomID, "user_id", userID, "gift_id", gift.GiftID)
+	return nil
+}
+
+// JoinRoom 观众加入直播间
+func (s *LivestreamCommandService) JoinRoom(ctx context.Context, roomID, userID, nickname string) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return domain.ErrRoomNotFound
+	}
+	
+	if room.Status != domain.StatusLiving {
+		return domain.ErrRoomNotLiving
+	}
+	
+	room.IncrementViewer()
+	
+	if err := s.roomRepo.SaveRoom(ctx, room); err != nil {
+		return err
+	}
+	
+	if err := s.roomRepo.AddViewer(ctx, roomID, userID, nickname); err != nil {
+		s.logger.ErrorContext(ctx, "failed to add viewer", "room_id", roomID, "error", err)
+	}
+	
+	s.publishEvent(ctx, domain.ViewerJoinedEventType, userID, &domain.ViewerJoinedEvent{
 		RoomID:    roomID,
-		OwnerID:   ownerID,
-		Title:     title,
-		CoverURL:  coverURL,
-		Status:    domain.StatusCreated,
-		StreamURL: "",
-	}
-
-	if err := s.repo.SaveRoom(ctx, room); err != nil {
-		return nil, err
-	}
-
-	return &pb.CreateRoomResponse{
-		RoomId: roomID,
-		Status: string(domain.StatusCreated),
-	}, nil
+		UserID:    userID,
+		Nickname:  nickname,
+		Timestamp: time.Now(),
+	})
+	
+	return nil
 }
 
-func (s *LivestreamService) StartStream(ctx context.Context, roomID string) (*pb.StartStreamResponse, error) {
-	room, err := s.repo.GetRoom(ctx, roomID)
+// LeaveRoom 观众离开直播间
+func (s *LivestreamCommandService) LeaveRoom(ctx context.Context, roomID, userID string) error {
+	room, err := s.roomRepo.GetRoom(ctx, roomID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if room == nil {
-		return nil, fmt.Errorf("room %s not found", roomID)
+		return domain.ErrRoomNotFound
 	}
-
-	room.Status = domain.StatusLiving
-	room.StreamURL = fmt.Sprintf("rtmp://live.wyf.com/livestream/%s", roomID)
-
-	if err := s.repo.SaveRoom(ctx, room); err != nil {
-		return nil, err
+	
+	room.DecrementViewer()
+	
+	if err := s.roomRepo.SaveRoom(ctx, room); err != nil {
+		return err
 	}
-
-	return &pb.StartStreamResponse{
-		StreamUrl: room.StreamURL,
-	}, nil
-}
-
-func (s *LivestreamService) EndStream(ctx context.Context, roomID string) (*pb.EndStreamResponse, error) {
-	room, err := s.repo.GetRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if room == nil {
-		return nil, fmt.Errorf("room %s not found", roomID)
-	}
-
-	room.Status = domain.StatusEnded
-	if err := s.repo.SaveRoom(ctx, room); err != nil {
-		return nil, err
-	}
-
-	return &pb.EndStreamResponse{Success: true}, nil
-}
-
-func (s *LivestreamService) GetRoom(ctx context.Context, roomID string) (*pb.GetRoomResponse, error) {
-	room, err := s.repo.GetRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if room == nil {
-		return nil, fmt.Errorf("room %s not found", roomID)
-	}
-
-	return &pb.GetRoomResponse{
-		Room: mapRoomToPb(room),
-	}, nil
-}
-
-func (s *LivestreamService) ListRooms(ctx context.Context, status string, page, size int32) (*pb.ListRoomsResponse, error) {
-	if page <= 0 {
-		page = 1
-	}
-	if size <= 0 {
-		size = 10
-	}
-	offset := int((page - 1) * size)
-	rooms, err := s.repo.ListRooms(ctx, status, int(size), offset)
-	if err != nil {
-		return nil, err
-	}
-
-	var pbRooms []*pb.RoomDetail
-	for _, r := range rooms {
-		pbRooms = append(pbRooms, mapRoomToPb(r))
-	}
-
-	return &pb.ListRoomsResponse{Rooms: pbRooms}, nil
-}
-
-func (s *LivestreamService) AddProductToStream(ctx context.Context, roomID, productID string) (*pb.AddProductToStreamResponse, error) {
-	// 简单逻辑：直接添加。实际中需要调用 product service 校验合法性
-	product := &domain.Product{
+	
+	watchTime, _ := s.roomRepo.RemoveViewer(ctx, roomID, userID)
+	
+	s.publishEvent(ctx, domain.ViewerLeftEventType, userID, &domain.ViewerLeftEvent{
 		RoomID:    roomID,
-		ProductID: productID,
-		Price:     "0.00", // 占位
-		Stock:     100,    // 占位
-	}
-
-	if err := s.repo.AddProduct(ctx, product); err != nil {
-		return nil, err
-	}
-
-	return &pb.AddProductToStreamResponse{Success: true}, nil
+		UserID:    userID,
+		WatchTime: watchTime,
+		Timestamp: time.Now(),
+	})
+	
+	return nil
 }
 
-func mapRoomToPb(r *domain.Room) *pb.RoomDetail {
-	var products []*pb.StreamProduct
-	for _, p := range r.Products {
-		products = append(products, &pb.StreamProduct{
-			ProductId: p.ProductID,
-			Price:     p.Price,
-			Stock:     p.Stock,
-		})
+// publishEvent 发布事件
+func (s *LivestreamCommandService) publishEvent(ctx context.Context, eventType, key string, event any) {
+	if s.publisher == nil {
+		return
 	}
+	if err := s.publisher.Publish(ctx, eventType, key, event); err != nil {
+		s.logger.ErrorContext(ctx, "failed to publish event", "event_type", eventType, "error", err)
+	}
+}
 
-	return &pb.RoomDetail{
-		RoomId:      r.RoomID,
-		OwnerId:     r.OwnerID,
-		Title:       r.Title,
-		Status:      string(r.Status),
-		ViewerCount: r.ViewerCount,
-		CreatedAt:   timestamppb.New(r.CreatedAt),
-		Products:    products,
+// LivestreamQueryService 直播间查询服务
+type LivestreamQueryService struct {
+	roomRepo domain.LivestreamRepository
+	logger   *slog.Logger
+}
+
+// NewLivestreamQueryService 创建直播间查询服务
+func NewLivestreamQueryService(roomRepo domain.LivestreamRepository, logger *slog.Logger) *LivestreamQueryService {
+	return &LivestreamQueryService{
+		roomRepo: roomRepo,
+		logger:   logger,
 	}
+}
+
+// GetRoom 获取直播间详情
+func (s *LivestreamQueryService) GetRoom(ctx context.Context, roomID string) (*domain.Room, error) {
+	return s.roomRepo.GetRoom(ctx, roomID)
+}
+
+// ListRooms 获取直播间列表
+func (s *LivestreamQueryService) ListRooms(ctx context.Context, status string, page, pageSize int) ([]*domain.Room, int64, error) {
+	offset := (page - 1) * pageSize
+	rooms, err := s.roomRepo.ListRooms(ctx, status, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	total, err := s.roomRepo.CountRooms(ctx, status)
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	return rooms, total, nil
+}
+
+// GetLivingRooms 获取正在直播的房间列表
+func (s *LivestreamQueryService) GetLivingRooms(ctx context.Context, page, pageSize int) ([]*domain.Room, error) {
+	offset := (page - 1) * pageSize
+	rooms, err := s.roomRepo.ListRooms(ctx, string(domain.StatusLiving), pageSize, offset)
+	if err != nil {
+		return nil, err
+	}
+	return rooms, nil
+}
+
+// GetRoomStats 获取直播间统计信息
+func (s *LivestreamQueryService) GetRoomStats(ctx context.Context, roomID string) (*domain.RoomStats, error) {
+	return s.roomRepo.GetRoomStats(ctx, roomID)
 }

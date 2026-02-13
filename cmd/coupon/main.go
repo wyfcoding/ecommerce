@@ -218,6 +218,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	projectionHandler := couponconsumer.NewCouponProjectionHandler(projectionService, logger.Logger)
 	projectionTopics := []string{
 		domain.CouponCreatedEventType,
+		domain.CouponUpdatedEventType,
+		domain.CouponDeletedEventType,
 		domain.CouponIssuedEventType,
 		domain.CouponUsedEventType,
 		domain.CouponExpiredEventType,

@@ -46,6 +46,22 @@ func (s *CouponProjectionService) OnCouponCreated(ctx context.Context, event *do
 	return s.refreshCoupon(ctx, event.CouponID)
 }
 
+// OnCouponUpdated 处理优惠券更新事件。
+func (s *CouponProjectionService) OnCouponUpdated(ctx context.Context, event *domain.CouponUpdatedEvent) error {
+	if event == nil {
+		return nil
+	}
+	return s.refreshCoupon(ctx, event.CouponID)
+}
+
+// OnCouponDeleted 处理优惠券删除事件。
+func (s *CouponProjectionService) OnCouponDeleted(ctx context.Context, event *domain.CouponDeletedEvent) error {
+	if event == nil {
+		return nil
+	}
+	return s.refreshCoupon(ctx, event.CouponID)
+}
+
 // OnCouponIssued 处理优惠券发放事件。
 func (s *CouponProjectionService) OnCouponIssued(ctx context.Context, event *domain.CouponIssuedEvent) error {
 	if event == nil {

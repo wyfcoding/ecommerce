@@ -5,101 +5,43 @@ image:
   pullPolicy: IfNotPresent
   tag: "latest"
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
 serviceAccount:
   create: true
-  annotations: {}
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
 
 service:
   type: ClusterIP
   httpPort: 8080
   grpcPort: 9090
 
-
-canary:
-  enabled: false
-  version: v2
-  replicaCount: 1
-  trafficWeight: 10
-  headerMatch:
-    key: "x-canary"
-    value: "true"
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: recommendation.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-
 resources: 
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 1000m
+    memory: 2Gi
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 200m
+    memory: 512Mi
 
 autoscaling:
-  enabled: false
-  minReplicas: 1
+  enabled: true
+  minReplicas: 2
   maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+  targetCPUUtilizationPercentage: 70
 
 env:
   - name: ECOMMERCE_SERVER_HTTP_PORT
     value: "8080"
   - name: ECOMMERCE_SERVER_GRPC_PORT
     value: "9090"
-  - name: APP_ENVIRONMENT
-    value: "prod"
+  - name: ML_MODEL_PATH
+    value: "/models"
 
-
-# 顶级架构实践：机密信息管理
-# 在生产环境中，这些值应为空，并由 CI/CD 或 Secret Store (如 Vault) 在部署时注入
 secrets:
   dbPassword: ""
   redisPassword: ""
-  jwtSecret: ""
+  mlflowTrackingUri: ""
 
-# 可观测性预设
-observability:
-  tracing:
+volumes:
+  models:
     enabled: true
-    samplingRate: 100
-    provider: "otel"
-  metrics:
-    enabled: true
-    serviceMonitor:
-      enabled: true
-      interval: 15s
-  logging:
-    level: "info"
-    format: "json"
+    size: 5Gi
+    storageClass: ""

@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -13,39 +14,59 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/fulfillment/application"
 	"github.com/wyfcoding/ecommerce/internal/fulfillment/infrastructure"
+	fulfillmentconsumer "github.com/wyfcoding/ecommerce/internal/fulfillment/interfaces/consumer"
 	"github.com/wyfcoding/ecommerce/internal/fulfillment/interfaces"
+	pkgconfig "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/messagequeue"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/metrics"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
-// noopEventPublisher 空操作事件发布者，用于开发环境
-type noopEventPublisher struct{}
+type kafkaEventPublisher struct {
+	producer *kafka.Producer
+	logger   *slog.Logger
+}
 
-// Ensure noopEventPublisher implements messagequeue.EventPublisher
-var _ messagequeue.EventPublisher = (*noopEventPublisher)(nil)
+var _ messagequeue.EventPublisher = (*kafkaEventPublisher)(nil)
 
-// Publish 发布事件（空操作）
-func (p *noopEventPublisher) Publish(_ context.Context, _ string, _ string, _ any) error {
+func (p *kafkaEventPublisher) Publish(ctx context.Context, topic, key string, event any) error {
+	if p == nil || p.producer == nil {
+		return nil
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	if err := p.producer.PublishToTopic(ctx, topic, []byte(key), payload); err != nil {
+		if p.logger != nil {
+			p.logger.Error("failed to publish fulfillment event", "topic", topic, "error", err)
+		}
+		return err
+	}
 	return nil
 }
 
-// PublishInTx 在事务中发布事件（空操作）
-func (p *noopEventPublisher) PublishInTx(_ context.Context, _ any, _ string, _ string, _ any) error {
-	return nil
+func (p *kafkaEventPublisher) PublishInTx(ctx context.Context, _ any, topic, key string, event any) error {
+	return p.Publish(ctx, topic, key, event)
 }
 
 // Config 服务配置
 type Config struct {
-	HTTPPort    int
-	GRPCPort    int
-	MySQLDSN    string
-	KafkaBroker string
-	LogLevel    string
+	HTTPPort      int
+	GRPCPort      int
+	MySQLDSN      string
+	KafkaBroker   string
+	OrderGRPCAddr string
+	LogLevel      string
 }
 
 func main() {
@@ -57,10 +78,11 @@ func main() {
 
 	// 加载配置
 	cfg := &Config{
-		HTTPPort:    8081,
-		GRPCPort:    9081,
-		MySQLDSN:    "root:password@tcp(localhost:3306)/fulfillment?charset=utf8mb4&parseTime=True&loc=Local",
-		KafkaBroker: "localhost:9092",
+		HTTPPort:      8081,
+		GRPCPort:      9081,
+		MySQLDSN:      "root:password@tcp(localhost:3306)/fulfillment?charset=utf8mb4&parseTime=True&loc=Local",
+		KafkaBroker:   "localhost:9092",
+		OrderGRPCAddr: "localhost:50051",
 	}
 
 	// 初始化数据库
@@ -73,8 +95,17 @@ func main() {
 	// 初始化仓储
 	fulfillmentRepo := infrastructure.NewGormFulfillmentRepository(db)
 
-	// 初始化事件发布者
-	eventPublisher := &noopEventPublisher{}
+	// 初始化消息发布
+	brokers := []string{cfg.KafkaBroker}
+	if cfg.KafkaBroker == "" {
+		brokers = []string{"localhost:9092"}
+	}
+	infraLogger := logging.NewLogger("fulfillment", "bootstrap")
+	metricsImpl := metrics.NewMetrics("fulfillment")
+	producer := kafka.NewProducer(&pkgconfig.KafkaConfig{
+		Brokers: brokers,
+	}, infraLogger, metricsImpl)
+	eventPublisher := &kafkaEventPublisher{producer: producer, logger: logger}
 
 	// 初始化应用层服务
 	commandService := application.NewCommandService(
@@ -86,6 +117,31 @@ func main() {
 		fulfillmentRepo,
 		logger,
 	)
+
+	// 初始化订单客户端（用于自动创建履约）
+	orderConn, err := grpc.Dial(cfg.OrderGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Error("failed to connect order service", "addr", cfg.OrderGRPCAddr, "error", err)
+	}
+	var orderClient orderv1.OrderServiceClient
+	if orderConn != nil {
+		orderClient = orderv1.NewOrderServiceClient(orderConn)
+	}
+
+	var orderConfirmedConsumer *kafka.Consumer
+	if orderClient != nil {
+		orderConfirmedConsumer = kafka.NewConsumer(&pkgconfig.KafkaConfig{
+			Brokers: brokers,
+			Topic:   "order.confirmed",
+			GroupID: "fulfillment-order-confirmed-group",
+		}, infraLogger, metricsImpl)
+		orderConfirmedConsumer.Start(context.Background(), 3, fulfillmentconsumer.NewOrderConfirmedHandler(
+			commandService,
+			queryService,
+			orderClient,
+			logger,
+		).Handle)
+	}
 
 	// 初始化 HTTP Handler
 	httpHandler := interfaces.NewHTTPHandler(commandService, queryService)
@@ -164,6 +220,15 @@ func main() {
 		}
 
 		grpcServer.GracefulStop()
+		if orderConfirmedConsumer != nil {
+			_ = orderConfirmedConsumer.Close()
+		}
+		if producer != nil {
+			_ = producer.Close()
+		}
+		if orderConn != nil {
+			_ = orderConn.Close()
+		}
 
 		logger.Info("servers stopped gracefully")
 		return nil

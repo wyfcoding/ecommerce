@@ -1,97 +1,72 @@
 {{- $fullName := include "recommendation.fullname" . -}}
 {{- $labels := include "recommendation.labels" . -}}
 {{- $selectorLabels := include "recommendation.selectorLabels" . -}}
-{{- $serviceAccountName := include "recommendation.serviceAccountName" . -}}
 
-{{- /* 定义部署列表：稳定版是必须的，金丝雀版本是可选的 */ -}}
-{{- $deployments := list (dict "name" "stable" "version" "v1" "replicas" .Values.replicaCount) -}}
-{{- if .Values.canary.enabled -}}
-  {{- $deployments = append $deployments (dict "name" "canary" "version" .Values.canary.version "replicas" .Values.canary.replicaCount) -}}
-{{- end -}}
-
-{{- range $deploy := $deployments }}
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $fullName }}-{{ $deploy.name }}
+  name: {{ $fullName }}
   labels:
     {{ $labels | nindent 4 }}
-    version: {{ $deploy.version }}
+    version: v1
 spec:
-  {{- if not $.Values.autoscaling.enabled }}
-  replicas: {{ $deploy.replicas }}
-  {{- end }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{ $selectorLabels | nindent 6 }}
-      version: {{ $deploy.version }}
+      version: v1
   template:
     metadata:
-      {{- with $.Values.podAnnotations }}
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: {{ $.Values.service.httpPort | quote }}
-        prometheus.io/path: "/metrics"
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        prometheus.io/port: {{ .Values.service.httpPort | quote }}
       labels:
         {{ $selectorLabels | nindent 8 }}
-        version: {{ $deploy.version }}
+        version: v1
     spec:
-      {{- with $.Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ $serviceAccountName }}
-      securityContext:
-        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      serviceAccountName: {{ include "recommendation.serviceAccountName" . }}
       containers:
-        - name: {{ $.Chart.Name }}
-          securityContext:
-            {{- toYaml $.Values.securityContext | nindent 12 }}
-          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
-          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ $.Values.service.httpPort }}
+              containerPort: {{ .Values.service.httpPort }}
               protocol: TCP
             - name: grpc
-              containerPort: {{ $.Values.service.grpcPort }}
+              containerPort: {{ .Values.service.grpcPort }}
               protocol: TCP
           env:
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://jaeger-collector.istio-system.svc.cluster.local:4317"
             - name: OTEL_SERVICE_NAME
-              value: {{ include "recommendation.fullname" . }}
-            {{- toYaml $.Values.env | nindent 12 }}
+              value: {{ $fullName }}
+            {{- toYaml .Values.env | nindent 12 }}
           envFrom:
             - secretRef:
-                name: {{ include "recommendation.fullname" . }}-secrets
+                name: {{ $fullName }}-secrets
+          {{- if .Values.volumes.models.enabled }}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /sys/health
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /sys/ready
               port: http
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 5
           resources:
-            {{- toYaml $.Values.resources | nindent 12 }}
-      {{- with $.Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.volumes.models.enabled }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ $fullName }}-models
       {{- end }}
-      {{- with $.Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $.Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-{{- end }}

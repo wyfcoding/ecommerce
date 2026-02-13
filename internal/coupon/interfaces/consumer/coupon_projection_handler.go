@@ -36,6 +36,20 @@ func (h *CouponProjectionHandler) Handle(ctx context.Context, msg kafka.Message)
 			return err
 		}
 		return h.projector.OnCouponCreated(ctx, &event)
+	case domain.CouponUpdatedEventType:
+		var event domain.CouponUpdatedEvent
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			h.logger.ErrorContext(ctx, "failed to unmarshal coupon updated event", "error", err)
+			return err
+		}
+		return h.projector.OnCouponUpdated(ctx, &event)
+	case domain.CouponDeletedEventType:
+		var event domain.CouponDeletedEvent
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
+			h.logger.ErrorContext(ctx, "failed to unmarshal coupon deleted event", "error", err)
+			return err
+		}
+		return h.projector.OnCouponDeleted(ctx, &event)
 	case domain.CouponIssuedEventType:
 		var event domain.CouponIssuedEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {

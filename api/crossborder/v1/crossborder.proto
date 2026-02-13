@@ -1,31 +1,171 @@
+// 变更说明：扩展跨境电商服务 proto 定义，增加海关申报、清关流程、税费计算等完整功能
 syntax = "proto3";
 
 package crossborder.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/crossborder/v1;crossborderv1";
 
 // CrossBorderService 跨境电商服务
 service CrossBorderService {
+    // ==================== 税费计算 ====================
+    
     // CalculateDuty 计算关税
     rpc CalculateDuty(CalculateDutyRequest) returns (CalculateDutyResponse);
-
+    
+    // CalculateTax 计算综合税费
+    rpc CalculateTax(CalculateTaxRequest) returns (CalculateTaxResponse);
+    
+    // GetTaxRates 获取税率配置
+    rpc GetTaxRates(GetTaxRatesRequest) returns (GetTaxRatesResponse);
+    
+    // ==================== 报关单管理 ====================
+    
     // CreateDeclaration 创建报关单
     rpc CreateDeclaration(CreateDeclarationRequest) returns (CreateDeclarationResponse);
-
+    
     // GetDeclaration 获取报关单详情
     rpc GetDeclaration(GetDeclarationRequest) returns (GetDeclarationResponse);
-
+    
+    // GetDeclarationByOrder 根据订单获取报关单
+    rpc GetDeclarationByOrder(GetDeclarationByOrderRequest) returns (GetDeclarationResponse);
+    
+    // ListDeclarations 获取报关单列表
+    rpc ListDeclarations(ListDeclarationsRequest) returns (ListDeclarationsResponse);
+    
     // UpdateDeclarationStatus 更新报关状态
-    rpc UpdateDeclarationStatus(UpdateDeclarationStatusRequest) returns (UpdateDeclarationStatusResponse);
+    rpc UpdateDeclarationStatus(UpdateDeclarationStatusRequest) returns (google.protobuf.Empty);
+    
+    // SubmitDeclaration 提交报关
+    rpc SubmitDeclaration(SubmitDeclarationRequest) returns (google.protobuf.Empty);
+    
+    // CancelDeclaration 取消报关
+    rpc CancelDeclaration(CancelDeclarationRequest) returns (google.protobuf.Empty);
+    
+    // ==================== 海关申报 ====================
+    
+    // SubmitCustomsDeclaration 提交海关申报
+    rpc SubmitCustomsDeclaration(SubmitCustomsDeclarationRequest) returns (SubmitCustomsDeclarationResponse);
+    
+    // GetCustomsStatus 获取海关状态
+    rpc GetCustomsStatus(GetCustomsStatusRequest) returns (GetCustomsStatusResponse);
+    
+    // QueryCustomsResult 查询海关结果
+    rpc QueryCustomsResult(QueryCustomsResultRequest) returns (QueryCustomsResultResponse);
+    
+    // ==================== 清关流程 ====================
+    
+    // StartClearance 开始清关
+    rpc StartClearance(StartClearanceRequest) returns (StartClearanceResponse);
+    
+    // GetClearanceStatus 获取清关状态
+    rpc GetClearanceStatus(GetClearanceStatusRequest) returns (GetClearanceStatusResponse);
+    
+    // UpdateClearanceStatus 更新清关状态
+    rpc UpdateClearanceStatus(UpdateClearanceStatusRequest) returns (google.protobuf.Empty);
+    
+    // CompleteClearance 完成清关
+    rpc CompleteClearance(CompleteClearanceRequest) returns (google.protobuf.Empty);
+    
+    // ==================== HS编码管理 ====================
+    
+    // GetHSCode 获取HS编码信息
+    rpc GetHSCode(GetHSCodeRequest) returns (GetHSCodeResponse);
+    
+    // SearchHSCodes 搜索HS编码
+    rpc SearchHSCodes(SearchHSCodesRequest) returns (SearchHSCodesResponse);
+    
+    // CreateHSCode 创建HS编码
+    rpc CreateHSCode(CreateHSCodeRequest) returns (CreateHSCodeResponse);
+    
+    // UpdateHSCode 更新HS编码
+    rpc UpdateHSCode(UpdateHSCodeRequest) returns (google.protobuf.Empty);
+    
+    // ==================== 跨境物流 ====================
+    
+    // CreateCrossBorderOrder 创建跨境订单
+    rpc CreateCrossBorderOrder(CreateCrossBorderOrderRequest) returns (CreateCrossBorderOrderResponse);
+    
+    // GetCrossBorderOrder 获取跨境订单
+    rpc GetCrossBorderOrder(GetCrossBorderOrderRequest) returns (GetCrossBorderOrderResponse);
+    
+    // UpdateLogisticsInfo 更新物流信息
+    rpc UpdateLogisticsInfo(UpdateLogisticsInfoRequest) returns (google.protobuf.Empty);
+    
+    // ==================== 证件管理 ====================
+    
+    // UploadCustomsDocument 上报关关证件
+    rpc UploadCustomsDocument(UploadCustomsDocumentRequest) returns (UploadCustomsDocumentResponse);
+    
+    // GetCustomsDocuments 获取报关证件
+    rpc GetCustomsDocuments(GetCustomsDocumentsRequest) returns (GetCustomsDocumentsResponse);
+    
+    // ==================== 统计报表 ====================
+    
+    // GetCrossBorderStats 获取跨境统计
+    rpc GetCrossBorderStats(GetCrossBorderStatsRequest) returns (GetCrossBorderStatsResponse);
 }
+
+// ==================== 枚举定义 ====================
+
+// 报关状态
+enum DeclarationStatus {
+    DECLARATION_STATUS_UNSPECIFIED = 0;
+    DECLARATION_STATUS_DRAFT = 1;           // 草稿
+    DECLARATION_STATUS_PENDING = 2;         // 待提交
+    DECLARATION_STATUS_SUBMITTED = 3;       // 已提交
+    DECLARATION_STATUS_CUSTOMS_PROCESSING = 4; // 海关处理中
+    DECLARATION_STATUS_CUSTOMS_CLEARED = 5; // 海关放行
+    DECLARATION_STATUS_CUSTOMS_INSPECTION = 6; // 海关查验
+    DECLARATION_STATUS_CUSTOMS_REJECTED = 7; // 海关拒绝
+    DECLARATION_STATUS_CLEARED = 8;         // 已清关
+    DECLARATION_STATUS_CANCELLED = 9;       // 已取消
+}
+
+// 清关状态
+enum ClearanceStatus {
+    CLEARANCE_STATUS_UNSPECIFIED = 0;
+    CLEARANCE_STATUS_PENDING = 1;           // 待清关
+    CLEARANCE_STATUS_PROCESSING = 2;        // 清关中
+    CLEARANCE_STATUS_INSPECTION = 3;        // 查验中
+    CLEARANCE_STATUS_TAX_PENDING = 4;       // 待缴税
+    CLEARANCE_STATUS_TAX_PAID = 5;          // 已缴税
+    CLEARANCE_STATUS_RELEASED = 6;          // 已放行
+    CLEARANCE_STATUS_COMPLETED = 7;         // 已完成
+    CLEARANCE_STATUS_FAILED = 8;            // 清关失败
+}
+
+// 证件类型
+enum CustomsDocumentType {
+    CUSTOMS_DOCUMENT_TYPE_UNSPECIFIED = 0;
+    CUSTOMS_DOCUMENT_TYPE_INVOICE = 1;      // 发票
+    CUSTOMS_DOCUMENT_TYPE_PACKING_LIST = 2; // 装箱单
+    CUSTOMS_DOCUMENT_TYPE_CONTRACT = 3;     // 合同
+    CUSTOMS_DOCUMENT_TYPE_LICENSE = 4;      // 许可证
+    CUSTOMS_DOCUMENT_TYPE_CERTIFICATE = 5;  // 证书
+    CUSTOMS_DOCUMENT_TYPE_ID_CARD = 6;      // 身份证
+    CUSTOMS_DOCUMENT_TYPE_OTHER = 7;        // 其他
+}
+
+// 贸易方式
+enum TradeMode {
+    TRADE_MODE_UNSPECIFIED = 0;
+    TRADE_MODE_BONDED = 1;                  // 保税
+    TRADE_MODE_DIRECT = 2;                  // 直邮
+    TRADE_MODE_GENERAL = 3;                 // 一般贸易
+}
+
+// ==================== 税费计算 ====================
 
 message CalculateDutyRequest {
     double total_amount = 1;
     string currency = 2;
     repeated DutyItem items = 3;
     string destination_country = 4;
+    string origin_country = 5;
+    TradeMode trade_mode = 6;
 }
 
 message DutyItem {
@@ -33,14 +173,57 @@ message DutyItem {
     string hs_code = 2;
     double price = 3;
     int32 quantity = 4;
+    double weight = 5;
+    string name = 6;
 }
 
 message CalculateDutyResponse {
     double duty_amount = 1;
-    double tax_amount = 2; // VAT or GST
-    double total_cost = 3; // Duty + Tax
+    double tax_amount = 2;
+    double total_cost = 3;
     string currency = 4;
+    repeated TaxBreakdown breakdown = 5;
 }
+
+message TaxBreakdown {
+    string tax_type = 1;       // DUTY, VAT, CONSUMPTION_TAX
+    double tax_rate = 2;
+    double taxable_amount = 3;
+    double tax_amount = 4;
+}
+
+message CalculateTaxRequest {
+    repeated DutyItem items = 1;
+    string destination_country = 2;
+    string customs_port = 3;
+    TradeMode trade_mode = 4;
+}
+
+message CalculateTaxResponse {
+    double duty_amount = 1;
+    double vat_amount = 2;
+    double consumption_tax = 3;
+    double total_tax = 4;
+    string currency = 5;
+    repeated TaxBreakdown breakdown = 6;
+}
+
+message GetTaxRatesRequest {
+    string hs_code = 1;
+    string destination_country = 2;
+    string origin_country = 3;
+}
+
+message GetTaxRatesResponse {
+    string hs_code = 1;
+    double duty_rate = 2;
+    double vat_rate = 3;
+    double consumption_tax_rate = 4;
+    string description = 5;
+    repeated string restrictions = 6;
+}
+
+// ==================== 报关单管理 ====================
 
 message CreateDeclarationRequest {
     string order_id = 1;
@@ -49,30 +232,366 @@ message CreateDeclarationRequest {
     repeated DutyItem items = 4;
     double declared_value = 5;
     string currency = 6;
+    string customs_port = 7;
+    TradeMode trade_mode = 8;
+    string recipient_name = 9;
+    string recipient_phone = 10;
+    string recipient_address = 11;
+    string recipient_id_number = 12;
 }
 
 message CreateDeclarationResponse {
     string declaration_id = 1;
+    DeclarationStatus status = 2;
+    double estimated_duty = 3;
+    double estimated_tax = 4;
 }
 
 message GetDeclarationRequest {
     string declaration_id = 1;
 }
 
+message GetDeclarationByOrderRequest {
+    string order_id = 1;
+}
+
 message GetDeclarationResponse {
+    CustomsDeclaration declaration = 1;
+}
+
+message CustomsDeclaration {
     string declaration_id = 1;
     string order_id = 2;
-    string status = 3; // PENDING, SUBMITTED, CLEARED, REJECTED
-    double total_tax = 4;
-    string created_at = 5;
+    string user_id = 3;
+    string logistics_no = 4;
+    double declared_value = 5;
+    string currency = 6;
+    double duty_amount = 7;
+    double tax_amount = 8;
+    DeclarationStatus status = 9;
+    string reject_reason = 10;
+    string customs_port = 11;
+    TradeMode trade_mode = 12;
+    repeated DeclarationItem items = 13;
+    ClearanceInfo clearance_info = 14;
+    google.protobuf.Timestamp created_at = 15;
+    google.protobuf.Timestamp updated_at = 16;
+    google.protobuf.Timestamp cleared_at = 17;
+}
+
+message DeclarationItem {
+    string item_id = 1;
+    string sku_id = 2;
+    string hs_code = 3;
+    string name = 4;
+    double price = 5;
+    int32 quantity = 6;
+    double weight = 7;
+    double duty_rate = 8;
+    double tax_rate = 9;
+}
+
+message ClearanceInfo {
+    string clearance_id = 1;
+    ClearanceStatus status = 2;
+    string customs_code = 3;
+    string customs_name = 4;
+    google.protobuf.Timestamp submitted_at = 5;
+    google.protobuf.Timestamp cleared_at = 6;
+    repeated ClearanceEvent events = 7;
+}
+
+message ClearanceEvent {
+    string event_type = 1;
+    string description = 2;
+    string location = 3;
+    google.protobuf.Timestamp occurred_at = 4;
+}
+
+message ListDeclarationsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    DeclarationStatus status_filter = 3;
+    string user_id = 4;
+    string start_date = 5;
+    string end_date = 6;
+}
+
+message ListDeclarationsResponse {
+    repeated CustomsDeclaration declarations = 1;
+    int32 total = 2;
 }
 
 message UpdateDeclarationStatusRequest {
     string declaration_id = 1;
-    string status = 2;
-    string reject_reason = 3; // Optional
+    DeclarationStatus status = 2;
+    string reject_reason = 3;
 }
 
-message UpdateDeclarationStatusResponse {
-    bool success = 1;
+message SubmitDeclarationRequest {
+    string declaration_id = 1;
+}
+
+message CancelDeclarationRequest {
+    string declaration_id = 1;
+    string reason = 2;
+}
+
+// ==================== 海关申报 ====================
+
+message SubmitCustomsDeclarationRequest {
+    string declaration_id = 1;
+    string customs_code = 2;
+    string customs_name = 3;
+    repeated string document_ids = 4;
+}
+
+message SubmitCustomsDeclarationResponse {
+    string customs_declaration_no = 1;
+    string status = 2;
+}
+
+message GetCustomsStatusRequest {
+    string declaration_id = 1;
+}
+
+message GetCustomsStatusResponse {
+    string declaration_id = 1;
+    string customs_declaration_no = 2;
+    string status = 3;
+    string status_message = 4;
+    repeated ClearanceEvent events = 5;
+}
+
+message QueryCustomsResultRequest {
+    string customs_declaration_no = 1;
+}
+
+message QueryCustomsResultResponse {
+    string declaration_id = 1;
+    string status = 2;
+    string result = 3;
+    repeated string issues = 4;
+}
+
+// ==================== 清关流程 ====================
+
+message StartClearanceRequest {
+    string declaration_id = 1;
+    string customs_port = 2;
+    string agent_code = 3;
+    string agent_name = 4;
+}
+
+message StartClearanceResponse {
+    string clearance_id = 1;
+    ClearanceStatus status = 2;
+    string estimated_clearance_time = 3;
+}
+
+message GetClearanceStatusRequest {
+    string declaration_id = 1;
+    string clearance_id = 2;
+}
+
+message GetClearanceStatusResponse {
+    ClearanceInfo clearance_info = 1;
+    double duty_payable = 2;
+    double tax_payable = 3;
+    string payment_status = 4;
+}
+
+message UpdateClearanceStatusRequest {
+    string declaration_id = 1;
+    ClearanceStatus status = 2;
+    string description = 3;
+    string location = 4;
+}
+
+message CompleteClearanceRequest {
+    string declaration_id = 1;
+    string release_order_no = 2;
+    string release_time = 3;
+}
+
+// ==================== HS编码管理 ====================
+
+message GetHSCodeRequest {
+    string code = 1;
+}
+
+message GetHSCodeResponse {
+    HSCodeInfo hs_code = 1;
+}
+
+message HSCodeInfo {
+    string code = 1;
+    string description = 2;
+    string description_en = 3;
+    double duty_rate = 4;
+    double vat_rate = 5;
+    double consumption_tax_rate = 6;
+    string unit = 7;
+    repeated string restrictions = 8;
+    repeated string required_documents = 9;
+    bool active = 10;
+}
+
+message SearchHSCodesRequest {
+    string keyword = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+message SearchHSCodesResponse {
+    repeated HSCodeInfo hs_codes = 1;
+    int32 total = 2;
+}
+
+message CreateHSCodeRequest {
+    string code = 1;
+    string description = 2;
+    string description_en = 3;
+    double duty_rate = 4;
+    double vat_rate = 5;
+    double consumption_tax_rate = 6;
+    string unit = 7;
+    repeated string restrictions = 8;
+}
+
+message CreateHSCodeResponse {
+    string code = 1;
+}
+
+message UpdateHSCodeRequest {
+    string code = 1;
+    string description = 2;
+    double duty_rate = 3;
+    double vat_rate = 4;
+    double consumption_tax_rate = 5;
+    bool active = 6;
+}
+
+// ==================== 跨境物流 ====================
+
+message CreateCrossBorderOrderRequest {
+    string order_id = 1;
+    string user_id = 2;
+    string origin_country = 3;
+    string destination_country = 4;
+    string customs_port = 5;
+    TradeMode trade_mode = 6;
+    repeated DutyItem items = 7;
+    RecipientInfo recipient = 8;
+}
+
+message RecipientInfo {
+    string name = 1;
+    string phone = 2;
+    string id_type = 3;
+    string id_number = 4;
+    string province = 5;
+    string city = 6;
+    string district = 7;
+    string address = 8;
+    string postal_code = 9;
+}
+
+message CreateCrossBorderOrderResponse {
+    string cross_border_order_id = 1;
+    string declaration_id = 2;
+    string tracking_no = 3;
+}
+
+message GetCrossBorderOrderRequest {
+    string cross_border_order_id = 1;
+    string order_id = 2;
+}
+
+message GetCrossBorderOrderResponse {
+    CrossBorderOrder order = 1;
+}
+
+message CrossBorderOrder {
+    string cross_border_order_id = 1;
+    string order_id = 2;
+    string user_id = 3;
+    string origin_country = 4;
+    string destination_country = 5;
+    string customs_port = 6;
+    TradeMode trade_mode = 7;
+    string declaration_id = 8;
+    string tracking_no = 9;
+    string status = 10;
+    double total_duty = 11;
+    double total_tax = 12;
+    string currency = 13;
+    google.protobuf.Timestamp created_at = 14;
+    google.protobuf.Timestamp updated_at = 15;
+}
+
+message UpdateLogisticsInfoRequest {
+    string declaration_id = 1;
+    string logistics_no = 2;
+    string logistics_company = 3;
+    string status = 4;
+}
+
+// ==================== 证件管理 ====================
+
+message UploadCustomsDocumentRequest {
+    string declaration_id = 1;
+    CustomsDocumentType document_type = 2;
+    string document_name = 3;
+    bytes document_data = 4;
+    string document_url = 5;
+}
+
+message UploadCustomsDocumentResponse {
+    string document_id = 1;
+    string document_url = 2;
+}
+
+message GetCustomsDocumentsRequest {
+    string declaration_id = 1;
+}
+
+message GetCustomsDocumentsResponse {
+    repeated CustomsDocument documents = 1;
+}
+
+message CustomsDocument {
+    string document_id = 1;
+    string declaration_id = 2;
+    CustomsDocumentType document_type = 3;
+    string document_name = 4;
+    string document_url = 5;
+    string status = 6;
+    google.protobuf.Timestamp uploaded_at = 7;
+}
+
+// ==================== 统计报表 ====================
+
+message GetCrossBorderStatsRequest {
+    string start_date = 1;
+    string end_date = 2;
+    string customs_port = 3;
+}
+
+message GetCrossBorderStatsResponse {
+    int64 total_declarations = 1;
+    int64 cleared_declarations = 2;
+    int64 pending_declarations = 3;
+    double total_declared_value = 4;
+    double total_duty = 5;
+    double total_tax = 6;
+    string currency = 7;
+    repeated PortStats port_stats = 8;
+}
+
+message PortStats {
+    string port_code = 1;
+    string port_name = 2;
+    int64 declaration_count = 3;
+    double total_value = 4;
 }

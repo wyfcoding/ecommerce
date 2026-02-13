@@ -1,0 +1,479 @@
+// 变更说明：扩展 KYC 服务 proto 定义，增加证件 OCR、人脸识别、审核工作流等完整功能
+syntax = "proto3";
+
+package kyc.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/kyc/v1;pb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// KYC 服务 - 提供实名认证全流程服务
+service KYCService {
+    // ==================== 申请管理 ====================
+    
+    // 提交 KYC 申请（基础信息）
+    rpc SubmitKYC(SubmitKYCRequest) returns (SubmitKYCResponse);
+    
+    // 上传证件图片
+    rpc UploadDocument(UploadDocumentRequest) returns (UploadDocumentResponse);
+    
+    // 提交人脸识别
+    rpc SubmitFaceVerification(SubmitFaceVerificationRequest) returns (SubmitFaceVerificationResponse);
+    
+    // 获取 KYC 申请详情
+    rpc GetKYCApplication(GetKYCApplicationRequest) returns (GetKYCApplicationResponse);
+    
+    // 获取 KYC 状态
+    rpc GetKYCStatus(GetKYCStatusRequest) returns (GetKYCStatusResponse);
+    
+    // 取消 KYC 申请
+    rpc CancelKYCApplication(CancelKYCApplicationRequest) returns (google.protobuf.Empty);
+    
+    // 重新提交 KYC
+    rpc ResubmitKYC(ResubmitKYCRequest) returns (SubmitKYCResponse);
+    
+    // ==================== OCR 服务 ====================
+    
+    // 证件 OCR 识别
+    rpc RecognizeIDDocument(RecognizeIDDocumentRequest) returns (RecognizeIDDocumentResponse);
+    
+    // ==================== 审核管理 ====================
+    
+    // 获取待审核列表（管理员）
+    rpc ListPendingApplications(ListPendingApplicationsRequest) returns (ListPendingApplicationsResponse);
+    
+    // 审核通过
+    rpc ApproveKYC(ApproveKYCRequest) returns (google.protobuf.Empty);
+    
+    // 审核拒绝
+    rpc RejectKYC(RejectKYCRequest) returns (google.protobuf.Empty);
+    
+    // 获取审核历史
+    rpc GetAuditHistory(GetAuditHistoryRequest) returns (GetAuditHistoryResponse);
+    
+    // ==================== 用户 KYC 等级 ====================
+    
+    // 获取用户 KYC 等级
+    rpc GetUserKYCLevel(GetUserKYCLevelRequest) returns (GetUserKYCLevelResponse);
+    
+    // 升级 KYC 等级
+    rpc UpgradeKYCLevel(UpgradeKYCLevelRequest) returns (UpgradeKYCLevelResponse);
+    
+    // ==================== 风险评估 ====================
+    
+    // 获取风险评分
+    rpc GetRiskScore(GetRiskScoreRequest) returns (GetRiskScoreResponse);
+    
+    // ==================== 商家 KYC ====================
+    
+    // 提交商家 KYC
+    rpc SubmitMerchantKYC(SubmitMerchantKYCRequest) returns (SubmitKYCResponse);
+    
+    // 获取商家 KYC 详情
+    rpc GetMerchantKYC(GetMerchantKYCRequest) returns (GetMerchantKYCResponse);
+}
+
+// ==================== 枚举定义 ====================
+
+// 证件类型
+enum IDType {
+    ID_TYPE_UNSPECIFIED = 0;
+    ID_TYPE_ID_CARD = 1;           // 身份证
+    ID_TYPE_PASSPORT = 2;          // 护照
+    ID_TYPE_DRIVERS_LICENSE = 3;   // 驾照
+    ID_TYPE_RESIDENCE_PERMIT = 4;  // 居住证
+    ID_TYPE_HK_MACAU_PASS = 5;     // 港澳通行证
+    ID_TYPE_TAIWAN_PASS = 6;       // 台湾通行证
+    ID_TYPE_BUSINESS_LICENSE = 7;  // 营业执照（商家）
+}
+
+// KYC 状态
+enum KYCStatus {
+    KYC_STATUS_UNSPECIFIED = 0;
+    KYC_STATUS_DRAFT = 1;           // 草稿
+    KYC_STATUS_PENDING = 2;         // 待审核
+    KYC_STATUS_UNDER_REVIEW = 3;    // 审核中
+    KYC_STATUS_APPROVED = 4;        // 已通过
+    KYC_STATUS_REJECTED = 5;        // 已拒绝
+    KYC_STATUS_EXPIRED = 6;         // 已过期
+    KYC_STATUS_CANCELLED = 7;       // 已取消
+    KYC_STATUS_SUSPENDED = 8;       // 已暂停
+}
+
+// KYC 等级
+enum KYCLevel {
+    KYC_LEVEL_UNSPECIFIED = 0;
+    KYC_LEVEL_NONE = 1;      // 未认证
+    KYC_LEVEL_BASIC = 2;     // 基础认证（手机+姓名）
+    KYC_LEVEL_INTERMEDIATE = 3; // 中级认证（证件+人脸）
+    KYC_LEVEL_ADVANCED = 4;  // 高级认证（地址证明+收入证明）
+    KYC_LEVEL_BUSINESS = 5;  // 企业认证
+}
+
+// 审核动作
+enum AuditAction {
+    AUDIT_ACTION_UNSPECIFIED = 0;
+    AUDIT_ACTION_APPROVE = 1;
+    AUDIT_ACTION_REJECT = 2;
+    AUDIT_ACTION_REQUEST_INFO = 3;
+    AUDIT_ACTION_ESCALATE = 4;
+}
+
+// ==================== 消息定义 ====================
+
+// 提交 KYC 申请请求
+message SubmitKYCRequest {
+    uint64 user_id = 1;                    // 用户ID
+    string full_name = 2;                  // 真实姓名
+    string id_number = 3;                  // 证件号码
+    IDType id_type = 4;                    // 证件类型
+    string nationality = 5;                // 国籍
+    google.protobuf.Timestamp birth_date = 6; // 出生日期
+    string gender = 7;                     // 性别 M/F
+    string address = 8;                    // 地址
+    string country = 9;                    // 国家代码
+    string province = 10;                  // 省份
+    string city = 11;                      // 城市
+    string postal_code = 12;               // 邮编
+}
+
+// 提交 KYC 申请响应
+message SubmitKYCResponse {
+    string application_id = 1;             // 申请ID
+    KYCStatus status = 2;                  // 当前状态
+    KYCLevel current_level = 3;            // 当前等级
+    repeated string required_documents = 4; // 需要上传的证件类型
+    string message = 5;                    // 提示信息
+}
+
+// 上传证件请求
+message UploadDocumentRequest {
+    string application_id = 1;             // 申请ID
+    IDType document_type = 2;              // 证件类型
+    bytes document_data = 3;               // 证件图片数据
+    string document_url = 4;               // 证件图片URL（二选一）
+    DocumentSide side = 5;                 // 正反面
+    int32 sequence = 6;                    // 序号（多张时使用）
+}
+
+// 证件正反面
+enum DocumentSide {
+    DOCUMENT_SIDE_UNSPECIFIED = 0;
+    DOCUMENT_SIDE_FRONT = 1;    // 正面
+    DOCUMENT_SIDE_BACK = 2;     // 反面
+    DOCUMENT_SIDE_SELFIE = 3;   // 自拍
+}
+
+// 上传证件响应
+message UploadDocumentResponse {
+    string document_id = 1;                // 证件ID
+    string document_url = 2;               // 存储URL
+    bool ocr_success = 3;                  // OCR是否成功
+    IDDocumentInfo ocr_info = 4;           // OCR识别信息
+}
+
+// OCR 识别的证件信息
+message IDDocumentInfo {
+    string name = 1;                       // 姓名
+    string id_number = 2;                  // 证件号
+    string gender = 3;                     // 性别
+    string nationality = 4;                // 民族/国籍
+    google.protobuf.Timestamp birth_date = 5; // 出生日期
+    string address = 6;                    // 地址
+    string issuing_authority = 7;          // 签发机关
+    google.protobuf.Timestamp issue_date = 8; // 签发日期
+    google.protobuf.Timestamp expiry_date = 9; // 有效期
+    float confidence_score = 10;           // 置信度
+}
+
+// 提交人脸识别请求
+message SubmitFaceVerificationRequest {
+    string application_id = 1;             // 申请ID
+    bytes face_image = 2;                  // 人脸图片数据
+    string face_image_url = 3;             // 人脸图片URL（二选一）
+    string liveness_data = 4;              // 活体检测数据
+}
+
+// 提交人脸识别响应
+message SubmitFaceVerificationResponse {
+    string verification_id = 1;            // 验证ID
+    bool passed = 2;                       // 是否通过
+    float similarity_score = 3;            // 相似度分数
+    bool liveness_passed = 4;              // 活体检测是否通过
+    string message = 5;                    // 提示信息
+}
+
+// 获取 KYC 申请请求
+message GetKYCApplicationRequest {
+    string application_id = 1;             // 申请ID
+    uint64 user_id = 2;                    // 用户ID（二选一）
+}
+
+// 获取 KYC 申请响应
+message GetKYCApplicationResponse {
+    KYCApplication application = 1;
+}
+
+// KYC 申请详情
+message KYCApplication {
+    string application_id = 1;
+    uint64 user_id = 2;
+    string full_name = 3;
+    string id_number = 4;
+    IDType id_type = 5;
+    string nationality = 6;
+    google.protobuf.Timestamp birth_date = 7;
+    string gender = 8;
+    string address = 9;
+    string country = 10;
+    string province = 11;
+    string city = 12;
+    string postal_code = 13;
+    KYCStatus status = 14;
+    KYCLevel level = 15;
+    int32 risk_score = 16;
+    repeated Document documents = 17;
+    FaceVerification face_verification = 18;
+    repeated AuditRecord audit_records = 19;
+    google.protobuf.Timestamp created_at = 20;
+    google.protobuf.Timestamp updated_at = 21;
+    google.protobuf.Timestamp verified_at = 22;
+    google.protobuf.Timestamp expires_at = 23;
+}
+
+// 证件文档
+message Document {
+    string document_id = 1;
+    IDType document_type = 2;
+    DocumentSide side = 3;
+    string document_url = 4;
+    IDDocumentInfo ocr_info = 5;
+    bool verified = 6;
+    google.protobuf.Timestamp uploaded_at = 7;
+}
+
+// 人脸验证信息
+message FaceVerification {
+    string verification_id = 1;
+    bool passed = 2;
+    float similarity_score = 3;
+    bool liveness_passed = 4;
+    string face_image_url = 5;
+    google.protobuf.Timestamp verified_at = 6;
+}
+
+// 审核记录
+message AuditRecord {
+    string record_id = 1;
+    uint64 auditor_id = 2;
+    string auditor_name = 3;
+    AuditAction action = 4;
+    string reason = 5;
+    string comment = 6;
+    google.protobuf.Timestamp created_at = 7;
+}
+
+// 获取 KYC 状态请求
+message GetKYCStatusRequest {
+    uint64 user_id = 1;
+}
+
+// 获取 KYC 状态响应
+message GetKYCStatusResponse {
+    uint64 user_id = 1;
+    KYCStatus status = 2;
+    KYCLevel level = 3;
+    string reason = 4;
+    google.protobuf.Timestamp verified_at = 5;
+    google.protobuf.Timestamp expires_at = 6;
+    bool is_expired = 7;
+    repeated string missing_documents = 8;
+}
+
+// 取消 KYC 申请请求
+message CancelKYCApplicationRequest {
+    string application_id = 1;
+    uint64 user_id = 2;
+}
+
+// 重新提交 KYC 请求
+message ResubmitKYCRequest {
+    string application_id = 1;
+    uint64 user_id = 2;
+    string full_name = 3;
+    string id_number = 4;
+    IDType id_type = 5;
+}
+
+// 证件 OCR 识别请求
+message RecognizeIDDocumentRequest {
+    bytes document_data = 1;
+    string document_url = 2;
+    IDType id_type = 3;
+    DocumentSide side = 4;
+}
+
+// 证件 OCR 识别响应
+message RecognizeIDDocumentResponse {
+    IDDocumentInfo document_info = 1;
+    bool success = 2;
+    string error_message = 3;
+}
+
+// 获取待审核列表请求
+message ListPendingApplicationsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    KYCLevel level_filter = 3;
+    string country_filter = 4;
+    string sort_by = 5;
+    bool sort_desc = 6;
+}
+
+// 获取待审核列表响应
+message ListPendingApplicationsResponse {
+    repeated KYCApplication applications = 1;
+    int32 total = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+// 审核通过请求
+message ApproveKYCRequest {
+    string application_id = 1;
+    uint64 auditor_id = 2;
+    KYCLevel approved_level = 3;
+    string comment = 4;
+    int32 validity_months = 5;            // 有效期月数
+}
+
+// 审核拒绝请求
+message RejectKYCRequest {
+    string application_id = 1;
+    uint64 auditor_id = 2;
+    string reason = 3;
+    string comment = 4;
+    bool allow_resubmit = 5;              // 是否允许重新提交
+}
+
+// 获取审核历史请求
+message GetAuditHistoryRequest {
+    string application_id = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+// 获取审核历史响应
+message GetAuditHistoryResponse {
+    repeated AuditRecord records = 1;
+    int32 total = 2;
+}
+
+// 获取用户 KYC 等级请求
+message GetUserKYCLevelRequest {
+    uint64 user_id = 1;
+}
+
+// 获取用户 KYC 等级响应
+message GetUserKYCLevelResponse {
+    uint64 user_id = 1;
+    KYCLevel level = 2;
+    KYCStatus status = 3;
+    repeated KYCLimit limits = 4;
+    google.protobuf.Timestamp expires_at = 5;
+}
+
+// KYC 限额
+message KYCLimit {
+    string limit_type = 1;                 // daily_withdraw, monthly_transaction, etc.
+    string limit_value = 2;                // 限额值
+    string used_value = 3;                 // 已用值
+    string currency = 4;                   // 币种
+}
+
+// 升级 KYC 等级请求
+message UpgradeKYCLevelRequest {
+    uint64 user_id = 1;
+    KYCLevel target_level = 2;
+    SubmitKYCRequest additional_info = 3;
+}
+
+// 升级 KYC 等级响应
+message UpgradeKYCLevelResponse {
+    string application_id = 1;
+    KYCLevel current_level = 2;
+    KYCLevel target_level = 3;
+    repeated string required_documents = 4;
+}
+
+// 获取风险评分请求
+message GetRiskScoreRequest {
+    uint64 user_id = 1;
+    string application_id = 2;
+}
+
+// 获取风险评分响应
+message GetRiskScoreResponse {
+    uint64 user_id = 1;
+    int32 risk_score = 2;                  // 0-100, 越高风险越大
+    string risk_level = 3;                 // LOW, MEDIUM, HIGH, CRITICAL
+    repeated RiskFactor factors = 4;
+    google.protobuf.Timestamp calculated_at = 5;
+}
+
+// 风险因素
+message RiskFactor {
+    string factor_type = 1;                // ID_AGE, ADDRESS_MATCH, FACE_SIMILARITY, etc.
+    string description = 2;
+    int32 score = 3;
+    float weight = 4;
+}
+
+// 提交商家 KYC 请求
+message SubmitMerchantKYCRequest {
+    uint64 merchant_id = 1;
+    string company_name = 2;               // 公司名称
+    string registration_number = 3;        // 注册号
+    string tax_id = 4;                     // 税号
+    string legal_representative_name = 5;  // 法人姓名
+    string legal_representative_id = 6;    // 法人身份证
+    string business_address = 7;           // 经营地址
+    string country = 8;
+    string province = 9;
+    string city = 10;
+    string postal_code = 11;
+    string contact_phone = 12;
+    string contact_email = 13;
+    string bank_name = 14;                 // 开户银行
+    string bank_account = 15;              // 银行账号
+    string bank_account_name = 16;         // 账户名
+}
+
+// 获取商家 KYC 请求
+message GetMerchantKYCRequest {
+    uint64 merchant_id = 1;
+    string application_id = 2;
+}
+
+// 获取商家 KYC 响应
+message GetMerchantKYCResponse {
+    KYCApplication application = 1;
+    MerchantKYCInfo merchant_info = 2;
+}
+
+// 商家 KYC 信息
+message MerchantKYCInfo {
+    string company_name = 1;
+    string registration_number = 2;
+    string tax_id = 3;
+    string legal_representative_name = 4;
+    string legal_representative_id = 5;
+    string business_address = 6;
+    string contact_phone = 7;
+    string contact_email = 8;
+    string bank_name = 9;
+    string bank_account = 10;
+    string bank_account_name = 11;
+    repeated Document business_documents = 12;
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt" // 导入格式化包，用于错误信息。
 	"log/slog"
+	"strings"
 	"strconv" // 导入字符串和数字转换工具。
 	"time"
 
@@ -82,12 +83,84 @@ func (s *Server) GetCouponByID(ctx context.Context, req *pb.GetCouponByIDRequest
 
 // UpdateCoupon 处理更新优惠券信息的gRPC请求。
 func (s *Server) UpdateCoupon(ctx context.Context, req *pb.UpdateCouponRequest) (*pb.CouponResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateCoupon not implemented")
+	start := time.Now()
+	if req.CouponId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "coupon_id is required")
+	}
+
+	var couponType *domain.CouponType
+	if req.DiscountType != nil {
+		mapped := domain.CouponTypeDiscount
+		switch *req.DiscountType {
+		case "CASH":
+			mapped = domain.CouponTypeCash
+		case "DISCOUNT":
+			mapped = domain.CouponTypeDiscount
+		case "GIFT":
+			mapped = domain.CouponTypeGift
+		case "EXCHANGE":
+			mapped = domain.CouponTypeExchange
+		}
+		couponType = &mapped
+	}
+
+	var discountAmount *int64
+	if req.DiscountValue != nil {
+		v := int64(*req.DiscountValue * 100)
+		discountAmount = &v
+	}
+	var minOrderAmount *int64
+	if req.MinOrderAmount != nil {
+		v := int64(*req.MinOrderAmount * 100)
+		minOrderAmount = &v
+	}
+
+	var validFrom *time.Time
+	if req.ValidFrom != nil {
+		t := req.ValidFrom.AsTime()
+		validFrom = &t
+	}
+	var validUntil *time.Time
+	if req.ValidUntil != nil {
+		t := req.ValidUntil.AsTime()
+		validUntil = &t
+	}
+
+	coupon, err := s.cmd.UpdateCoupon(
+		ctx,
+		req.CouponId,
+		req.Name,
+		req.Description,
+		couponType,
+		discountAmount,
+		minOrderAmount,
+		validFrom,
+		validUntil,
+		req.TotalQuantity,
+	)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		slog.Error("gRPC UpdateCoupon failed", "coupon_id", req.CouponId, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update coupon: %v", err))
+	}
+
+	return &pb.CouponResponse{Coupon: s.toProto(coupon)}, nil
 }
 
 // DeleteCoupon 处理删除优惠券的gRPC请求。
 func (s *Server) DeleteCoupon(ctx context.Context, req *pb.DeleteCouponRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteCoupon not implemented")
+	if req.CouponId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "coupon_id is required")
+	}
+	if err := s.cmd.DeleteCoupon(ctx, req.CouponId); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete coupon: %v", err))
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // IssueCoupon 处理向用户发放优惠券的gRPC请求。

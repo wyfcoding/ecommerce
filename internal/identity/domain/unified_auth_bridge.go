@@ -3,6 +3,7 @@
 package domain
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -27,7 +28,19 @@ type AuthBridgeSession struct {
 
 // IdentityBridgeService 身份桥接服务
 type IdentityBridgeService struct {
-	// 具体的 ID 映射存储接口
+	mappingRepo UserMappingRepository
+}
+
+// UserMappingRepository 用户映射仓储接口
+type UserMappingRepository interface {
+	FindByEcommerceUserID(ctx context.Context, ecommerceUserID string) (*UserMapping, error)
+	FindByTradingUserID(ctx context.Context, tradingUserID string) (*UserMapping, error)
+	Save(ctx context.Context, mapping *UserMapping) error
+}
+
+// NewIdentityBridgeService 创建身份桥接服务
+func NewIdentityBridgeService() *IdentityBridgeService {
+	return &IdentityBridgeService{}
 }
 
 // NewUserMapping 创建用户映射关系

@@ -2,9 +2,12 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -45,6 +48,7 @@ func NewSmartRouter() *SmartRouter {
 		strategies: []RouterStrategy{
 			&AvailabilityFirstStrategy{}, // 默认策略：可用性优先
 			&CostBasedStrategy{},         // 进阶策略：成本优先
+			&SuccessRateWeightedStrategy{},
 		},
 	}
 }
@@ -162,9 +166,139 @@ type SuccessRateWeightedStrategy struct {
 func (s *SuccessRateWeightedStrategy) Name() string { return "SUCCESS_RATE_WEIGHTED" }
 
 func (s *SuccessRateWeightedStrategy) SelectOptimalChannel(ctx context.Context, routeCtx *RouteContext, candidates []*ChannelConfig) (*ChannelConfig, error) {
-	// 这是一个占位符，展示顶级系统会怎么做：
-	// 1. GetSuccessRate(channelID, timeWindow="5m")
-	// 2. Normalize inputs
-	// 3. Calculate Score
-	return nil, errors.New("not implemented yet")
+	if len(candidates) == 0 {
+		return nil, errors.New("no candidates")
+	}
+	if routeCtx == nil {
+		return nil, errors.New("route context is required")
+	}
+
+	active := make([]*ChannelConfig, 0, len(candidates))
+	minPriority, maxPriority := math.MaxInt32, math.MinInt32
+	for _, c := range candidates {
+		if c == nil || !c.Enabled {
+			continue
+		}
+		active = append(active, c)
+		if c.Priority < minPriority {
+			minPriority = c.Priority
+		}
+		if c.Priority > maxPriority {
+			maxPriority = c.Priority
+		}
+	}
+	if len(active) == 0 {
+		return nil, errors.New("no active channels available")
+	}
+
+	var bestChannel *ChannelConfig
+	bestScore := -math.MaxFloat64
+	bestCost := decimal.NewFromFloat(math.MaxFloat64)
+
+	for _, c := range active {
+		successRate, fixedFee := parseChannelRuntimeHints(c.ConfigJSON)
+		rate := decimal.NewFromFloat(c.RatePercent).Div(decimal.NewFromInt(100))
+		estimatedCost := routeCtx.Amount.Mul(rate).Add(fixedFee)
+		costScore := 1.0 / (1.0 + math.Max(estimatedCost.InexactFloat64(), 0))
+
+		priorityScore := 1.0
+		if maxPriority > minPriority {
+			priorityScore = float64(c.Priority-minPriority) / float64(maxPriority-minPriority)
+		}
+
+		// 成功率权重最高，其次成本，最后优先级。
+		score := 0.65*successRate + 0.30*costScore + 0.05*priorityScore
+
+		if score > bestScore ||
+			(score == bestScore && estimatedCost.LessThan(bestCost)) ||
+			(score == bestScore && estimatedCost.Equal(bestCost) && (bestChannel == nil || c.Priority > bestChannel.Priority)) {
+			bestScore = score
+			bestCost = estimatedCost
+			bestChannel = c
+		}
+	}
+
+	if bestChannel == nil {
+		return nil, errors.New("no suitable channel found after weighted analysis")
+	}
+	return bestChannel, nil
+}
+
+func parseChannelRuntimeHints(configJSON string) (successRate float64, fixedFee decimal.Decimal) {
+	successRate = 0.95
+	fixedFee = decimal.Zero
+
+	if strings.TrimSpace(configJSON) == "" {
+		return successRate, fixedFee
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
+		return successRate, fixedFee
+	}
+
+	if v, ok := findFloat(cfg, "success_rate", "successRate", "success_rate_5m", "successRate5m"); ok {
+		successRate = normalizeRate(v)
+	}
+	if metrics, ok := cfg["metrics"].(map[string]any); ok {
+		if v, ok := findFloat(metrics, "success_rate", "successRate", "success_rate_5m", "successRate5m"); ok {
+			successRate = normalizeRate(v)
+		}
+	}
+
+	if v, ok := findFloat(cfg, "fixed_fee", "fixedFee", "flat_fee", "fee_fixed"); ok {
+		fixedFee = decimal.NewFromFloat(v)
+	}
+	if fees, ok := cfg["fees"].(map[string]any); ok {
+		if v, ok := findFloat(fees, "fixed_fee", "fixedFee", "flat_fee", "fee_fixed"); ok {
+			fixedFee = decimal.NewFromFloat(v)
+		}
+	}
+
+	return successRate, fixedFee
+}
+
+func findFloat(values map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		raw, ok := values[key]
+		if !ok || raw == nil {
+			continue
+		}
+		switch v := raw.(type) {
+		case float64:
+			return v, true
+		case float32:
+			return float64(v), true
+		case int:
+			return float64(v), true
+		case int64:
+			return float64(v), true
+		case int32:
+			return float64(v), true
+		case json.Number:
+			n, err := v.Float64()
+			if err == nil {
+				return n, true
+			}
+		case string:
+			n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+			if err == nil {
+				return n, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func normalizeRate(v float64) float64 {
+	if v > 1 {
+		v = v / 100
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
 }

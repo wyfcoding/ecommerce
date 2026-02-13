@@ -1,0 +1,6 @@
+apiVersion: v2
+name: influencer
+description: A Helm chart for Influencer/KOL Management Service
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

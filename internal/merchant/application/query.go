@@ -4,6 +4,7 @@ package application
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/merchant/domain"
 )
@@ -40,6 +41,8 @@ func NewQueryService(
 // MerchantDTO 商家查询结果DTO
 type MerchantDTO struct {
 	ID              uint
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 	UserID          uint64
 	MerchantNo      string
 	Name            string
@@ -58,6 +61,7 @@ type MerchantDTO struct {
 	TotalOrders     int32
 	Rating          float64
 	RejectReason    string
+	ApprovedAt      *time.Time
 	BusinessLicense *domain.BusinessLicense
 	BankAccount     *domain.BankAccount
 }
@@ -65,6 +69,8 @@ type MerchantDTO struct {
 // StoreDTO 店铺查询结果DTO
 type StoreDTO struct {
 	ID            uint
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 	MerchantID    uint
 	StoreNo       string
 	Name          string
@@ -168,6 +174,8 @@ func (s *QueryService) ListStores(ctx context.Context, merchantID uint, page, pa
 func (s *QueryService) toMerchantDTO(ctx context.Context, m *domain.Merchant) *MerchantDTO {
 	dto := &MerchantDTO{
 		ID:             m.ID,
+		CreatedAt:      m.CreatedAt,
+		UpdatedAt:      m.UpdatedAt,
 		UserID:         m.UserID,
 		MerchantNo:     m.MerchantNo,
 		Name:           m.Name,
@@ -186,6 +194,7 @@ func (s *QueryService) toMerchantDTO(ctx context.Context, m *domain.Merchant) *M
 		TotalOrders:    m.TotalOrders,
 		Rating:         m.Rating,
 		RejectReason:   m.RejectReason,
+		ApprovedAt:     m.ApprovedAt,
 	}
 
 	// 加载关联数据
@@ -203,6 +212,8 @@ func (s *QueryService) toMerchantDTO(ctx context.Context, m *domain.Merchant) *M
 func (s *QueryService) toStoreDTO(store *domain.Store) *StoreDTO {
 	return &StoreDTO{
 		ID:            store.ID,
+		CreatedAt:     store.CreatedAt,
+		UpdatedAt:     store.UpdatedAt,
 		MerchantID:    store.MerchantID,
 		StoreNo:       store.StoreNo,
 		Name:          store.Name,

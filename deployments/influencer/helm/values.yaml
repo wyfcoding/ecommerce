@@ -1,0 +1,38 @@
+replicaCount: 1
+
+image:
+  repository: influencer
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+serviceAccount:
+  create: true
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+  grpcPort: 9090
+
+resources: 
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+
+env:
+  - name: ECOMMERCE_SERVER_HTTP_PORT
+    value: "8080"
+  - name: ECOMMERCE_SERVER_GRPC_PORT
+    value: "9090"
+
+secrets:
+  dbPassword: ""
+  redisPassword: ""
+  jwtSecret: ""

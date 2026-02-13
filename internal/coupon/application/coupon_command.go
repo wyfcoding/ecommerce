@@ -235,6 +235,93 @@ func (m *CouponCommandService) SuggestBestCoupons(ctx context.Context, userID ui
 	return bestIDs, finalPrice, discount, nil
 }
 
+func (m *CouponCommandService) UpdateCoupon(
+	ctx context.Context,
+	id uint64,
+	name, description *string,
+	couponType *domain.CouponType,
+	discountAmount, minOrderAmount *int64,
+	validFrom, validTo *time.Time,
+	totalQuantity *int32,
+) (*domain.Coupon, error) {
+	coupon, err := m.repo.GetCoupon(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if coupon == nil {
+		return nil, fmt.Errorf("coupon not found")
+	}
+
+	if name != nil {
+		coupon.Name = *name
+	}
+	if description != nil {
+		coupon.Description = *description
+	}
+	if couponType != nil {
+		coupon.Type = *couponType
+	}
+	if discountAmount != nil {
+		coupon.DiscountAmount = *discountAmount
+	}
+	if minOrderAmount != nil {
+		coupon.MinOrderAmount = *minOrderAmount
+	}
+	if validFrom != nil {
+		coupon.ValidFrom = *validFrom
+	}
+	if validTo != nil {
+		coupon.ValidTo = *validTo
+	}
+	if totalQuantity != nil {
+		coupon.UsageLimit = *totalQuantity
+	}
+
+	err = m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateCouponInTx(ctx, tx, coupon); err != nil {
+			return err
+		}
+		if m.publisher != nil {
+			event := &domain.CouponUpdatedEvent{
+				CouponID:  coupon.ID,
+				CouponNo:  coupon.CouponNo,
+				Name:      coupon.Name,
+				Status:    int(coupon.Status),
+				Timestamp: time.Now(),
+			}
+			if err := m.publisher.PublishInTx(ctx, tx, domain.CouponUpdatedEventType, coupon.CouponNo, event); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return coupon, nil
+}
+
 func (m *CouponCommandService) DeleteCoupon(ctx context.Context, id uint64) error {
-	return m.repo.DeleteCoupon(ctx, id)
+	coupon, err := m.repo.GetCoupon(ctx, id)
+	if err != nil {
+		return err
+	}
+	if coupon == nil {
+		return fmt.Errorf("coupon not found")
+	}
+
+	if err := m.repo.DeleteCoupon(ctx, id); err != nil {
+		return err
+	}
+	if m.publisher != nil {
+		event := &domain.CouponDeletedEvent{
+			CouponID:  coupon.ID,
+			CouponNo:  coupon.CouponNo,
+			Timestamp: time.Now(),
+		}
+		if err := m.publisher.Publish(ctx, domain.CouponDeletedEventType, coupon.CouponNo, event); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -1,0 +1,49 @@
+replicaCount: 1
+
+image:
+  repository: livestream
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+  grpcPort: 9090
+  websocketPort: 8081
+
+resources: 
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+
+env:
+  - name: ECOMMERCE_SERVER_HTTP_PORT
+    value: "8080"
+  - name: ECOMMERCE_SERVER_GRPC_PORT
+    value: "9090"
+  - name: WEBSOCKET_PORT
+    value: "8081"
+
+secrets:
+  dbPassword: ""
+  redisPassword: ""
+  jwtSecret: ""
+  rtmpServerUrl: ""

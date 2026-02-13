@@ -1,78 +1,182 @@
+// 变更说明：重构 KYC 服务，使用 DDD/CQRS + Outbox + Redis 读模型架构
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
-	"net"
-	"os"
-	"os/signal"
-	"syscall"
+	"time"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/kyc"
+	pb "github.com/wyfcoding/ecommerce/go-api/kyc/v1"
 	"github.com/wyfcoding/ecommerce/internal/kyc/application"
 	"github.com/wyfcoding/ecommerce/internal/kyc/domain"
-	"github.com/wyfcoding/ecommerce/internal/kyc/infrastructure"
-	"github.com/wyfcoding/ecommerce/internal/kyc/interfaces"
+	kycmysql "github.com/wyfcoding/ecommerce/internal/kyc/infrastructure/persistence/mysql"
+	kycredis "github.com/wyfcoding/ecommerce/internal/kyc/infrastructure/persistence/redis"
+	kycgrpc "github.com/wyfcoding/ecommerce/internal/kyc/interfaces/grpc"
+	"github.com/wyfcoding/pkg/app"
+	"github.com/wyfcoding/pkg/cache"
+	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/database"
+	"github.com/wyfcoding/pkg/limiter"
+	"github.com/wyfcoding/pkg/logging"
+	"github.com/wyfcoding/pkg/messagequeue/kafka"
+	"github.com/wyfcoding/pkg/messagequeue/outbox"
+	"github.com/wyfcoding/pkg/metrics"
+	"github.com/wyfcoding/pkg/middleware"
+
+	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
+// BootstrapName 服务唯一标识
+const BootstrapName = "kyc"
+
+// Config 服务扩展配置
+type Config struct {
+	configpkg.Config `mapstructure:",squash"`
+}
+
+// AppContext 应用上下文
+type AppContext struct {
+	Config  *Config
+	Cmd     *application.KYCCommandService
+	Query   *application.KYCQueryService
+	Metrics *metrics.Metrics
+	Limiter limiter.Limiter
+}
+
 func main() {
-	// 1. 初始化日志
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
-	logger.Info("starting KYC service")
-
-	// 2. 初始化数据库
-	dsn := os.Getenv("DB_DSN")
-	if dsn == "" {
-		dsn = "root:root1234@tcp(127.0.0.1:3306)/ecommerce?charset=utf8mb4&parseTime=True&loc=Local"
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		WithGin(registerGin).
+		WithGinMiddleware(
+			middleware.CORS(),
+			middleware.TimeoutMiddleware(30*time.Second),
+		).
+		Build().
+		Run(); err != nil {
+		slog.Error("service bootstrap failed", "error", err)
 	}
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+}
+
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
+	pb.RegisterKYCServiceServer(s, kycgrpc.NewKYCHandler(ctx.Cmd, ctx.Query))
+}
+
+func registerGin(e *gin.Engine, ctx *AppContext) {
+	if ctx.Config.Server.Environment == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	if ctx.Limiter != nil {
+		e.Use(middleware.RateLimitWithLimiter(ctx.Limiter))
+	}
+	// KYC 服务主要通过 gRPC 提供服务，HTTP 仅提供健康检查
+	e.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+}
+
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	c := cfg
+	bootLog := slog.With("module", "bootstrap")
+	logger := logging.Default()
+
+	configpkg.PrintWithMask(c)
+
+	// 1. DB
+	db, err := database.NewDB(c.Data.Database, c.CircuitBreaker, logger, m)
 	if err != nil {
-		logger.Error("failed to connect database", "error", err)
-		os.Exit(1)
+		return nil, nil, fmt.Errorf("database init error: %w", err)
 	}
-
-	// 自动迁移
-	db.AutoMigrate(&domain.KYCApplication{})
-
-	// 3. 依赖注入
-	repo := infrastructure.NewKYCRepository(db)
-	appService := application.NewKYCApplicationService(repo, logger)
-	handler := interfaces.NewKYCHandler(appService)
-
-	// 4. 启动 gRPC 服务
-	port := os.Getenv("GRPC_PORT")
-	if port == "" {
-		port = "50063"
-	}
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
-	if err != nil {
-		logger.Error("failed to listen", "error", err)
-		os.Exit(1)
-	}
-
-	grpcServer := grpc.NewServer()
-	pb.RegisterKYCServiceServer(grpcServer, handler)
-	reflection.Register(grpcServer)
-
-	// 5. 优雅关停
-	go func() {
-		logger.Info("gRPC server listening on", "port", port)
-		if err := grpcServer.Serve(lis); err != nil {
-			logger.Error("failed to serve", "error", err)
+	if c.Server.Environment == "dev" {
+		if err := db.RawDB().AutoMigrate(
+			&kycmysql.KYCApplicationModel{},
+			&kycmysql.DocumentModel{},
+			&kycmysql.FaceVerificationModel{},
+			&kycmysql.AuditRecordModel{},
+			&kycmysql.MerchantKYCModel{},
+			&outbox.Message{},
+		); err != nil {
+			bootLog.Error("failed to migrate database", "error", err)
 		}
-	}()
+	}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	// 2. Redis
+	redisCache, err := cache.NewRedisCache(&c.Data.Redis, c.CircuitBreaker, logger, m)
+	if err != nil {
+		return nil, nil, fmt.Errorf("redis init error: %w", err)
+	}
 
-	logger.Info("shutting down kyc server...")
-	grpcServer.GracefulStop()
-	logger.Info("server exited")
+	// 3. Kafka & Outbox
+	producer := kafka.NewProducer(&c.MessageQueue.Kafka, logger, m)
+	outboxMgr := outbox.NewManager(db.RawDB(), logger.Logger)
+	outboxProcessor := outbox.NewProcessor(outboxMgr, func(ctx context.Context, topic, key string, payload []byte) error {
+		return producer.PublishToTopic(ctx, topic, []byte(key), payload)
+	}, 100, 5*time.Second)
+	outboxProcessor.Start()
+
+	// 4. Repositories
+	kycRepo := kycmysql.NewKYCRepository(db.RawDB())
+	docRepo := kycmysql.NewDocumentRepository(db.RawDB())
+	faceRepo := kycmysql.NewFaceVerificationRepository(db.RawDB())
+	auditRepo := kycmysql.NewAuditRecordRepository(db.RawDB())
+	merchantRepo := kycmysql.NewMerchantKYCRepository(db.RawDB())
+	readRepo := kycredis.NewKYCReadRepository(redisCache.GetClient(), time.Hour)
+
+	// 5. Domain Service (OCR、人脸识别等服务可以后续集成)
+	domainService := domain.NewKYCDomainService(nil, nil, nil, nil, nil)
+
+	// 6. Application Services
+	publisher := outbox.NewPublisher(outboxMgr)
+	cmdSvc := application.NewKYCCommandService(
+		kycRepo,
+		docRepo,
+		faceRepo,
+		auditRepo,
+		merchantRepo,
+		readRepo,
+		domainService,
+		publisher,
+		c.MessageQueue.Kafka.Topic,
+		logger.Logger,
+	)
+	querySvc := application.NewKYCQueryService(
+		kycRepo,
+		docRepo,
+		faceRepo,
+		auditRepo,
+		merchantRepo,
+		readRepo,
+		logger.Logger,
+	)
+
+	rateLimiter := limiter.NewRedisLimiter(redisCache.GetClient(), c.RateLimit.Rate, c.RateLimit.Burst)
+
+	cleanup := func() {
+		bootLog.Info("shutting down, releasing resources...")
+		outboxProcessor.Stop()
+		if producer != nil {
+			producer.Close()
+		}
+		if redisCache != nil {
+			if err := redisCache.Close(); err != nil {
+				bootLog.Error("failed to close redis cache", "error", err)
+			}
+		}
+		if sqlDB, err := db.RawDB().DB(); err == nil && sqlDB != nil {
+			if err := sqlDB.Close(); err != nil {
+				bootLog.Error("failed to close sql database", "error", err)
+			}
+		}
+	}
+
+	return &AppContext{
+		Config:  c,
+		Cmd:     cmdSvc,
+		Query:   querySvc,
+		Metrics: m,
+		Limiter: rateLimiter,
+	}, cleanup, nil
 }

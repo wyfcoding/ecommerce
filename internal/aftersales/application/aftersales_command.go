@@ -166,6 +166,74 @@ func (m *AfterSalesCommandService) Reject(ctx context.Context, id uint64, operat
 	})
 }
 
+// MarkShippedBack 标记用户已寄回（退货物流中）。
+func (m *AfterSalesCommandService) MarkShippedBack(ctx context.Context, id uint64, operator, trackingNo string) error {
+	afterSales, err := m.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if afterSales == nil {
+		return domain.ErrAfterSalesNotFound
+	}
+	if afterSales.Status != domain.AfterSalesStatusApproved && afterSales.Status != domain.AfterSalesStatusInProgress {
+		return fmt.Errorf("invalid status for shipped back: %v", afterSales.Status)
+	}
+	if afterSales.Status == domain.AfterSalesStatusInProgress {
+		return nil
+	}
+
+	oldStatus := afterSales.Status
+	oldStatusStr := oldStatus.String()
+	afterSales.Status = domain.AfterSalesStatusInProgress
+	remark := "Customer shipped back goods"
+	if trackingNo != "" {
+		remark = fmt.Sprintf("%s, tracking_no=%s", remark, trackingNo)
+	}
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, operator, "ShippedBack", oldStatusStr, afterSales.Status.String(), remark); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
+	})
+}
+
+// Cancel 关闭售后请求。
+func (m *AfterSalesCommandService) Cancel(ctx context.Context, id uint64, operator, reason string) error {
+	afterSales, err := m.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if afterSales == nil {
+		return domain.ErrAfterSalesNotFound
+	}
+	if afterSales.Status == domain.AfterSalesStatusCompleted ||
+		afterSales.Status == domain.AfterSalesStatusRejected ||
+		afterSales.Status == domain.AfterSalesStatusCancelled {
+		return nil
+	}
+
+	oldStatus := afterSales.Status
+	oldStatusStr := oldStatus.String()
+	afterSales.Cancel()
+	if reason == "" {
+		reason = "closed by operator"
+	}
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, operator, "Close", oldStatusStr, afterSales.Status.String(), reason); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
+	})
+}
+
 // Saga 状态回调实现
 
 // SagaMarkRefundCompleted 正向确认成功

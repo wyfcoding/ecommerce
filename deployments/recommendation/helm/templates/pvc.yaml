@@ -1,0 +1,17 @@
+{{- if .Values.volumes.models.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "recommendation.fullname" . }}-models
+  labels:
+    {{- include "recommendation.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.volumes.models.storageClass }}
+  storageClassName: {{ .Values.volumes.models.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.volumes.models.size }}
+{{- end }}
