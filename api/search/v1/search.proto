@@ -5,41 +5,358 @@ package api.search.v1;
 option go_package = "github.com/wyfcoding/ecommerce/go-api/search/v1;searchv1";
 
 // 搜索中心服务，基于索引库提供商品及其属性的全文检索功能。
+// 支持高级筛选、搜索建议、热门搜索词等完整搜索能力。
 service SearchService {
-  // 核心查询接口：根据关键词搜索商品列表。
+  // 核心查询接口：根据关键词和筛选条件搜索商品列表。
   rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
+  
+  // 高级搜索接口：支持多维度筛选和聚合统计。
+  rpc AdvancedSearch(AdvancedSearchRequest) returns (AdvancedSearchResponse);
+  
+  // 搜索建议接口：根据用户输入前缀提供搜索建议。
+  rpc GetSearchSuggestions(GetSearchSuggestionsRequest) returns (GetSearchSuggestionsResponse);
+  
+  // 热门搜索词接口：获取平台热门搜索关键词。
+  rpc GetHotKeywords(GetHotKeywordsRequest) returns (GetHotKeywordsResponse);
+  
+  // 用户搜索历史接口：获取用户的搜索历史记录。
+  rpc GetSearchHistory(GetSearchHistoryRequest) returns (GetSearchHistoryResponse);
+  
+  // 删除搜索历史接口：清空用户的搜索历史记录。
+  rpc ClearSearchHistory(ClearSearchHistoryRequest) returns (ClearSearchHistoryResponse);
+  
+  // 搜索聚合接口：获取搜索结果的聚合统计信息（品牌、分类、属性等）。
+  rpc GetSearchAggregations(GetSearchAggregationsRequest) returns (GetSearchAggregationsResponse);
 }
 
-// 搜索请求。
+// 排序方式枚举
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_RELEVANCE = 1;      // 相关度排序
+  SORT_ORDER_PRICE_ASC = 2;      // 价格升序
+  SORT_ORDER_PRICE_DESC = 3;     // 价格降序
+  SORT_ORDER_SALES_DESC = 4;     // 销量降序
+  SORT_ORDER_NEWEST = 5;         // 最新上架
+  SORT_ORDER_RATING_DESC = 6;    // 评分降序
+}
+
+// 搜索请求（基础版）
 message SearchProductsRequest {
-  // 关键词字符串。
+  // 关键词字符串
   string query = 1;
-  // 每页结果数。
+  // 每页结果数
   int32 page_size = 2;
-  // 分页令牌。
+  // 分页令牌（页码）
   int32 page_token = 3;
+  // 排序方式
+  SortOrder sort_order = 4;
 }
 
-// 搜索响应。
+// 搜索响应（基础版）
 message SearchProductsResponse {
-  // 命中结果列表。
+  // 命中结果列表
   repeated Product products = 1;
-  // 总命中记录数。
+  // 总命中记录数
   int32 total_size = 2;
-  // 下一页翻页令牌。
+  // 下一页翻页令牌
   int32 next_page_token = 3;
+  // 搜索耗时（毫秒）
+  int64 took_ms = 4;
 }
 
-// 搜索结果中的商品摘要。
+// 高级搜索请求
+message AdvancedSearchRequest {
+  // 关键词字符串
+  string query = 1;
+  // 分类ID列表（支持多选）
+  repeated int64 category_ids = 2;
+  // 品牌ID列表（支持多选）
+  repeated int64 brand_ids = 3;
+  // 价格区间
+  PriceRange price_range = 4;
+  // 属性筛选（键值对，如颜色、尺寸等）
+  map<string, string> attributes = 5;
+  // 标签筛选
+  repeated string tags = 6;
+  // 商家ID列表
+  repeated int64 merchant_ids = 7;
+  // 是否只看有货
+  bool in_stock_only = 8;
+  // 是否只看促销商品
+  bool promotion_only = 9;
+  // 是否只看自营
+  bool self_operated_only = 10;
+  // 发货地筛选（省份列表）
+  repeated string ship_from_provinces = 11;
+  // 评分最低要求
+  double min_rating = 12;
+  // 排序方式
+  SortOrder sort_order = 13;
+  // 分页参数
+  int32 page_size = 14;
+  int32 page_token = 15;
+  // 用户ID（用于个性化排序）
+  int64 user_id = 16;
+}
+
+// 价格区间
+message PriceRange {
+  // 最低价格（分）
+  int64 min_price = 1;
+  // 最高价格（分）
+  int64 max_price = 2;
+}
+
+// 高级搜索响应
+message AdvancedSearchResponse {
+  // 命中结果列表
+  repeated Product products = 1;
+  // 总命中记录数
+  int64 total_size = 2;
+  // 下一页翻页令牌
+  int32 next_page_token = 3;
+  // 搜索耗时（毫秒）
+  int64 took_ms = 4;
+  // 聚合结果
+  SearchAggregations aggregations = 5;
+  // 修正后的搜索词（如果原词有误）
+  string corrected_query = 6;
+  // 是否有结果
+  bool has_results = 7;
+}
+
+// 搜索结果中的商品摘要
 message Product {
-  // 商品 ID。
-  string id = 1;
-  // 商品名称。
+  // 商品ID
+  int64 id = 1;
+  // 商品名称
   string name = 2;
-  // 简短描述或卖点。
+  // 简短描述或卖点
   string description = 3;
-  // 标价。
-  double price = 4;
-  // 主图 URL。
-  string image_url = 5;
+  // 标价（分）
+  int64 price = 4;
+  // 原价（分）
+  int64 original_price = 5;
+  // 主图URL
+  string image_url = 6;
+  // 销量
+  int64 sales = 7;
+  // 评分
+  double rating = 8;
+  // 评价数
+  int64 review_count = 9;
+  // 库存状态
+  bool in_stock = 10;
+  // 是否自营
+  bool self_operated = 11;
+  // 商家ID
+  int64 merchant_id = 12;
+  // 商家名称
+  string merchant_name = 13;
+  // 分类ID
+  int64 category_id = 14;
+  // 分类名称
+  string category_name = 15;
+  // 品牌ID
+  int64 brand_id = 16;
+  // 品牌名称
+  string brand_name = 17;
+  // 标签列表
+  repeated string tags = 18;
+  // 高亮片段（搜索词高亮）
+  repeated HighlightField highlights = 19;
+}
+
+// 高亮字段
+message HighlightField {
+  // 字段名
+  string field = 1;
+  // 高亮片段
+  repeated string fragments = 2;
+}
+
+// 搜索聚合结果
+message SearchAggregations {
+  // 品牌聚合
+  repeated BrandAggregation brands = 1;
+  // 分类聚合
+  repeated CategoryAggregation categories = 2;
+  // 价格区间聚合
+  repeated PriceBucketAggregation price_buckets = 3;
+  // 属性聚合
+  repeated AttributeAggregation attributes = 4;
+}
+
+// 品牌聚合项
+message BrandAggregation {
+  int64 brand_id = 1;
+  string brand_name = 2;
+  int64 count = 3;
+}
+
+// 分类聚合项
+message CategoryAggregation {
+  int64 category_id = 1;
+  string category_name = 2;
+  int64 parent_id = 3;
+  int64 count = 4;
+  repeated CategoryAggregation children = 5;
+}
+
+// 价格区间聚合项
+message PriceBucketAggregation {
+  string label = 1;        // 如 "0-100", "100-500"
+  int64 min_price = 2;
+  int64 max_price = 3;
+  int64 count = 4;
+}
+
+// 属性聚合项
+message AttributeAggregation {
+  string attribute_name = 1;
+  string attribute_label = 2;
+  repeated AttributeValue values = 3;
+}
+
+// 属性值聚合项
+message AttributeValue {
+  string value = 1;
+  string label = 2;
+  int64 count = 3;
+}
+
+// 搜索建议请求
+message GetSearchSuggestionsRequest {
+  // 用户输入的关键词前缀
+  string prefix = 1;
+  // 建议数量限制
+  int32 limit = 2;
+  // 用户ID（用于个性化建议）
+  int64 user_id = 3;
+  // 分类ID（用于分类内建议）
+  int64 category_id = 4;
+}
+
+// 搜索建议响应
+message GetSearchSuggestionsResponse {
+  // 建议列表
+  repeated SearchSuggestion suggestions = 1;
+}
+
+// 搜索建议项
+message SearchSuggestion {
+  // 建议关键词
+  string keyword = 1;
+  // 建议类型
+  SuggestionType type = 2;
+  // 相关度得分
+  int32 score = 3;
+  // 匹配的商品数量
+  int64 product_count = 4;
+  // 高亮显示（匹配部分用<em>标签包裹）
+  string highlighted = 5;
+  // 关联的分类
+  int64 category_id = 6;
+  string category_name = 7;
+}
+
+// 建议类型枚举
+enum SuggestionType {
+  SUGGESTION_TYPE_UNSPECIFIED = 0;
+  SUGGESTION_TYPE_HISTORY = 1;      // 历史搜索
+  SUGGESTION_TYPE_HOT = 2;          // 热门搜索
+  SUGGESTION_TYPE_COMPLETION = 3;   // 自动补全
+  SUGGESTION_TYPE_CORRECTION = 4;   // 拼写纠正
+  SUGGESTION_TYPE_RELATED = 5;      // 相关搜索
+  SUGGESTION_TYPE_CATEGORY = 6;     // 分类推荐
+}
+
+// 热门搜索词请求
+message GetHotKeywordsRequest {
+  // 数量限制
+  int32 limit = 1;
+  // 分类ID（可选，获取分类下的热门词）
+  int64 category_id = 2;
+  // 时间范围（小时）
+  int32 time_range_hours = 3;
+}
+
+// 热门搜索词响应
+message GetHotKeywordsResponse {
+  // 热门关键词列表
+  repeated HotKeyword keywords = 1;
+}
+
+// 热门关键词项
+message HotKeyword {
+  // 关键词
+  string keyword = 1;
+  // 搜索次数
+  int64 search_count = 2;
+  // 排名
+  int32 rank = 3;
+  // 趋势（上升/下降/持平）
+  KeywordTrend trend = 4;
+  // 关联分类
+  int64 category_id = 5;
+  string category_name = 6;
+}
+
+// 关键词趋势枚举
+enum KeywordTrend {
+  KEYWORD_TREND_UNSPECIFIED = 0;
+  KEYWORD_TREND_UP = 1;      // 上升
+  KEYWORD_TREND_DOWN = 2;    // 下降
+  KEYWORD_TREND_STABLE = 3;  // 持平
+  KEYWORD_TREND_NEW = 4;     // 新上榜
+}
+
+// 搜索历史请求
+message GetSearchHistoryRequest {
+  // 用户ID
+  int64 user_id = 1;
+  // 数量限制
+  int32 limit = 2;
+}
+
+// 搜索历史响应
+message GetSearchHistoryResponse {
+  // 搜索历史列表
+  repeated SearchHistoryItem items = 1;
+}
+
+// 搜索历史项
+message SearchHistoryItem {
+  // 关键词
+  string keyword = 1;
+  // 搜索时间
+  string searched_at = 2;
+  // 搜索结果数量
+  int64 result_count = 3;
+}
+
+// 清空搜索历史请求
+message ClearSearchHistoryRequest {
+  // 用户ID
+  int64 user_id = 1;
+}
+
+// 清空搜索历史响应
+message ClearSearchHistoryResponse {
+  // 是否成功
+  bool success = 1;
+}
+
+// 搜索聚合请求
+message GetSearchAggregationsRequest {
+  // 关键词
+  string query = 1;
+  // 分类ID（可选）
+  int64 category_id = 2;
+}
+
+// 搜索聚合响应
+message GetSearchAggregationsResponse {
+  // 聚合结果
+  SearchAggregations aggregations = 1;
 }

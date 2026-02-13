@@ -31,8 +31,30 @@ enum RefundStatus {
   REFUND_CLOSED = 4; // 退款已关
 }
 
+// 分账状态。
+enum SplitStatus {
+  SPLIT_STATUS_UNSPECIFIED = 0;
+  SPLIT_PENDING = 1; // 待分账
+  SPLIT_PROCESSING = 2; // 分账中
+  SPLIT_SUCCESS = 3; // 分账成功
+  SPLIT_FAILED = 4; // 分账失败
+  SPLIT_REVERSED = 5; // 已回退
+}
+
+// 提现状态。
+enum WithdrawalStatus {
+  WITHDRAWAL_STATUS_UNSPECIFIED = 0;
+  WITHDRAWAL_PENDING = 1; // 待审核
+  WITHDRAWAL_PROCESSING = 2; // 处理中
+  WITHDRAWAL_SUCCESS = 3; // 提现成功
+  WITHDRAWAL_FAILED = 4; // 提现失败
+  WITHDRAWAL_REJECTED = 5; // 已拒绝
+}
+
 // 支付服务，处理收银台调起、第三方支付回调、退款申请及支付对账。
 service PaymentService {
+  // ==================== 支付相关 ====================
+  
   // 创建支付单，获取支付链接或二维码参数。
   rpc InitiatePayment(InitiatePaymentRequest) returns (PaymentResponse);
 
@@ -41,6 +63,11 @@ service PaymentService {
 
   // 实时查询支付单的最新状态。
   rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentTransaction);
+
+  // 分页列出系统的支付历史记录。
+  rpc ListPaymentTransactions(ListPaymentTransactionsRequest) returns (ListPaymentTransactionsResponse);
+
+  // ==================== 退款相关 ====================
 
   // 针对已成功的支付发起退款申请。
   rpc RequestRefund(RequestRefundRequest) returns (RefundTransaction);
@@ -51,18 +78,351 @@ service PaymentService {
   // 查询退款任务的执行进度。
   rpc GetRefundStatus(GetRefundStatusRequest) returns (RefundTransaction);
 
-  // 分页列出系统的支付历史记录。
-  rpc ListPaymentTransactions(ListPaymentTransactionsRequest) returns (ListPaymentTransactionsResponse);
-
   // 分页列出系统的退款历史记录。
   rpc ListRefundTransactions(ListRefundTransactionsRequest) returns (ListRefundTransactionsResponse);
 
-  // --- Saga 分布式事务接口 ---
+  // ==================== 分账相关 ====================
+
+  // 创建分账任务（支付成功后调用）。
+  rpc CreateSplit(CreateSplitRequest) returns (SplitTransaction);
+
+  // 执行分账（订单确认收货或担保期结束后调用）。
+  rpc ExecuteSplit(ExecuteSplitRequest) returns (SplitTransaction);
+
+  // 查询分账状态。
+  rpc GetSplitStatus(GetSplitStatusRequest) returns (SplitTransaction);
+
+  // 分账回退（退款时需要回退已分账资金）。
+  rpc ReverseSplit(ReverseSplitRequest) returns (SplitTransaction);
+
+  // 分页列出分账记录。
+  rpc ListSplitTransactions(ListSplitTransactionsRequest) returns (ListSplitTransactionsResponse);
+
+  // ==================== 提现相关 ====================
+
+  // 创建提现申请。
+  rpc CreateWithdrawal(CreateWithdrawalRequest) returns (WithdrawalTransaction);
+
+  // 审核提现申请。
+  rpc ReviewWithdrawal(ReviewWithdrawalRequest) returns (WithdrawalTransaction);
+
+  // 查询提现状态。
+  rpc GetWithdrawalStatus(GetWithdrawalStatusRequest) returns (WithdrawalTransaction);
+
+  // 分页列出提现记录。
+  rpc ListWithdrawals(ListWithdrawalsRequest) returns (ListWithdrawalsResponse);
+
+  // 获取用户/商家可提现余额。
+  rpc GetWithdrawableBalance(GetWithdrawableBalanceRequest) returns (WithdrawableBalance);
+
+  // ==================== Saga 分布式事务接口 ====================
+
   // 发起退款 (Saga Forward)
   rpc SagaRefund(SagaRefundRequest) returns (SagaRefundResponse);
   // 取消/冲正退款 (Saga Compensate)
   rpc SagaCancelRefund(SagaRefundRequest) returns (SagaRefundResponse);
 }
+
+// ==================== 支付消息定义 ====================
+
+// 支付流水明细。
+message PaymentTransaction {
+  uint64 id = 1;
+  string transaction_no = 2;
+  uint64 order_id = 3;
+  uint64 user_id = 4;
+  string payment_method = 5;
+  int64 amount = 6;
+  PaymentStatus status = 7;
+  string gateway_transaction_id = 8;
+  string gateway_response = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp paid_at = 12;
+  google.protobuf.Timestamp closed_at = 13;
+  string currency = 14;
+  // 分账状态
+  SplitStatus split_status = 15;
+  // 已分账金额
+  int64 split_amount = 16;
+}
+
+// 支付拉起响应。
+message PaymentResponse {
+  string payment_url = 1;
+  string prepay_id = 2;
+  string app_id = 3;
+  string partner_id = 4;
+  string package_value = 5;
+  string nonce_str = 6;
+  string timestamp = 7;
+  string sign = 8;
+  string transaction_no = 9;
+}
+
+// 发起请求。
+message InitiatePaymentRequest {
+  uint64 order_id = 1;
+  uint64 user_id = 2;
+  string payment_method = 3;
+  int64 amount = 4;
+  string client_ip = 5;
+  string return_url = 6;
+  string idempotency_key = 7;
+}
+
+// 回调处理请求。
+message HandlePaymentCallbackRequest {
+  string payment_method = 1;
+  map<string, string> callback_data = 2;
+}
+
+// 状态查询。
+message GetPaymentStatusRequest {
+  uint64 payment_transaction_id = 1;
+  google.protobuf.StringValue transaction_no = 2;
+  google.protobuf.StringValue gateway_transaction_id = 3;
+}
+
+// 流水列表查询。
+message ListPaymentTransactionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  uint64 user_id = 3;
+  uint64 order_id = 4;
+  PaymentStatus status = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+// 流水列表响应。
+message ListPaymentTransactionsResponse {
+  repeated PaymentTransaction transactions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// ==================== 退款消息定义 ====================
+
+// 退款流水明细。
+message RefundTransaction {
+  uint64 id = 1;
+  string refund_no = 2;
+  uint64 payment_transaction_id = 3;
+  uint64 order_id = 4;
+  uint64 user_id = 5;
+  int64 refund_amount = 6;
+  RefundStatus status = 7;
+  string gateway_refund_id = 8;
+  string gateway_response = 9;
+  string reason = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp refunded_at = 13;
+  google.protobuf.Timestamp closed_at = 14;
+}
+
+// 退款请求。
+message RequestRefundRequest {
+  uint64 payment_transaction_id = 1;
+  uint64 order_id = 2;
+  uint64 user_id = 3;
+  int64 refund_amount = 4;
+  string reason = 5;
+}
+
+// 退款回调请求。
+message HandleRefundCallbackRequest {
+  string payment_method = 1;
+  map<string, string> callback_data = 2;
+}
+
+// 退款查询。
+message GetRefundStatusRequest {
+  uint64 refund_transaction_id = 1;
+  google.protobuf.StringValue refund_no = 2;
+  google.protobuf.StringValue gateway_refund_id = 3;
+}
+
+// 退款记录列表请求。
+message ListRefundTransactionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  uint64 user_id = 3;
+  uint64 order_id = 4;
+  RefundStatus status = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+// 退款记录列表响应。
+message ListRefundTransactionsResponse {
+  repeated RefundTransaction transactions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// ==================== 分账消息定义 ====================
+
+// 分账参与方。
+message SplitParticipant {
+  string account_id = 1;
+  string role = 2; // MERCHANT, PLATFORM, REFERRER, AFFILIATE
+  int64 amount = 3;
+  string description = 4;
+  string account_name = 5;
+}
+
+// 分账交易明细。
+message SplitTransaction {
+  uint64 id = 1;
+  string split_no = 2;
+  uint64 payment_transaction_id = 3;
+  string payment_transaction_no = 4;
+  uint64 order_id = 5;
+  int64 total_amount = 6;
+  SplitStatus status = 7;
+  repeated SplitParticipant participants = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp executed_at = 11;
+  string failure_reason = 12;
+}
+
+// 创建分账请求。
+message CreateSplitRequest {
+  uint64 payment_transaction_id = 1;
+  uint64 order_id = 2;
+  int64 total_amount = 3;
+  repeated SplitParticipant participants = 4;
+}
+
+// 执行分账请求。
+message ExecuteSplitRequest {
+  uint64 split_id = 1;
+  string split_no = 2;
+}
+
+// 查询分账状态请求。
+message GetSplitStatusRequest {
+  uint64 split_id = 1;
+  string split_no = 2;
+  uint64 payment_transaction_id = 3;
+}
+
+// 分账回退请求。
+message ReverseSplitRequest {
+  uint64 split_id = 1;
+  string split_no = 2;
+  int64 reverse_amount = 3;
+  string reason = 4;
+}
+
+// 分账列表请求。
+message ListSplitTransactionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  uint64 order_id = 3;
+  uint64 payment_transaction_id = 4;
+  SplitStatus status = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+// 分账列表响应。
+message ListSplitTransactionsResponse {
+  repeated SplitTransaction transactions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// ==================== 提现消息定义 ====================
+
+// 提现交易明细。
+message WithdrawalTransaction {
+  uint64 id = 1;
+  string withdrawal_no = 2;
+  uint64 account_id = 3;
+  string account_type = 4; // USER, MERCHANT
+  int64 amount = 5;
+  int64 fee = 6;
+  int64 actual_amount = 7;
+  WithdrawalStatus status = 8;
+  string bank_name = 9;
+  string bank_account = 10;
+  string account_holder = 11;
+  string gateway_transaction_id = 12;
+  string reject_reason = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+  google.protobuf.Timestamp processed_at = 16;
+  google.protobuf.Timestamp completed_at = 17;
+}
+
+// 创建提现请求。
+message CreateWithdrawalRequest {
+  uint64 account_id = 1;
+  string account_type = 2;
+  int64 amount = 3;
+  string bank_name = 4;
+  string bank_account = 5;
+  string account_holder = 6;
+  string idempotency_key = 7;
+}
+
+// 审核提现请求。
+message ReviewWithdrawalRequest {
+  uint64 withdrawal_id = 1;
+  bool approved = 2;
+  string reject_reason = 3;
+  uint64 reviewer_id = 4;
+}
+
+// 查询提现状态请求。
+message GetWithdrawalStatusRequest {
+  uint64 withdrawal_id = 1;
+  string withdrawal_no = 2;
+}
+
+// 提现列表请求。
+message ListWithdrawalsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  uint64 account_id = 3;
+  string account_type = 4;
+  WithdrawalStatus status = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+// 提现列表响应。
+message ListWithdrawalsResponse {
+  repeated WithdrawalTransaction transactions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// 可提现余额请求。
+message GetWithdrawableBalanceRequest {
+  uint64 account_id = 1;
+  string account_type = 2;
+}
+
+// 可提现余额响应。
+message WithdrawableBalance {
+  uint64 account_id = 1;
+  string account_type = 2;
+  int64 total_balance = 3;
+  int64 frozen_amount = 4;
+  int64 withdrawable_amount = 5;
+  int64 pending_withdrawal = 6;
+}
+
+// ==================== Saga 消息定义 ====================
 
 // Saga 退款请求
 message SagaRefundRequest {
@@ -76,218 +436,4 @@ message SagaRefundRequest {
 message SagaRefundResponse {
   bool success = 1;
   string refund_no = 2;
-}
-
-// 支付流水明细。
-message PaymentTransaction {
-  // 流水 ID。
-  uint64 id = 1;
-  // 内部交易号。
-  string transaction_no = 2;
-  // 关联订单 ID。
-  uint64 order_id = 3;
-  // 付款用户 ID。
-  uint64 user_id = 4;
-  // 支付方式 (WECHAT, ALIPAY)。
-  string payment_method = 5;
-  // 支付金额（分）。
-  int64 amount = 6;
-  // 状态。
-  PaymentStatus status = 7;
-  // 第三方渠道流水号。
-  string gateway_transaction_id = 8;
-  // 渠道端原始 JSON。
-  string gateway_response = 9;
-  // 记录生成时间。
-  google.protobuf.Timestamp created_at = 10;
-  // 修改时间。
-  google.protobuf.Timestamp updated_at = 11;
-  // 支付确认时间。
-  google.protobuf.Timestamp paid_at = 12;
-  // 结单/关闭时间。
-  google.protobuf.Timestamp closed_at = 13;
-  // 币种。
-  string currency = 14;
-}
-
-// 退款流水明细。
-message RefundTransaction {
-  // 退款 ID。
-  uint64 id = 1;
-  // 内部退款号。
-  string refund_no = 2;
-  // 关联原支付流水 ID。
-  uint64 payment_transaction_id = 3;
-  // 关联原订单 ID。
-  uint64 order_id = 4;
-  // 退款用户 ID。
-  uint64 user_id = 5;
-  // 退款金额（分）。
-  int64 refund_amount = 6;
-  // 状态。
-  RefundStatus status = 7;
-  // 第三方退款单号。
-  string gateway_refund_id = 8;
-  // 渠道原始响应。
-  string gateway_response = 9;
-  // 退款理由。
-  string reason = 10;
-  // 申请时间。
-  google.protobuf.Timestamp created_at = 11;
-  // 修改时间。
-  google.protobuf.Timestamp updated_at = 12;
-  // 成功时间。
-  google.protobuf.Timestamp refunded_at = 13;
-  // 完结时间。
-  google.protobuf.Timestamp closed_at = 14;
-}
-
-// 支付拉起响应。
-message PaymentResponse {
-  // 外部支付跳转地址。
-  string payment_url = 1;
-  // 预支付凭证。
-  string prepay_id = 2;
-  // 微信/支付宝 AppID。
-  string app_id = 3;
-  // 商户号。
-  string partner_id = 4;
-  // 签名包。
-  string package_value = 5;
-  // 随机串。
-  string nonce_str = 6;
-  // 时间戳。
-  string timestamp = 7;
-  // 签名摘要。
-  string sign = 8;
-  // 内部流水号。
-  string transaction_no = 9;
-}
-
-// 发起请求。
-message InitiatePaymentRequest {
-  // 订单 ID。
-  uint64 order_id = 1;
-  // 用户 ID。
-  uint64 user_id = 2;
-  // 方式。
-  string payment_method = 3;
-  // 金额（分）。
-  int64 amount = 4;
-  // 发起端 IP。
-  string client_ip = 5;
-  // 前端同步回跳地址。
-  string return_url = 6;
-  // 幂等键。
-  string idempotency_key = 7;
-}
-
-// 回调处理请求。
-message HandlePaymentCallbackRequest {
-  // 支付方式。
-  string payment_method = 1;
-  // 渠道传回的所有参数映射。
-  map<string, string> callback_data = 2;
-}
-
-// 状态查询。
-message GetPaymentStatusRequest {
-  // 内部流水 ID。
-  uint64 payment_transaction_id = 1;
-  // 内部流水号。
-  google.protobuf.StringValue transaction_no = 2;
-  // 渠道流水号。
-  google.protobuf.StringValue gateway_transaction_id = 3;
-}
-
-// 退款请求。
-message RequestRefundRequest {
-  // 原流水 ID。
-  uint64 payment_transaction_id = 1;
-  // 订单 ID。
-  uint64 order_id = 2;
-  // 用户 ID。
-  uint64 user_id = 3;
-  // 退款金额。
-  int64 refund_amount = 4;
-  // 理由。
-  string reason = 5;
-}
-
-// 退款回调请求。
-message HandleRefundCallbackRequest {
-  // 方式。
-  string payment_method = 1;
-  // 渠道返回数据。
-  map<string, string> callback_data = 2;
-}
-
-// 退款查询。
-message GetRefundStatusRequest {
-  // 内部退款 ID。
-  uint64 refund_transaction_id = 1;
-  // 内部退款号。
-  google.protobuf.StringValue refund_no = 2;
-  // 渠道退款 ID。
-  google.protobuf.StringValue gateway_refund_id = 3;
-}
-
-// 流水列表查询。
-message ListPaymentTransactionsRequest {
-  // 页码。
-  int32 page = 1;
-  // 数量。
-  int32 page_size = 2;
-  // 用户。
-  uint64 user_id = 3;
-  // 订单。
-  uint64 order_id = 4;
-  // 状态。
-  PaymentStatus status = 5;
-  // 开始日期。
-  google.protobuf.Timestamp start_time = 6;
-  // 结束日期。
-  google.protobuf.Timestamp end_time = 7;
-}
-
-// 流水列表响应。
-message ListPaymentTransactionsResponse {
-  // 流水记录。
-  repeated PaymentTransaction transactions = 1;
-  // 总笔数。
-  int32 total = 2;
-  // 当前页。
-  int32 page = 3;
-  // 翻页限制。
-  int32 page_size = 4;
-}
-
-// 退款记录列表请求。
-message ListRefundTransactionsRequest {
-  // 页码。
-  int32 page = 1;
-  // 数量。
-  int32 page_size = 2;
-  // 用户。
-  uint64 user_id = 3;
-  // 订单。
-  uint64 order_id = 4;
-  // 状态。
-  RefundStatus status = 5;
-  // 开始日期。
-  google.protobuf.Timestamp start_time = 6;
-  // 结束日期。
-  google.protobuf.Timestamp end_time = 7;
-}
-
-// 退款记录列表响应。
-message ListRefundTransactionsResponse {
-  // 退款记录。
-  repeated RefundTransaction transactions = 1;
-  // 总记录。
-  int32 total = 2;
-  // 当前页。
-  int32 page = 3;
-  // 翻页限制。
-  int32 page_size = 4;
 }
