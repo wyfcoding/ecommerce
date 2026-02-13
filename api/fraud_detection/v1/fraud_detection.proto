@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+package api.frauddetection.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/frauddetection/v1;frauddetectionv1";
+
+service FraudDetectionService {
+  rpc AnalyzeTransaction(AnalyzeTransactionRequest) returns (RiskAssessment);
+  rpc GetRiskAssessment(GetRiskAssessmentRequest) returns (RiskAssessment);
+  rpc GetBlacklist(GetBlacklistRequest) returns (GetBlacklistResponse);
+  rpc AddToBlacklist(AddToBlacklistRequest) returns (BlacklistEntry);
+  rpc RemoveFromBlacklist(RemoveFromBlacklistRequest) returns (google.protobuf.Empty);
+  rpc GetRiskRules(GetRiskRulesRequest) returns (GetRiskRulesResponse);
+  rpc CreateRiskRule(CreateRiskRuleRequest) returns (RiskRule);
+  rpc UpdateRiskRule(UpdateRiskRuleRequest) returns (RiskRule);
+  rpc DeleteRiskRule(DeleteRiskRuleRequest) returns (google.protobuf.Empty);
+  rpc GetDeviceFingerprint(GetDeviceFingerprintRequest) returns (DeviceFingerprint);
+  rpc RecordSuspiciousActivity(RecordSuspiciousActivityRequest) returns (google.protobuf.Empty);
+  rpc GetUserRiskProfile(GetUserRiskProfileRequest) returns (UserRiskProfile);
+}
+
+enum RiskLevel {
+  RISK_LEVEL_UNSPECIFIED = 0;
+  LOW = 1;
+  MEDIUM = 2;
+  HIGH = 3;
+  CRITICAL = 4;
+}
+
+enum RiskAction {
+  RISK_ACTION_UNSPECIFIED = 0;
+  ALLOW = 1;
+  CHALLENGE = 2;
+  REVIEW = 3;
+  BLOCK = 4;
+}
+
+enum BlacklistType {
+  BLACKLIST_TYPE_UNSPECIFIED = 0;
+  USER = 1;
+  DEVICE = 2;
+  IP = 3;
+  CARD = 4;
+  PHONE = 5;
+  EMAIL = 6;
+}
+
+enum RuleType {
+  RULE_TYPE_UNSPECIFIED = 0;
+  VELOCITY = 1;
+  AMOUNT = 2;
+  GEOGRAPHY = 3;
+  BEHAVIOR = 4;
+  DEVICE = 5;
+  CUSTOM = 6;
+}
+
+message AnalyzeTransactionRequest {
+  uint64 user_id = 1;
+  string transaction_id = 2;
+  int64 amount = 3;
+  string currency = 4;
+  string payment_method = 5;
+  string ip_address = 6;
+  string device_fingerprint = 7;
+  string user_agent = 8;
+  GeoLocation geo_location = 9;
+  uint64 merchant_id = 10;
+  string card_last_four = 11;
+  string email = 12;
+  string phone = 13;
+  map<string, string> metadata = 14;
+}
+
+message GeoLocation {
+  double latitude = 1;
+  double longitude = 2;
+  string country = 3;
+  string city = 4;
+}
+
+message RiskAssessment {
+  string assessment_id = 1;
+  string transaction_id = 2;
+  uint64 user_id = 3;
+  RiskLevel risk_level = 4;
+  RiskAction recommended_action = 5;
+  int32 risk_score = 6;
+  repeated RiskFactor risk_factors = 7;
+  repeated string triggered_rules = 8;
+  string explanation = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message RiskFactor {
+  string factor_name = 1;
+  string description = 2;
+  int32 weight = 3;
+  int32 contribution_score = 4;
+}
+
+message GetRiskAssessmentRequest {
+  string assessment_id = 1;
+}
+
+message GetBlacklistRequest {
+  BlacklistType type = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetBlacklistResponse {
+  repeated BlacklistEntry entries = 1;
+  int32 total = 2;
+}
+
+message BlacklistEntry {
+  string id = 1;
+  BlacklistType type = 2;
+  string value = 3;
+  string reason = 4;
+  uint64 created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  bool is_active = 8;
+}
+
+message AddToBlacklistRequest {
+  BlacklistType type = 1;
+  string value = 2;
+  string reason = 3;
+  uint64 created_by = 4;
+  int64 expires_in_seconds = 5;
+}
+
+message RemoveFromBlacklistRequest {
+  string id = 1;
+}
+
+message GetRiskRulesRequest {
+  RuleType type = 1;
+  bool enabled_only = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetRiskRulesResponse {
+  repeated RiskRule rules = 1;
+  int32 total = 2;
+}
+
+message RiskRule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  RuleType type = 4;
+  string condition = 5;
+  int32 risk_weight = 6;
+  RiskAction action = 7;
+  bool enabled = 8;
+  int32 priority = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateRiskRuleRequest {
+  string name = 1;
+  string description = 2;
+  RuleType type = 3;
+  string condition = 4;
+  int32 risk_weight = 5;
+  RiskAction action = 6;
+  int32 priority = 7;
+}
+
+message UpdateRiskRuleRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string condition = 4;
+  int32 risk_weight = 5;
+  RiskAction action = 6;
+  bool enabled = 7;
+  int32 priority = 8;
+}
+
+message DeleteRiskRuleRequest {
+  string id = 1;
+}
+
+message GetDeviceFingerprintRequest {
+  string fingerprint = 1;
+}
+
+message DeviceFingerprint {
+  string fingerprint = 1;
+  uint64 first_seen_user_id = 2;
+  int32 associated_accounts_count = 3;
+  repeated string associated_ips = 4;
+  bool is_suspicious = 5;
+  string device_type = 6;
+  string os = 7;
+  string browser = 8;
+  google.protobuf.Timestamp first_seen_at = 9;
+  google.protobuf.Timestamp last_seen_at = 10;
+}
+
+message RecordSuspiciousActivityRequest {
+  uint64 user_id = 1;
+  string activity_type = 2;
+  string description = 3;
+  string ip_address = 4;
+  string device_fingerprint = 5;
+  map<string, string> metadata = 6;
+}
+
+message GetUserRiskProfileRequest {
+  uint64 user_id = 1;
+}
+
+message UserRiskProfile {
+  uint64 user_id = 1;
+  int32 risk_score = 2;
+  RiskLevel risk_level = 3;
+  int32 total_transactions = 4;
+  int32 flagged_transactions = 5;
+  int32 blocked_transactions = 6;
+  repeated string risk_tags = 7;
+  google.protobuf.Timestamp first_transaction_at = 8;
+  google.protobuf.Timestamp last_transaction_at = 9;
+  google.protobuf.Timestamp last_assessment_at = 10;
+}

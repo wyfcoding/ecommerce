@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/wyfcoding/ecommerce/internal/userprofile/application"
 	"github.com/wyfcoding/ecommerce/internal/userprofile/domain"
 )
@@ -25,104 +25,20 @@ func NewUserProfileHandler(
 	}
 }
 
-func (h *UserProfileHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/v1/user-profiles", h.handleProfiles)
-	mux.HandleFunc("/api/v1/user-profiles/", h.handleProfileByID)
-	mux.HandleFunc("/api/v1/user-profiles/by-tag", h.GetUsersByTag)
-	mux.HandleFunc("/api/v1/user-profiles/by-segment/", h.GetUsersBySegment)
-}
-
-func (h *UserProfileHandler) handleProfiles(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		h.CreateProfile(w, r)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func (h *UserProfileHandler) handleProfileByID(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/api/v1/user-profiles/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "user id required", http.StatusBadRequest)
-		return
-	}
-
-	userID, err := strconv.ParseUint(parts[0], 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user id", http.StatusBadRequest)
-		return
-	}
-
-	if len(parts) == 1 {
-		switch r.Method {
-		case http.MethodGet:
-			h.getProfile(w, r, userID)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-		return
-	}
-
-	switch parts[1] {
-	case "tags":
-		h.handleTags(w, r, userID, parts)
-	case "behaviors":
-		h.handleBehaviors(w, r, userID)
-	case "behavior-features":
-		if r.Method == http.MethodGet {
-			h.getBehaviorFeatures(w, r, userID)
-		}
-	case "preferences":
-		if r.Method == http.MethodGet {
-			h.getPreferences(w, r, userID)
-		}
-	case "consumption":
-		if r.Method == http.MethodGet {
-			h.getConsumptionProfile(w, r, userID)
-		}
-	case "recalculate":
-		if r.Method == http.MethodPost {
-			h.recalculateProfile(w, r, userID)
-		}
-	case "summary":
-		if r.Method == http.MethodGet {
-			h.getProfileSummary(w, r, userID)
-		}
-	default:
-		http.Error(w, "not found", http.StatusNotFound)
-	}
-}
-
-func (h *UserProfileHandler) handleTags(w http.ResponseWriter, r *http.Request, userID uint64, parts []string) {
-	if len(parts) == 2 {
-		switch r.Method {
-		case http.MethodGet:
-			h.getTags(w, r, userID)
-		case http.MethodPost:
-			h.addTag(w, r, userID)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-		return
-	}
-
-	if len(parts) >= 3 && r.Method == http.MethodDelete {
-		h.removeTag(w, r, userID, parts[2])
-		return
-	}
-
-	http.Error(w, "not found", http.StatusNotFound)
-}
-
-func (h *UserProfileHandler) handleBehaviors(w http.ResponseWriter, r *http.Request, userID uint64) {
-	if r.Method == http.MethodPost {
-		h.recordBehavior(w, r, userID)
-	} else {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
+func (h *UserProfileHandler) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/api/v1/user-profiles/{user_id}", h.GetProfile).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles", h.CreateProfile).Methods("POST")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/tags", h.GetTags).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/tags", h.AddTag).Methods("POST")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/tags/{tag_key}", h.RemoveTag).Methods("DELETE")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/behaviors", h.RecordBehavior).Methods("POST")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/behavior-features", h.GetBehaviorFeatures).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/preferences", h.GetPreferences).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/consumption", h.GetConsumptionProfile).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/recalculate", h.RecalculateProfile).Methods("POST")
+	router.HandleFunc("/api/v1/user-profiles/{user_id}/summary", h.GetProfileSummary).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles/by-tag", h.GetUsersByTag).Methods("GET")
+	router.HandleFunc("/api/v1/user-profiles/by-segment/{segment_no}", h.GetUsersBySegment).Methods("GET")
 }
 
 func (h *UserProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
@@ -141,33 +57,48 @@ func (h *UserProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profile)
 }
 
-func (h *UserProfileHandler) getProfile(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	profile, err := h.queryService.GetProfile(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profile)
 }
 
-func (h *UserProfileHandler) getTags(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) GetTags(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	tags, err := h.queryService.GetTags(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tags)
 }
 
-func (h *UserProfileHandler) addTag(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) AddTag(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	var req struct {
 		TagKey     string  `json:"tag_key"`
 		TagValue   string  `json:"tag_value"`
@@ -186,21 +117,35 @@ func (h *UserProfileHandler) addTag(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-func (h *UserProfileHandler) removeTag(w http.ResponseWriter, r *http.Request, userID uint64, tagKey string) {
+func (h *UserProfileHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
+	tagKey := mux.Vars(r)["tag_key"]
+
 	if err := h.commandService.RemoveTag(r.Context(), userID, tagKey); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-func (h *UserProfileHandler) recordBehavior(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) RecordBehavior(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	var req struct {
 		BehaviorType string `json:"behavior_type"`
 		TargetType   string `json:"target_type"`
@@ -219,61 +164,87 @@ func (h *UserProfileHandler) recordBehavior(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-func (h *UserProfileHandler) getBehaviorFeatures(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) GetBehaviorFeatures(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	features, err := h.queryService.GetBehaviorFeatures(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(features)
 }
 
-func (h *UserProfileHandler) getPreferences(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) GetPreferences(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	preferences, err := h.queryService.GetPreferences(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(preferences)
 }
 
-func (h *UserProfileHandler) getConsumptionProfile(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) GetConsumptionProfile(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	consumption, err := h.queryService.GetConsumptionProfile(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(consumption)
 }
 
-func (h *UserProfileHandler) recalculateProfile(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) RecalculateProfile(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	if err := h.commandService.RecalculateProfile(r.Context(), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-func (h *UserProfileHandler) getProfileSummary(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (h *UserProfileHandler) GetProfileSummary(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseUint(mux.Vars(r)["user_id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
 	summary, err := h.queryService.GetProfileSummary(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(summary)
 }
 
@@ -293,14 +264,11 @@ func (h *UserProfileHandler) GetUsersByTag(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
 }
 
 func (h *UserProfileHandler) GetUsersBySegment(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/api/v1/user-profiles/by-segment/")
-	segmentNo := path
-
+	segmentNo := mux.Vars(r)["segment_no"]
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
@@ -314,6 +282,5 @@ func (h *UserProfileHandler) GetUsersBySegment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
 }

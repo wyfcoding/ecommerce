@@ -398,3 +398,68 @@ func (s *PaymentCommandService) SagaCancelRefund(ctx context.Context, barrier an
 		return nil
 	})
 }
+
+// HandleRefundCallback 处理退款结果回调
+func (s *PaymentCommandService) HandleRefundCallback(ctx context.Context, userID uint64, refundNo string, success bool, gatewayRefundID string, callbackData map[string]string) error {
+	s.logger.InfoContext(ctx, "processing external refund callback", "refund_no", refundNo, "user_id", userID, "success", success)
+
+	lockKey := fmt.Sprintf("lock:refund:callback:%s", refundNo)
+	token, err := s.lockSvc.Lock(ctx, lockKey, 10*time.Second)
+	if err != nil {
+		s.logger.WarnContext(ctx, "failed to acquire refund callback lock, might be processing", "key", lockKey)
+		return err
+	}
+	defer func() {
+		if uErr := s.lockSvc.Unlock(ctx, lockKey, token); uErr != nil {
+			s.logger.WarnContext(ctx, "failed to release refund callback lock", "key", lockKey, "error", uErr)
+		}
+	}()
+
+	err = s.paymentRepo.Transaction(ctx, userID, func(tx any) error {
+		txRefundRepo := s.refundRepo.WithTx(tx)
+		txPaymentRepo := s.paymentRepo.WithTx(tx)
+
+		refund, err := txRefundRepo.FindByRefundNo(ctx, userID, refundNo)
+		if err != nil || refund == nil {
+			return fmt.Errorf("refund record not found: %s", refundNo)
+		}
+
+		if refund.Status == pb.PaymentStatus_REFUNDED {
+			s.logger.InfoContext(ctx, "callback ignored: refund already in terminal status", "refund_no", refundNo)
+			return nil
+		}
+
+		payment, err := txPaymentRepo.FindByID(ctx, userID, refund.PaymentID)
+		if err != nil || payment == nil {
+			return fmt.Errorf("payment record not found: %d", refund.PaymentID)
+		}
+
+		if success {
+			now := time.Now()
+			refund.Status = pb.PaymentStatus_REFUNDED
+			refund.RefundedAt = &now
+			refund.GatewayRefundID = gatewayRefundID
+
+			if err := payment.Trigger(ctx, "REFUND_FINISH", "Refund completed via callback"); err != nil {
+				return fmt.Errorf("fsm transition failed: %w", err)
+			}
+		} else {
+			refund.Status = pb.PaymentStatus_FAILED
+			refund.FailureReason = callbackData["fail_reason"]
+			if refund.FailureReason == "" {
+				refund.FailureReason = callbackData["error_msg"]
+			}
+		}
+
+		if err := txRefundRepo.Save(ctx, refund); err != nil {
+			return err
+		}
+
+		return s.saveAggregate(ctx, payment)
+	})
+
+	if err == nil {
+		s.logger.InfoContext(ctx, "refund callback processed successfully", "refund_no", refundNo)
+	}
+	return err
+}

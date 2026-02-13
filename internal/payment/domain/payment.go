@@ -365,6 +365,7 @@ type RefundRepository interface {
 	FindByID(ctx context.Context, userID uint64, id uint64) (*Refund, error)
 	FindByRefundNo(ctx context.Context, userID uint64, refundNo string) (*Refund, error)
 	Save(ctx context.Context, refund *Refund) error
+	List(ctx context.Context, userID uint64, orderID uint64, status pb.RefundStatus, startTime, endTime *time.Time, page, pageSize int) ([]*Refund, int64, error)
 	Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error
 	WithTx(tx any) RefundRepository
 }

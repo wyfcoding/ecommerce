@@ -374,18 +374,95 @@ func convertBrandToProto(b *domain.Brand) *pb.Brand {
 
 // Stub missing Update/Delete Category/Brand to avoid compilation errors if Proto defines them
 func (s *Server) UpdateCategory(ctx context.Context, req *pb.UpdateCategoryRequest) (*pb.Category, error) {
-	// Not implemented in this turn
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	start := time.Now()
+	slog.Info("gRPC UpdateCategory received", "id", req.Id)
+
+	var name *string
+	if req.Name != nil {
+		v := req.Name.Value
+		name = &v
+	}
+	var parentID *uint
+	if req.ParentId != nil {
+		v := uint(req.ParentId.Value)
+		parentID = &v
+	}
+	var sort *int
+	if req.SortOrder != nil {
+		v := int(req.SortOrder.Value)
+		sort = &v
+	}
+
+	cmd := &application.UpdateCategoryCommand{
+		ID:       uint(req.Id),
+		Name:     name,
+		ParentID: parentID,
+		Sort:     sort,
+	}
+
+	category, err := s.cmdService.UpdateCategory(ctx, cmd)
+	if err != nil {
+		slog.Error("gRPC UpdateCategory failed", "id", req.Id, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update category: %v", err))
+	}
+
+	slog.Info("gRPC UpdateCategory successful", "id", req.Id, "duration", time.Since(start))
+	return convertCategoryToProto(category), nil
 }
 
 func (s *Server) DeleteCategory(ctx context.Context, req *pb.DeleteCategoryRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	start := time.Now()
+	slog.Info("gRPC DeleteCategory received", "id", req.Id)
+
+	if err := s.cmdService.DeleteCategory(ctx, req.Id); err != nil {
+		slog.Error("gRPC DeleteCategory failed", "id", req.Id, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete category: %v", err))
+	}
+
+	slog.Info("gRPC DeleteCategory successful", "id", req.Id, "duration", time.Since(start))
+	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) UpdateBrand(ctx context.Context, req *pb.UpdateBrandRequest) (*pb.Brand, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	start := time.Now()
+	slog.Info("gRPC UpdateBrand received", "id", req.Id)
+
+	var name *string
+	if req.Name != nil {
+		v := req.Name.Value
+		name = &v
+	}
+	var logo *string
+	if req.LogoUrl != nil {
+		v := req.LogoUrl.Value
+		logo = &v
+	}
+
+	cmd := &application.UpdateBrandCommand{
+		ID:    uint(req.Id),
+		Name:  name,
+		Logo:  logo,
+	}
+
+	brand, err := s.cmdService.UpdateBrand(ctx, cmd)
+	if err != nil {
+		slog.Error("gRPC UpdateBrand failed", "id", req.Id, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update brand: %v", err))
+	}
+
+	slog.Info("gRPC UpdateBrand successful", "id", req.Id, "duration", time.Since(start))
+	return convertBrandToProto(brand), nil
 }
 
 func (s *Server) DeleteBrand(ctx context.Context, req *pb.DeleteBrandRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	start := time.Now()
+	slog.Info("gRPC DeleteBrand received", "id", req.Id)
+
+	if err := s.cmdService.DeleteBrand(ctx, req.Id); err != nil {
+		slog.Error("gRPC DeleteBrand failed", "id", req.Id, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete brand: %v", err))
+	}
+
+	slog.Info("gRPC DeleteBrand successful", "id", req.Id, "duration", time.Since(start))
+	return &emptypb.Empty{}, nil
 }

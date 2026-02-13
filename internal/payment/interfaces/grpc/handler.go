@@ -178,6 +178,154 @@ func (s *Server) SagaCancelRefund(ctx context.Context, req *pb.SagaRefundRequest
 	return &pb.SagaRefundResponse{Success: true}, nil
 }
 
+// HandleRefundCallback 处理退款结果异步回调
+func (s *Server) HandleRefundCallback(ctx context.Context, req *pb.HandleRefundCallbackRequest) (*emptypb.Empty, error) {
+	start := time.Now()
+	slog.Info("gRPC HandleRefundCallback received", "method", req.PaymentMethod)
+
+	refundNo := req.CallbackData["out_refund_no"]
+	if refundNo == "" {
+		refundNo = req.CallbackData["refund_no"]
+	}
+	if refundNo == "" {
+		slog.Error("gRPC HandleRefundCallback failed: missing refund_no", "data", req.CallbackData)
+		return nil, status.Error(codes.InvalidArgument, "missing refund_no in callback data")
+	}
+
+	gatewayRefundID := req.CallbackData["refund_id"]
+	statusVal := req.CallbackData["refund_status"]
+	success := (statusVal == "REFUND_SUCCESS" || statusVal == "SUCCESS")
+
+	userID, err := s.queryService.GetUserIDByPaymentNo(ctx, refundNo)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to get user_id by refund_no, trying callback data", "refund_no", refundNo, "error", err)
+		if uid, ok := req.CallbackData["user_id"]; ok {
+			fmt.Sscanf(uid, "%d", &userID)
+		}
+	}
+
+	if err := s.cmdService.HandleRefundCallback(ctx, userID, refundNo, success, gatewayRefundID, req.CallbackData); err != nil {
+		slog.Error("gRPC HandleRefundCallback application error", "refund_no", refundNo, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	slog.Info("gRPC HandleRefundCallback processed successfully", "refund_no", refundNo, "duration", time.Since(start))
+	return &emptypb.Empty{}, nil
+}
+
+// GetRefundStatus 查询退款状态
+func (s *Server) GetRefundStatus(ctx context.Context, req *pb.GetRefundStatusRequest) (*pb.RefundTransaction, error) {
+	start := time.Now()
+	slog.Debug("gRPC GetRefundStatus received", "id", req.RefundTransactionId, "refund_no", req.RefundNo)
+
+	var refund *domain.Refund
+	var err error
+
+	if req.RefundNo != nil && req.RefundNo.Value != "" {
+		refund, err = s.queryService.GetRefundStatus(ctx, 0, req.RefundNo.Value)
+	} else if req.RefundTransactionId > 0 {
+		refund, err = s.queryService.GetRefundStatus(ctx, 0, fmt.Sprintf("%d", req.RefundTransactionId))
+	} else {
+		return nil, status.Error(codes.InvalidArgument, "refund_transaction_id or refund_no is required")
+	}
+
+	if err != nil {
+		slog.Error("gRPC GetRefundStatus failed", "id", req.RefundTransactionId, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if refund == nil {
+		return nil, status.Error(codes.NotFound, "refund record not found")
+	}
+
+	slog.Debug("gRPC GetRefundStatus successful", "id", req.RefundTransactionId, "duration", time.Since(start))
+	return convertRefundToProto(refund), nil
+}
+
+// ListPaymentTransactions 分页列出支付流水
+func (s *Server) ListPaymentTransactions(ctx context.Context, req *pb.ListPaymentTransactionsRequest) (*pb.ListPaymentTransactionsResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC ListPaymentTransactions received", "user_id", req.UserId, "page", req.Page, "page_size", req.PageSize)
+
+	filter := &application.ListPaymentsFilter{
+		UserID:   req.UserId,
+		OrderID:  req.OrderId,
+		Status:   req.Status,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}
+
+	if req.StartTime != nil {
+		t := req.StartTime.AsTime()
+		filter.StartTime = &t
+	}
+	if req.EndTime != nil {
+		t := req.EndTime.AsTime()
+		filter.EndTime = &t
+	}
+
+	result, err := s.queryService.ListPaymentTransactions(ctx, filter)
+	if err != nil {
+		slog.Error("gRPC ListPaymentTransactions failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	transactions := make([]*pb.PaymentTransaction, len(result.Transactions))
+	for i, p := range result.Transactions {
+		transactions[i] = convertPaymentToProto(p)
+	}
+
+	slog.Debug("gRPC ListPaymentTransactions successful", "user_id", req.UserId, "total", result.Total, "duration", time.Since(start))
+	return &pb.ListPaymentTransactionsResponse{
+		Transactions: transactions,
+		Total:        result.Total,
+		Page:         result.Page,
+		PageSize:     result.PageSize,
+	}, nil
+}
+
+// ListRefundTransactions 分页列出退款流水
+func (s *Server) ListRefundTransactions(ctx context.Context, req *pb.ListRefundTransactionsRequest) (*pb.ListRefundTransactionsResponse, error) {
+	start := time.Now()
+	slog.Debug("gRPC ListRefundTransactions received", "user_id", req.UserId, "page", req.Page, "page_size", req.PageSize)
+
+	filter := &application.ListRefundsFilter{
+		UserID:   req.UserId,
+		OrderID:  req.OrderId,
+		Status:   req.Status,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}
+
+	if req.StartTime != nil {
+		t := req.StartTime.AsTime()
+		filter.StartTime = &t
+	}
+	if req.EndTime != nil {
+		t := req.EndTime.AsTime()
+		filter.EndTime = &t
+	}
+
+	result, err := s.queryService.ListRefundTransactions(ctx, filter)
+	if err != nil {
+		slog.Error("gRPC ListRefundTransactions failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	transactions := make([]*pb.RefundTransaction, len(result.Transactions))
+	for i, r := range result.Transactions {
+		transactions[i] = convertRefundToProto(r)
+	}
+
+	slog.Debug("gRPC ListRefundTransactions successful", "user_id", req.UserId, "total", result.Total, "duration", time.Since(start))
+	return &pb.ListRefundTransactionsResponse{
+		Transactions: transactions,
+		Total:        result.Total,
+		Page:         result.Page,
+		PageSize:     result.PageSize,
+	}, nil
+}
+
 // 辅助函数：将领域层的 Payment 实体转换为 Proto 消息对象。
 func convertPaymentToProto(p *domain.Payment) *pb.PaymentTransaction {
 	if p == nil {
