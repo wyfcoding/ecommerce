@@ -4,137 +4,1701 @@ package api.dynamicpricing.v1;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/dynamicpricing/v1;dynamicpricingv1";
 
-// 动态定价服务，基于库存、需求及竞品价格实时计算最优售价。
 service DynamicPricingService {
-  // 根据多因子实时计算商品的动态价格。
-  rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
-
-  // 查询指定商品当前生效的最新的动态价格。
-  rpc GetLatestPrice(GetLatestPriceRequest) returns (GetLatestPriceResponse);
-
-  // --- 策略管理 ---
-  // 保存或修改定价算法策略配置。
-  rpc SaveStrategy(SaveStrategyRequest) returns (google.protobuf.Empty);
-
-  // 分页列出系统中的定价策略。
-  rpc ListStrategies(ListStrategiesRequest) returns (ListStrategiesResponse);
-  
-  // 更新采集到的竞品价格。
-  rpc UpdateCompetitorPrice(UpdateCompetitorPriceRequest) returns (google.protobuf.Empty);
+    rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
+    rpc GetLatestPrice(GetLatestPriceRequest) returns (GetLatestPriceResponse);
+    rpc GetPriceHistory(GetPriceHistoryRequest) returns (GetPriceHistoryResponse);
+    rpc BatchCalculatePrices(BatchCalculatePricesRequest) returns (BatchCalculatePricesResponse);
+    rpc PreviewPriceChange(PreviewPriceChangeRequest) returns (PreviewPriceChangeResponse);
+    
+    rpc CreatePricingStrategy(CreatePricingStrategyRequest) returns (PricingStrategy);
+    rpc GetPricingStrategy(GetPricingStrategyRequest) returns (PricingStrategy);
+    rpc UpdatePricingStrategy(UpdatePricingStrategyRequest) returns (PricingStrategy);
+    rpc DeletePricingStrategy(DeletePricingStrategyRequest) returns (google.protobuf.Empty);
+    rpc ListPricingStrategies(ListPricingStrategiesRequest) returns (ListPricingStrategiesResponse);
+    rpc ActivateStrategy(ActivateStrategyRequest) returns (ActivateStrategyResponse);
+    rpc DeactivateStrategy(DeactivateStrategyRequest) returns (DeactivateStrategyResponse);
+    
+    rpc CreateRule(CreateRuleRequest) returns (PricingRule);
+    rpc GetRule(GetRuleRequest) returns (PricingRule);
+    rpc UpdateRule(UpdateRuleRequest) returns (PricingRule);
+    rpc DeleteRule(DeleteRuleRequest) returns (google.protobuf.Empty);
+    rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+    rpc EvaluateRules(EvaluateRulesRequest) returns (EvaluateRulesResponse);
+    rpc GetRuleExecutionLog(GetRuleExecutionLogRequest) returns (GetRuleExecutionLogResponse);
+    
+    rpc UpdateCompetitorPrice(UpdateCompetitorPriceRequest) returns (google.protobuf.Empty);
+    rpc BatchUpdateCompetitorPrices(BatchUpdateCompetitorPricesRequest) returns (BatchUpdateCompetitorPricesResponse);
+    rpc GetCompetitorPrices(GetCompetitorPricesRequest) returns (GetCompetitorPricesResponse);
+    rpc AnalyzeCompetitorPricing(AnalyzeCompetitorPricingRequest) returns (CompetitorPricingAnalysis);
+    rpc GetCompetitorPriceHistory(GetCompetitorPriceHistoryRequest) returns (GetCompetitorPriceHistoryResponse);
+    rpc SetCompetitorMonitoringConfig(SetCompetitorMonitoringConfigRequest) returns (CompetitorMonitoringConfig);
+    
+    rpc CalculatePriceElasticity(CalculatePriceElasticityRequest) returns (PriceElasticityResult);
+    rpc GetElasticityCurve(GetElasticityCurveRequest) returns (ElasticityCurve);
+    rpc OptimizePriceForRevenue(OptimizePriceForRevenueRequest) returns (PriceOptimizationResult);
+    rpc OptimizePriceForProfit(OptimizePriceForProfitRequest) returns (PriceOptimizationResult);
+    rpc OptimizePriceForVolume(OptimizePriceForVolumeRequest) returns (PriceOptimizationResult);
+    rpc GetPriceOptimizationSuggestions(GetPriceOptimizationSuggestionsRequest) returns (PriceOptimizationSuggestionsResponse);
+    
+    rpc CreateABTest(CreateABTestRequest) returns (PriceABTest);
+    rpc GetABTest(GetABTestRequest) returns (PriceABTest);
+    rpc ListABTests(ListABTestsRequest) returns (ListABTestsResponse);
+    rpc StartABTest(StartABTestRequest) returns (StartABTestResponse);
+    rpc StopABTest(StopABTestRequest) returns (StopABTestResponse);
+    rpc GetABTestResults(GetABTestResultsRequest) returns (ABTestResults);
+    rpc AssignABTestVariant(AssignABTestVariantRequest) returns (AssignABTestVariantResponse);
+    
+    rpc SetTimeBasedPricing(SetTimeBasedPricingRequest) returns (TimeBasedPricing);
+    rpc GetTimeBasedPricing(GetTimeBasedPricingRequest) returns (TimeBasedPricing);
+    rpc ListTimeBasedPricing(ListTimeBasedPricingRequest) returns (ListTimeBasedPricingResponse);
+    rpc DeleteTimeBasedPricing(DeleteTimeBasedPricingRequest) returns (google.protobuf.Empty);
+    
+    rpc SetSegmentPricing(SetSegmentPricingRequest) returns (SegmentPricing);
+    rpc GetSegmentPricing(GetSegmentPricingRequest) returns (SegmentPricing);
+    rpc ListSegmentPricing(ListSegmentPricingRequest) returns (ListSegmentPricingResponse);
+    rpc DeleteSegmentPricing(DeleteSegmentPricingRequest) returns (google.protobuf.Empty);
+    
+    rpc SetRegionPricing(SetRegionPricingRequest) returns (RegionPricing);
+    rpc GetRegionPricing(GetRegionPricingRequest) returns (RegionPricing);
+    rpc ListRegionPricing(ListRegionPricingRequest) returns (ListRegionPricingResponse);
+    rpc DeleteRegionPricing(DeleteRegionPricingRequest) returns (google.protobuf.Empty);
+    
+    rpc SetChannelPricing(SetChannelPricingRequest) returns (ChannelPricing);
+    rpc GetChannelPricing(GetChannelPricingRequest) returns (ChannelPricing);
+    rpc ListChannelPricing(ListChannelPricingRequest) returns (ListChannelPricingResponse);
+    rpc DeleteChannelPricing(DeleteChannelPricingRequest) returns (google.protobuf.Empty);
+    
+    rpc SetPromotionPricing(SetPromotionPricingRequest) returns (PromotionPricing);
+    rpc GetPromotionPricing(GetPromotionPricingRequest) returns (PromotionPricing);
+    rpc ListPromotionPricing(ListPromotionPricingRequest) returns (ListPromotionPricingResponse);
+    rpc DeletePromotionPricing(DeletePromotionPricingRequest) returns (google.protobuf.Empty);
+    
+    rpc CreatePriceMonitor(CreatePriceMonitorRequest) returns (PriceMonitor);
+    rpc GetPriceMonitor(GetPriceMonitorRequest) returns (PriceMonitor);
+    rpc ListPriceMonitors(ListPriceMonitorsRequest) returns (ListPriceMonitorsResponse);
+    rpc DeletePriceMonitor(DeletePriceMonitorRequest) returns (google.protobuf.Empty);
+    rpc GetPriceAlerts(GetPriceAlertsRequest) returns (GetPriceAlertsResponse);
+    rpc AcknowledgePriceAlert(AcknowledgePriceAlertRequest) returns (AcknowledgePriceAlertResponse);
+    
+    rpc GetPricingDashboard(GetPricingDashboardRequest) returns (PricingDashboard);
+    rpc GetPricingMetrics(GetPricingMetricsRequest) returns (PricingMetrics);
+    rpc GetPricingReport(GetPricingReportRequest) returns (PricingReport);
+    rpc ExportPricingData(ExportPricingDataRequest) returns (ExportPricingDataResponse);
+    
+    rpc SetMLPricingConfig(SetMLPricingConfigRequest) returns (MLPricingConfig);
+    rpc GetMLPricingConfig(GetMLPricingConfigRequest) returns (MLPricingConfig);
+    rpc TrainPricingModel(TrainPricingModelRequest) returns (TrainPricingModelResponse);
+    rpc GetModelPerformance(GetModelPerformanceRequest) returns (ModelPerformance);
+    rpc GetMLPriceRecommendation(GetMLPriceRecommendationRequest) returns (MLPriceRecommendation);
+    
+    rpc CreatePriceBook(CreatePriceBookRequest) returns (PriceBook);
+    rpc GetPriceBook(GetPriceBookRequest) returns (PriceBook);
+    rpc ListPriceBooks(ListPriceBooksRequest) returns (ListPriceBooksResponse);
+    rpc UpdatePriceBook(UpdatePriceBookRequest) returns (PriceBook);
+    rpc DeletePriceBook(DeletePriceBookRequest) returns (google.protobuf.Empty);
+    rpc AddPriceBookEntry(AddPriceBookEntryRequest) returns (PriceBookEntry);
+    rpc RemovePriceBookEntry(RemovePriceBookEntryRequest) returns (google.protobuf.Empty);
+    rpc GetPriceFromBook(GetPriceFromBookRequest) returns (GetPriceFromBookResponse);
+    
+    rpc ApplyPriceChange(ApplyPriceChangeRequest) returns (ApplyPriceChangeResponse);
+    rpc BatchApplyPriceChanges(BatchApplyPriceChangesRequest) returns (BatchApplyPriceChangesResponse);
+    rpc RollbackPriceChange(RollbackPriceChangeRequest) returns (RollbackPriceChangeResponse);
+    rpc GetPriceChangeHistory(GetPriceChangeHistoryRequest) returns (GetPriceChangeHistoryResponse);
+    
+    rpc SubscribePriceUpdates(SubscribePriceUpdatesRequest) returns (stream PriceUpdateEvent);
+    rpc SubscribeCompetitorUpdates(SubscribeCompetitorUpdatesRequest) returns (stream CompetitorUpdateEvent);
+    rpc SubscribePriceAlerts(SubscribePriceAlertsRequest) returns (stream PriceAlertEvent);
 }
 
-// 调价请求。
-message CalculatePriceRequest {
-  // SKU ID。
-  uint64 sku_id = 1;
-  // 成本价。
-  int64 base_price = 2;
-  // 实时可用库存。
-  int32 current_stock = 3;
-  // 投放总库存。
-  int32 total_stock = 4;
-  // 24小时内实时销量需求。
-  int32 daily_demand = 5;
-  // 历史日均销量。
-  int32 average_daily_demand = 6;
-  // 采集到的竞争对手最低售价。
-  int64 competitor_price = 7;
+enum StrategyType {
+    STRATEGY_TYPE_UNSPECIFIED = 0;
+    STRATEGY_TYPE_INVENTORY_BASED = 1;
+    STRATEGY_TYPE_DEMAND_BASED = 2;
+    STRATEGY_TYPE_COMPETITOR_BASED = 3;
+    STRATEGY_TYPE_TIME_BASED = 4;
+    STRATEGY_TYPE_SEGMENT_BASED = 5;
+    STRATEGY_TYPE_REGION_BASED = 6;
+    STRATEGY_TYPE_CHANNEL_BASED = 7;
+    STRATEGY_TYPE_PROMOTION_BASED = 8;
+    STRATEGY_TYPE_ML_BASED = 9;
+    STRATEGY_TYPE_HYBRID = 10;
+    STRATEGY_TYPE_COST_PLUS = 11;
+    STRATEGY_TYPE_VALUE_BASED = 12;
+    STRATEGY_TYPE_PENETRATION = 13;
+    STRATEGY_TYPE_SKIMMING = 14;
+    STRATEGY_TYPE_PREMIUM = 15;
+    STRATEGY_TYPE_ECONOMY = 16;
+    STRATEGY_TYPE_BUNDLE = 17;
+    STRATEGY_TYPE_PSYCHOLOGICAL = 18;
 }
 
-// 调价结果详情。
+enum RuleCondition {
+    RULE_CONDITION_UNSPECIFIED = 0;
+    RULE_CONDITION_INVENTORY_BELOW = 1;
+    RULE_CONDITION_INVENTORY_ABOVE = 2;
+    RULE_CONDITION_DEMAND_BELOW = 3;
+    RULE_CONDITION_DEMAND_ABOVE = 4;
+    RULE_CONDITION_COMPETITOR_PRICE_BELOW = 5;
+    RULE_CONDITION_COMPETITOR_PRICE_ABOVE = 6;
+    RULE_CONDITION_TIME_OF_DAY = 7;
+    RULE_CONDITION_DAY_OF_WEEK = 8;
+    RULE_CONDITION_HOLIDAY = 9;
+    RULE_CONDITION_SALES_VELOCITY = 10;
+    RULE_CONDITION_MARGIN_BELOW = 11;
+    RULE_CONDITION_MARGIN_ABOVE = 12;
+    RULE_CONDITION_CONVERSION_RATE = 13;
+    RULE_CONDITION_CART_ABANDONMENT = 14;
+    RULE_CONDITION_USER_SEGMENT = 15;
+    RULE_CONDITION_REGION = 16;
+    RULE_CONDITION_CHANNEL = 17;
+    RULE_CONDITION_WEATHER = 18;
+    RULE_CONDITION_EVENT = 19;
+}
+
+enum RuleAction {
+    RULE_ACTION_UNSPECIFIED = 0;
+    RULE_ACTION_ADJUST_PERCENTAGE = 1;
+    RULE_ACTION_ADJUST_FIXED = 2;
+    RULE_ACTION_SET_PRICE = 3;
+    RULE_ACTION_SET_TO_COMPETITOR = 4;
+    RULE_ACTION_SET_TO_MIN = 5;
+    RULE_ACTION_SET_TO_MAX = 6;
+    RULE_ACTION_APPLY_DISCOUNT = 7;
+    RULE_ACTION_REMOVE_DISCOUNT = 8;
+    RULE_ACTION_ROUND_PRICE = 9;
+    RULE_ACTION_APPLY_MARKUP = 10;
+}
+
+enum PriceStatus {
+    PRICE_STATUS_UNSPECIFIED = 0;
+    PRICE_STATUS_ACTIVE = 1;
+    PRICE_STATUS_SCHEDULED = 2;
+    PRICE_STATUS_EXPIRED = 3;
+    PRICE_STATUS_DRAFT = 4;
+    PRICE_STATUS_ARCHIVED = 5;
+}
+
+enum ABTestStatus {
+    AB_TEST_STATUS_UNSPECIFIED = 0;
+    AB_TEST_STATUS_DRAFT = 1;
+    AB_TEST_STATUS_RUNNING = 2;
+    AB_TEST_STATUS_PAUSED = 3;
+    AB_TEST_STATUS_COMPLETED = 4;
+    AB_TEST_STATUS_CANCELLED = 5;
+}
+
+enum AlertType {
+    ALERT_TYPE_UNSPECIFIED = 0;
+    ALERT_TYPE_PRICE_TOO_LOW = 1;
+    ALERT_TYPE_PRICE_TOO_HIGH = 2;
+    ALERT_TYPE_MARGIN_BELOW_THRESHOLD = 3;
+    ALERT_TYPE_COMPETITOR_PRICE_DROP = 4;
+    ALERT_TYPE_COMPETITOR_PRICE_RISE = 5;
+    ALERT_TYPE_INVENTORY_LOW = 6;
+    ALERT_TYPE_DEMAND_SPIKE = 7;
+    ALERT_TYPE_DEMAND_DROP = 8;
+    ALERT_TYPE_RULE_TRIGGERED = 9;
+    ALERT_TYPE_STRATEGY_CHANGE = 10;
+    ALERT_TYPE_ANOMALY_DETECTED = 11;
+}
+
+enum MonitorType {
+    MONITOR_TYPE_UNSPECIFIED = 0;
+    MONITOR_TYPE_PRICE_THRESHOLD = 1;
+    MONITOR_TYPE_MARGIN_THRESHOLD = 2;
+    MONITOR_TYPE_COMPETITOR_CHANGE = 3;
+    MONITOR_TYPE_DEMAND_CHANGE = 4;
+    MONITOR_TYPE_INVENTORY_CHANGE = 5;
+    MONITOR_TYPE_CONVERSION_RATE = 6;
+    MONITOR_TYPE_ANOMALY = 7;
+}
+
 message DynamicPrice {
-  // SKU ID。
-  uint64 sku_id = 1;
-  // 原始价格。
-  int64 base_price = 2;
-  // 计算后的最终售价。
-  int64 final_price = 3;
-  // 价格调整总幅度（百分比）。
-  double price_adjustment = 4;
-  // 库存稀缺性系数影响值。
-  double inventory_factor = 5;
-  // 需求热度系数影响值。
-  double demand_factor = 6;
-  // 竞品对标系数影响值。
-  double competitor_factor = 7;
-  // 价格生效起始时间。
-  google.protobuf.Timestamp effective_time = 8;
-  // 价格失效过期时间。
-  google.protobuf.Timestamp expiry_time = 9;
+    string price_id = 1;
+    string sku_id = 2;
+    string product_id = 3;
+    string base_price = 4;
+    string final_price = 5;
+    string original_price = 6;
+    string cost_price = 7;
+    string price_adjustment = 8;
+    string adjustment_percentage = 9;
+    string inventory_factor = 10;
+    string demand_factor = 11;
+    string competitor_factor = 12;
+    string time_factor = 13;
+    string segment_factor = 14;
+    string region_factor = 15;
+    string channel_factor = 16;
+    string promotion_factor = 17;
+    string ml_factor = 18;
+    string margin = 19;
+    string margin_percentage = 20;
+    PriceStatus status = 21;
+    google.protobuf.Timestamp effective_time = 22;
+    google.protobuf.Timestamp expiry_time = 23;
+    string strategy_id = 24;
+    repeated string applied_rules = 25;
+    map<string, string> metadata = 26;
+    google.protobuf.Timestamp created_at = 27;
+    google.protobuf.Timestamp updated_at = 28;
 }
 
-// 计算响应。
+message CalculatePriceRequest {
+    string sku_id = 1;
+    string product_id = 2;
+    string base_price = 3;
+    string cost_price = 4;
+    string current_stock = 5;
+    string total_stock = 6;
+    string daily_demand = 7;
+    string average_daily_demand = 8;
+    string competitor_price = 9;
+    string user_segment = 10;
+    string region = 11;
+    string channel = 12;
+    repeated string applied_promotions = 13;
+    map<string, string> context = 14;
+}
+
 message CalculatePriceResponse {
-  // 价格对象。
-  DynamicPrice price = 1;
+    DynamicPrice price = 1;
+    repeated PricingFactor factors = 2;
+    repeated string recommendations = 3;
 }
 
-// 查询请求。
+message PricingFactor {
+    string name = 1;
+    string value = 2;
+    string impact = 3;
+    string description = 4;
+}
+
 message GetLatestPriceRequest {
-  // SKU ID。
-  uint64 sku_id = 1;
+    string sku_id = 1;
+    string user_segment = 2;
+    string region = 3;
+    string channel = 4;
 }
 
-// 查询响应。
 message GetLatestPriceResponse {
-  // 价格对象。
-  DynamicPrice price = 1;
+    DynamicPrice price = 1;
 }
 
-// 定价策略规则配置。
+message PriceHistoryEntry {
+    string price_id = 1;
+    string sku_id = 2;
+    string price = 3;
+    string previous_price = 4;
+    string change_amount = 5;
+    string change_percentage = 6;
+    string reason = 7;
+    string strategy_id = 8;
+    repeated string triggered_rules = 9;
+    google.protobuf.Timestamp effective_at = 10;
+    google.protobuf.Timestamp created_at = 11;
+}
+
+message GetPriceHistoryRequest {
+    string sku_id = 1;
+    google.protobuf.Timestamp from = 2;
+    google.protobuf.Timestamp to = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message GetPriceHistoryResponse {
+    repeated PriceHistoryEntry entries = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message BatchCalculatePricesRequest {
+    repeated CalculatePriceRequest requests = 1;
+}
+
+message BatchCalculatePricesResponse {
+    repeated CalculatePriceResponse results = 1;
+    repeated string errors = 2;
+}
+
+message PreviewPriceChangeRequest {
+    string sku_id = 1;
+    string new_price = 2;
+    string reason = 3;
+}
+
+message PreviewPriceChangeResponse {
+    string current_price = 1;
+    string new_price = 2;
+    string change_amount = 3;
+    string change_percentage = 4;
+    string projected_margin = 5;
+    string projected_margin_change = 6;
+    string projected_demand_change = 7;
+    string projected_revenue_change = 8;
+    repeated string warnings = 9;
+    repeated string recommendations = 10;
+}
+
 message PricingStrategy {
-  // 唯一 ID。
-  uint64 id = 1;
-  // 目标 SKU。
-  uint64 sku_id = 2;
-  // 策略类别 (INVENTORY_BASED, DEMAND_BASED)。
-  string strategy_type = 3;
-  // 允许的最低底价限制。
-  int64 min_price = 4;
-  // 允许的最高天花板价。
-  int64 max_price = 5;
-  // 触发调价的库存阈值。
-  int32 inventory_threshold = 6;
-  // 触发调价的需求阈值。
-  int32 demand_threshold = 7;
-  // 竞品对标的偏移值（如固定便宜 5 分）。
-  int64 competitor_price_offset = 8;
-  // 是否启用该策略。
-  bool enabled = 9;
+    string strategy_id = 1;
+    string name = 2;
+    string description = 3;
+    StrategyType strategy_type = 4;
+    string sku_id = 5;
+    string product_id = 6;
+    string category_id = 7;
+    string min_price = 8;
+    string max_price = 9;
+    string target_margin = 10;
+    string inventory_threshold = 11;
+    string demand_threshold = 12;
+    string competitor_price_offset = 13;
+    string competitor_price_percentage = 14;
+    map<string, string> parameters = 15;
+    repeated PricingRule rules = 16;
+    bool enabled = 17;
+    int32 priority = 18;
+    google.protobuf.Timestamp start_time = 19;
+    google.protobuf.Timestamp end_time = 20;
+    google.protobuf.Timestamp created_at = 21;
+    google.protobuf.Timestamp updated_at = 22;
+    map<string, string> metadata = 23;
 }
 
-// 策略保存请求。
-message SaveStrategyRequest {
-  // 策略详情。
-  PricingStrategy strategy = 1;
+message PricingRule {
+    string rule_id = 1;
+    string name = 2;
+    string description = 3;
+    RuleCondition condition = 4;
+    string condition_value = 5;
+    string condition_operator = 6;
+    RuleAction action = 7;
+    string action_value = 8;
+    int32 priority = 9;
+    bool enabled = 10;
+    google.protobuf.Timestamp created_at = 11;
+    google.protobuf.Timestamp updated_at = 12;
 }
 
-// 策略查询。
-message ListStrategiesRequest {
-  // 数量。
-  uint32 page_size = 1;
-  // 页码。
-  uint32 page_num = 2;
+message CreatePricingStrategyRequest {
+    string name = 1;
+    string description = 2;
+    StrategyType strategy_type = 3;
+    string sku_id = 4;
+    string product_id = 5;
+    string category_id = 6;
+    string min_price = 7;
+    string max_price = 8;
+    string target_margin = 9;
+    string inventory_threshold = 10;
+    string demand_threshold = 11;
+    string competitor_price_offset = 12;
+    string competitor_price_percentage = 13;
+    map<string, string> parameters = 14;
+    repeated PricingRule rules = 15;
+    int32 priority = 16;
+    google.protobuf.Timestamp start_time = 17;
+    google.protobuf.Timestamp end_time = 18;
+    map<string, string> metadata = 19;
 }
 
-// 策略查询结果。
-message ListStrategiesResponse {
-  // 策略列表数据。
-  repeated PricingStrategy strategies = 1;
-  // 总笔数。
-  uint64 total_count = 2;
+message GetPricingStrategyRequest {
+    string strategy_id = 1;
 }
-// 竞品价格更新请求。
+
+message UpdatePricingStrategyRequest {
+    string strategy_id = 1;
+    string name = 2;
+    string description = 3;
+    string min_price = 4;
+    string max_price = 5;
+    string target_margin = 6;
+    string inventory_threshold = 7;
+    string demand_threshold = 8;
+    string competitor_price_offset = 9;
+    string competitor_price_percentage = 10;
+    map<string, string> parameters = 11;
+    repeated PricingRule rules = 12;
+    int32 priority = 13;
+    google.protobuf.Timestamp start_time = 14;
+    google.protobuf.Timestamp end_time = 15;
+    map<string, string> metadata = 16;
+}
+
+message DeletePricingStrategyRequest {
+    string strategy_id = 1;
+}
+
+message ListPricingStrategiesRequest {
+    string sku_id = 1;
+    string product_id = 2;
+    string category_id = 3;
+    StrategyType strategy_type = 4;
+    bool enabled_only = 5;
+    int32 page_size = 6;
+    string page_token = 7;
+}
+
+message ListPricingStrategiesResponse {
+    repeated PricingStrategy strategies = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ActivateStrategyRequest {
+    string strategy_id = 1;
+}
+
+message ActivateStrategyResponse {
+    PricingStrategy strategy = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message DeactivateStrategyRequest {
+    string strategy_id = 1;
+}
+
+message DeactivateStrategyResponse {
+    PricingStrategy strategy = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message CreateRuleRequest {
+    string strategy_id = 1;
+    string name = 2;
+    string description = 3;
+    RuleCondition condition = 4;
+    string condition_value = 5;
+    string condition_operator = 6;
+    RuleAction action = 7;
+    string action_value = 8;
+    int32 priority = 9;
+}
+
+message GetRuleRequest {
+    string rule_id = 1;
+}
+
+message UpdateRuleRequest {
+    string rule_id = 1;
+    string name = 2;
+    string description = 3;
+    RuleCondition condition = 4;
+    string condition_value = 5;
+    string condition_operator = 6;
+    RuleAction action = 7;
+    string action_value = 8;
+    int32 priority = 9;
+    bool enabled = 10;
+}
+
+message DeleteRuleRequest {
+    string rule_id = 1;
+}
+
+message ListRulesRequest {
+    string strategy_id = 1;
+    bool enabled_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListRulesResponse {
+    repeated PricingRule rules = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message EvaluateRulesRequest {
+    string sku_id = 1;
+    string current_price = 2;
+    string inventory = 3;
+    string demand = 4;
+    string competitor_price = 5;
+    map<string, string> context = 6;
+}
+
+message EvaluateRulesResponse {
+    repeated RuleEvaluationResult results = 1;
+    string recommended_price = 2;
+    repeated string applied_rules = 3;
+}
+
+message RuleEvaluationResult {
+    string rule_id = 1;
+    string rule_name = 2;
+    bool triggered = 3;
+    string condition_result = 4;
+    string action_result = 5;
+    string price_adjustment = 6;
+}
+
+message RuleExecutionLog {
+    string log_id = 1;
+    string rule_id = 2;
+    string sku_id = 3;
+    bool triggered = 4;
+    string condition_value = 5;
+    string action_taken = 6;
+    string price_before = 7;
+    string price_after = 8;
+    google.protobuf.Timestamp executed_at = 9;
+}
+
+message GetRuleExecutionLogRequest {
+    string rule_id = 1;
+    string sku_id = 2;
+    google.protobuf.Timestamp from = 3;
+    google.protobuf.Timestamp to = 4;
+    int32 page_size = 5;
+    string page_token = 6;
+}
+
+message GetRuleExecutionLogResponse {
+    repeated RuleExecutionLog logs = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message CompetitorPrice {
+    string competitor_price_id = 1;
+    string sku_id = 2;
+    string competitor_name = 3;
+    string competitor_product_id = 4;
+    string price = 5;
+    string original_price = 6;
+    string discount = 7;
+    string currency = 8;
+    string url = 9;
+    bool in_stock = 10;
+    string shipping_cost = 11;
+    string total_price = 12;
+    string price_position = 13;
+    google.protobuf.Timestamp captured_at = 14;
+    google.protobuf.Timestamp created_at = 15;
+    map<string, string> metadata = 16;
+}
+
 message UpdateCompetitorPriceRequest {
-  // SKU ID。
-  uint64 sku_id = 1;
-  // 竞争对手名称。
-  string competitor_name = 2;
-  // 价格。
-  int64 price = 3;
-  // 商品链接。
-  string url = 4;
+    string sku_id = 1;
+    string competitor_name = 2;
+    string price = 3;
+    string url = 4;
+    string competitor_product_id = 5;
+    string original_price = 6;
+    string shipping_cost = 7;
+    bool in_stock = 8;
+    string currency = 9;
+    map<string, string> metadata = 10;
+}
+
+message BatchUpdateCompetitorPricesRequest {
+    repeated UpdateCompetitorPriceRequest updates = 1;
+}
+
+message BatchUpdateCompetitorPricesResponse {
+    int32 success_count = 1;
+    int32 failure_count = 2;
+    repeated string errors = 3;
+}
+
+message GetCompetitorPricesRequest {
+    string sku_id = 1;
+    repeated string competitor_names = 2;
+    google.protobuf.Timestamp since = 3;
+}
+
+message GetCompetitorPricesResponse {
+    repeated CompetitorPrice prices = 1;
+    string lowest_price = 2;
+    string highest_price = 3;
+    string average_price = 4;
+    string our_price = 5;
+    string price_position = 6;
+}
+
+message CompetitorPricingAnalysis {
+    string sku_id = 1;
+    string our_price = 2;
+    string market_average = 3;
+    string market_lowest = 4;
+    string market_highest = 5;
+    string price_percentile = 6;
+    string recommended_price = 7;
+    repeated CompetitorInsight insights = 8;
+    google.protobuf.Timestamp analyzed_at = 9;
+}
+
+message CompetitorInsight {
+    string competitor_name = 1;
+    string price = 2;
+    string price_difference = 3;
+    string price_difference_percentage = 4;
+    string trend = 5;
+    string recommendation = 6;
+}
+
+message AnalyzeCompetitorPricingRequest {
+    string sku_id = 1;
+    repeated string competitor_names = 2;
+    int32 lookback_days = 3;
+}
+
+message GetCompetitorPriceHistoryRequest {
+    string sku_id = 1;
+    string competitor_name = 2;
+    google.protobuf.Timestamp from = 3;
+    google.protobuf.Timestamp to = 4;
+    int32 page_size = 5;
+    string page_token = 6;
+}
+
+message GetCompetitorPriceHistoryResponse {
+    repeated CompetitorPrice prices = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message CompetitorMonitoringConfig {
+    string config_id = 1;
+    string sku_id = 2;
+    repeated string competitors = 3;
+    string monitoring_frequency = 4;
+    bool enabled = 5;
+    string alert_threshold_percentage = 6;
+    repeated AlertType alert_types = 7;
+    google.protobuf.Timestamp last_monitored = 8;
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp updated_at = 10;
+}
+
+message SetCompetitorMonitoringConfigRequest {
+    string sku_id = 1;
+    repeated string competitors = 2;
+    string monitoring_frequency = 3;
+    bool enabled = 4;
+    string alert_threshold_percentage = 5;
+    repeated AlertType alert_types = 6;
+}
+
+message PriceElasticityResult {
+    string sku_id = 1;
+    string elasticity_coefficient = 2;
+    string elasticity_type = 3;
+    string demand_change_per_1_percent_price_change = 4;
+    string revenue_impact = 5;
+    string confidence_level = 6;
+    int32 data_points = 7;
+    google.protobuf.Duration analysis_period = 8;
+    repeated ElasticitySegment segments = 9;
+}
+
+message ElasticitySegment {
+    string price_range_low = 1;
+    string price_range_high = 2;
+    string elasticity = 3;
+    string demand_estimate = 4;
+    string revenue_estimate = 5;
+}
+
+message CalculatePriceElasticityRequest {
+    string sku_id = 1;
+    google.protobuf.Duration analysis_period = 2;
+    int32 min_data_points = 3;
+}
+
+message ElasticityCurve {
+    string sku_id = 1;
+    repeated ElasticityPoint points = 2;
+    string optimal_price = 3;
+    string optimal_demand = 4;
+    string optimal_revenue = 5;
+}
+
+message ElasticityPoint {
+    string price = 1;
+    string demand = 2;
+    string revenue = 3;
+    string elasticity = 4;
+}
+
+message GetElasticityCurveRequest {
+    string sku_id = 1;
+    string price_range_low = 2;
+    string price_range_high = 3;
+    int32 num_points = 4;
+}
+
+message PriceOptimizationResult {
+    string sku_id = 1;
+    string current_price = 2;
+    string optimized_price = 3;
+    string price_change = 4;
+    string price_change_percentage = 5;
+    string expected_demand_change = 6;
+    string expected_revenue_change = 7;
+    string expected_margin_change = 8;
+    string optimization_type = 9;
+    repeated OptimizationFactor factors = 10;
+    string confidence_score = 11;
+}
+
+message OptimizationFactor {
+    string factor_name = 1;
+    string current_value = 2;
+    string optimized_value = 3;
+    string impact = 4;
+}
+
+message OptimizePriceForRevenueRequest {
+    string sku_id = 1;
+    string min_price = 2;
+    string max_price = 3;
+    string min_margin = 4;
+}
+
+message OptimizePriceForProfitRequest {
+    string sku_id = 1;
+    string min_price = 2;
+    string max_price = 3;
+    string min_margin = 4;
+}
+
+message OptimizePriceForVolumeRequest {
+    string sku_id = 1;
+    string min_price = 2;
+    string max_price = 3;
+    string target_volume = 4;
+}
+
+message PriceOptimizationSuggestion {
+    string sku_id = 1;
+    string current_price = 2;
+    string suggested_price = 3;
+    string reason = 4;
+    string expected_impact = 5;
+    string confidence = 6;
+    string priority = 7;
+}
+
+message GetPriceOptimizationSuggestionsRequest {
+    repeated string sku_ids = 1;
+    string category_id = 2;
+    int32 limit = 3;
+}
+
+message PriceOptimizationSuggestionsResponse {
+    repeated PriceOptimizationSuggestion suggestions = 1;
+    int32 total_count = 2;
+}
+
+message PriceABTest {
+    string test_id = 1;
+    string name = 2;
+    string description = 3;
+    string sku_id = 4;
+    repeated ABTestVariant variants = 5;
+    string traffic_allocation = 6;
+    ABTestStatus status = 7;
+    google.protobuf.Timestamp start_time = 8;
+    google.protobuf.Timestamp end_time = 9;
+    string target_metric = 10;
+    string statistical_significance = 11;
+    google.protobuf.Timestamp created_at = 12;
+    google.protobuf.Timestamp updated_at = 13;
+    map<string, string> metadata = 14;
+}
+
+message ABTestVariant {
+    string variant_id = 1;
+    string name = 2;
+    string price = 3;
+    string traffic_percentage = 4;
+    string description = 5;
+}
+
+message CreateABTestRequest {
+    string name = 1;
+    string description = 2;
+    string sku_id = 3;
+    repeated ABTestVariant variants = 4;
+    string traffic_allocation = 5;
+    google.protobuf.Timestamp start_time = 6;
+    google.protobuf.Timestamp end_time = 7;
+    string target_metric = 8;
+    string statistical_significance = 9;
+    map<string, string> metadata = 10;
+}
+
+message GetABTestRequest {
+    string test_id = 1;
+}
+
+message ListABTestsRequest {
+    string sku_id = 1;
+    ABTestStatus status = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListABTestsResponse {
+    repeated PriceABTest tests = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message StartABTestRequest {
+    string test_id = 1;
+}
+
+message StartABTestResponse {
+    PriceABTest test = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message StopABTestRequest {
+    string test_id = 1;
+    string reason = 2;
+}
+
+message StopABTestResponse {
+    PriceABTest test = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message ABTestResults {
+    string test_id = 1;
+    repeated ABTestVariantResult variant_results = 2;
+    string winning_variant_id = 3;
+    string confidence_level = 4;
+    string statistical_significance = 5;
+    string recommendation = 6;
+    google.protobuf.Timestamp analyzed_at = 7;
+}
+
+message ABTestVariantResult {
+    string variant_id = 1;
+    string name = 2;
+    string price = 3;
+    int64 impressions = 4;
+    int64 conversions = 5;
+    string conversion_rate = 6;
+    string revenue = 7;
+    string avg_order_value = 8;
+    string margin = 9;
+    string lift = 10;
+}
+
+message GetABTestResultsRequest {
+    string test_id = 1;
+}
+
+message AssignABTestVariantRequest {
+    string test_id = 1;
+    string user_id = 2;
+    string session_id = 3;
+}
+
+message AssignABTestVariantResponse {
+    string variant_id = 1;
+    string price = 2;
+    bool is_test = 3;
+}
+
+message TimeBasedPricing {
+    string pricing_id = 1;
+    string sku_id = 2;
+    repeated TimePricingRule rules = 3;
+    string timezone = 4;
+    bool enabled = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+message TimePricingRule {
+    string rule_id = 1;
+    string name = 2;
+    string start_time = 3;
+    string end_time = 4;
+    repeated string days_of_week = 5;
+    string price_adjustment_type = 6;
+    string price_adjustment_value = 7;
+    string final_price = 8;
+    bool enabled = 9;
+}
+
+message SetTimeBasedPricingRequest {
+    string sku_id = 1;
+    repeated TimePricingRule rules = 2;
+    string timezone = 3;
+    bool enabled = 4;
+}
+
+message GetTimeBasedPricingRequest {
+    string sku_id = 1;
+}
+
+message ListTimeBasedPricingRequest {
+    repeated string sku_ids = 1;
+    bool enabled_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListTimeBasedPricingResponse {
+    repeated TimeBasedPricing pricings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message DeleteTimeBasedPricingRequest {
+    string pricing_id = 1;
+}
+
+message SegmentPricing {
+    string pricing_id = 1;
+    string sku_id = 2;
+    repeated SegmentPriceRule rules = 3;
+    bool enabled = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+message SegmentPriceRule {
+    string rule_id = 1;
+    string segment_id = 2;
+    string segment_name = 3;
+    string price_adjustment_type = 4;
+    string price_adjustment_value = 5;
+    string final_price = 6;
+    bool enabled = 7;
+}
+
+message SetSegmentPricingRequest {
+    string sku_id = 1;
+    repeated SegmentPriceRule rules = 2;
+    bool enabled = 3;
+}
+
+message GetSegmentPricingRequest {
+    string sku_id = 1;
+}
+
+message ListSegmentPricingRequest {
+    repeated string sku_ids = 1;
+    bool enabled_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListSegmentPricingResponse {
+    repeated SegmentPricing pricings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message DeleteSegmentPricingRequest {
+    string pricing_id = 1;
+}
+
+message RegionPricing {
+    string pricing_id = 1;
+    string sku_id = 2;
+    repeated RegionPriceRule rules = 3;
+    bool enabled = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+message RegionPriceRule {
+    string rule_id = 1;
+    string region_code = 2;
+    string region_name = 3;
+    string currency = 4;
+    string price = 5;
+    string price_adjustment_type = 6;
+    string price_adjustment_value = 7;
+    bool enabled = 8;
+}
+
+message SetRegionPricingRequest {
+    string sku_id = 1;
+    repeated RegionPriceRule rules = 2;
+    bool enabled = 3;
+}
+
+message GetRegionPricingRequest {
+    string sku_id = 1;
+}
+
+message ListRegionPricingRequest {
+    repeated string sku_ids = 1;
+    bool enabled_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListRegionPricingResponse {
+    repeated RegionPricing pricings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message DeleteRegionPricingRequest {
+    string pricing_id = 1;
+}
+
+message ChannelPricing {
+    string pricing_id = 1;
+    string sku_id = 2;
+    repeated ChannelPriceRule rules = 3;
+    bool enabled = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+message ChannelPriceRule {
+    string rule_id = 1;
+    string channel_id = 2;
+    string channel_name = 3;
+    string price_adjustment_type = 4;
+    string price_adjustment_value = 5;
+    string final_price = 6;
+    bool enabled = 7;
+}
+
+message SetChannelPricingRequest {
+    string sku_id = 1;
+    repeated ChannelPriceRule rules = 2;
+    bool enabled = 3;
+}
+
+message GetChannelPricingRequest {
+    string sku_id = 1;
+}
+
+message ListChannelPricingRequest {
+    repeated string sku_ids = 1;
+    bool enabled_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListChannelPricingResponse {
+    repeated ChannelPricing pricings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message DeleteChannelPricingRequest {
+    string pricing_id = 1;
+}
+
+message PromotionPricing {
+    string pricing_id = 1;
+    string sku_id = 2;
+    string promotion_id = 3;
+    string promotion_name = 4;
+    string promotion_type = 5;
+    string discount_type = 6;
+    string discount_value = 7;
+    string original_price = 8;
+    string promotional_price = 9;
+    google.protobuf.Timestamp start_time = 10;
+    google.protobuf.Timestamp end_time = 11;
+    bool enabled = 12;
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+}
+
+message SetPromotionPricingRequest {
+    string sku_id = 1;
+    string promotion_id = 2;
+    string promotion_name = 3;
+    string promotion_type = 4;
+    string discount_type = 5;
+    string discount_value = 6;
+    google.protobuf.Timestamp start_time = 7;
+    google.protobuf.Timestamp end_time = 8;
+    bool enabled = 9;
+}
+
+message GetPromotionPricingRequest {
+    string sku_id = 1;
+    string promotion_id = 2;
+}
+
+message ListPromotionPricingRequest {
+    string sku_id = 1;
+    string promotion_id = 2;
+    bool active_only = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListPromotionPricingResponse {
+    repeated PromotionPricing pricings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message DeletePromotionPricingRequest {
+    string pricing_id = 1;
+}
+
+message PriceMonitor {
+    string monitor_id = 1;
+    string name = 2;
+    string sku_id = 3;
+    MonitorType monitor_type = 4;
+    string threshold_value = 5;
+    string comparison_operator = 6;
+    repeated AlertType alert_types = 7;
+    repeated string notification_channels = 8;
+    bool enabled = 9;
+    google.protobuf.Timestamp last_triggered = 10;
+    google.protobuf.Timestamp created_at = 11;
+    google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreatePriceMonitorRequest {
+    string name = 1;
+    string sku_id = 2;
+    MonitorType monitor_type = 3;
+    string threshold_value = 4;
+    string comparison_operator = 5;
+    repeated AlertType alert_types = 6;
+    repeated string notification_channels = 7;
+    bool enabled = 8;
+}
+
+message GetPriceMonitorRequest {
+    string monitor_id = 1;
+}
+
+message ListPriceMonitorsRequest {
+    string sku_id = 1;
+    MonitorType monitor_type = 2;
+    bool enabled_only = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListPriceMonitorsResponse {
+    repeated PriceMonitor monitors = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message DeletePriceMonitorRequest {
+    string monitor_id = 1;
+}
+
+message PriceAlert {
+    string alert_id = 1;
+    string monitor_id = 2;
+    string sku_id = 3;
+    AlertType alert_type = 4;
+    string severity = 5;
+    string message = 6;
+    string current_value = 7;
+    string threshold_value = 8;
+    bool acknowledged = 9;
+    string acknowledged_by = 10;
+    google.protobuf.Timestamp acknowledged_at = 11;
+    repeated string actions_taken = 12;
+    google.protobuf.Timestamp triggered_at = 13;
+}
+
+message GetPriceAlertsRequest {
+    string sku_id = 1;
+    string monitor_id = 2;
+    AlertType alert_type = 3;
+    bool unacknowledged_only = 4;
+    google.protobuf.Timestamp from = 5;
+    google.protobuf.Timestamp to = 6;
+    int32 page_size = 7;
+    string page_token = 8;
+}
+
+message GetPriceAlertsResponse {
+    repeated PriceAlert alerts = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message AcknowledgePriceAlertRequest {
+    string alert_id = 1;
+    string acknowledged_by = 2;
+    repeated string actions_taken = 3;
+}
+
+message AcknowledgePriceAlertResponse {
+    PriceAlert alert = 1;
+    bool success = 2;
+}
+
+message PricingDashboard {
+    google.protobuf.Timestamp as_of = 1;
+    int32 total_products = 2;
+    int32 active_strategies = 3;
+    int32 active_rules = 4;
+    int32 active_monitors = 5;
+    int32 pending_alerts = 6;
+    int32 active_ab_tests = 7;
+    string avg_margin = 8;
+    string avg_price_change_24h = 9;
+    repeated TopPriceChange top_price_increases = 10;
+    repeated TopPriceChange top_price_decreases = 11;
+    repeated CompetitorAlertSummary competitor_alerts = 12;
+}
+
+message TopPriceChange {
+    string sku_id = 1;
+    string product_name = 2;
+    string previous_price = 3;
+    string current_price = 4;
+    string change_percentage = 5;
+    google.protobuf.Timestamp changed_at = 6;
+}
+
+message CompetitorAlertSummary {
+    string competitor_name = 1;
+    int32 price_changes = 2;
+    string avg_change_percentage = 3;
+}
+
+message GetPricingDashboardRequest {
+    string category_id = 1;
+}
+
+message PricingMetrics {
+    google.protobuf.Timestamp period_start = 1;
+    google.protobuf.Timestamp period_end = 2;
+    string total_revenue = 3;
+    string total_margin = 4;
+    string avg_margin_percentage = 5;
+    int32 price_changes_count = 6;
+    string avg_price_change_percentage = 7;
+    int32 rules_triggered_count = 8;
+    int32 competitor_price_updates = 9;
+    string price_competitiveness_score = 10;
+    repeated MetricTrend trends = 11;
+}
+
+message MetricTrend {
+    string metric_name = 1;
+    repeated TrendPoint points = 2;
+    string trend_direction = 3;
+    string change_percentage = 4;
+}
+
+message TrendPoint {
+    google.protobuf.Timestamp timestamp = 1;
+    string value = 2;
+}
+
+message GetPricingMetricsRequest {
+    google.protobuf.Timestamp start_time = 1;
+    google.protobuf.Timestamp end_time = 2;
+    string granularity = 3;
+    repeated string sku_ids = 4;
+    string category_id = 5;
+}
+
+message PricingReport {
+    string report_id = 1;
+    string report_type = 2;
+    google.protobuf.Timestamp period_start = 3;
+    google.protobuf.Timestamp period_end = 4;
+    repeated ReportSection sections = 5;
+    repeated ReportSummary summaries = 6;
+    google.protobuf.Timestamp generated_at = 7;
+}
+
+message ReportSection {
+    string title = 1;
+    string content = 2;
+    repeated ReportTable tables = 3;
+    repeated ReportChart charts = 4;
+}
+
+message ReportTable {
+    string title = 1;
+    repeated string headers = 2;
+    repeated ReportRow rows = 3;
+}
+
+message ReportRow {
+    repeated string cells = 1;
+}
+
+message ReportChart {
+    string title = 1;
+    string chart_type = 2;
+    string data_url = 3;
+    map<string, string> config = 4;
+}
+
+message ReportSummary {
+    string metric_name = 1;
+    string value = 2;
+    string change = 3;
+    string change_percentage = 4;
+    string trend = 5;
+}
+
+message GetPricingReportRequest {
+    string report_type = 1;
+    google.protobuf.Timestamp start_time = 2;
+    google.protobuf.Timestamp end_time = 3;
+    repeated string sku_ids = 4;
+    string category_id = 5;
+    string format = 6;
+}
+
+message ExportPricingDataRequest {
+    repeated string sku_ids = 1;
+    string category_id = 2;
+    google.protobuf.Timestamp start_time = 3;
+    google.protobuf.Timestamp end_time = 4;
+    string format = 5;
+    repeated string data_types = 6;
+}
+
+message ExportPricingDataResponse {
+    string export_id = 1;
+    string download_url = 2;
+    string format = 3;
+    int64 file_size = 4;
+    google.protobuf.Timestamp expires_at = 5;
+}
+
+message MLPricingConfig {
+    string config_id = 1;
+    string sku_id = 2;
+    string model_type = 3;
+    string model_version = 4;
+    repeated string features = 5;
+    map<string, string> hyperparameters = 6;
+    string training_data_period = 7;
+    string retraining_frequency = 8;
+    bool auto_apply = 9;
+    string confidence_threshold = 10;
+    google.protobuf.Timestamp last_trained = 11;
+    google.protobuf.Timestamp created_at = 12;
+    google.protobuf.Timestamp updated_at = 13;
+}
+
+message SetMLPricingConfigRequest {
+    string sku_id = 1;
+    string model_type = 2;
+    repeated string features = 3;
+    map<string, string> hyperparameters = 4;
+    string training_data_period = 5;
+    string retraining_frequency = 6;
+    bool auto_apply = 7;
+    string confidence_threshold = 8;
+}
+
+message GetMLPricingConfigRequest {
+    string sku_id = 1;
+}
+
+message TrainPricingModelRequest {
+    string sku_id = 1;
+    string model_type = 2;
+    string training_data_period = 3;
+    map<string, string> hyperparameters = 4;
+    bool async = 5;
+}
+
+message TrainPricingModelResponse {
+    string training_id = 1;
+    string status = 2;
+    string estimated_completion_time = 3;
+}
+
+message ModelPerformance {
+    string model_id = 1;
+    string sku_id = 2;
+    string model_type = 3;
+    string model_version = 4;
+    string accuracy = 5;
+    string mae = 6;
+    string rmse = 7;
+    string mape = 8;
+    string r2_score = 9;
+    repeated FeatureImportance feature_importances = 10;
+    google.protobuf.Timestamp evaluated_at = 11;
+}
+
+message FeatureImportance {
+    string feature_name = 1;
+    string importance = 2;
+    string description = 3;
+}
+
+message GetModelPerformanceRequest {
+    string sku_id = 1;
+    string model_version = 2;
+}
+
+message MLPriceRecommendation {
+    string recommendation_id = 1;
+    string sku_id = 2;
+    string current_price = 3;
+    string recommended_price = 4;
+    string confidence = 5;
+    string expected_demand_change = 6;
+    string expected_revenue_change = 7;
+    string expected_margin_change = 8;
+    repeated string reasons = 9;
+    repeated SimilarProductPrice similar_products = 10;
+    google.protobuf.Timestamp generated_at = 11;
+}
+
+message SimilarProductPrice {
+    string sku_id = 1;
+    string product_name = 2;
+    string price = 3;
+    string similarity_score = 4;
+}
+
+message GetMLPriceRecommendationRequest {
+    string sku_id = 1;
+    bool include_similar_products = 2;
+}
+
+message PriceBook {
+    string book_id = 1;
+    string name = 2;
+    string description = 3;
+    string currency = 4;
+    string status = 5;
+    google.protobuf.Timestamp effective_from = 6;
+    google.protobuf.Timestamp effective_to = 7;
+    int64 entry_count = 8;
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp updated_at = 10;
+    map<string, string> metadata = 11;
+}
+
+message PriceBookEntry {
+    string entry_id = 1;
+    string book_id = 2;
+    string sku_id = 3;
+    string product_id = 4;
+    string price = 5;
+    string min_quantity = 6;
+    string max_quantity = 7;
+    string customer_group = 8;
+    string region = 9;
+    string channel = 10;
+    google.protobuf.Timestamp effective_from = 11;
+    google.protobuf.Timestamp effective_to = 12;
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+}
+
+message CreatePriceBookRequest {
+    string name = 1;
+    string description = 2;
+    string currency = 3;
+    google.protobuf.Timestamp effective_from = 4;
+    google.protobuf.Timestamp effective_to = 5;
+    map<string, string> metadata = 6;
+}
+
+message GetPriceBookRequest {
+    string book_id = 1;
+}
+
+message ListPriceBooksRequest {
+    string status = 1;
+    int32 page_size = 2;
+    string page_token = 3;
+}
+
+message ListPriceBooksResponse {
+    repeated PriceBook books = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdatePriceBookRequest {
+    string book_id = 1;
+    string name = 2;
+    string description = 3;
+    string status = 4;
+    google.protobuf.Timestamp effective_from = 5;
+    google.protobuf.Timestamp effective_to = 6;
+    map<string, string> metadata = 7;
+}
+
+message DeletePriceBookRequest {
+    string book_id = 1;
+}
+
+message AddPriceBookEntryRequest {
+    string book_id = 1;
+    string sku_id = 2;
+    string product_id = 3;
+    string price = 4;
+    string min_quantity = 5;
+    string max_quantity = 6;
+    string customer_group = 7;
+    string region = 8;
+    string channel = 9;
+    google.protobuf.Timestamp effective_from = 10;
+    google.protobuf.Timestamp effective_to = 11;
+}
+
+message RemovePriceBookEntryRequest {
+    string entry_id = 1;
+}
+
+message GetPriceFromBookRequest {
+    string book_id = 1;
+    string sku_id = 2;
+    string customer_group = 3;
+    string region = 4;
+    string channel = 5;
+    string quantity = 6;
+}
+
+message GetPriceFromBookResponse {
+    PriceBookEntry entry = 1;
+    string price = 2;
+    bool found = 3;
+}
+
+message ApplyPriceChangeRequest {
+    string sku_id = 1;
+    string new_price = 2;
+    string reason = 3;
+    string strategy_id = 4;
+    repeated string rule_ids = 5;
+    google.protobuf.Timestamp effective_time = 6;
+    google.protobuf.Timestamp expiry_time = 7;
+    bool force = 8;
+}
+
+message ApplyPriceChangeResponse {
+    DynamicPrice price = 1;
+    bool success = 2;
+    string message = 3;
+    repeated string warnings = 4;
+}
+
+message BatchApplyPriceChangesRequest {
+    repeated ApplyPriceChangeRequest changes = 1;
+}
+
+message BatchApplyPriceChangesResponse {
+    repeated ApplyPriceChangeResponse results = 1;
+    int32 success_count = 2;
+    int32 failure_count = 3;
+}
+
+message RollbackPriceChangeRequest {
+    string price_id = 1;
+    string reason = 2;
+}
+
+message RollbackPriceChangeResponse {
+    DynamicPrice previous_price = 1;
+    DynamicPrice current_price = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message PriceChangeHistoryEntry {
+    string change_id = 1;
+    string sku_id = 2;
+    string previous_price = 3;
+    string new_price = 4;
+    string change_type = 5;
+    string reason = 6;
+    string changed_by = 7;
+    string strategy_id = 8;
+    repeated string rule_ids = 9;
+    bool rolled_back = 10;
+    string rollback_reason = 11;
+    google.protobuf.Timestamp changed_at = 12;
+    google.protobuf.Timestamp rolled_back_at = 13;
+}
+
+message GetPriceChangeHistoryRequest {
+    string sku_id = 1;
+    google.protobuf.Timestamp from = 2;
+    google.protobuf.Timestamp to = 3;
+    bool include_rolled_back = 4;
+    int32 page_size = 5;
+    string page_token = 6;
+}
+
+message GetPriceChangeHistoryResponse {
+    repeated PriceChangeHistoryEntry entries = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message PriceUpdateEvent {
+    string event_id = 1;
+    string sku_id = 2;
+    string previous_price = 3;
+    string new_price = 4;
+    string change_reason = 5;
+    string strategy_id = 6;
+    repeated string triggered_rules = 7;
+    google.protobuf.Timestamp timestamp = 8;
+}
+
+message SubscribePriceUpdatesRequest {
+    repeated string sku_ids = 1;
+    string category_id = 2;
+}
+
+message CompetitorUpdateEvent {
+    string event_id = 1;
+    string sku_id = 2;
+    string competitor_name = 3;
+    string previous_price = 4;
+    string new_price = 5;
+    string change_percentage = 6;
+    google.protobuf.Timestamp timestamp = 7;
+}
+
+message SubscribeCompetitorUpdatesRequest {
+    repeated string sku_ids = 1;
+    repeated string competitors = 2;
+}
+
+message PriceAlertEvent {
+    string alert_id = 1;
+    string sku_id = 2;
+    AlertType alert_type = 3;
+    string severity = 4;
+    string message = 5;
+    string current_value = 6;
+    string threshold_value = 7;
+    google.protobuf.Timestamp timestamp = 8;
+}
+
+message SubscribePriceAlertsRequest {
+    repeated string sku_ids = 1;
+    repeated AlertType alert_types = 2;
+    repeated string severities = 3;
 }

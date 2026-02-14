@@ -1,0 +1,368 @@
+syntax = "proto3";
+
+package api.identity.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/identity/v1;identityv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// ============================================================================
+// 用户画像服务
+// ============================================================================
+
+// 用户画像类型
+enum PersonaType {
+  PERSONA_TYPE_UNSPECIFIED = 0;
+  PERSONA_CONSUMER = 1;      // 普通消费者
+  PERSONA_MERCHANT = 2;       // 商家/企业
+  PERSONA_INFLUENCER = 3;    // 达人/博主
+  PERSONA_PROFESSIONAL = 4;  // 专业人士
+}
+
+// 画像服务
+service PersonaService {
+  // 创建或更新用户画像
+  rpc UpsertPersona(UpsertPersonaRequest) returns (Persona);
+  // 获取用户画像
+  rpc GetPersona(GetPersonaRequest) returns (Persona);
+  // 获取用户画像列表
+  rpc ListPersonas(ListPersonasRequest) returns (ListPersonasResponse);
+  // 删除用户画像
+  rpc DeletePersona(DeletePersonaRequest) returns (google.protobuf.Empty);
+  // 添加标签
+  rpc AddTags(AddTagsRequest) returns (Persona);
+  // 移除标签
+  rpc RemoveTags(RemoveTagsRequest) returns (Persona);
+}
+
+// 用户画像
+message Persona {
+  uint64 user_id = 1;
+  PersonaType type = 2;
+  repeated string tags = 3;
+  repeated string interests = 4;
+  ProfessionalInfo professional = 5;
+  ShoppingHabit shopping_habit = 6;
+  SocialMetrics social_metrics = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// 专业信息
+message ProfessionalInfo {
+  string industry = 1;
+  repeated string skills = 2;
+  repeated string certificates = 3;
+  int32 experience = 4;
+}
+
+// 购物习惯
+message ShoppingHabit {
+  int64 avg_order_value = 1;
+  repeated string freq_category = 2;
+  string preferred_time = 3;
+}
+
+// 社交指标
+message SocialMetrics {
+  int32 followers = 1;
+  int32 following = 2;
+  double engagement = 3;
+}
+
+message UpsertPersonaRequest {
+  uint64 user_id = 1;
+  PersonaType type = 2;
+  repeated string tags = 3;
+  repeated string interests = 4;
+  ProfessionalInfo professional = 5;
+  ShoppingHabit shopping_habit = 6;
+  SocialMetrics social_metrics = 7;
+}
+
+message GetPersonaRequest {
+  uint64 user_id = 1;
+}
+
+message ListPersonasRequest {
+  PersonaType type = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListPersonasResponse {
+  repeated Persona personas = 1;
+  int32 total = 2;
+}
+
+message DeletePersonaRequest {
+  uint64 user_id = 1;
+}
+
+message AddTagsRequest {
+  uint64 user_id = 1;
+  repeated string tags = 2;
+}
+
+message RemoveTagsRequest {
+  uint64 user_id = 1;
+  repeated string tags = 2;
+}
+
+// ============================================================================
+// 关联账号服务
+// ============================================================================
+
+// 账号提供商
+enum AccountProvider {
+  ACCOUNT_PROVIDER_UNSPECIFIED = 0;
+  ACCOUNT_PROVIDER_GOOGLE = 1;
+  ACCOUNT_PROVIDER_GITHUB = 2;
+  ACCOUNT_PROVIDER_WECHAT = 3;
+  ACCOUNT_PROVIDER_APPLE = 4;
+  ACCOUNT_PROVIDER_PHONE = 5;
+  ACCOUNT_PROVIDER_EMAIL = 6;
+}
+
+// 关联账号服务
+service LinkedAccountService {
+  // 绑定第三方账号
+  rpc BindAccount(BindAccountRequest) returns (LinkedAccount);
+  // 解绑第三方账号
+  rpc UnbindAccount(UnbindAccountRequest) returns (google.protobuf.Empty);
+  // 获取用户关联的账号列表
+  rpc ListLinkedAccounts(ListLinkedAccountsRequest) returns (ListLinkedAccountsResponse);
+  // 获取绑定状态
+  rpc GetBindStatus(GetBindStatusRequest) returns (BindStatus);
+  // OAuth跳转URL生成
+  rpc GetOAuthURL(GetOAuthURLRequest) returns (GetOAuthURLResponse);
+  // 处理OAuth回调
+  rpc HandleOAuthCallback(HandleOAuthCallbackRequest) returns (HandleOAuthCallbackResponse);
+}
+
+// 关联账号
+message LinkedAccount {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  AccountProvider provider = 3;
+  string external_id = 4;
+  string external_name = 5;
+  string external_email = 6;
+  string avatar_url = 7;
+  google.protobuf.Timestamp bound_at = 8;
+}
+
+message BindAccountRequest {
+  uint64 user_id = 1;
+  AccountProvider provider = 2;
+  string external_id = 3;
+  string external_name = 4;
+  string external_email = 5;
+  string access_token = 6;
+  string refresh_token = 7;
+  google.protobuf.Timestamp expiry = 8;
+  string avatar_url = 9;
+}
+
+message UnbindAccountRequest {
+  uint64 user_id = 1;
+  AccountProvider provider = 2;
+}
+
+message ListLinkedAccountsRequest {
+  uint64 user_id = 1;
+}
+
+message ListLinkedAccountsResponse {
+  repeated LinkedAccount accounts = 1;
+}
+
+message GetBindStatusRequest {
+  uint64 user_id = 1;
+  AccountProvider provider = 2;
+}
+
+message BindStatus {
+  bool bound = 1;
+  LinkedAccount account = 2;
+}
+
+message GetOAuthURLRequest {
+  AccountProvider provider = 1;
+  string redirect_uri = 2;
+  string state = 3;
+}
+
+message GetOAuthURLResponse {
+  string auth_url = 1;
+  string state = 2;
+}
+
+message HandleOAuthCallbackRequest {
+  AccountProvider provider = 1;
+  string code = 2;
+  string state = 3;
+  string redirect_uri = 4;
+}
+
+message HandleOAuthCallbackResponse {
+  bool success = 1;
+  string external_id = 2;
+  string external_name = 3;
+  string external_email = 4;
+  string avatar_url = 5;
+}
+
+// ============================================================================
+// 会话管理服务
+// ============================================================================
+
+// 会话状态
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_ACTIVE = 1;
+  SESSION_STATUS_EXPIRED = 2;
+  SESSION_STATUS_REVOKED = 3;
+}
+
+// 会话管理服务
+service SessionService {
+  // 创建会话
+  rpc CreateSession(CreateSessionRequest) returns (AuthSession);
+  // 获取会话详情
+  rpc GetSession(GetSessionRequest) returns (AuthSession);
+  // 获取用户所有会话
+  rpc ListUserSessions(ListUserSessionsRequest) returns (ListUserSessionsResponse);
+  // 刷新会话
+  rpc RefreshSession(RefreshSessionRequest) returns (AuthSession);
+  // 吊销会话
+  rpc RevokeSession(RevokeSessionRequest) returns (google.protobuf.Empty);
+  // 吊销用户所有会话
+  rpc RevokeAllUserSessions(RevokeAllUserSessionsRequest) returns (google.protobuf.Empty);
+  // 验证会话
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+}
+
+// 认证会话
+message AuthSession {
+  string session_id = 1;
+  uint64 user_id = 2;
+  string client_id = 3;
+  string device_id = 4;
+  string device_name = 5;
+  string ip_address = 6;
+  string location = 7;
+  string user_agent = 8;
+  SessionStatus status = 9;
+  google.protobuf.Timestamp last_active_at = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp expires_at = 12;
+}
+
+message CreateSessionRequest {
+  uint64 user_id = 1;
+  string client_id = 2;
+  string device_id = 3;
+  string device_name = 4;
+  string ip_address = 5;
+  string location = 6;
+  string user_agent = 7;
+  int64 expires_in = 8; // 秒
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+}
+
+message ListUserSessionsRequest {
+  uint64 user_id = 1;
+  SessionStatus status = 2;
+}
+
+message ListUserSessionsResponse {
+  repeated AuthSession sessions = 1;
+}
+
+message RefreshSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeAllUserSessionsRequest {
+  uint64 user_id = 1;
+  string except_session_id = 2; // 保留的会话ID
+}
+
+message ValidateSessionRequest {
+  string session_id = 1;
+}
+
+message ValidateSessionResponse {
+  bool valid = 1;
+  AuthSession session = 2;
+}
+
+// ============================================================================
+// 统一身份服务（整合以上服务）
+// ============================================================================
+
+service IdentityService {
+  // 获取用户完整身份信息
+  rpc GetUserIdentity(GetUserIdentityRequest) returns (UserIdentity);
+  // 更新用户身份信息
+  rpc UpdateUserIdentity(UpdateUserIdentityRequest) returns (UserIdentity);
+  // 检查用户名/手机号/邮箱是否可用
+  rpc CheckIdentifierAvailable(CheckIdentifierAvailableRequest) returns (CheckIdentifierAvailableResponse);
+  // 合并账号
+  rpc MergeIdentity(MergeIdentityRequest) returns (MergeIdentityResponse);
+}
+
+// 用户完整身份信息
+message UserIdentity {
+  uint64 user_id = 1;
+  string username = 2;
+  string phone = 3;
+  string email = 4;
+  Persona persona = 5;
+  repeated LinkedAccount linked_accounts = 6;
+  repeated AuthSession active_sessions = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message GetUserIdentityRequest {
+  uint64 user_id = 1;
+}
+
+message UpdateUserIdentityRequest {
+  uint64 user_id = 1;
+  string username = 2;
+  string phone = 3;
+  string email = 4;
+}
+
+message CheckIdentifierAvailableRequest {
+  oneof identifier {
+    string username = 1;
+    string phone = 2;
+    string email = 3;
+  }
+}
+
+message CheckIdentifierAvailableResponse {
+  bool available = 1;
+}
+
+message MergeIdentityRequest {
+  uint64 primary_user_id = 1;
+  uint64 secondary_user_id = 2;
+}
+
+message MergeIdentityResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -1,0 +1,2804 @@
+syntax = "proto3";
+
+package api.supplychainfinance.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/supplychainfinance/v1;supplychainfinancev1";
+
+service SupplyChainFinanceService {
+    rpc CreateFinanceApplication(CreateFinanceApplicationRequest) returns (FinanceApplication);
+    rpc GetFinanceApplication(GetFinanceApplicationRequest) returns (FinanceApplication);
+    rpc ListFinanceApplications(ListFinanceApplicationsRequest) returns (ListFinanceApplicationsResponse);
+    rpc UpdateFinanceApplication(UpdateFinanceApplicationRequest) returns (FinanceApplication);
+    rpc CancelFinanceApplication(CancelFinanceApplicationRequest) returns (CancelFinanceApplicationResponse);
+    rpc ApproveFinanceApplication(ApproveFinanceApplicationRequest) returns (ApproveFinanceApplicationResponse);
+    rpc RejectFinanceApplication(RejectFinanceApplicationRequest) returns (RejectFinanceApplicationResponse);
+    
+    rpc CreateCreditLine(CreateCreditLineRequest) returns (CreditLine);
+    rpc GetCreditLine(GetCreditLineRequest) returns (CreditLine);
+    rpc ListCreditLines(ListCreditLinesRequest) returns (ListCreditLinesResponse);
+    rpc UpdateCreditLine(UpdateCreditLineRequest) returns (CreditLine);
+    rpc FreezeCreditLine(FreezeCreditLineRequest) returns (FreezeCreditLineResponse);
+    rpc UnfreezeCreditLine(UnfreezeCreditLineRequest) returns (UnfreezeCreditLineResponse);
+    rpc GetCreditLineUsage(GetCreditLineUsageRequest) returns (CreditLineUsage);
+    rpc CheckCreditAvailability(CheckCreditAvailabilityRequest) returns (CreditAvailability);
+    
+    rpc CreateInvoiceFinancing(CreateInvoiceFinancingRequest) returns (InvoiceFinancing);
+    rpc GetInvoiceFinancing(GetInvoiceFinancingRequest) returns (InvoiceFinancing);
+    rpc ListInvoiceFinancings(ListInvoiceFinancingsRequest) returns (ListInvoiceFinancingsResponse);
+    rpc ApproveInvoiceFinancing(ApproveInvoiceFinancingRequest) returns (ApproveInvoiceFinancingResponse);
+    rpc RejectInvoiceFinancing(RejectInvoiceFinancingRequest) returns (RejectInvoiceFinancingResponse);
+    rpc DisburseInvoiceFinancing(DisburseInvoiceFinancingRequest) returns (DisburseInvoiceFinancingResponse);
+    rpc RepayInvoiceFinancing(RepayInvoiceFinancingRequest) returns (RepayInvoiceFinancingResponse);
+    rpc GetInvoiceFinancingSchedule(GetInvoiceFinancingScheduleRequest) returns (InvoiceFinancingSchedule);
+    
+    rpc CreatePurchaseOrderFinancing(CreatePurchaseOrderFinancingRequest) returns (PurchaseOrderFinancing);
+    rpc GetPurchaseOrderFinancing(GetPurchaseOrderFinancingRequest) returns (PurchaseOrderFinancing);
+    rpc ListPurchaseOrderFinancings(ListPurchaseOrderFinancingsRequest) returns (ListPurchaseOrderFinancingsResponse);
+    rpc ApprovePurchaseOrderFinancing(ApprovePurchaseOrderFinancingRequest) returns (ApprovePurchaseOrderFinancingResponse);
+    rpc RejectPurchaseOrderFinancing(RejectPurchaseOrderFinancingRequest) returns (RejectPurchaseOrderFinancingResponse);
+    rpc DisbursePurchaseOrderFinancing(DisbursePurchaseOrderFinancingRequest) returns (DisbursePurchaseOrderFinancingResponse);
+    rpc RepayPurchaseOrderFinancing(RepayPurchaseOrderFinancingRequest) returns (RepayPurchaseOrderFinancingResponse);
+    
+    rpc CreateInventoryFinancing(CreateInventoryFinancingRequest) returns (InventoryFinancing);
+    rpc GetInventoryFinancing(GetInventoryFinancingRequest) returns (InventoryFinancing);
+    rpc ListInventoryFinancings(ListInventoryFinancingsRequest) returns (ListInventoryFinancingsResponse);
+    rpc ApproveInventoryFinancing(ApproveInventoryFinancingRequest) returns (ApproveInventoryFinancingResponse);
+    rpc RejectInventoryFinancing(RejectInventoryFinancingRequest) returns (RejectInventoryFinancingResponse);
+    rpc DisburseInventoryFinancing(DisburseInventoryFinancingRequest) returns (DisburseInventoryFinancingResponse);
+    rpc RepayInventoryFinancing(RepayInventoryFinancingRequest) returns (RepayInventoryFinancingResponse);
+    rpc UpdateInventoryCollateral(UpdateInventoryCollateralRequest) returns (UpdateInventoryCollateralResponse);
+    
+    rpc CreateSupplierFinancing(CreateSupplierFinancingRequest) returns (SupplierFinancing);
+    rpc GetSupplierFinancing(GetSupplierFinancingRequest) returns (SupplierFinancing);
+    rpc ListSupplierFinancings(ListSupplierFinancingsRequest) returns (ListSupplierFinancingsResponse);
+    rpc ApproveSupplierFinancing(ApproveSupplierFinancingRequest) returns (ApproveSupplierFinancingResponse);
+    rpc RejectSupplierFinancing(RejectSupplierFinancingRequest) returns (RejectSupplierFinancingResponse);
+    rpc DisburseSupplierFinancing(DisburseSupplierFinancingRequest) returns (DisburseSupplierFinancingResponse);
+    rpc RepaySupplierFinancing(RepaySupplierFinancingRequest) returns (RepaySupplierFinancingResponse);
+    
+    rpc CreateDistributorFinancing(CreateDistributorFinancingRequest) returns (DistributorFinancing);
+    rpc GetDistributorFinancing(GetDistributorFinancingRequest) returns (DistributorFinancing);
+    rpc ListDistributorFinancings(ListDistributorFinancingsRequest) returns (ListDistributorFinancingsResponse);
+    rpc ApproveDistributorFinancing(ApproveDistributorFinancingRequest) returns (ApproveDistributorFinancingResponse);
+    rpc RejectDistributorFinancing(RejectDistributorFinancingRequest) returns (RejectDistributorFinancingResponse);
+    rpc DisburseDistributorFinancing(DisburseDistributorFinancingRequest) returns (DisburseDistributorFinancingResponse);
+    rpc RepayDistributorFinancing(RepayDistributorFinancingRequest) returns (RepayDistributorFinancingResponse);
+    
+    rpc CreateFactoring(CreateFactoringRequest) returns (Factoring);
+    rpc GetFactoring(GetFactoringRequest) returns (Factoring);
+    rpc ListFactorings(ListFactoringsRequest) returns (ListFactoringsResponse);
+    rpc ApproveFactoring(ApproveFactoringRequest) returns (ApproveFactoringResponse);
+    rpc RejectFactoring(RejectFactoringRequest) returns (RejectFactoringResponse);
+    rpc PurchaseReceivables(PurchaseReceivablesRequest) returns (PurchaseReceivablesResponse);
+    rpc CollectReceivables(CollectReceivablesRequest) returns (CollectReceivablesResponse);
+    rpc GetFactoringReceivables(GetFactoringReceivablesRequest) returns (GetFactoringReceivablesResponse);
+    
+    rpc CreateReverseFactoring(CreateReverseFactoringRequest) returns (ReverseFactoring);
+    rpc GetReverseFactoring(GetReverseFactoringRequest) returns (ReverseFactoring);
+    rpc ListReverseFactorings(ListReverseFactoringsRequest) returns (ListReverseFactoringsResponse);
+    rpc ApproveReverseFactoring(ApproveReverseFactoringRequest) returns (ApproveReverseFactoringResponse);
+    rpc RejectReverseFactoring(RejectReverseFactoringRequest) returns (RejectReverseFactoringResponse);
+    
+    rpc CreateForfaiting(CreateForfaitingRequest) returns (Forfaiting);
+    rpc GetForfaiting(GetForfaitingRequest) returns (Forfaiting);
+    rpc ListForfaitings(ListForfaitingsRequest) returns (ListForfaitingsResponse);
+    rpc ApproveForfaiting(ApproveForfaitingRequest) returns (ApproveForfaitingResponse);
+    rpc RejectForfaiting(RejectForfaitingRequest) returns (RejectForfaitingResponse);
+    rpc PurchaseForfaitingInstrument(PurchaseForfaitingInstrumentRequest) returns (PurchaseForfaitingInstrumentResponse);
+    
+    rpc AssessSupplierRisk(AssessSupplierRiskRequest) returns (SupplierRiskAssessment);
+    rpc GetSupplierRiskProfile(GetSupplierRiskProfileRequest) returns (SupplierRiskProfile);
+    rpc UpdateSupplierRiskProfile(UpdateSupplierRiskProfileRequest) returns (SupplierRiskProfile);
+    rpc ListSupplierRiskAlerts(ListSupplierRiskAlertsRequest) returns (ListSupplierRiskAlertsResponse);
+    rpc AcknowledgeRiskAlert(AcknowledgeRiskAlertRequest) returns (AcknowledgeRiskAlertResponse);
+    
+    rpc AssessBuyerRisk(AssessBuyerRiskRequest) returns (BuyerRiskAssessment);
+    rpc GetBuyerRiskProfile(GetBuyerRiskProfileRequest) returns (BuyerRiskProfile);
+    rpc UpdateBuyerRiskProfile(UpdateBuyerRiskProfileRequest) returns (BuyerRiskProfile);
+    rpc ListBuyerRiskAlerts(ListBuyerRiskAlertsRequest) returns (ListBuyerRiskAlertsResponse);
+    
+    rpc CalculateFinancingLimit(CalculateFinancingLimitRequest) returns (FinancingLimit);
+    rpc CalculateInterest(CalculateInterestRequest) returns (InterestCalculation);
+    rpc CalculateFee(CalculateFeeRequest) returns (FeeCalculation);
+    rpc GetRepaymentSchedule(GetRepaymentScheduleRequest) returns (RepaymentSchedule);
+    rpc SimulateFinancing(SimulateFinancingRequest) returns (FinancingSimulation);
+    
+    rpc CreateRepaymentPlan(CreateRepaymentPlanRequest) returns (RepaymentPlan);
+    rpc GetRepaymentPlan(GetRepaymentPlanRequest) returns (RepaymentPlan);
+    rpc ListRepaymentPlans(ListRepaymentPlansRequest) returns (ListRepaymentPlansResponse);
+    rpc UpdateRepaymentPlan(UpdateRepaymentPlanRequest) returns (RepaymentPlan);
+    rpc MakeRepayment(MakeRepaymentRequest) returns (MakeRepaymentResponse);
+    rpc GetRepaymentHistory(GetRepaymentHistoryRequest) returns (GetRepaymentHistoryResponse);
+    rpc ProcessEarlyRepayment(ProcessEarlyRepaymentRequest) returns (ProcessEarlyRepaymentResponse);
+    rpc ProcessOverduePayment(ProcessOverduePaymentRequest) returns (ProcessOverduePaymentResponse);
+    
+    rpc CreateCollateral(CreateCollateralRequest) returns (Collateral);
+    rpc GetCollateral(GetCollateralRequest) returns (Collateral);
+    rpc ListCollaterals(ListCollateralsRequest) returns (ListCollateralsResponse);
+    rpc UpdateCollateral(UpdateCollateralRequest) returns (Collateral);
+    rpc ReleaseCollateral(ReleaseCollateralRequest) returns (ReleaseCollateralResponse);
+    rpc ValueCollateral(ValueCollateralRequest) returns (CollateralValuation);
+    rpc MonitorCollateral(MonitorCollateralRequest) returns (CollateralMonitoringResult);
+    
+    rpc CreateGuarantee(CreateGuaranteeRequest) returns (Guarantee);
+    rpc GetGuarantee(GetGuaranteeRequest) returns (Guarantee);
+    rpc ListGuarantees(ListGuaranteesRequest) returns (ListGuaranteesResponse);
+    rpc UpdateGuarantee(UpdateGuaranteeRequest) returns (Guarantee);
+    rpc ActivateGuarantee(ActivateGuaranteeRequest) returns (ActivateGuaranteeResponse);
+    rpc ClaimGuarantee(ClaimGuaranteeRequest) returns (ClaimGuaranteeResponse);
+    rpc ReleaseGuarantee(ReleaseGuaranteeRequest) returns (ReleaseGuaranteeResponse);
+    
+    rpc CreateInsurance(CreateInsuranceRequest) returns (FinanceInsurance);
+    rpc GetInsurance(GetInsuranceRequest) returns (FinanceInsurance);
+    rpc ListInsurances(ListInsurancesRequest) returns (ListInsurancesResponse);
+    rpc UpdateInsurance(UpdateInsuranceRequest) returns (FinanceInsurance);
+    rpc ClaimInsurance(ClaimInsuranceRequest) returns (ClaimInsuranceResponse);
+    
+    rpc GetFinanceAccount(GetFinanceAccountRequest) returns (FinanceAccount);
+    rpc GetFinanceAccountSummary(GetFinanceAccountSummaryRequest) returns (FinanceAccountSummary);
+    rpc ListFinanceTransactions(ListFinanceTransactionsRequest) returns (ListFinanceTransactionsResponse);
+    rpc GetFinanceStatement(GetFinanceStatementRequest) returns (FinanceStatement);
+    
+    rpc GetFinanceDashboard(GetFinanceDashboardRequest) returns (FinanceDashboard);
+    rpc GetFinanceMetrics(GetFinanceMetricsRequest) returns (FinanceMetrics);
+    rpc GetFinanceReport(GetFinanceReportRequest) returns (FinanceReport);
+    rpc ExportFinanceData(ExportFinanceDataRequest) returns (ExportFinanceDataResponse);
+    
+    rpc CreateFinanceProduct(CreateFinanceProductRequest) returns (FinanceProduct);
+    rpc GetFinanceProduct(GetFinanceProductRequest) returns (FinanceProduct);
+    rpc ListFinanceProducts(ListFinanceProductsRequest) returns (ListFinanceProductsResponse);
+    rpc UpdateFinanceProduct(UpdateFinanceProductRequest) returns (FinanceProduct);
+    rpc DeleteFinanceProduct(DeleteFinanceProductRequest) returns (google.protobuf.Empty);
+    
+    rpc SetInterestRate(SetInterestRateRequest) returns (InterestRate);
+    rpc GetInterestRate(GetInterestRateRequest) returns (InterestRate);
+    rpc ListInterestRates(ListInterestRatesRequest) returns (ListInterestRatesResponse);
+    rpc CalculateEffectiveRate(CalculateEffectiveRateRequest) returns (EffectiveRate);
+    
+    rpc CreateFinanceRule(CreateFinanceRuleRequest) returns (FinanceRule);
+    rpc GetFinanceRule(GetFinanceRuleRequest) returns (FinanceRule);
+    rpc ListFinanceRules(ListFinanceRulesRequest) returns (ListFinanceRulesResponse);
+    rpc UpdateFinanceRule(UpdateFinanceRuleRequest) returns (FinanceRule);
+    rpc DeleteFinanceRule(DeleteFinanceRuleRequest) returns (google.protobuf.Empty);
+    rpc EvaluateFinanceRule(EvaluateFinanceRuleRequest) returns (EvaluateFinanceRuleResponse);
+    
+    rpc SubscribeFinanceEvents(SubscribeFinanceEventsRequest) returns (stream FinanceEvent);
+    rpc SubscribeRepaymentReminders(SubscribeRepaymentRemindersRequest) returns (stream RepaymentReminder);
+    rpc SubscribeRiskAlerts(SubscribeRiskAlertsRequest) returns (stream RiskAlertEvent);
+    
+    rpc TccReserveCredit(TccReserveCreditRequest) returns (TccReserveCreditResponse);
+    rpc TccConfirmCredit(TccConfirmCreditRequest) returns (TccConfirmCreditResponse);
+    rpc TccCancelCredit(TccCancelCreditRequest) returns (TccCancelCreditResponse);
+    rpc SagaProcessFinancing(SagaProcessFinancingRequest) returns (SagaProcessFinancingResponse);
+}
+
+enum FinanceType {
+    FINANCE_TYPE_UNSPECIFIED = 0;
+    FINANCE_TYPE_INVOICE = 1;
+    FINANCE_TYPE_PURCHASE_ORDER = 2;
+    FINANCE_TYPE_INVENTORY = 3;
+    FINANCE_TYPE_SUPPLIER = 4;
+    FINANCE_TYPE_DISTRIBUTOR = 5;
+    FINANCE_TYPE_FACTORING = 6;
+    FINANCE_TYPE_REVERSE_FACTORING = 7;
+    FINANCE_TYPE_FORFAITING = 8;
+    FINANCE_TYPE_WORKING_CAPITAL = 9;
+    FINANCE_TYPE_TRADE_FINANCE = 10;
+}
+
+enum FinanceStatus {
+    FINANCE_STATUS_UNSPECIFIED = 0;
+    FINANCE_STATUS_DRAFT = 1;
+    FINANCE_STATUS_PENDING = 2;
+    FINANCE_STATUS_UNDER_REVIEW = 3;
+    FINANCE_STATUS_APPROVED = 4;
+    FINANCE_STATUS_REJECTED = 5;
+    FINANCE_STATUS_DISBURSED = 6;
+    FINANCE_STATUS_ACTIVE = 7;
+    FINANCE_STATUS_REPAYING = 8;
+    FINANCE_STATUS_COMPLETED = 9;
+    FINANCE_STATUS_DEFAULTED = 10;
+    FINANCE_STATUS_CANCELLED = 11;
+    FINANCE_STATUS_OVERDUE = 12;
+}
+
+enum CreditLineStatus {
+    CREDIT_LINE_STATUS_UNSPECIFIED = 0;
+    CREDIT_LINE_STATUS_ACTIVE = 1;
+    CREDIT_LINE_STATUS_FROZEN = 2;
+    CREDIT_LINE_STATUS_CLOSED = 3;
+    CREDIT_LINE_STATUS_SUSPENDED = 4;
+}
+
+enum CollateralType {
+    COLLATERAL_TYPE_UNSPECIFIED = 0;
+    COLLATERAL_TYPE_INVENTORY = 1;
+    COLLATERAL_TYPE_RECEIVABLES = 2;
+    COLLATERAL_TYPE_EQUIPMENT = 3;
+    COLLATERAL_TYPE_REAL_ESTATE = 4;
+    COLLATERAL_TYPE_SECURITIES = 5;
+    COLLATERAL_TYPE_CASH = 6;
+    COLLATERAL_TYPE_GUARANTEE = 7;
+    COLLATERAL_TYPE_INSURANCE = 8;
+}
+
+enum GuaranteeType {
+    GUARANTEE_TYPE_UNSPECIFIED = 0;
+    GUARANTEE_TYPE_BANK = 1;
+    GUARANTEE_TYPE_CORPORATE = 2;
+    GUARANTEE_TYPE_PERSONAL = 3;
+    GUARANTEE_TYPE_GOVERNMENT = 4;
+    GUARANTEE_TYPE_INSURANCE = 5;
+}
+
+enum RiskLevel {
+    RISK_LEVEL_UNSPECIFIED = 0;
+    RISK_LEVEL_LOW = 1;
+    RISK_LEVEL_MEDIUM = 2;
+    RISK_LEVEL_HIGH = 3;
+    RISK_LEVEL_CRITICAL = 4;
+}
+
+enum RepaymentFrequency {
+    REPAYMENT_FREQUENCY_UNSPECIFIED = 0;
+    REPAYMENT_FREQUENCY_ONE_TIME = 1;
+    REPAYMENT_FREQUENCY_WEEKLY = 2;
+    REPAYMENT_FREQUENCY_BI_WEEKLY = 3;
+    REPAYMENT_FREQUENCY_MONTHLY = 4;
+    REPAYMENT_FREQUENCY_QUARTERLY = 5;
+    REPAYMENT_FREQUENCY_SEMI_ANNUALLY = 6;
+    REPAYMENT_FREQUENCY_ANNUALLY = 7;
+}
+
+enum RepaymentType {
+    REPAYMENT_TYPE_UNSPECIFIED = 0;
+    REPAYMENT_TYPE_EQUAL_PRINCIPAL = 1;
+    REPAYMENT_TYPE_EQUAL_INSTALLMENT = 2;
+    REPAYMENT_TYPE_INTEREST_ONLY = 3;
+    REPAYMENT_TYPE_BULLET = 4;
+    REPAYMENT_TYPE_CUSTOM = 5;
+}
+
+message FinanceApplication {
+    string application_id = 1;
+    string applicant_id = 2;
+    string applicant_name = 3;
+    string applicant_type = 4;
+    FinanceType finance_type = 5;
+    string requested_amount = 6;
+    string approved_amount = 7;
+    string currency = 8;
+    string purpose = 9;
+    string term_days = 10;
+    FinanceStatus status = 11;
+    string credit_line_id = 12;
+    repeated string collateral_ids = 13;
+    repeated string guarantee_ids = 14;
+    string risk_level = 15;
+    string risk_score = 16;
+    string interest_rate = 17;
+    string fee_amount = 18;
+    map<string, string> documents = 19;
+    repeated string approval_history = 20;
+    google.protobuf.Timestamp submitted_at = 21;
+    google.protobuf.Timestamp approved_at = 22;
+    google.protobuf.Timestamp rejected_at = 23;
+    string rejection_reason = 24;
+    map<string, string> metadata = 25;
+    google.protobuf.Timestamp created_at = 26;
+    google.protobuf.Timestamp updated_at = 27;
+}
+
+message CreateFinanceApplicationRequest {
+    string applicant_id = 1;
+    string applicant_name = 2;
+    string applicant_type = 3;
+    FinanceType finance_type = 4;
+    string requested_amount = 5;
+    string currency = 6;
+    string purpose = 7;
+    string term_days = 8;
+    string credit_line_id = 9;
+    repeated string collateral_ids = 10;
+    repeated string guarantee_ids = 11;
+    map<string, string> documents = 12;
+    map<string, string> metadata = 13;
+}
+
+message GetFinanceApplicationRequest {
+    string application_id = 1;
+}
+
+message ListFinanceApplicationsRequest {
+    string applicant_id = 1;
+    FinanceType finance_type = 2;
+    FinanceStatus status = 3;
+    google.protobuf.Timestamp from = 4;
+    google.protobuf.Timestamp to = 5;
+    int32 page_size = 6;
+    string page_token = 7;
+}
+
+message ListFinanceApplicationsResponse {
+    repeated FinanceApplication applications = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateFinanceApplicationRequest {
+    string application_id = 1;
+    string requested_amount = 2;
+    string purpose = 3;
+    string term_days = 4;
+    repeated string collateral_ids = 5;
+    repeated string guarantee_ids = 6;
+    map<string, string> documents = 7;
+    map<string, string> metadata = 8;
+}
+
+message CancelFinanceApplicationRequest {
+    string application_id = 1;
+    string reason = 2;
+}
+
+message CancelFinanceApplicationResponse {
+    FinanceApplication application = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message ApproveFinanceApplicationRequest {
+    string application_id = 1;
+    string approved_amount = 2;
+    string interest_rate = 3;
+    string fee_amount = 4;
+    string term_days = 5;
+    string approved_by = 6;
+    string notes = 7;
+}
+
+message ApproveFinanceApplicationResponse {
+    FinanceApplication application = 1;
+    string credit_line_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message RejectFinanceApplicationRequest {
+    string application_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+    string notes = 4;
+}
+
+message RejectFinanceApplicationResponse {
+    FinanceApplication application = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message CreditLine {
+    string credit_line_id = 1;
+    string owner_id = 2;
+    string owner_name = 3;
+    string owner_type = 4;
+    string total_limit = 5;
+    string used_amount = 6;
+    string available_amount = 7;
+    string currency = 8;
+    CreditLineStatus status = 9;
+    string interest_rate = 10;
+    string annual_fee = 11;
+    google.protobuf.Timestamp effective_from = 12;
+    google.protobuf.Timestamp effective_to = 13;
+    string review_frequency = 14;
+    google.protobuf.Timestamp last_review = 15;
+    google.protobuf.Timestamp next_review = 16;
+    repeated string financing_ids = 17;
+    map<string, string> terms = 18;
+    google.protobuf.Timestamp created_at = 19;
+    google.protobuf.Timestamp updated_at = 20;
+}
+
+message CreateCreditLineRequest {
+    string owner_id = 1;
+    string owner_name = 2;
+    string owner_type = 3;
+    string total_limit = 4;
+    string currency = 5;
+    string interest_rate = 6;
+    string annual_fee = 7;
+    google.protobuf.Timestamp effective_from = 8;
+    google.protobuf.Timestamp effective_to = 9;
+    string review_frequency = 10;
+    map<string, string> terms = 11;
+}
+
+message GetCreditLineRequest {
+    string credit_line_id = 1;
+}
+
+message ListCreditLinesRequest {
+    string owner_id = 1;
+    CreditLineStatus status = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListCreditLinesResponse {
+    repeated CreditLine credit_lines = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateCreditLineRequest {
+    string credit_line_id = 1;
+    string total_limit = 2;
+    string interest_rate = 3;
+    string annual_fee = 4;
+    google.protobuf.Timestamp effective_to = 5;
+    string review_frequency = 6;
+    map<string, string> terms = 7;
+}
+
+message FreezeCreditLineRequest {
+    string credit_line_id = 1;
+    string reason = 2;
+    string frozen_by = 3;
+}
+
+message FreezeCreditLineResponse {
+    CreditLine credit_line = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message UnfreezeCreditLineRequest {
+    string credit_line_id = 1;
+    string unfrozen_by = 2;
+    string notes = 3;
+}
+
+message UnfreezeCreditLineResponse {
+    CreditLine credit_line = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message CreditLineUsage {
+    string credit_line_id = 1;
+    string total_limit = 2;
+    string used_amount = 3;
+    string available_amount = 4;
+    string utilization_rate = 5;
+    repeated FinancingUsage financing_usages = 6;
+    google.protobuf.Timestamp as_of = 7;
+}
+
+message FinancingUsage {
+    string financing_id = 1;
+    string financing_type = 2;
+    string amount = 3;
+    string outstanding_amount = 4;
+    google.protobuf.Timestamp disbursed_at = 5;
+    google.protobuf.Timestamp due_date = 6;
+}
+
+message GetCreditLineUsageRequest {
+    string credit_line_id = 1;
+}
+
+message CreditAvailability {
+    string credit_line_id = 1;
+    string available_amount = 2;
+    string requested_amount = 3;
+    bool is_available = 4;
+    string shortfall = 5;
+    string reason = 6;
+}
+
+message CheckCreditAvailabilityRequest {
+    string credit_line_id = 1;
+    string requested_amount = 2;
+}
+
+message InvoiceFinancing {
+    string financing_id = 1;
+    string application_id = 2;
+    string borrower_id = 3;
+    string borrower_name = 4;
+    string invoice_id = 5;
+    string invoice_number = 6;
+    string invoice_amount = 7;
+    string financing_amount = 8;
+    string advance_rate = 9;
+    string currency = 10;
+    string interest_rate = 11;
+    string interest_amount = 12;
+    string fee_amount = 13;
+    string disbursement_amount = 14;
+    string outstanding_amount = 15;
+    string repaid_amount = 16;
+    FinanceStatus status = 17;
+    google.protobuf.Timestamp invoice_date = 18;
+    google.protobuf.Timestamp invoice_due_date = 19;
+    google.protobuf.Timestamp disbursement_date = 20;
+    google.protobuf.Timestamp maturity_date = 21;
+    string buyer_id = 22;
+    string buyer_name = 23;
+    string credit_line_id = 24;
+    string collateral_id = 25;
+    map<string, string> metadata = 26;
+    google.protobuf.Timestamp created_at = 27;
+    google.protobuf.Timestamp updated_at = 28;
+}
+
+message CreateInvoiceFinancingRequest {
+    string application_id = 1;
+    string invoice_id = 2;
+    string invoice_number = 3;
+    string invoice_amount = 4;
+    string financing_amount = 5;
+    string currency = 6;
+    string interest_rate = 7;
+    google.protobuf.Timestamp invoice_date = 8;
+    google.protobuf.Timestamp invoice_due_date = 9;
+    string buyer_id = 10;
+    string buyer_name = 11;
+    string credit_line_id = 12;
+    string collateral_id = 13;
+    map<string, string> metadata = 14;
+}
+
+message GetInvoiceFinancingRequest {
+    string financing_id = 1;
+}
+
+message ListInvoiceFinancingsRequest {
+    string borrower_id = 1;
+    string buyer_id = 2;
+    FinanceStatus status = 3;
+    google.protobuf.Timestamp from = 4;
+    google.protobuf.Timestamp to = 5;
+    int32 page_size = 6;
+    string page_token = 7;
+}
+
+message ListInvoiceFinancingsResponse {
+    repeated InvoiceFinancing financings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveInvoiceFinancingRequest {
+    string financing_id = 1;
+    string approved_amount = 2;
+    string interest_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+    string notes = 6;
+}
+
+message ApproveInvoiceFinancingResponse {
+    InvoiceFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectInvoiceFinancingRequest {
+    string financing_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectInvoiceFinancingResponse {
+    InvoiceFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message DisburseInvoiceFinancingRequest {
+    string financing_id = 1;
+    string disbursement_amount = 2;
+    string disbursement_method = 3;
+    string destination_account = 4;
+    string disbursed_by = 5;
+}
+
+message DisburseInvoiceFinancingResponse {
+    InvoiceFinancing financing = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message RepayInvoiceFinancingRequest {
+    string financing_id = 1;
+    string repayment_amount = 2;
+    string repayment_method = 3;
+    string source_account = 4;
+    string repaid_by = 5;
+}
+
+message RepayInvoiceFinancingResponse {
+    InvoiceFinancing financing = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_repaid = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message InvoiceFinancingSchedule {
+    string financing_id = 1;
+    repeated InvoiceFinancingPayment payments = 2;
+    string total_principal = 3;
+    string total_interest = 4;
+    string total_fees = 5;
+    string total_amount = 6;
+}
+
+message InvoiceFinancingPayment {
+    string payment_id = 1;
+    int32 payment_number = 2;
+    google.protobuf.Timestamp due_date = 3;
+    string principal_amount = 4;
+    string interest_amount = 5;
+    string fee_amount = 6;
+    string total_amount = 7;
+    string status = 8;
+    google.protobuf.Timestamp paid_date = 9;
+    string paid_amount = 10;
+}
+
+message GetInvoiceFinancingScheduleRequest {
+    string financing_id = 1;
+}
+
+message PurchaseOrderFinancing {
+    string financing_id = 1;
+    string application_id = 2;
+    string borrower_id = 3;
+    string borrower_name = 4;
+    string purchase_order_id = 5;
+    string po_number = 6;
+    string po_amount = 7;
+    string financing_amount = 8;
+    string advance_rate = 9;
+    string currency = 10;
+    string interest_rate = 11;
+    string interest_amount = 12;
+    string fee_amount = 13;
+    string disbursement_amount = 14;
+    string outstanding_amount = 15;
+    string repaid_amount = 16;
+    FinanceStatus status = 17;
+    google.protobuf.Timestamp po_date = 18;
+    google.protobuf.Timestamp expected_delivery_date = 19;
+    google.protobuf.Timestamp disbursement_date = 20;
+    google.protobuf.Timestamp maturity_date = 21;
+    string buyer_id = 22;
+    string buyer_name = 23;
+    string supplier_id = 24;
+    string supplier_name = 25;
+    string credit_line_id = 26;
+    map<string, string> metadata = 27;
+    google.protobuf.Timestamp created_at = 28;
+    google.protobuf.Timestamp updated_at = 29;
+}
+
+message CreatePurchaseOrderFinancingRequest {
+    string application_id = 1;
+    string purchase_order_id = 2;
+    string po_number = 3;
+    string po_amount = 4;
+    string financing_amount = 5;
+    string currency = 6;
+    string interest_rate = 7;
+    google.protobuf.Timestamp po_date = 8;
+    google.protobuf.Timestamp expected_delivery_date = 9;
+    string buyer_id = 10;
+    string buyer_name = 11;
+    string supplier_id = 12;
+    string supplier_name = 13;
+    string credit_line_id = 14;
+    map<string, string> metadata = 15;
+}
+
+message GetPurchaseOrderFinancingRequest {
+    string financing_id = 1;
+}
+
+message ListPurchaseOrderFinancingsRequest {
+    string borrower_id = 1;
+    string buyer_id = 2;
+    string supplier_id = 3;
+    FinanceStatus status = 4;
+    int32 page_size = 5;
+    string page_token = 6;
+}
+
+message ListPurchaseOrderFinancingsResponse {
+    repeated PurchaseOrderFinancing financings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApprovePurchaseOrderFinancingRequest {
+    string financing_id = 1;
+    string approved_amount = 2;
+    string interest_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApprovePurchaseOrderFinancingResponse {
+    PurchaseOrderFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectPurchaseOrderFinancingRequest {
+    string financing_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectPurchaseOrderFinancingResponse {
+    PurchaseOrderFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message DisbursePurchaseOrderFinancingRequest {
+    string financing_id = 1;
+    string disbursement_amount = 2;
+    string disbursement_method = 3;
+    string destination_account = 4;
+    string disbursed_by = 5;
+}
+
+message DisbursePurchaseOrderFinancingResponse {
+    PurchaseOrderFinancing financing = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message RepayPurchaseOrderFinancingRequest {
+    string financing_id = 1;
+    string repayment_amount = 2;
+    string repayment_method = 3;
+    string source_account = 4;
+    string repaid_by = 5;
+}
+
+message RepayPurchaseOrderFinancingResponse {
+    PurchaseOrderFinancing financing = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_repaid = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message InventoryFinancing {
+    string financing_id = 1;
+    string application_id = 2;
+    string borrower_id = 3;
+    string borrower_name = 4;
+    string inventory_value = 5;
+    string financing_amount = 6;
+    string advance_rate = 7;
+    string currency = 8;
+    string interest_rate = 9;
+    string interest_amount = 10;
+    string fee_amount = 11;
+    string disbursement_amount = 12;
+    string outstanding_amount = 13;
+    string repaid_amount = 14;
+    FinanceStatus status = 15;
+    google.protobuf.Timestamp disbursement_date = 16;
+    google.protobuf.Timestamp maturity_date = 17;
+    string warehouse_id = 18;
+    string warehouse_name = 19;
+    string collateral_id = 20;
+    string credit_line_id = 21;
+    repeated InventoryItem financed_items = 22;
+    map<string, string> metadata = 23;
+    google.protobuf.Timestamp created_at = 24;
+    google.protobuf.Timestamp updated_at = 25;
+}
+
+message InventoryItem {
+    string item_id = 1;
+    string sku_id = 2;
+    string sku_name = 3;
+    string quantity = 4;
+    string unit_value = 5;
+    string total_value = 6;
+    string location = 7;
+}
+
+message CreateInventoryFinancingRequest {
+    string application_id = 1;
+    string inventory_value = 2;
+    string financing_amount = 3;
+    string currency = 4;
+    string interest_rate = 5;
+    string warehouse_id = 6;
+    string warehouse_name = 7;
+    string credit_line_id = 8;
+    repeated InventoryItem financed_items = 9;
+    map<string, string> metadata = 10;
+}
+
+message GetInventoryFinancingRequest {
+    string financing_id = 1;
+}
+
+message ListInventoryFinancingsRequest {
+    string borrower_id = 1;
+    string warehouse_id = 2;
+    FinanceStatus status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListInventoryFinancingsResponse {
+    repeated InventoryFinancing financings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveInventoryFinancingRequest {
+    string financing_id = 1;
+    string approved_amount = 2;
+    string interest_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApproveInventoryFinancingResponse {
+    InventoryFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectInventoryFinancingRequest {
+    string financing_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectInventoryFinancingResponse {
+    InventoryFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message DisburseInventoryFinancingRequest {
+    string financing_id = 1;
+    string disbursement_amount = 2;
+    string disbursement_method = 3;
+    string destination_account = 4;
+    string disbursed_by = 5;
+}
+
+message DisburseInventoryFinancingResponse {
+    InventoryFinancing financing = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message RepayInventoryFinancingRequest {
+    string financing_id = 1;
+    string repayment_amount = 2;
+    string repayment_method = 3;
+    string source_account = 4;
+    string repaid_by = 5;
+}
+
+message RepayInventoryFinancingResponse {
+    InventoryFinancing financing = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_repaid = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message UpdateInventoryCollateralRequest {
+    string financing_id = 1;
+    repeated InventoryItem financed_items = 2;
+    string reason = 3;
+}
+
+message UpdateInventoryCollateralResponse {
+    InventoryFinancing financing = 1;
+    string new_collateral_value = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message SupplierFinancing {
+    string financing_id = 1;
+    string application_id = 2;
+    string supplier_id = 3;
+    string supplier_name = 4;
+    string buyer_id = 5;
+    string buyer_name = 6;
+    string financing_amount = 7;
+    string currency = 8;
+    string interest_rate = 9;
+    string interest_amount = 10;
+    string fee_amount = 11;
+    string disbursement_amount = 12;
+    string outstanding_amount = 13;
+    string repaid_amount = 14;
+    FinanceStatus status = 15;
+    string financing_purpose = 16;
+    google.protobuf.Timestamp disbursement_date = 17;
+    google.protobuf.Timestamp maturity_date = 18;
+    string credit_line_id = 19;
+    string collateral_id = 20;
+    map<string, string> metadata = 21;
+    google.protobuf.Timestamp created_at = 22;
+    google.protobuf.Timestamp updated_at = 23;
+}
+
+message CreateSupplierFinancingRequest {
+    string application_id = 1;
+    string supplier_id = 2;
+    string supplier_name = 3;
+    string buyer_id = 4;
+    string buyer_name = 5;
+    string financing_amount = 6;
+    string currency = 7;
+    string interest_rate = 8;
+    string financing_purpose = 9;
+    string term_days = 10;
+    string credit_line_id = 11;
+    string collateral_id = 12;
+    map<string, string> metadata = 13;
+}
+
+message GetSupplierFinancingRequest {
+    string financing_id = 1;
+}
+
+message ListSupplierFinancingsRequest {
+    string supplier_id = 1;
+    string buyer_id = 2;
+    FinanceStatus status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListSupplierFinancingsResponse {
+    repeated SupplierFinancing financings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveSupplierFinancingRequest {
+    string financing_id = 1;
+    string approved_amount = 2;
+    string interest_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApproveSupplierFinancingResponse {
+    SupplierFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectSupplierFinancingRequest {
+    string financing_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectSupplierFinancingResponse {
+    SupplierFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message DisburseSupplierFinancingRequest {
+    string financing_id = 1;
+    string disbursement_amount = 2;
+    string disbursement_method = 3;
+    string destination_account = 4;
+    string disbursed_by = 5;
+}
+
+message DisburseSupplierFinancingResponse {
+    SupplierFinancing financing = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message RepaySupplierFinancingRequest {
+    string financing_id = 1;
+    string repayment_amount = 2;
+    string repayment_method = 3;
+    string source_account = 4;
+    string repaid_by = 5;
+}
+
+message RepaySupplierFinancingResponse {
+    SupplierFinancing financing = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_repaid = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message DistributorFinancing {
+    string financing_id = 1;
+    string application_id = 2;
+    string distributor_id = 3;
+    string distributor_name = 4;
+    string supplier_id = 5;
+    string supplier_name = 6;
+    string financing_amount = 7;
+    string currency = 8;
+    string interest_rate = 9;
+    string interest_amount = 10;
+    string fee_amount = 11;
+    string disbursement_amount = 12;
+    string outstanding_amount = 13;
+    string repaid_amount = 14;
+    FinanceStatus status = 15;
+    string financing_purpose = 16;
+    google.protobuf.Timestamp disbursement_date = 17;
+    google.protobuf.Timestamp maturity_date = 18;
+    string credit_line_id = 19;
+    map<string, string> metadata = 20;
+    google.protobuf.Timestamp created_at = 21;
+    google.protobuf.Timestamp updated_at = 22;
+}
+
+message CreateDistributorFinancingRequest {
+    string application_id = 1;
+    string distributor_id = 2;
+    string distributor_name = 3;
+    string supplier_id = 4;
+    string supplier_name = 5;
+    string financing_amount = 6;
+    string currency = 7;
+    string interest_rate = 8;
+    string financing_purpose = 9;
+    string term_days = 10;
+    string credit_line_id = 11;
+    map<string, string> metadata = 12;
+}
+
+message GetDistributorFinancingRequest {
+    string financing_id = 1;
+}
+
+message ListDistributorFinancingsRequest {
+    string distributor_id = 1;
+    string supplier_id = 2;
+    FinanceStatus status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListDistributorFinancingsResponse {
+    repeated DistributorFinancing financings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveDistributorFinancingRequest {
+    string financing_id = 1;
+    string approved_amount = 2;
+    string interest_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApproveDistributorFinancingResponse {
+    DistributorFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectDistributorFinancingRequest {
+    string financing_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectDistributorFinancingResponse {
+    DistributorFinancing financing = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message DisburseDistributorFinancingRequest {
+    string financing_id = 1;
+    string disbursement_amount = 2;
+    string disbursement_method = 3;
+    string destination_account = 4;
+    string disbursed_by = 5;
+}
+
+message DisburseDistributorFinancingResponse {
+    DistributorFinancing financing = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message RepayDistributorFinancingRequest {
+    string financing_id = 1;
+    string repayment_amount = 2;
+    string repayment_method = 3;
+    string source_account = 4;
+    string repaid_by = 5;
+}
+
+message RepayDistributorFinancingResponse {
+    DistributorFinancing financing = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_repaid = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message Factoring {
+    string factoring_id = 1;
+    string application_id = 2;
+    string seller_id = 3;
+    string seller_name = 4;
+    string buyer_id = 5;
+    string buyer_name = 6;
+    string total_receivables = 7;
+    string advance_amount = 8;
+    string advance_rate = 9;
+    string reserve_amount = 10;
+    string currency = 11;
+    string discount_rate = 12;
+    string discount_amount = 13;
+    string fee_amount = 14;
+    string disbursement_amount = 15;
+    string collected_amount = 16;
+    string outstanding_amount = 17;
+    FinanceStatus status = 18;
+    string factoring_type = 19;
+    bool with_recourse = 20;
+    google.protobuf.Timestamp disbursement_date = 21;
+    google.protobuf.Timestamp maturity_date = 22;
+    repeated string receivable_ids = 23;
+    string credit_line_id = 24;
+    map<string, string> metadata = 25;
+    google.protobuf.Timestamp created_at = 26;
+    google.protobuf.Timestamp updated_at = 27;
+}
+
+message CreateFactoringRequest {
+    string application_id = 1;
+    string seller_id = 2;
+    string seller_name = 3;
+    string buyer_id = 4;
+    string buyer_name = 5;
+    string total_receivables = 6;
+    string advance_rate = 7;
+    string currency = 8;
+    string discount_rate = 9;
+    string factoring_type = 10;
+    bool with_recourse = 11;
+    repeated string receivable_ids = 12;
+    string credit_line_id = 13;
+    map<string, string> metadata = 14;
+}
+
+message GetFactoringRequest {
+    string factoring_id = 1;
+}
+
+message ListFactoringsRequest {
+    string seller_id = 1;
+    string buyer_id = 2;
+    FinanceStatus status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListFactoringsResponse {
+    repeated Factoring factorings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveFactoringRequest {
+    string factoring_id = 1;
+    string approved_advance_rate = 2;
+    string discount_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApproveFactoringResponse {
+    Factoring factoring = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectFactoringRequest {
+    string factoring_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectFactoringResponse {
+    Factoring factoring = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message PurchaseReceivablesRequest {
+    string factoring_id = 1;
+    repeated string receivable_ids = 2;
+    string purchase_amount = 3;
+    string purchased_by = 4;
+}
+
+message PurchaseReceivablesResponse {
+    Factoring factoring = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message CollectReceivablesRequest {
+    string factoring_id = 1;
+    string receivable_id = 2;
+    string collected_amount = 3;
+    string collection_method = 4;
+    string collected_by = 5;
+}
+
+message CollectReceivablesResponse {
+    Factoring factoring = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_collected = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message FactoringReceivable {
+    string receivable_id = 1;
+    string invoice_id = 2;
+    string invoice_number = 3;
+    string amount = 4;
+    string collected_amount = 5;
+    string outstanding_amount = 6;
+    google.protobuf.Timestamp due_date = 7;
+    string status = 8;
+}
+
+message GetFactoringReceivablesRequest {
+    string factoring_id = 1;
+}
+
+message GetFactoringReceivablesResponse {
+    repeated FactoringReceivable receivables = 1;
+    string total_amount = 2;
+    string total_collected = 3;
+    string total_outstanding = 4;
+}
+
+message ReverseFactoring {
+    string factoring_id = 1;
+    string application_id = 2;
+    string buyer_id = 3;
+    string buyer_name = 4;
+    string supplier_id = 5;
+    string supplier_name = 6;
+    string invoice_amount = 7;
+    string financing_amount = 8;
+    string currency = 9;
+    string discount_rate = 10;
+    string discount_amount = 11;
+    string fee_amount = 12;
+    string disbursement_amount = 13;
+    string outstanding_amount = 14;
+    FinanceStatus status = 15;
+    google.protobuf.Timestamp invoice_date = 16;
+    google.protobuf.Timestamp invoice_due_date = 17;
+    google.protobuf.Timestamp disbursement_date = 18;
+    string invoice_id = 19;
+    string invoice_number = 20;
+    map<string, string> metadata = 21;
+    google.protobuf.Timestamp created_at = 22;
+    google.protobuf.Timestamp updated_at = 23;
+}
+
+message CreateReverseFactoringRequest {
+    string application_id = 1;
+    string buyer_id = 2;
+    string buyer_name = 3;
+    string supplier_id = 4;
+    string supplier_name = 5;
+    string invoice_amount = 6;
+    string currency = 7;
+    string discount_rate = 8;
+    string invoice_id = 9;
+    string invoice_number = 10;
+    google.protobuf.Timestamp invoice_date = 11;
+    google.protobuf.Timestamp invoice_due_date = 12;
+    map<string, string> metadata = 13;
+}
+
+message GetReverseFactoringRequest {
+    string factoring_id = 1;
+}
+
+message ListReverseFactoringsRequest {
+    string buyer_id = 1;
+    string supplier_id = 2;
+    FinanceStatus status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListReverseFactoringsResponse {
+    repeated ReverseFactoring factorings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveReverseFactoringRequest {
+    string factoring_id = 1;
+    string approved_amount = 2;
+    string discount_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApproveReverseFactoringResponse {
+    ReverseFactoring factoring = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectReverseFactoringRequest {
+    string factoring_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectReverseFactoringResponse {
+    ReverseFactoring factoring = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message Forfaiting {
+    string forfaiting_id = 1;
+    string application_id = 2;
+    string exporter_id = 3;
+    string exporter_name = 4;
+    string importer_id = 5;
+    string importer_name = 6;
+    string instrument_amount = 7;
+    string purchase_amount = 8;
+    string discount_rate = 9;
+    string discount_amount = 10;
+    string currency = 11;
+    string fee_amount = 12;
+    string outstanding_amount = 13;
+    FinanceStatus status = 14;
+    string instrument_type = 15;
+    string instrument_number = 16;
+    string avalizing_bank = 17;
+    google.protobuf.Timestamp instrument_date = 18;
+    google.protobuf.Timestamp maturity_date = 19;
+    google.protobuf.Timestamp purchase_date = 20;
+    map<string, string> metadata = 21;
+    google.protobuf.Timestamp created_at = 22;
+    google.protobuf.Timestamp updated_at = 23;
+}
+
+message CreateForfaitingRequest {
+    string application_id = 1;
+    string exporter_id = 2;
+    string exporter_name = 3;
+    string importer_id = 4;
+    string importer_name = 5;
+    string instrument_amount = 6;
+    string currency = 7;
+    string discount_rate = 8;
+    string instrument_type = 9;
+    string instrument_number = 10;
+    string avalizing_bank = 11;
+    google.protobuf.Timestamp instrument_date = 12;
+    google.protobuf.Timestamp maturity_date = 13;
+    map<string, string> metadata = 14;
+}
+
+message GetForfaitingRequest {
+    string forfaiting_id = 1;
+}
+
+message ListForfaitingsRequest {
+    string exporter_id = 1;
+    string importer_id = 2;
+    FinanceStatus status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListForfaitingsResponse {
+    repeated Forfaiting forfaitings = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ApproveForfaitingRequest {
+    string forfaiting_id = 1;
+    string purchase_amount = 2;
+    string discount_rate = 3;
+    string fee_amount = 4;
+    string approved_by = 5;
+}
+
+message ApproveForfaitingResponse {
+    Forfaiting forfaiting = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RejectForfaitingRequest {
+    string forfaiting_id = 1;
+    string rejection_reason = 2;
+    string rejected_by = 3;
+}
+
+message RejectForfaitingResponse {
+    Forfaiting forfaiting = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message PurchaseForfaitingInstrumentRequest {
+    string forfaiting_id = 1;
+    string purchase_amount = 2;
+    string purchased_by = 3;
+}
+
+message PurchaseForfaitingInstrumentResponse {
+    Forfaiting forfaiting = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message SupplierRiskAssessment {
+    string assessment_id = 1;
+    string supplier_id = 2;
+    string supplier_name = 3;
+    RiskLevel risk_level = 4;
+    string risk_score = 5;
+    string credit_score = 6;
+    string financial_health_score = 7;
+    string operational_risk_score = 8;
+    string market_risk_score = 9;
+    string compliance_risk_score = 10;
+    repeated RiskFactor risk_factors = 11;
+    repeated string recommendations = 12;
+    string credit_limit_recommendation = 13;
+    string interest_rate_recommendation = 14;
+    google.protobuf.Timestamp assessed_at = 15;
+    google.protobuf.Timestamp valid_until = 16;
+}
+
+message RiskFactor {
+    string factor_name = 1;
+    string factor_value = 2;
+    string risk_contribution = 3;
+    string description = 4;
+    string mitigation = 5;
+}
+
+message AssessSupplierRiskRequest {
+    string supplier_id = 1;
+    bool include_financials = 2;
+    bool include_operational = 3;
+    bool include_market = 4;
+    bool include_compliance = 5;
+}
+
+message SupplierRiskProfile {
+    string profile_id = 1;
+    string supplier_id = 2;
+    string supplier_name = 3;
+    RiskLevel overall_risk_level = 4;
+    string overall_risk_score = 5;
+    string credit_rating = 6;
+    string financial_risk_score = 7;
+    string operational_risk_score = 8;
+    string market_risk_score = 9;
+    string compliance_risk_score = 10;
+    string payment_history_score = 11;
+    string delivery_performance_score = 12;
+    string quality_score = 13;
+    int32 total_transactions = 14;
+    string total_transaction_value = 15;
+    int32 on_time_payments = 16;
+    int32 late_payments = 17;
+    int32 defaults = 18;
+    string default_rate = 19;
+    repeated string alerts = 20;
+    google.protobuf.Timestamp last_assessment = 21;
+    google.protobuf.Timestamp created_at = 22;
+    google.protobuf.Timestamp updated_at = 23;
+}
+
+message GetSupplierRiskProfileRequest {
+    string supplier_id = 1;
+}
+
+message UpdateSupplierRiskProfileRequest {
+    string supplier_id = 1;
+    string credit_rating = 2;
+    repeated string alerts = 3;
+}
+
+message RiskAlert {
+    string alert_id = 1;
+    string entity_id = 2;
+    string entity_name = 3;
+    string entity_type = 4;
+    RiskLevel severity = 5;
+    string alert_type = 6;
+    string message = 7;
+    string trigger_value = 8;
+    string threshold_value = 9;
+    bool acknowledged = 10;
+    string acknowledged_by = 11;
+    google.protobuf.Timestamp acknowledged_at = 12;
+    google.protobuf.Timestamp triggered_at = 13;
+}
+
+message ListSupplierRiskAlertsRequest {
+    string supplier_id = 1;
+    RiskLevel severity = 2;
+    bool unacknowledged_only = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListSupplierRiskAlertsResponse {
+    repeated RiskAlert alerts = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message AcknowledgeRiskAlertRequest {
+    string alert_id = 1;
+    string acknowledged_by = 2;
+    string notes = 3;
+}
+
+message AcknowledgeRiskAlertResponse {
+    RiskAlert alert = 1;
+    bool success = 2;
+}
+
+message BuyerRiskAssessment {
+    string assessment_id = 1;
+    string buyer_id = 2;
+    string buyer_name = 3;
+    RiskLevel risk_level = 4;
+    string risk_score = 5;
+    string credit_score = 6;
+    string payment_behavior_score = 7;
+    string financial_stability_score = 8;
+    repeated RiskFactor risk_factors = 9;
+    repeated string recommendations = 10;
+    string credit_limit_recommendation = 11;
+    google.protobuf.Timestamp assessed_at = 12;
+    google.protobuf.Timestamp valid_until = 13;
+}
+
+message AssessBuyerRiskRequest {
+    string buyer_id = 1;
+    bool include_payment_history = 2;
+    bool include_financials = 3;
+}
+
+message BuyerRiskProfile {
+    string profile_id = 1;
+    string buyer_id = 2;
+    string buyer_name = 3;
+    RiskLevel overall_risk_level = 4;
+    string overall_risk_score = 5;
+    string credit_rating = 6;
+    string payment_behavior_score = 7;
+    string financial_stability_score = 8;
+    int32 total_orders = 9;
+    string total_order_value = 10;
+    int32 on_time_payments = 11;
+    int32 late_payments = 12;
+    int32 defaults = 13;
+    string default_rate = 14;
+    repeated string alerts = 15;
+    google.protobuf.Timestamp last_assessment = 16;
+    google.protobuf.Timestamp created_at = 17;
+    google.protobuf.Timestamp updated_at = 18;
+}
+
+message GetBuyerRiskProfileRequest {
+    string buyer_id = 1;
+}
+
+message UpdateBuyerRiskProfileRequest {
+    string buyer_id = 1;
+    string credit_rating = 2;
+    repeated string alerts = 3;
+}
+
+message ListBuyerRiskAlertsRequest {
+    string buyer_id = 1;
+    RiskLevel severity = 2;
+    bool unacknowledged_only = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListBuyerRiskAlertsResponse {
+    repeated RiskAlert alerts = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message FinancingLimit {
+    string entity_id = 1;
+    string entity_name = 2;
+    string entity_type = 3;
+    string recommended_limit = 4;
+    string max_limit = 5;
+    string min_limit = 6;
+    string currency = 7;
+    string risk_adjusted_limit = 8;
+    string utilization_rate = 9;
+    repeated LimitFactor factors = 10;
+}
+
+message LimitFactor {
+    string factor_name = 1;
+    string factor_value = 2;
+    string weight = 3;
+    string contribution = 4;
+}
+
+message CalculateFinancingLimitRequest {
+    string entity_id = 1;
+    string entity_type = 2;
+    string requested_amount = 3;
+    string currency = 4;
+    FinanceType finance_type = 5;
+}
+
+message InterestCalculation {
+    string calculation_id = 1;
+    string financing_id = 2;
+    string principal_amount = 3;
+    string interest_rate = 4;
+    string interest_amount = 5;
+    string interest_type = 6;
+    string calculation_method = 7;
+    int32 days = 8;
+    google.protobuf.Timestamp from_date = 9;
+    google.protobuf.Timestamp to_date = 10;
+    repeated InterestBreakdown breakdown = 11;
+}
+
+message InterestBreakdown {
+    google.protobuf.Timestamp date = 1;
+    string principal_balance = 2;
+    string daily_interest = 3;
+    string cumulative_interest = 4;
+}
+
+message CalculateInterestRequest {
+    string financing_id = 1;
+    string principal_amount = 2;
+    string interest_rate = 3;
+    string interest_type = 4;
+    int32 days = 5;
+    google.protobuf.Timestamp from_date = 6;
+    google.protobuf.Timestamp to_date = 7;
+}
+
+message FeeCalculation {
+    string calculation_id = 1;
+    string financing_id = 2;
+    repeated FeeItem fees = 3;
+    string total_fees = 4;
+    string currency = 5;
+}
+
+message FeeItem {
+    string fee_type = 1;
+    string fee_name = 2;
+    string fee_amount = 3;
+    string fee_rate = 4;
+    string calculation_basis = 5;
+}
+
+message CalculateFeeRequest {
+    string financing_id = 1;
+    string financing_amount = 2;
+    string currency = 3;
+    FinanceType finance_type = 4;
+}
+
+message RepaymentSchedule {
+    string schedule_id = 1;
+    string financing_id = 2;
+    RepaymentType repayment_type = 3;
+    RepaymentFrequency frequency = 4;
+    string total_principal = 5;
+    string total_interest = 6;
+    string total_fees = 7;
+    string total_amount = 8;
+    int32 number_of_payments = 9;
+    repeated RepaymentInstallment installments = 10;
+}
+
+message RepaymentInstallment {
+    string installment_id = 1;
+    int32 installment_number = 2;
+    google.protobuf.Timestamp due_date = 3;
+    string principal_amount = 4;
+    string interest_amount = 5;
+    string fee_amount = 6;
+    string total_amount = 7;
+    string remaining_principal = 8;
+    string status = 9;
+    google.protobuf.Timestamp paid_date = 10;
+    string paid_amount = 11;
+}
+
+message GetRepaymentScheduleRequest {
+    string financing_id = 1;
+}
+
+message FinancingSimulation {
+    string simulation_id = 1;
+    string financing_amount = 2;
+    string currency = 3;
+    string interest_rate = 4;
+    string term_days = 5;
+    RepaymentType repayment_type = 6;
+    RepaymentFrequency frequency = 7;
+    string total_interest = 8;
+    string total_fees = 9;
+    string total_repayment = 10;
+    string effective_rate = 11;
+    repeated RepaymentInstallment installments = 12;
+    string monthly_payment = 13;
+    string apr = 14;
+}
+
+message SimulateFinancingRequest {
+    string financing_amount = 1;
+    string currency = 2;
+    string interest_rate = 3;
+    string term_days = 4;
+    RepaymentType repayment_type = 5;
+    RepaymentFrequency frequency = 6;
+    string fee_amount = 7;
+}
+
+message RepaymentPlan {
+    string plan_id = 1;
+    string financing_id = 2;
+    string borrower_id = 3;
+    string total_amount = 4;
+    string paid_amount = 5;
+    string remaining_amount = 6;
+    RepaymentType repayment_type = 7;
+    RepaymentFrequency frequency = 8;
+    int32 total_installments = 9;
+    int32 paid_installments = 10;
+    int32 remaining_installments = 11;
+    string next_payment_amount = 12;
+    google.protobuf.Timestamp next_payment_date = 13;
+    string status = 14;
+    repeated RepaymentInstallment installments = 15;
+    google.protobuf.Timestamp created_at = 16;
+    google.protobuf.Timestamp updated_at = 17;
+}
+
+message CreateRepaymentPlanRequest {
+    string financing_id = 1;
+    RepaymentType repayment_type = 2;
+    RepaymentFrequency frequency = 3;
+    string first_payment_date = 4;
+    map<string, string> parameters = 5;
+}
+
+message GetRepaymentPlanRequest {
+    string plan_id = 1;
+}
+
+message ListRepaymentPlansRequest {
+    string borrower_id = 1;
+    string status = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListRepaymentPlansResponse {
+    repeated RepaymentPlan plans = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateRepaymentPlanRequest {
+    string plan_id = 1;
+    string next_payment_date = 2;
+    string next_payment_amount = 3;
+    string reason = 4;
+}
+
+message MakeRepaymentRequest {
+    string plan_id = 1;
+    string installment_id = 2;
+    string payment_amount = 3;
+    string payment_method = 4;
+    string source_account = 5;
+    string paid_by = 6;
+}
+
+message MakeRepaymentResponse {
+    RepaymentPlan plan = 1;
+    string transaction_id = 2;
+    string remaining_amount = 3;
+    bool fully_repaid = 4;
+    bool success = 5;
+    string message = 6;
+}
+
+message RepaymentHistoryEntry {
+    string entry_id = 1;
+    string plan_id = 2;
+    string installment_id = 3;
+    string payment_amount = 4;
+    string principal_portion = 5;
+    string interest_portion = 6;
+    string fee_portion = 7;
+    string payment_method = 8;
+    string status = 9;
+    google.protobuf.Timestamp paid_at = 10;
+    string paid_by = 11;
+}
+
+message GetRepaymentHistoryRequest {
+    string plan_id = 1;
+    google.protobuf.Timestamp from = 2;
+    google.protobuf.Timestamp to = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message GetRepaymentHistoryResponse {
+    repeated RepaymentHistoryEntry entries = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message ProcessEarlyRepaymentRequest {
+    string plan_id = 1;
+    string early_repayment_amount = 2;
+    string payment_method = 3;
+    string source_account = 4;
+    string paid_by = 5;
+}
+
+message ProcessEarlyRepaymentResponse {
+    RepaymentPlan plan = 1;
+    string transaction_id = 2;
+    string interest_saved = 3;
+    string penalty_amount = 4;
+    bool fully_repaid = 5;
+    bool success = 6;
+    string message = 7;
+}
+
+message ProcessOverduePaymentRequest {
+    string plan_id = 1;
+    string installment_id = 2;
+    string payment_amount = 3;
+    string penalty_amount = 4;
+    string payment_method = 5;
+    string processed_by = 6;
+}
+
+message ProcessOverduePaymentResponse {
+    RepaymentPlan plan = 1;
+    string transaction_id = 2;
+    bool success = 3;
+    string message = 4;
+}
+
+message Collateral {
+    string collateral_id = 1;
+    string owner_id = 2;
+    string owner_name = 3;
+    CollateralType collateral_type = 4;
+    string description = 5;
+    string original_value = 6;
+    string current_value = 7;
+    string haircut = 8;
+    string eligible_value = 9;
+    string currency = 10;
+    string status = 11;
+    string location = 12;
+    string custodian = 13;
+    repeated string financing_ids = 14;
+    google.protobuf.Timestamp last_valuation = 15;
+    google.protobuf.Timestamp next_valuation = 16;
+    map<string, string> details = 17;
+    google.protobuf.Timestamp created_at = 18;
+    google.protobuf.Timestamp updated_at = 19;
+}
+
+message CreateCollateralRequest {
+    string owner_id = 1;
+    string owner_name = 2;
+    CollateralType collateral_type = 3;
+    string description = 4;
+    string original_value = 5;
+    string currency = 6;
+    string location = 7;
+    string custodian = 8;
+    string haircut = 9;
+    map<string, string> details = 10;
+}
+
+message GetCollateralRequest {
+    string collateral_id = 1;
+}
+
+message ListCollateralsRequest {
+    string owner_id = 1;
+    CollateralType collateral_type = 2;
+    string status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListCollateralsResponse {
+    repeated Collateral collaterals = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateCollateralRequest {
+    string collateral_id = 1;
+    string current_value = 2;
+    string haircut = 3;
+    string status = 4;
+    map<string, string> details = 5;
+}
+
+message ReleaseCollateralRequest {
+    string collateral_id = 1;
+    string financing_id = 2;
+    string released_by = 3;
+    string reason = 4;
+}
+
+message ReleaseCollateralResponse {
+    Collateral collateral = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message CollateralValuation {
+    string valuation_id = 1;
+    string collateral_id = 2;
+    string previous_value = 3;
+    string new_value = 4;
+    string change_amount = 5;
+    string change_percentage = 6;
+    string valuation_method = 7;
+    string valuer = 8;
+    repeated ValuationFactor factors = 9;
+    google.protobuf.Timestamp valued_at = 10;
+}
+
+message ValuationFactor {
+    string factor_name = 1;
+    string factor_value = 2;
+    string impact = 3;
+}
+
+message ValueCollateralRequest {
+    string collateral_id = 1;
+    string valuation_method = 2;
+    string valuer = 3;
+    map<string, string> parameters = 4;
+}
+
+message CollateralMonitoringResult {
+    string collateral_id = 1;
+    string current_value = 2;
+    string eligible_value = 3;
+    string coverage_ratio = 4;
+    bool under_margined = 5;
+    string margin_call_amount = 6;
+    repeated CollateralAlert alerts = 7;
+    google.protobuf.Timestamp monitored_at = 8;
+}
+
+message CollateralAlert {
+    string alert_type = 1;
+    string severity = 2;
+    string message = 3;
+    string threshold = 4;
+    string current_value = 5;
+}
+
+message MonitorCollateralRequest {
+    string collateral_id = 1;
+    string financing_id = 2;
+}
+
+message Guarantee {
+    string guarantee_id = 1;
+    string guarantor_id = 2;
+    string guarantor_name = 3;
+    string beneficiary_id = 4;
+    string beneficiary_name = 5;
+    GuaranteeType guarantee_type = 6;
+    string guarantee_amount = 7;
+    string currency = 8;
+    string status = 9;
+    google.protobuf.Timestamp effective_from = 10;
+    google.protobuf.Timestamp effective_to = 11;
+    string financing_id = 12;
+    repeated string claim_history = 13;
+    string terms = 14;
+    map<string, string> metadata = 15;
+    google.protobuf.Timestamp created_at = 16;
+    google.protobuf.Timestamp updated_at = 17;
+}
+
+message CreateGuaranteeRequest {
+    string guarantor_id = 1;
+    string guarantor_name = 2;
+    string beneficiary_id = 3;
+    string beneficiary_name = 4;
+    GuaranteeType guarantee_type = 5;
+    string guarantee_amount = 6;
+    string currency = 7;
+    google.protobuf.Timestamp effective_from = 8;
+    google.protobuf.Timestamp effective_to = 9;
+    string financing_id = 10;
+    string terms = 11;
+    map<string, string> metadata = 12;
+}
+
+message GetGuaranteeRequest {
+    string guarantee_id = 1;
+}
+
+message ListGuaranteesRequest {
+    string guarantor_id = 1;
+    string beneficiary_id = 2;
+    string financing_id = 3;
+    string status = 4;
+    int32 page_size = 5;
+    string page_token = 6;
+}
+
+message ListGuaranteesResponse {
+    repeated Guarantee guarantees = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateGuaranteeRequest {
+    string guarantee_id = 1;
+    string guarantee_amount = 2;
+    google.protobuf.Timestamp effective_to = 3;
+    string status = 4;
+    string terms = 5;
+}
+
+message ActivateGuaranteeRequest {
+    string guarantee_id = 1;
+    string activated_by = 2;
+}
+
+message ActivateGuaranteeResponse {
+    Guarantee guarantee = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message ClaimGuaranteeRequest {
+    string guarantee_id = 1;
+    string claim_amount = 2;
+    string claim_reason = 3;
+    string claimed_by = 4;
+    map<string, string> supporting_documents = 5;
+}
+
+message ClaimGuaranteeResponse {
+    Guarantee guarantee = 1;
+    string claim_id = 2;
+    string transaction_id = 3;
+    bool success = 4;
+    string message = 5;
+}
+
+message ReleaseGuaranteeRequest {
+    string guarantee_id = 1;
+    string released_by = 2;
+    string reason = 3;
+}
+
+message ReleaseGuaranteeResponse {
+    Guarantee guarantee = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message FinanceInsurance {
+    string insurance_id = 1;
+    string policy_number = 2;
+    string insured_id = 3;
+    string insured_name = 4;
+    string insurer_id = 5;
+    string insurer_name = 6;
+    string coverage_type = 7;
+    string coverage_amount = 8;
+    string premium_amount = 9;
+    string currency = 10;
+    string status = 11;
+    string financing_id = 12;
+    google.protobuf.Timestamp effective_from = 13;
+    google.protobuf.Timestamp effective_to = 14;
+    repeated string claim_history = 15;
+    map<string, string> terms = 16;
+    google.protobuf.Timestamp created_at = 17;
+    google.protobuf.Timestamp updated_at = 18;
+}
+
+message CreateInsuranceRequest {
+    string insured_id = 1;
+    string insured_name = 2;
+    string insurer_id = 3;
+    string insurer_name = 4;
+    string coverage_type = 5;
+    string coverage_amount = 6;
+    string premium_amount = 7;
+    string currency = 8;
+    string financing_id = 9;
+    google.protobuf.Timestamp effective_from = 10;
+    google.protobuf.Timestamp effective_to = 11;
+    map<string, string> terms = 12;
+}
+
+message GetInsuranceRequest {
+    string insurance_id = 1;
+}
+
+message ListInsurancesRequest {
+    string insured_id = 1;
+    string financing_id = 2;
+    string status = 3;
+    int32 page_size = 4;
+    string page_token = 5;
+}
+
+message ListInsurancesResponse {
+    repeated FinanceInsurance insurances = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateInsuranceRequest {
+    string insurance_id = 1;
+    string coverage_amount = 2;
+    string premium_amount = 3;
+    google.protobuf.Timestamp effective_to = 4;
+    string status = 5;
+}
+
+message ClaimInsuranceRequest {
+    string insurance_id = 1;
+    string claim_amount = 2;
+    string claim_reason = 3;
+    string claimed_by = 4;
+    map<string, string> supporting_documents = 5;
+}
+
+message ClaimInsuranceResponse {
+    FinanceInsurance insurance = 1;
+    string claim_id = 2;
+    string transaction_id = 3;
+    bool success = 4;
+    string message = 5;
+}
+
+message FinanceAccount {
+    string account_id = 1;
+    string owner_id = 2;
+    string owner_name = 3;
+    string account_type = 4;
+    string balance = 5;
+    string available_balance = 6;
+    string currency = 7;
+    string status = 8;
+    repeated string credit_line_ids = 9;
+    repeated string financing_ids = 10;
+    google.protobuf.Timestamp opened_at = 11;
+    google.protobuf.Timestamp updated_at = 12;
+}
+
+message GetFinanceAccountRequest {
+    string account_id = 1;
+}
+
+message FinanceAccountSummary {
+    string owner_id = 1;
+    string total_credit_limit = 2;
+    string total_used_credit = 3;
+    string total_available_credit = 4;
+    string total_outstanding = 5;
+    string total_overdue = 6;
+    string utilization_rate = 7;
+    int32 active_financings = 8;
+    int32 overdue_financings = 9;
+    repeated CreditLineSummary credit_lines = 10;
+    repeated FinancingSummary financings = 11;
+    google.protobuf.Timestamp as_of = 12;
+}
+
+message CreditLineSummary {
+    string credit_line_id = 1;
+    string total_limit = 2;
+    string used_amount = 3;
+    string available_amount = 4;
+    string utilization_rate = 5;
+    string status = 6;
+}
+
+message FinancingSummary {
+    string financing_id = 1;
+    string financing_type = 2;
+    string original_amount = 3;
+    string outstanding_amount = 4;
+    string status = 5;
+    google.protobuf.Timestamp maturity_date = 6;
+}
+
+message GetFinanceAccountSummaryRequest {
+    string owner_id = 1;
+}
+
+message FinanceTransaction {
+    string transaction_id = 1;
+    string account_id = 2;
+    string financing_id = 3;
+    string transaction_type = 4;
+    string amount = 5;
+    string currency = 6;
+    string balance_before = 7;
+    string balance_after = 8;
+    string status = 9;
+    string description = 10;
+    string reference_id = 11;
+    google.protobuf.Timestamp processed_at = 12;
+    google.protobuf.Timestamp created_at = 13;
+    map<string, string> metadata = 14;
+}
+
+message ListFinanceTransactionsRequest {
+    string account_id = 1;
+    string financing_id = 2;
+    string transaction_type = 3;
+    google.protobuf.Timestamp from = 4;
+    google.protobuf.Timestamp to = 5;
+    int32 page_size = 6;
+    string page_token = 7;
+}
+
+message ListFinanceTransactionsResponse {
+    repeated FinanceTransaction transactions = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message FinanceStatement {
+    string statement_id = 1;
+    string account_id = 2;
+    string owner_id = 3;
+    google.protobuf.Timestamp period_start = 4;
+    google.protobuf.Timestamp period_end = 5;
+    string opening_balance = 6;
+    string closing_balance = 7;
+    string total_disbursements = 8;
+    string total_repayments = 9;
+    string total_interest = 10;
+    string total_fees = 11;
+    repeated FinanceStatementLine lines = 12;
+    google.protobuf.Timestamp generated_at = 13;
+}
+
+message FinanceStatementLine {
+    google.protobuf.Timestamp date = 1;
+    string transaction_type = 2;
+    string description = 3;
+    string amount = 4;
+    string balance = 5;
+    string reference_id = 6;
+}
+
+message GetFinanceStatementRequest {
+    string account_id = 1;
+    google.protobuf.Timestamp period_start = 2;
+    google.protobuf.Timestamp period_end = 3;
+}
+
+message FinanceDashboard {
+    google.protobuf.Timestamp as_of = 1;
+    string total_credit_extended = 2;
+    string total_outstanding = 3;
+    string total_overdue = 4;
+    string total_collateral_value = 5;
+    string average_utilization_rate = 6;
+    int32 active_financings = 7;
+    int32 pending_applications = 8;
+    int32 overdue_financings = 9;
+    repeated FinancingByType financing_breakdown = 10;
+    repeated TopBorrower top_borrowers = 11;
+    repeated RiskDistribution risk_distribution = 12;
+}
+
+message FinancingByType {
+    FinanceType type = 1;
+    string total_amount = 2;
+    int32 count = 3;
+    string percentage = 4;
+}
+
+message TopBorrower {
+    string borrower_id = 1;
+    string borrower_name = 2;
+    string total_outstanding = 3;
+    string credit_limit = 4;
+    string utilization_rate = 5;
+    RiskLevel risk_level = 6;
+}
+
+message RiskDistribution {
+    RiskLevel risk_level = 1;
+    string total_amount = 2;
+    int32 count = 3;
+    string percentage = 4;
+}
+
+message GetFinanceDashboardRequest {
+}
+
+message FinanceMetrics {
+    google.protobuf.Timestamp period_start = 1;
+    google.protobuf.Timestamp period_end = 2;
+    string total_disbursements = 3;
+    string total_repayments = 4;
+    string total_interest_income = 5;
+    string total_fee_income = 6;
+    string total_charge_offs = 7;
+    string net_income = 8;
+    string average_yield = 9;
+    string cost_of_funds = 10;
+    string net_interest_margin = 11;
+    string delinquency_rate = 12;
+    string default_rate = 13;
+    string recovery_rate = 14;
+    string provision_ratio = 15;
+    repeated MetricTrend trends = 16;
+}
+
+message MetricTrend {
+    string metric_name = 1;
+    repeated TrendPoint points = 2;
+    string trend_direction = 3;
+    string change_percentage = 4;
+}
+
+message TrendPoint {
+    google.protobuf.Timestamp timestamp = 1;
+    string value = 2;
+}
+
+message GetFinanceMetricsRequest {
+    google.protobuf.Timestamp start_time = 1;
+    google.protobuf.Timestamp end_time = 2;
+    string granularity = 3;
+}
+
+message FinanceReport {
+    string report_id = 1;
+    string report_type = 2;
+    google.protobuf.Timestamp period_start = 3;
+    google.protobuf.Timestamp period_end = 4;
+    repeated ReportSection sections = 5;
+    repeated ReportSummary summaries = 6;
+    google.protobuf.Timestamp generated_at = 7;
+}
+
+message ReportSection {
+    string title = 1;
+    string content = 2;
+    repeated ReportTable tables = 3;
+}
+
+message ReportTable {
+    string title = 1;
+    repeated string headers = 2;
+    repeated ReportRow rows = 3;
+}
+
+message ReportRow {
+    repeated string cells = 1;
+}
+
+message ReportSummary {
+    string metric_name = 1;
+    string value = 2;
+    string change = 3;
+    string change_percentage = 4;
+}
+
+message GetFinanceReportRequest {
+    string report_type = 1;
+    google.protobuf.Timestamp start_time = 2;
+    google.protobuf.Timestamp end_time = 3;
+    string format = 4;
+}
+
+message ExportFinanceDataRequest {
+    repeated string financing_ids = 1;
+    string owner_id = 2;
+    google.protobuf.Timestamp start_time = 3;
+    google.protobuf.Timestamp end_time = 4;
+    string format = 5;
+    repeated string data_types = 6;
+}
+
+message ExportFinanceDataResponse {
+    string export_id = 1;
+    string download_url = 2;
+    string format = 3;
+    int64 file_size = 4;
+    google.protobuf.Timestamp expires_at = 5;
+}
+
+message FinanceProduct {
+    string product_id = 1;
+    string name = 2;
+    string description = 3;
+    FinanceType finance_type = 4;
+    string min_amount = 5;
+    string max_amount = 6;
+    string min_term_days = 7;
+    string max_term_days = 8;
+    string base_interest_rate = 9;
+    string min_interest_rate = 10;
+    string max_interest_rate = 11;
+    string advance_rate = 12;
+    string fee_structure = 13;
+    repeated string eligible_collateral_types = 14;
+    repeated string eligible_guarantee_types = 15;
+    string eligibility_criteria = 16;
+    bool active = 17;
+    google.protobuf.Timestamp created_at = 18;
+    google.protobuf.Timestamp updated_at = 19;
+    map<string, string> metadata = 20;
+}
+
+message CreateFinanceProductRequest {
+    string name = 1;
+    string description = 2;
+    FinanceType finance_type = 3;
+    string min_amount = 4;
+    string max_amount = 5;
+    string min_term_days = 6;
+    string max_term_days = 7;
+    string base_interest_rate = 8;
+    string min_interest_rate = 9;
+    string max_interest_rate = 10;
+    string advance_rate = 11;
+    string fee_structure = 12;
+    repeated string eligible_collateral_types = 13;
+    repeated string eligible_guarantee_types = 14;
+    string eligibility_criteria = 15;
+    map<string, string> metadata = 16;
+}
+
+message GetFinanceProductRequest {
+    string product_id = 1;
+}
+
+message ListFinanceProductsRequest {
+    FinanceType finance_type = 1;
+    bool active_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListFinanceProductsResponse {
+    repeated FinanceProduct products = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateFinanceProductRequest {
+    string product_id = 1;
+    string name = 2;
+    string description = 3;
+    string min_amount = 4;
+    string max_amount = 5;
+    string min_term_days = 6;
+    string max_term_days = 7;
+    string base_interest_rate = 8;
+    string min_interest_rate = 9;
+    string max_interest_rate = 10;
+    string advance_rate = 11;
+    string fee_structure = 12;
+    bool active = 13;
+    map<string, string> metadata = 14;
+}
+
+message DeleteFinanceProductRequest {
+    string product_id = 1;
+}
+
+message InterestRate {
+    string rate_id = 1;
+    string product_id = 2;
+    string rate_type = 3;
+    string base_rate = 4;
+    string spread = 5;
+    string effective_rate = 6;
+    string risk_adjusted_rate = 7;
+    google.protobuf.Timestamp effective_from = 8;
+    google.protobuf.Timestamp effective_to = 9;
+    bool active = 10;
+    google.protobuf.Timestamp created_at = 11;
+    google.protobuf.Timestamp updated_at = 12;
+}
+
+message SetInterestRateRequest {
+    string product_id = 1;
+    string rate_type = 2;
+    string base_rate = 3;
+    string spread = 4;
+    google.protobuf.Timestamp effective_from = 5;
+    google.protobuf.Timestamp effective_to = 6;
+}
+
+message GetInterestRateRequest {
+    string rate_id = 1;
+}
+
+message ListInterestRatesRequest {
+    string product_id = 1;
+    bool active_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListInterestRatesResponse {
+    repeated InterestRate rates = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message EffectiveRate {
+    string financing_id = 1;
+    string nominal_rate = 2;
+    string effective_rate = 3;
+    string apr = 4;
+    string total_cost = 5;
+}
+
+message CalculateEffectiveRateRequest {
+    string nominal_rate = 1;
+    string financing_amount = 2;
+    string term_days = 3;
+    string fee_amount = 4;
+    RepaymentFrequency frequency = 5;
+}
+
+message FinanceRule {
+    string rule_id = 1;
+    string name = 2;
+    string description = 3;
+    string rule_type = 4;
+    string condition = 5;
+    string action = 6;
+    int32 priority = 7;
+    bool active = 8;
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateFinanceRuleRequest {
+    string name = 1;
+    string description = 2;
+    string rule_type = 3;
+    string condition = 4;
+    string action = 5;
+    int32 priority = 6;
+}
+
+message GetFinanceRuleRequest {
+    string rule_id = 1;
+}
+
+message ListFinanceRulesRequest {
+    string rule_type = 1;
+    bool active_only = 2;
+    int32 page_size = 3;
+    string page_token = 4;
+}
+
+message ListFinanceRulesResponse {
+    repeated FinanceRule rules = 1;
+    string next_page_token = 2;
+    int32 total_count = 3;
+}
+
+message UpdateFinanceRuleRequest {
+    string rule_id = 1;
+    string name = 2;
+    string description = 3;
+    string condition = 4;
+    string action = 5;
+    int32 priority = 6;
+    bool active = 7;
+}
+
+message DeleteFinanceRuleRequest {
+    string rule_id = 1;
+}
+
+message EvaluateFinanceRuleRequest {
+    string rule_id = 1;
+    map<string, string> context = 2;
+}
+
+message EvaluateFinanceRuleResponse {
+    bool triggered = 1;
+    string action_result = 2;
+    repeated string messages = 3;
+}
+
+message FinanceEvent {
+    string event_id = 1;
+    string event_type = 2;
+    string entity_id = 3;
+    string entity_type = 4;
+    string message = 5;
+    map<string, string> details = 6;
+    google.protobuf.Timestamp timestamp = 7;
+}
+
+message SubscribeFinanceEventsRequest {
+    repeated string event_types = 1;
+    string entity_id = 2;
+}
+
+message RepaymentReminder {
+    string reminder_id = 1;
+    string plan_id = 2;
+    string financing_id = 3;
+    string installment_id = 4;
+    string borrower_id = 5;
+    string amount_due = 6;
+    google.protobuf.Timestamp due_date = 7;
+    int32 days_until_due = 8;
+    string message = 9;
+    google.protobuf.Timestamp generated_at = 10;
+}
+
+message SubscribeRepaymentRemindersRequest {
+    string borrower_id = 1;
+    int32 days_advance = 2;
+}
+
+message RiskAlertEvent {
+    string alert_id = 1;
+    string entity_id = 2;
+    string entity_type = 3;
+    RiskLevel severity = 4;
+    string alert_type = 5;
+    string message = 6;
+    string trigger_value = 7;
+    string threshold_value = 8;
+    google.protobuf.Timestamp timestamp = 9;
+}
+
+message SubscribeRiskAlertsRequest {
+    repeated string entity_ids = 1;
+    repeated RiskLevel severities = 2;
+}
+
+message TccReserveCreditRequest {
+    string transaction_id = 1;
+    string credit_line_id = 2;
+    string amount = 3;
+    string reserve_minutes = 4;
+}
+
+message TccReserveCreditResponse {
+    bool success = 1;
+    string reserve_id = 2;
+    string reserved_amount = 3;
+    google.protobuf.Timestamp expires_at = 4;
+    string message = 5;
+}
+
+message TccConfirmCreditRequest {
+    string transaction_id = 1;
+    string reserve_id = 2;
+    string actual_amount = 3;
+}
+
+message TccConfirmCreditResponse {
+    bool success = 1;
+    string financing_id = 2;
+    string message = 3;
+}
+
+message TccCancelCreditRequest {
+    string transaction_id = 1;
+    string reserve_id = 2;
+    string reason = 3;
+}
+
+message TccCancelCreditResponse {
+    bool success = 1;
+    string released_amount = 2;
+    string message = 3;
+}
+
+message SagaProcessFinancingRequest {
+    string saga_id = 1;
+    string step_id = 2;
+    string application_id = 3;
+    bool compensate = 4;
+}
+
+message SagaProcessFinancingResponse {
+    bool success = 1;
+    string financing_id = 2;
+    string message = 3;
+    string compensation_action = 4;
+}

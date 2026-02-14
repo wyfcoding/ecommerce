@@ -3,32 +3,119 @@ syntax = "proto3";
 package supplier.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/api/supplier/v1;supplierv1";
 
-// SupplierService 供应商服务
+// 供应商服务
 service SupplierService {
-    // RegisterSupplier 注册供应商
+    // 注册供应商
     rpc RegisterSupplier(RegisterSupplierRequest) returns (RegisterSupplierResponse);
 
-    // GetSupplier 获取供应商详情
-    rpc GetSupplier(GetSupplierRequest) returns (GetSupplierResponse);
+    // 获取供应商详情
+    rpc GetSupplier(GetSupplierRequest) returns (Supplier);
 
-    // UpdateSupplierStatus 更新供应商状态
+    // 更新供应商状态
     rpc UpdateSupplierStatus(UpdateSupplierStatusRequest) returns (UpdateSupplierStatusResponse);
 
-    // AddProduct supply 添加供应商品
-    rpc AddProductSupply(AddProductSupplyRequest) returns (AddProductSupplyResponse);
-    
-    // ListProductSupply 列出供应商品
+    // 供应商资质审核
+    rpc SubmitQualification(SubmitQualificationRequest) returns (SubmitQualificationResponse);
+    rpc ReviewQualification(ReviewQualificationRequest) returns (ReviewQualificationResponse);
+    rpc GetQualification(GetQualificationRequest) returns (Qualification);
+
+    // 供应商评级
+    rpc UpdateRating(UpdateRatingRequest) returns (Supplier);
+    rpc GetRatingHistory(GetRatingHistoryRequest) returns (RatingHistoryResponse);
+
+    // 合同管理
+    rpc CreateContract(CreateContractRequest) returns (Contract);
+    rpc GetContract(GetContractRequest) returns (Contract);
+    rpc ListContracts(ListContractsRequest) returns (ListContractsResponse);
+    rpc UpdateContractStatus(UpdateContractStatusRequest) returns (Contract);
+
+    // 供应商品管理
+    rpc AddProductSupply(AddProductSupplyRequest) returns (ProductSupply);
+    rpc UpdateProductSupply(UpdateProductSupplyRequest) returns (ProductSupply);
+    rpc DeleteProductSupply(DeleteProductSupplyRequest) returns (google.protobuf.Empty);
     rpc ListProductSupply(ListProductSupplyRequest) returns (ListProductSupplyResponse);
+
+    // 采购订单
+    rpc CreatePurchaseOrder(CreatePurchaseOrderRequest) returns (PurchaseOrder);
+    rpc GetPurchaseOrder(GetPurchaseOrderRequest) returns (PurchaseOrder);
+    rpc ListPurchaseOrders(ListPurchaseOrdersRequest) returns (ListPurchaseOrdersResponse);
+    rpc UpdatePurchaseOrderStatus(UpdatePurchaseOrderStatusRequest) returns (PurchaseOrder);
+    rpc ConfirmReceipt(ConfirmReceiptRequest) returns (PurchaseOrder);
+
+    // 供应商统计
+    rpc GetSupplierStats(GetSupplierStatsRequest) returns (SupplierStats);
+    rpc GetPerformanceMetrics(GetPerformanceMetricsRequest) returns (PerformanceMetrics);
 }
 
+// 供应商状态
+enum SupplierStatus {
+    SUPPLIER_STATUS_UNSPECIFIED = 0;
+    SUPPLIER_STATUS_PENDING = 1;        // 待审核
+    SUPPLIER_STATUS_ACTIVE = 2;          // 正常
+    SUPPLIER_STATUS_INACTIVE = 3;         // 停用
+    SUPPLIER_STATUS_SUSPENDED = 4;       // 暂停
+    SUPPLIER_STATUS_BLACKLISTED = 5;     // 黑名单
+}
+
+// 资质审核状态
+enum QualificationStatus {
+    QUALIFICATION_STATUS_UNSPECIFIED = 0;
+    QUALIFICATION_STATUS_PENDING = 1;    // 待审核
+    QUALIFICATION_STATUS_APPROVED = 2;   // 已通过
+    QUALIFICATION_STATUS_REJECTED = 3;   // 已拒绝
+    QUALIFICATION_STATUS_EXPIRED = 4;    // 已过期
+}
+
+// 合同状态
+enum ContractStatus {
+    CONTRACT_STATUS_UNSPECIFIED = 0;
+    CONTRACT_STATUS_DRAFT = 1;
+    CONTRACT_STATUS_PENDING = 2;
+    CONTRACT_STATUS_ACTIVE = 3;
+    CONTRACT_STATUS_EXPIRED = 4;
+    CONTRACT_STATUS_TERMINATED = 5;
+}
+
+// 采购订单状态
+enum PurchaseOrderStatus {
+    PURCHASE_ORDER_STATUS_UNSPECIFIED = 0;
+    PURCHASE_ORDER_STATUS_PENDING = 1;       // 待确认
+    PURCHASE_ORDER_STATUS_CONFIRMED = 2;      // 已确认
+    PURCHASE_ORDER_STATUS_PROCESSING = 3;    // 处理中
+    PURCHASE_ORDER_STATUS_SHIPPED = 4;       // 已发货
+    PURCHASE_ORDER_STATUS_IN_TRANSIT = 5;    // 运输中
+    PURCHASE_ORDER_STATUS_DELIVERED = 6;     // 已送达
+    PURCHASE_ORDER_STATUS_COMPLETED = 7;     // 已完成
+    PURCHASE_ORDER_STATUS_CANCELLED = 8;     // 已取消
+}
+
+// 供应商实体
+message Supplier {
+    string supplier_id = 1;
+    string name = 2;
+    SupplierStatus status = 3;
+    string contact_name = 4;
+    string contact_phone = 5;
+    string contact_email = 6;
+    string address = 7;
+    string license_no = 8;
+    double rating = 9;
+    int32 total_orders = 10;
+    double total_amount = 11;
+    google.protobuf.Timestamp created_at = 12;
+    google.protobuf.Timestamp updated_at = 13;
+}
+
+// 注册请求
 message RegisterSupplierRequest {
     string name = 1;
     string contact_name = 2;
     string contact_phone = 3;
-    string email = 4;
+    string contact_email = 4;
     string address = 5;
     string license_no = 6;
 }
@@ -41,49 +128,267 @@ message GetSupplierRequest {
     string supplier_id = 1;
 }
 
-message Supplier {
-    string supplier_id = 1;
-    string name = 2;
-    string status = 3; // ACTIVE, INACTIVE, SUSPENDED
-    string contact_name = 4;
-    string created_at = 5;
-    double rating = 6;
-}
-
-message GetSupplierResponse {
-    Supplier supplier = 1;
-}
-
 message UpdateSupplierStatusRequest {
     string supplier_id = 1;
-    string status = 2;
+    SupplierStatus status = 2;
 }
 
 message UpdateSupplierStatusResponse {
     bool success = 1;
 }
 
+// 资质认证
+message Qualification {
+    string qualification_id = 1;
+    string supplier_id = 2;
+    QualificationStatus status = 3;
+    string license_image = 4;
+    string business_scope = 5;
+    double registered_capital = 6;
+    string legal_representative = 7;
+    string id_card_front = 8;
+    string id_card_back = 9;
+    string review_notes = 10;
+    string reviewed_by = 11;
+    google.protobuf.Timestamp submitted_at = 12;
+    google.protobuf.Timestamp reviewed_at = 13;
+    google.protobuf.Timestamp expired_at = 14;
+}
+
+message SubmitQualificationRequest {
+    string supplier_id = 1;
+    string license_image = 2;
+    string business_scope = 3;
+    double registered_capital = 4;
+    string legal_representative = 5;
+    string id_card_front = 6;
+    string id_card_back = 7;
+}
+
+message SubmitQualificationResponse {
+    string qualification_id = 1;
+}
+
+message ReviewQualificationRequest {
+    string qualification_id = 1;
+    QualificationStatus status = 2;
+    string review_notes = 3;
+    string reviewed_by = 4;
+}
+
+message ReviewQualificationResponse {
+    bool success = 1;
+}
+
+message GetQualificationRequest {
+    string supplier_id = 1;
+}
+
+// 评级
+message UpdateRatingRequest {
+    string supplier_id = 1;
+    double new_rating = 2;
+    string order_id = 3;
+}
+
+message RatingHistoryItem {
+    double rating = 1;
+    string order_id = 2;
+    google.protobuf.Timestamp created_at = 3;
+}
+
+message GetRatingHistoryRequest {
+    string supplier_id = 1;
+    int32 limit = 2;
+}
+
+message RatingHistoryResponse {
+    repeated RatingHistoryItem ratings = 1;
+}
+
+// 合同
+message Contract {
+    string contract_id = 1;
+    string supplier_id = 2;
+    string contract_no = 3;
+    string title = 4;
+    string content = 5;
+    ContractStatus status = 6;
+    google.protobuf.Timestamp start_date = 7;
+    google.protobuf.Timestamp end_date = 8;
+    double amount = 9;
+    google.protobuf.Timestamp created_at = 10;
+    google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateContractRequest {
+    string supplier_id = 1;
+    string title = 2;
+    string content = 3;
+    google.protobuf.Timestamp start_date = 4;
+    google.protobuf.Timestamp end_date = 5;
+    double amount = 6;
+}
+
+message GetContractRequest {
+    string contract_id = 1;
+}
+
+message ListContractsRequest {
+    string supplier_id = 1;
+    ContractStatus status = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message ListContractsResponse {
+    repeated Contract contracts = 1;
+    int32 total = 2;
+}
+
+message UpdateContractStatusRequest {
+    string contract_id = 1;
+    ContractStatus status = 2;
+}
+
+// 供应商品
+message ProductSupply {
+    string supply_id = 1;
+    string supplier_id = 2;
+    string sku_id = 3;
+    string product_name = 4;
+    double price = 5;
+    int32 lead_time_days = 6;
+    int32 min_order_quantity = 7;
+    int32 stock = 8;
+    string unit = 9;
+    google.protobuf.Timestamp created_at = 10;
+    google.protobuf.Timestamp updated_at = 11;
+}
+
 message AddProductSupplyRequest {
     string supplier_id = 1;
     string sku_id = 2;
-    double price = 3;
-    int32 lead_time_days = 4;
+    string product_name = 3;
+    double price = 4;
+    int32 lead_time_days = 5;
+    int32 min_order_quantity = 6;
+    string unit = 7;
 }
 
-message AddProductSupplyResponse {
-    bool success = 1;
+message UpdateProductSupplyRequest {
+    string supply_id = 1;
+    double price = 2;
+    int32 lead_time_days = 3;
+    int32 min_order_quantity = 4;
+}
+
+message DeleteProductSupplyRequest {
+    string supply_id = 1;
 }
 
 message ListProductSupplyRequest {
     string supplier_id = 1;
-}
-
-message ProductSupply {
-    string sku_id = 1;
-    double price = 2;
-    int32 lead_time_days = 3;
+    int32 page = 2;
+    int32 page_size = 3;
 }
 
 message ListProductSupplyResponse {
     repeated ProductSupply supplies = 1;
+    int32 total = 2;
+}
+
+// 采购订单
+message PurchaseOrder {
+    string order_id = 1;
+    string order_no = 2;
+    string supplier_id = 3;
+    string warehouse_id = 4;
+    PurchaseOrderStatus status = 5;
+    repeated PurchaseOrderItem items = 6;
+    double total_amount = 7;
+    string shipping_address = 8;
+    string contact_phone = 9;
+    string notes = 10;
+    google.protobuf.Timestamp created_at = 11;
+    google.protobuf.Timestamp confirmed_at = 12;
+    google.protobuf.Timestamp shipped_at = 13;
+    google.protobuf.Timestamp delivered_at = 14;
+    google.protobuf.Timestamp completed_at = 15;
+}
+
+message PurchaseOrderItem {
+    string sku_id = 1;
+    string product_name = 2;
+    int32 quantity = 3;
+    double unit_price = 4;
+    double total_price = 5;
+}
+
+message CreatePurchaseOrderRequest {
+    string supplier_id = 1;
+    string warehouse_id = 2;
+    repeated PurchaseOrderItem items = 3;
+    string shipping_address = 4;
+    string contact_phone = 5;
+    string notes = 6;
+}
+
+message GetPurchaseOrderRequest {
+    string order_id = 1;
+}
+
+message ListPurchaseOrdersRequest {
+    string supplier_id = 1;
+    PurchaseOrderStatus status = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message ListPurchaseOrdersResponse {
+    repeated PurchaseOrder orders = 1;
+    int32 total = 2;
+}
+
+message UpdatePurchaseOrderStatusRequest {
+    string order_id = 1;
+    PurchaseOrderStatus status = 2;
+}
+
+message ConfirmReceiptRequest {
+    string order_id = 1;
+    string received_by = 2;
+    string notes = 3;
+}
+
+// 统计数据
+message SupplierStats {
+    string supplier_id = 1;
+    int32 total_orders = 2;
+    double total_amount = 3;
+    int32 completed_orders = 4;
+    int32 pending_orders = 5;
+    double average_rating = 6;
+    int32 days_active = 7;
+}
+
+message GetSupplierStatsRequest {
+    string supplier_id = 1;
+}
+
+message PerformanceMetrics {
+    string supplier_id = 1;
+    double on_time_delivery_rate = 2;
+    double quality_score = 3;
+    double response_time = 4;
+    double return_rate = 5;
+    double cooperation_score = 6;
+    google.protobuf.Timestamp period_start = 7;
+    google.protobuf.Timestamp period_end = 8;
+}
+
+message GetPerformanceMetricsRequest {
+    string supplier_id = 1;
+    google.protobuf.Timestamp period_start = 2;
+    google.protobuf.Timestamp period_end = 3;
 }

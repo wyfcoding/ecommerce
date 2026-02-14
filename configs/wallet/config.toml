@@ -1,0 +1,54 @@
+version = "1.0.0"
+
+[server]
+name = "wallet"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8010
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9010
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"
+
+[tracing]
+enabled = true
+service_name = "wallet"
+
+[metrics]
+enabled = true
+port = "18010"
+
+[jwt]
+secret = "ecommerce-secret-key"
+issuer = "ecommerce"
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_wallet?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[data.redis]
+addrs = ["127.0.0.1:6379"]
+password = "redis_password"
+db = 0
+pool_size = 10
+
+[messagequeue.kafka]
+brokers = ["localhost:9092"]
+topic = "wallet-events"
+group_id = "wallet-group"
+
+[services]
+[services.user]
+grpc_addr = "127.0.0.1:9001"
+[services.order]
+grpc_addr = "127.0.0.1:9002"

@@ -3,97 +3,641 @@ syntax = "proto3";
 package api.userprofile.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/userprofile/v1;userprofilev1";
 
-// 用户画像服务，负责聚合用户行为、偏好标签及消费特征，支持精准营销。
+// 用户画像服务，提供用户标签管理、行为分析、精准营销等能力
 service UserProfileService {
-  // 获取指定用户的深度画像快照。
-  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile);
-
-  // 更新画像中的特定维度数据（通常由策略引擎调用）。
-  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfile);
-
-  // 记录用户实时发生的行为事件，用于异步更新画像。
-  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (RecordUserBehaviorResponse);
+  // ==================== 用户标签管理 ====================
+  
+  // 创建标签
+  rpc CreateTag(CreateTagRequest) returns (Tag);
+  // 获取标签详情
+  rpc GetTag(GetTagRequest) returns (Tag);
+  // 更新标签
+  rpc UpdateTag(UpdateTagRequest) returns (Tag);
+  // 删除标签
+  rpc DeleteTag(DeleteTagRequest) returns (google.protobuf.Empty);
+  // 获取标签列表
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse);
+  
+  // 为用户添加标签
+  rpc AddUserTags(AddUserTagsRequest) returns (google.protobuf.Empty);
+  // 移除用户标签
+  rpc RemoveUserTags(RemoveUserTagsRequest) returns (google.protobuf.Empty);
+  // 获取用户的所有标签
+  rpc GetUserTags(GetUserTagsRequest) returns (GetUserTagsResponse);
+  
+  // ==================== 用户画像 ====================
+  
+  // 获取用户画像
+  rpc GetUserPortrait(GetUserPortraitRequest) returns (UserPortrait);
+  // 更新用户画像
+  rpc UpdateUserPortrait(UpdateUserPortraitRequest) returns (UserPortrait);
+  // 计算用户画像分数
+  rpc CalculatePortraitScore(CalculatePortraitScoreRequest) returns (PortraitScore);
+  
+  // ==================== 行为分析 ====================
+  
+  // 记录用户行为
+  rpc RecordBehavior(RecordBehaviorRequest) returns (google.protobuf.Empty);
+  // 批量记录用户行为
+  rpc BatchRecordBehaviors(BatchRecordBehaviorsRequest) returns (google.protobuf.Empty);
+  // 获取用户行为分析
+  rpc AnalyzeUserBehavior(AnalyzeUserBehaviorRequest) returns (UserBehaviorAnalysis);
+  // 获取用户行为轨迹
+  rpc GetUserBehaviorPath(GetUserBehaviorPathRequest) returns (UserBehaviorPathResponse);
+  
+  // ==================== 用户分群 ====================
+  
+  // 创建用户分群
+  rpc CreateSegment(CreateSegmentRequest) returns (UserSegment);
+  // 获取分群详情
+  rpc GetSegment(GetSegmentRequest) returns (UserSegment);
+  // 更新分群
+  rpc UpdateSegment(UpdateSegmentRequest) returns (UserSegment);
+  // 删除分群
+  rpc DeleteSegment(DeleteSegmentRequest) returns (google.protobuf.Empty);
+  // 获取分群列表
+  rpc ListSegments(ListSegmentsRequest) returns (ListSegmentsResponse);
+  
+  // 判断用户是否属于某分群
+  rpc MatchUserSegment(MatchUserSegmentRequest) returns (MatchUserSegmentResponse);
+  // 获取用户所属的所有分群
+  rpc GetUserSegments(GetUserSegmentsRequest) returns (GetUserSegmentsResponse);
+  // 刷新分群用户列表
+  rpc RefreshSegmentUsers(RefreshSegmentUsersRequest) returns (RefreshSegmentUsersResponse);
+  
+  // ==================== 精准营销 ====================
+  
+  // 获取用户推荐动作
+  rpc GetRecommendedActions(GetRecommendedActionsRequest) returns (GetRecommendedActionsResponse);
+  // 获取用户偏好
+  rpc GetUserPreferences(GetUserPreferencesRequest) returns (UserPreferences);
+  // 更新用户偏好
+  rpc UpdateUserPreferences(UpdateUserPreferencesRequest) returns (UserPreferences);
+  
+  // ==================== 实时计算 ====================
+  
+  // 实时获取用户RFM模型
+  rpc GetUserRFM(GetUserRFMRequest) returns (UserRFM);
+  // 实时获取用户生命周期阶段
+  rpc GetUserLifecycle(GetUserLifecycleRequest) returns (UserLifecycle);
+  // 实时获取用户价值评分
+  rpc GetUserValueScore(GetUserValueScoreRequest) returns (UserValueScore);
 }
 
-// 画像全量信息。
-message UserProfile {
-  // 用户 ID。
-  string user_id = 1;
-  // 预估性别。
-  string gender = 2;
-  // 年龄分段。
-  string age_group = 3;
-  // 常驻城市。
-  string city = 4;
-  // 兴趣偏好标签。
-  repeated string interests = 5;
-  // 最近 30 天高频浏览品类。
-  repeated string recent_categories = 6;
-  // 最近 30 天偏好品牌。
-  repeated string recent_brands = 7;
-  // 累计实付金额。
-  uint64 total_spent = 8;
-  // 累计成功订单数。
-  uint32 order_count = 9;
-  // 最后一次活跃时间点。
-  google.protobuf.Timestamp last_active_time = 10;
-  // 业务扩展标签集。
-  map<string, string> custom_tags = 11;
+// ==================== 标签相关枚举 ====================
+
+enum TagType {
+  TAG_TYPE_UNSPECIFIED = 0;
+  TAG_TYPE_DEMOGRAPHIC = 1;     // 人口属性标签
+  TAG_TYPE_BEHAVIOR = 2;        // 行为标签
+  TAG_TYPE_PREFERENCE = 3;      // 偏好标签
+  TAG_TYPE_CONSUMPTION = 4;     // 消费标签
+  TAG_TYPE_SOCIAL = 5;          // 社交标签
+  TAG_TYPE_RISK = 6;            // 风险标签
+  TAG_TYPE_MARKETING = 7;       // 营销标签
+  TAG_TYPE_CUSTOM = 8;          // 自定义标签
 }
 
-// 详情请求。
-message GetUserProfileRequest {
-  // 用户 ID。
-  string user_id = 1;
+enum TagSource {
+  TAG_SOURCE_UNSPECIFIED = 0;
+  TAG_SOURCE_MANUAL = 1;        // 人工标注
+  TAG_SOURCE_RULE = 2;          // 规则计算
+  TAG_SOURCE_MODEL = 3;         // 模型预测
+  TAG_SOURCE_THIRD_PARTY = 4;   // 第三方数据
+  TAG_SOURCE_USER_INPUT = 5;    // 用户填写
 }
 
-// 更新请求（部分字段修改）。
-message UpdateUserProfileRequest {
-  // 用户 ID。
-  string user_id = 1;
-  // 性别。
-  optional string gender = 2;
-  // 年龄段。
-  optional string age_group = 3;
-  // 城市。
-  optional string city = 4;
-  // 兴趣集合。
-  repeated string interests = 5;
-  // 近期类目。
-  repeated string recent_categories = 6;
-  // 近期品牌。
-  repeated string recent_brands = 7;
-  // 消费总额。
-  optional uint64 total_spent = 8;
-  // 订单计数。
-  optional uint32 order_count = 9;
-  // 活跃时间戳。
-  optional google.protobuf.Timestamp last_active_time = 10;
-  // 扩展标签。
-  map<string, string> custom_tags = 11;
+// ==================== 标签消息定义 ====================
+
+message Tag {
+  uint64 id = 1;
+  string name = 2;
+  string code = 3;
+  TagType type = 4;
+  string category = 5;           // 标签分类
+  string description = 6;
+  TagSource source = 7;
+  string rule_expression = 8;    // 规则表达式（规则标签）
+  int32 priority = 9;            // 优先级
+  bool is_active = 10;
+  int64 user_count = 11;         // 关联用户数
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
 }
 
-// 行为日志请求。
-message RecordUserBehaviorRequest {
-  // 触发人。
-  string user_id = 1;
-  // 动作类别 (CLICK, PURCHASE, SEARCH)。
-  string behavior_type = 2;
-  // 操作目标 ID (商品或内容)。
-  string item_id = 3;
-  // 行为附带的上下文参数。
-  map<string, string> properties = 4;
-  // 发生时间。
-  google.protobuf.Timestamp event_time = 5;
+message CreateTagRequest {
+  string name = 1;
+  string code = 2;
+  TagType type = 3;
+  string category = 4;
+  string description = 5;
+  TagSource source = 6;
+  string rule_expression = 7;
+  int32 priority = 8;
 }
 
-// 记录回执。
-message RecordUserBehaviorResponse {
-  // 是否处理成功。
-  bool success = 1;
-  // 结果说明。
-  string message = 2;
+message GetTagRequest {
+  uint64 tag_id = 1;
+}
+
+message UpdateTagRequest {
+  uint64 tag_id = 1;
+  string name = 2;
+  string description = 3;
+  string rule_expression = 4;
+  int32 priority = 5;
+  bool is_active = 6;
+}
+
+message DeleteTagRequest {
+  uint64 tag_id = 1;
+}
+
+message ListTagsRequest {
+  TagType type = 1;
+  string category = 2;
+  bool is_active = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListTagsResponse {
+  repeated Tag tags = 1;
+  int32 total = 2;
+}
+
+message AddUserTagsRequest {
+  uint64 user_id = 1;
+  repeated uint64 tag_ids = 2;
+  map<string, string> attributes = 3;  // 标签属性
+}
+
+message RemoveUserTagsRequest {
+  uint64 user_id = 1;
+  repeated uint64 tag_ids = 2;
+}
+
+message GetUserTagsRequest {
+  uint64 user_id = 1;
+  TagType type = 2;  // 可选过滤
+}
+
+message GetUserTagsResponse {
+  repeated UserTag tags = 1;
+}
+
+message UserTag {
+  uint64 tag_id = 1;
+  string name = 2;
+  string code = 3;
+  TagType type = 4;
+  double confidence = 5;         // 置信度
+  map<string, string> attributes = 6;
+  google.protobuf.Timestamp tagged_at = 7;
+}
+
+// ==================== 用户画像消息定义 ====================
+
+message UserPortrait {
+  uint64 user_id = 1;
+  
+  // 基础属性
+  BasicAttributes basic_attributes = 2;
+  
+  // 消费属性
+  ConsumptionAttributes consumption_attributes = 3;
+  
+  // 行为属性
+  BehaviorAttributes behavior_attributes = 4;
+  
+  // 偏好属性
+  PreferenceAttributes preference_attributes = 5;
+  
+  // 社交属性
+  SocialAttributes social_attributes = 6;
+  
+  // 风险属性
+  RiskAttributes risk_attributes = 7;
+  
+  // 价值评分
+  double value_score = 8;
+  
+  // 生命周期阶段
+  string lifecycle_stage = 9;
+  
+  // RFM模型
+  RFMModel rfm = 10;
+  
+  // 标签列表
+  repeated string tags = 11;
+  
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message BasicAttributes {
+  string gender = 1;             // 性别
+  string age_group = 2;          // 年龄段
+  string province = 3;           // 省份
+  string city = 4;               // 城市
+  string city_level = 5;         // 城市等级
+  string occupation = 6;         // 职业
+  string education = 7;          // 学历
+  string income_level = 8;       // 收入水平
+  string marital_status = 9;     // 婚姻状况
+  bool has_children = 10;        // 是否有孩子
+  string device_type = 11;       // 设备类型
+  string os_type = 12;           // 操作系统
+}
+
+message ConsumptionAttributes {
+  double total_spent = 1;                // 总消费金额
+  double avg_order_value = 2;            // 平均客单价
+  double max_order_value = 3;            // 最高客单价
+  int32 total_orders = 4;                // 总订单数
+  int32 total_products = 5;              // 购买商品数
+  double avg_monthly_spent = 6;          // 月均消费
+  string preferred_price_range = 7;      // 偏好价格区间
+  string payment_preference = 8;         // 支付偏好
+  repeated string purchased_categories = 9;  // 购买过的类目
+  repeated string purchased_brands = 10;     // 购买过的品牌
+  double discount_sensitivity = 11;      // 折扣敏感度
+  double cross_buy_rate = 12;            // 跨品类购买率
+}
+
+message BehaviorAttributes {
+  int32 total_visits = 1;                // 总访问次数
+  int32 total_page_views = 2;            // 总浏览量
+  double avg_session_duration = 3;       // 平均会话时长
+  double bounce_rate = 4;                // 跳出率
+  string most_active_time = 5;           // 最活跃时段
+  string most_active_day = 6;            // 最活跃日期
+  int32 cart_abandonment_rate = 7;       // 购物车放弃率
+  int32 search_frequency = 8;            // 搜索频率
+  repeated string search_keywords = 9;   // 常搜关键词
+  int32 wishlist_count = 10;             // 收藏夹数量
+  int32 review_count = 11;               // 评价数量
+  double engagement_score = 12;          // 参与度评分
+}
+
+message PreferenceAttributes {
+  repeated string favorite_categories = 1;   // 喜欢的类目
+  repeated string favorite_brands = 2;       // 喜欢的品牌
+  string preferred_style = 3;                // 偏好风格
+  string preferred_color = 4;                // 偏好颜色
+  string preferred_size = 5;                 // 偏好尺码
+  repeated string interested_categories = 6; // 感兴趣的类目
+  string content_preference = 7;             // 内容偏好
+  string channel_preference = 8;             // 渠道偏好
+}
+
+message SocialAttributes {
+  int32 followers_count = 1;             // 粉丝数
+  int32 following_count = 2;             // 关注数
+  int32 share_count = 3;                 // 分享次数
+  int32 like_count = 4;                  // 点赞次数
+  int32 comment_count = 5;               // 评论次数
+  double influence_score = 6;            // 影响力评分
+  bool is_kol = 7;                       // 是否KOL
+  repeated string social_platforms = 8;  // 社交平台
+}
+
+message RiskAttributes {
+  double fraud_risk_score = 1;           // 欺诈风险评分
+  double credit_risk_score = 2;          // 信用风险评分
+  double return_risk_score = 3;          // 退货风险评分
+  double complaint_risk_score = 4;       // 投诉风险评分
+  string risk_level = 5;                 // 风险等级
+  repeated string risk_tags = 6;         // 风险标签
+}
+
+message RFMModel {
+  double recency_score = 1;      // 最近一次消费时间评分
+  double frequency_score = 2;    // 消费频率评分
+  double monetary_score = 3;     // 消费金额评分
+  string rfm_segment = 4;        // RFM分群
+  int32 recency_days = 5;        // 最近消费距今天数
+  int32 frequency_count = 6;     // 消费频次
+  double monetary_value = 7;     // 消费金额
+}
+
+message GetUserPortraitRequest {
+  uint64 user_id = 1;
+}
+
+message UpdateUserPortraitRequest {
+  uint64 user_id = 1;
+  map<string, string> attributes = 2;
+}
+
+message CalculatePortraitScoreRequest {
+  uint64 user_id = 1;
+  repeated string score_types = 2;  // 要计算的评分类型
+}
+
+message PortraitScore {
+  uint64 user_id = 1;
+  map<string, double> scores = 2;
+  google.protobuf.Timestamp calculated_at = 3;
+}
+
+// ==================== 行为分析消息定义 ====================
+
+enum BehaviorType {
+  BEHAVIOR_TYPE_UNSPECIFIED = 0;
+  BEHAVIOR_TYPE_VIEW = 1;            // 浏览
+  BEHAVIOR_TYPE_CLICK = 2;           // 点击
+  BEHAVIOR_TYPE_SEARCH = 3;          // 搜索
+  BEHAVIOR_TYPE_ADD_TO_CART = 4;     // 加购
+  BEHAVIOR_TYPE_REMOVE_FROM_CART = 5;// 移出购物车
+  BEHAVIOR_TYPE_PURCHASE = 6;        // 购买
+  BEHAVIOR_TYPE_RETURN = 7;          // 退货
+  BEHAVIOR_TYPE_REVIEW = 8;          // 评价
+  BEHAVIOR_TYPE_SHARE = 9;           // 分享
+  BEHAVIOR_TYPE_FAVORITE = 10;       // 收藏
+  BEHAVIOR_TYPE_COUPON_RECEIVE = 11; // 领券
+  BEHAVIOR_TYPE_COUPON_USE = 12;     // 用券
+}
+
+message UserBehavior {
+  uint64 user_id = 1;
+  BehaviorType type = 2;
+  string target_type = 3;            // 目标类型：product, category, brand, activity
+  uint64 target_id = 4;
+  string target_name = 5;
+  map<string, string> properties = 6;
+  string session_id = 7;
+  string device_id = 8;
+  string ip_address = 9;
+  string user_agent = 10;
+  string referer = 11;
+  google.protobuf.Timestamp timestamp = 12;
+}
+
+message RecordBehaviorRequest {
+  UserBehavior behavior = 1;
+}
+
+message BatchRecordBehaviorsRequest {
+  repeated UserBehavior behaviors = 1;
+}
+
+message AnalyzeUserBehaviorRequest {
+  uint64 user_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  repeated BehaviorType behavior_types = 4;
+}
+
+message UserBehaviorAnalysis {
+  uint64 user_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  
+  // 行为统计
+  map<string, int64> behavior_counts = 4;
+  
+  // 转化漏斗
+  repeated FunnelStep funnel = 5;
+  
+  // 行为序列
+  repeated BehaviorSequence sequences = 6;
+  
+  // 异常行为
+  repeated AnomalyBehavior anomalies = 7;
+  
+  // 行为偏好
+  map<string, double> preferences = 8;
+}
+
+message FunnelStep {
+  string name = 1;
+  int64 count = 2;
+  double conversion_rate = 3;
+  double drop_rate = 4;
+}
+
+message BehaviorSequence {
+  repeated string behaviors = 1;
+  int64 count = 2;
+  double probability = 3;
+}
+
+message AnomalyBehavior {
+  BehaviorType type = 1;
+  string description = 2;
+  double anomaly_score = 3;
+  google.protobuf.Timestamp detected_at = 4;
+}
+
+message GetUserBehaviorPathRequest {
+  uint64 user_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  int32 max_depth = 4;
+}
+
+message UserBehaviorPathResponse {
+  repeated BehaviorPath paths = 1;
+}
+
+message BehaviorPath {
+  repeated PathNode nodes = 1;
+  int64 count = 2;
+  double avg_duration = 3;
+}
+
+message PathNode {
+  string type = 1;
+  string name = 2;
+  int64 duration_ms = 3;
+}
+
+// ==================== 用户分群消息定义 ====================
+
+enum SegmentType {
+  SEGMENT_TYPE_UNSPECIFIED = 0;
+  SEGMENT_TYPE_STATIC = 1;       // 静态分群
+  SEGMENT_TYPE_DYNAMIC = 2;      // 动态分群
+  SEGMENT_TYPE_RULE = 3;         // 规则分群
+  SEGMENT_TYPE_MODEL = 4;        // 模型分群
+}
+
+message UserSegment {
+  uint64 id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  SegmentType type = 5;
+  string rule_expression = 6;    // 规则表达式
+  string model_id = 7;           // 模型ID
+  int64 user_count = 8;          // 用户数量
+  bool is_active = 9;
+  map<string, string> metadata = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp last_refreshed_at = 13;
+}
+
+message CreateSegmentRequest {
+  string name = 1;
+  string code = 2;
+  string description = 3;
+  SegmentType type = 4;
+  string rule_expression = 5;
+  string model_id = 6;
+  map<string, string> metadata = 7;
+}
+
+message GetSegmentRequest {
+  uint64 segment_id = 1;
+}
+
+message UpdateSegmentRequest {
+  uint64 segment_id = 1;
+  string name = 2;
+  string description = 3;
+  string rule_expression = 4;
+  bool is_active = 5;
+}
+
+message DeleteSegmentRequest {
+  uint64 segment_id = 1;
+}
+
+message ListSegmentsRequest {
+  SegmentType type = 1;
+  bool is_active = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListSegmentsResponse {
+  repeated UserSegment segments = 1;
+  int32 total = 2;
+}
+
+message MatchUserSegmentRequest {
+  uint64 user_id = 1;
+  uint64 segment_id = 2;
+}
+
+message MatchUserSegmentResponse {
+  bool is_match = 1;
+  double confidence = 2;
+  repeated string matched_rules = 3;
+}
+
+message GetUserSegmentsRequest {
+  uint64 user_id = 1;
+}
+
+message GetUserSegmentsResponse {
+  repeated UserSegment segments = 1;
+}
+
+message RefreshSegmentUsersRequest {
+  uint64 segment_id = 1;
+}
+
+message RefreshSegmentUsersResponse {
+  uint64 segment_id = 1;
+  int64 user_count = 2;
+  int64 added_count = 3;
+  int64 removed_count = 4;
+  google.protobuf.Timestamp refreshed_at = 5;
+}
+
+// ==================== 精准营销消息定义 ====================
+
+message GetRecommendedActionsRequest {
+  uint64 user_id = 1;
+  string scene = 2;              // 场景：home, product, cart, checkout
+  int32 limit = 3;
+}
+
+message GetRecommendedActionsResponse {
+  repeated RecommendedAction actions = 1;
+}
+
+message RecommendedAction {
+  string action_type = 1;         // coupon, product, category, activity
+  uint64 target_id = 2;
+  string target_name = 3;
+  double score = 4;
+  string reason = 5;
+  map<string, string> params = 6;
+}
+
+message UserPreferences {
+  uint64 user_id = 1;
+  map<string, double> category_preferences = 2;
+  map<string, double> brand_preferences = 3;
+  map<string, double> price_preferences = 4;
+  map<string, string> notification_preferences = 5;
+  map<string, string> privacy_preferences = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message GetUserPreferencesRequest {
+  uint64 user_id = 1;
+}
+
+message UpdateUserPreferencesRequest {
+  uint64 user_id = 1;
+  map<string, double> category_preferences = 2;
+  map<string, double> brand_preferences = 3;
+  map<string, string> notification_preferences = 4;
+  map<string, string> privacy_preferences = 5;
+}
+
+// ==================== 实时计算消息定义 ====================
+
+message GetUserRFMRequest {
+  uint64 user_id = 1;
+}
+
+message UserRFM {
+  uint64 user_id = 1;
+  int32 recency_days = 2;
+  int32 frequency = 3;
+  double monetary = 4;
+  double r_score = 5;
+  double f_score = 6;
+  double m_score = 7;
+  string segment = 8;            // 重要价值、重要发展、重要保持、重要挽留、一般价值、一般发展、一般保持、一般挽留
+  google.protobuf.Timestamp calculated_at = 9;
+}
+
+message GetUserLifecycleRequest {
+  uint64 user_id = 1;
+}
+
+message UserLifecycle {
+  uint64 user_id = 1;
+  string stage = 2;              // 新用户、活跃用户、沉默用户、流失用户、回流用户
+  int32 days_in_stage = 3;
+  double stage_score = 4;
+  string next_best_action = 5;
+  google.protobuf.Timestamp calculated_at = 6;
+}
+
+message GetUserValueScoreRequest {
+  uint64 user_id = 1;
+}
+
+message UserValueScore {
+  uint64 user_id = 1;
+  double total_score = 2;
+  double current_value = 3;      // 当前价值
+  double potential_value = 4;    // 潜在价值
+  double loyalty_score = 5;      // 忠诚度
+  double engagement_score = 6;   // 参与度
+  double influence_score = 7;    // 影响力
+  string value_level = 8;        // 高价值、中价值、低价值
+  google.protobuf.Timestamp calculated_at = 9;
 }

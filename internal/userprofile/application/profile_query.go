@@ -143,7 +143,7 @@ type ProfileSummary struct {
 	EngagementScore     int      `json:"engagement_score"`
 	ValueScore          int      `json:"value_score"`
 	LoyaltyScore        int      `json:"loyalty_score"`
-	ProfileCompleteness int      `json:"profile_completeness"`
+	ProfileCompleteness float64  `json:"profile_completeness"`
 	SpendingLevel       string   `json:"spending_level"`
 	ValueSegment        string   `json:"value_segment"`
 	TopCategories       []uint64 `json:"top_categories"`

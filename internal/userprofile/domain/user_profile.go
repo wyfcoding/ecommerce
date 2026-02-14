@@ -2,23 +2,15 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"time"
-)
-
-var (
-	ErrUserProfileNotFound   = errors.New("user profile not found")
-	ErrTagNotFound           = errors.New("tag not found")
-	ErrInvalidTagValue       = errors.New("invalid tag value")
-	ErrProfileAlreadyExpired = errors.New("profile already expired")
 )
 
 type ProfileStatus int8
 
 const (
-	ProfileStatusActive    ProfileStatus = 1
-	ProfileStatusInactive  ProfileStatus = 2
-	ProfileStatusArchived  ProfileStatus = 3
+	ProfileStatusActive   ProfileStatus = 1
+	ProfileStatusInactive ProfileStatus = 2
+	ProfileStatusArchived ProfileStatus = 3
 )
 
 func (s ProfileStatus) String() string {
@@ -34,81 +26,78 @@ func (s ProfileStatus) String() string {
 	}
 }
 
-type ProfileScore int8
-
-const (
-	ProfileScoreLow      ProfileScore = 1
-	ProfileScoreMedium   ProfileScore = 2
-	ProfileScoreHigh     ProfileScore = 3
-	ProfileScoreVeryHigh ProfileScore = 4
-)
-
 type UserProfile struct {
 	ID                  uint64              `json:"id"`
 	CreatedAt           time.Time           `json:"created_at"`
 	UpdatedAt           time.Time           `json:"updated_at"`
 	UserID              uint64              `json:"user_id"`
 	Status              ProfileStatus       `json:"status"`
-	ProfileVersion      int                 `json:"profile_version"`
-	LastCalculatedAt    *time.Time          `json:"last_calculated_at"`
-	NextCalculateAt     *time.Time          `json:"next_calculate_at"`
-	Tags                []*UserTag          `json:"tags"`
-	BehaviorFeatures    *BehaviorFeatures   `json:"behavior_features"`
-	Preferences         *UserPreferences    `json:"preferences"`
-	ConsumptionProfile  *ConsumptionProfile `json:"consumption_profile"`
-	RiskProfile         *RiskProfile        `json:"risk_profile"`
-	SocialProfile       *SocialProfile      `json:"social_profile"`
+	OverallScore        int                 `json:"overall_score"`
 	ActivityScore       int                 `json:"activity_score"`
 	EngagementScore     int                 `json:"engagement_score"`
 	ValueScore          int                 `json:"value_score"`
 	LoyaltyScore        int                 `json:"loyalty_score"`
-	OverallScore        int                 `json:"overall_score"`
-	ProfileCompleteness int                 `json:"profile_completeness"`
-	DataSources         []string            `json:"data_sources"`
+	RiskScore           int                 `json:"risk_score"`
+	RiskLevel           int                 `json:"risk_level"`
+	BehaviorScore       int                 `json:"behavior_score"`
+	ConsumptionScore    int                 `json:"consumption_score"`
+	Tags                []*UserTag          `json:"tags"`
+	TagCount            int                 `json:"tag_count"`
+	BehaviorFeatures    *BehaviorFeatures   `json:"behavior_features"`
+	Preferences         *UserPreferences    `json:"preferences"`
+	ConsumptionProfile  *ConsumptionProfile `json:"consumption_profile"`
+	Segment             string              `json:"segment"`
+	SegmentScore        float64             `json:"segment_score"`
+	ValueSegment        string              `json:"value_segment"`
+	LifecycleStage      string              `json:"lifecycle_stage"`
 	LastActiveAt        *time.Time          `json:"last_active_at"`
-	ExpiresAt           *time.Time          `json:"expires_at"`
+	LastPurchaseAt      *time.Time          `json:"last_purchase_at"`
+	LastCalculatedAt    *time.Time          `json:"last_calculated_at"`
+	NextCalculateAt     *time.Time          `json:"next_calculate_at"`
+	CalculateVersion    int                 `json:"calculate_version"`
+	RecentActivities    []*RecentActivity   `json:"recent_activities"`
+	ActivityCount       int64               `json:"activity_count"`
+	PurchaseCount       int64               `json:"purchase_count"`
+	TotalSpent          int64               `json:"total_spent"`
+	ProfileCompleteness float64             `json:"profile_completeness"`
+	Verified            bool                `json:"verified"`
+	VerificationLevel   int                 `json:"verification_level"`
+	Metadata            map[string]any      `json:"metadata"`
 }
 
-type RiskProfile struct {
-	RiskLevel       int     `json:"risk_level"`
-	FraudScore      float64 `json:"fraud_score"`
-	CreditScore     int     `json:"credit_score"`
-	TrustScore      int     `json:"trust_score"`
-	BlacklistFlags  []string `json:"blacklist_flags"`
-	LastRiskCheckAt *time.Time `json:"last_risk_check_at"`
-}
-
-type SocialProfile struct {
-	ShareCount      int     `json:"share_count"`
-	CommentCount    int     `json:"comment_count"`
-	LikeCount       int     `json:"like_count"`
-	FollowCount     int     `json:"follow_count"`
-	FanCount        int     `json:"fan_count"`
-	SocialInfluence float64 `json:"social_influence"`
-	ReferralCount   int     `json:"referral_count"`
+type RecentActivity struct {
+	ID           uint64    `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	ProfileID    uint64    `json:"profile_id"`
+	UserID       uint64    `json:"user_id"`
+	ActivityType string    `json:"activity_type"`
+	TargetType   string    `json:"target_type"`
+	TargetID     uint64    `json:"target_id"`
+	Value        string    `json:"value"`
+	Score        int       `json:"score"`
 }
 
 func NewUserProfile(userID uint64) *UserProfile {
 	return &UserProfile{
-		UserID:         userID,
-		Status:         ProfileStatusActive,
-		ProfileVersion: 1,
-		Tags:           make([]*UserTag, 0),
-		DataSources:    make([]string, 0),
+		UserID:           userID,
+		Status:           ProfileStatusActive,
+		Tags:             make([]*UserTag, 0),
+		RecentActivities: make([]*RecentActivity, 0),
+		Metadata:         make(map[string]any),
+		CalculateVersion: 1,
 	}
 }
 
 func (p *UserProfile) AddTag(tag *UserTag) error {
-	for _, t := range p.Tags {
+	for i, t := range p.Tags {
 		if t.TagKey == tag.TagKey {
-			t.TagValue = tag.TagValue
-			t.Confidence = tag.Confidence
-			t.Source = tag.Source
-			t.UpdatedAt = time.Now()
+			p.Tags[i] = tag
 			return nil
 		}
 	}
 	p.Tags = append(p.Tags, tag)
+	p.TagCount = len(p.Tags)
+	p.UpdateUpdatedAt()
 	return nil
 }
 
@@ -116,10 +105,12 @@ func (p *UserProfile) RemoveTag(tagKey string) error {
 	for i, t := range p.Tags {
 		if t.TagKey == tagKey {
 			p.Tags = append(p.Tags[:i], p.Tags[i+1:]...)
+			p.TagCount = len(p.Tags)
+			p.UpdateUpdatedAt()
 			return nil
 		}
 	}
-	return ErrTagNotFound
+	return nil
 }
 
 func (p *UserProfile) GetTag(tagKey string) *UserTag {
@@ -141,88 +132,127 @@ func (p *UserProfile) GetTagsByCategory(category TagCategory) []*UserTag {
 	return tags
 }
 
+func (p *UserProfile) GetActiveTags() []*UserTag {
+	var tags []*UserTag
+	for _, t := range p.Tags {
+		if t.IsValid() {
+			tags = append(tags, t)
+		}
+	}
+	return tags
+}
+
 func (p *UserProfile) UpdateBehaviorFeatures(features *BehaviorFeatures) {
 	p.BehaviorFeatures = features
-	p.markUpdated()
+	if features != nil {
+		p.ActivityScore = features.ActivityScore
+		p.BehaviorScore = features.ActivityScore
+		p.EngagementScore = features.EngagementScore
+	}
+	p.UpdateUpdatedAt()
 }
 
 func (p *UserProfile) UpdatePreferences(preferences *UserPreferences) {
 	p.Preferences = preferences
-	p.markUpdated()
+	p.UpdateUpdatedAt()
 }
 
-func (p *UserProfile) UpdateConsumptionProfile(profile *ConsumptionProfile) {
-	p.ConsumptionProfile = profile
-	p.markUpdated()
+func (p *UserProfile) UpdateConsumptionProfile(consumption *ConsumptionProfile) {
+	p.ConsumptionProfile = consumption
+	if consumption != nil {
+		p.ConsumptionScore = int(consumption.SpendingLevel)
+		p.ValueScore = int(consumption.ValueSegment)
+		p.ValueSegment = consumption.ValueSegment.String()
+		p.TotalSpent = consumption.TotalSpent
+		p.PurchaseCount = consumption.TotalOrders
+		if consumption.LastPurchaseAt != nil {
+			p.LastPurchaseAt = consumption.LastPurchaseAt
+		}
+	}
+	p.UpdateUpdatedAt()
+}
+
+func (p *UserProfile) RecordActivity(activityType string) {
+	activity := &RecentActivity{
+		ProfileID:    p.ID,
+		UserID:       p.UserID,
+		ActivityType: activityType,
+	}
+	p.RecentActivities = append(p.RecentActivities, activity)
+	if len(p.RecentActivities) > 100 {
+		p.RecentActivities = p.RecentActivities[len(p.RecentActivities)-100:]
+	}
+	p.ActivityCount++
+	now := time.Now()
+	p.LastActiveAt = &now
+	p.UpdateUpdatedAt()
 }
 
 func (p *UserProfile) CalculateOverallScore() {
-	var totalScore int
-	var count int
+	score := 0
 
-	if p.ActivityScore > 0 {
-		totalScore += p.ActivityScore
-		count++
-	}
-	if p.EngagementScore > 0 {
-		totalScore += p.EngagementScore
-		count++
-	}
-	if p.ValueScore > 0 {
-		totalScore += p.ValueScore
-		count++
-	}
-	if p.LoyaltyScore > 0 {
-		totalScore += p.LoyaltyScore
-		count++
-	}
+	score += p.ActivityScore * 2
+	score += p.EngagementScore
+	score += p.ValueScore
+	score += p.LoyaltyScore
+	score += p.BehaviorScore
 
-	if count > 0 {
-		p.OverallScore = totalScore / count
-	}
-
-	p.calculateCompleteness()
-}
-
-func (p *UserProfile) calculateCompleteness() {
-	var completeness int
-
-	if len(p.Tags) > 0 {
-		completeness += 20
-	}
-	if p.BehaviorFeatures != nil {
-		completeness += 25
-	}
-	if p.Preferences != nil {
-		completeness += 25
-	}
 	if p.ConsumptionProfile != nil {
-		completeness += 20
-	}
-	if p.RiskProfile != nil {
-		completeness += 10
+		score += int(p.ConsumptionProfile.SpendingLevel) * 5
 	}
 
-	p.ProfileCompleteness = completeness
+	p.OverallScore = score
+	p.determineSegment()
+	p.determineLifecycleStage()
+
+	now := time.Now()
+	p.LastCalculatedAt = &now
+	p.CalculateVersion++
+	p.UpdateUpdatedAt()
 }
 
-func (p *UserProfile) markUpdated() {
-	now := time.Now()
-	p.UpdatedAt = now
-	p.ProfileVersion++
-	p.LastCalculatedAt = &now
+func (p *UserProfile) determineSegment() {
+	switch {
+	case p.OverallScore >= 80:
+		p.Segment = "VIP"
+	case p.OverallScore >= 60:
+		p.Segment = "HIGH_VALUE"
+	case p.OverallScore >= 40:
+		p.Segment = "MEDIUM_VALUE"
+	case p.OverallScore >= 20:
+		p.Segment = "LOW_VALUE"
+	default:
+		p.Segment = "NEW"
+	}
+}
+
+func (p *UserProfile) determineLifecycleStage() {
+	if p.LastActiveAt == nil {
+		p.LifecycleStage = "NEW"
+		return
+	}
+
+	daysSinceActive := int(time.Since(*p.LastActiveAt).Hours() / 24)
+
+	switch {
+	case daysSinceActive > 90:
+		p.LifecycleStage = "CHURNED"
+	case daysSinceActive > 60:
+		p.LifecycleStage = "DORMANT"
+	case daysSinceActive > 30:
+		p.LifecycleStage = "AT_RISK"
+	case p.ActivityCount > 100 && p.PurchaseCount > 10:
+		p.LifecycleStage = "LOYAL"
+	case p.PurchaseCount > 3:
+		p.LifecycleStage = "ACTIVE"
+	default:
+		p.LifecycleStage = "NEW"
+	}
 }
 
 func (p *UserProfile) SetNextCalculateTime(duration time.Duration) {
 	nextTime := time.Now().Add(duration)
 	p.NextCalculateAt = &nextTime
-}
-
-func (p *UserProfile) IsExpired() bool {
-	if p.ExpiresAt == nil {
-		return false
-	}
-	return time.Now().After(*p.ExpiresAt)
 }
 
 func (p *UserProfile) NeedsRecalculation() bool {
@@ -232,79 +262,91 @@ func (p *UserProfile) NeedsRecalculation() bool {
 	return time.Now().After(*p.NextCalculateAt)
 }
 
+func (p *UserProfile) Archive() {
+	p.Status = ProfileStatusArchived
+	p.UpdateUpdatedAt()
+}
+
 func (p *UserProfile) Activate() {
 	p.Status = ProfileStatusActive
+	p.UpdateUpdatedAt()
 }
 
 func (p *UserProfile) Deactivate() {
 	p.Status = ProfileStatusInactive
+	p.UpdateUpdatedAt()
 }
 
-func (p *UserProfile) Archive() {
-	p.Status = ProfileStatusArchived
+func (p *UserProfile) IsArchived() bool {
+	return p.Status == ProfileStatusArchived
 }
 
 func (p *UserProfile) IsActive() bool {
 	return p.Status == ProfileStatusActive
 }
 
-func (p *UserProfile) AddDataSource(source string) {
-	for _, s := range p.DataSources {
-		if s == source {
-			return
-		}
-	}
-	p.DataSources = append(p.DataSources, source)
+func (p *UserProfile) UpdateUpdatedAt() {
+	p.UpdatedAt = time.Now()
 }
 
-func (p *UserProfile) RecordActivity(activityType string) {
-	now := time.Now()
-	p.LastActiveAt = &now
-
-	switch activityType {
-	case "browse":
-		if p.BehaviorFeatures != nil {
-			p.BehaviorFeatures.BrowseCount++
-		}
-	case "search":
-		if p.BehaviorFeatures != nil {
-			p.BehaviorFeatures.SearchCount++
-		}
-	case "purchase":
-		if p.BehaviorFeatures != nil {
-			p.BehaviorFeatures.PurchaseCount++
-		}
-	case "share":
-		if p.SocialProfile != nil {
-			p.SocialProfile.ShareCount++
-		}
+func (p *UserProfile) SetMetadata(key string, value any) {
+	if p.Metadata == nil {
+		p.Metadata = make(map[string]any)
 	}
+	p.Metadata[key] = value
+	p.UpdateUpdatedAt()
 }
 
-type UserProfileRepository interface {
-	Save(ctx context.Context, profile *UserProfile) error
-	FindByID(ctx context.Context, id uint64) (*UserProfile, error)
-	FindByUserID(ctx context.Context, userID uint64) (*UserProfile, error)
-	FindByTag(ctx context.Context, tagKey, tagValue string, limit, offset int) ([]*UserProfile, error)
-	FindByScoreRange(ctx context.Context, scoreType string, minScore, maxScore int, limit int) ([]*UserProfile, error)
-	FindActive(ctx context.Context, limit, offset int) ([]*UserProfile, error)
-	FindNeedRecalculation(ctx context.Context, limit int) ([]*UserProfile, error)
-	Update(ctx context.Context, profile *UserProfile) error
-	Delete(ctx context.Context, userID uint64) error
+func (p *UserProfile) GetMetadata(key string) (any, bool) {
+	if p.Metadata == nil {
+		return nil, false
+	}
+	val, ok := p.Metadata[key]
+	return val, ok
+}
+
+func (p *UserProfile) CalculateProfileCompleteness() float64 {
+	completeness := 0.0
+
+	if len(p.Tags) > 0 {
+		completeness += 20
+	}
+	if p.BehaviorFeatures != nil && p.BehaviorFeatures.BrowseCount > 0 {
+		completeness += 20
+	}
+	if p.Preferences != nil && len(p.Preferences.CategoryPreferences) > 0 {
+		completeness += 20
+	}
+	if p.ConsumptionProfile != nil && p.ConsumptionProfile.TotalOrders > 0 {
+		completeness += 20
+	}
+	if p.PurchaseCount > 0 {
+		completeness += 20
+	}
+
+	p.ProfileCompleteness = completeness
+	return completeness
 }
 
 type ProfileCalculator interface {
-	CalculateProfile(ctx context.Context, userID uint64) (*UserProfile, error)
 	CalculateBehaviorFeatures(ctx context.Context, userID uint64) (*BehaviorFeatures, error)
 	CalculatePreferences(ctx context.Context, userID uint64) (*UserPreferences, error)
 	CalculateConsumptionProfile(ctx context.Context, userID uint64) (*ConsumptionProfile, error)
 	CalculateScores(ctx context.Context, profile *UserProfile) error
 }
 
-type ProfileService interface {
-	GetOrCreateProfile(ctx context.Context, userID uint64) (*UserProfile, error)
-	UpdateTag(ctx context.Context, userID uint64, tag *UserTag) error
-	BatchUpdateTags(ctx context.Context, userID uint64, tags []*UserTag) error
-	RecalculateProfile(ctx context.Context, userID uint64) error
-	GetProfilesBySegment(ctx context.Context, segment string, limit int) ([]*UserProfile, error)
+type UserProfileRepository interface {
+	Save(ctx context.Context, profile *UserProfile) error
+	FindByID(ctx context.Context, id uint64) (*UserProfile, error)
+	FindByUserID(ctx context.Context, userID uint64) (*UserProfile, error)
+	FindBySegment(ctx context.Context, segment string, limit int) ([]*UserProfile, error)
+	FindByStatus(ctx context.Context, status ProfileStatus, limit int) ([]*UserProfile, error)
+	FindNeedingRecalculation(ctx context.Context, limit int) ([]*UserProfile, error)
+	FindHighValue(ctx context.Context, threshold int, limit int) ([]*UserProfile, error)
+	FindAtRisk(ctx context.Context, limit int) ([]*UserProfile, error)
+	FindByTag(ctx context.Context, tagKey, tagValue string, limit, offset int) ([]*UserProfile, error)
+	FindByScoreRange(ctx context.Context, scoreType string, minScore, maxScore int, limit int) ([]*UserProfile, error)
+	FindNeedRecalculation(ctx context.Context, limit int) ([]*UserProfile, error)
+	Update(ctx context.Context, profile *UserProfile) error
+	Delete(ctx context.Context, userID uint64) error
 }

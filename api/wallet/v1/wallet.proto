@@ -1,0 +1,225 @@
+syntax = "proto3";
+
+package api.wallet.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "ecommerce/api/wallet/v1;v1";
+
+service WalletService {
+  // 钱包基础操作
+  rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallets"
+      body: "*"
+    };
+  }
+  
+  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/wallets/{user_id}"
+    };
+  }
+  
+  // 充值操作
+  rpc Deposit(DepositRequest) returns (DepositResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallets/deposit"
+      body: "*"
+    };
+  }
+  
+  // 提现操作
+  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallets/withdraw"
+      body: "*"
+    };
+  }
+  
+  // 转账操作
+  rpc Transfer(TransferRequest) returns (TransferResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallets/transfer"
+      body: "*"
+    };
+  }
+  
+  // 冻结/解冻资金
+  rpc FreezeBalance(FreezeBalanceRequest) returns (FreezeBalanceResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallets/freeze"
+      body: "*"
+    };
+  }
+  
+  rpc UnfreezeBalance(UnfreezeBalanceRequest) returns (UnfreezeBalanceResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallets/unfreeze"
+      body: "*"
+    };
+  }
+  
+  // 交易记录
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/wallets/transactions"
+    };
+  }
+  
+  rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/wallets/balance-history"
+    };
+  }
+}
+
+message CreateWalletRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  string wallet_type = 3;
+}
+
+message CreateWalletResponse {
+  int64 wallet_id = 1;
+  int64 user_id = 2;
+  string account_no = 3;
+  string currency = 4;
+  string balance = 5;
+}
+
+message GetWalletRequest {
+  int64 user_id = 1;
+  string currency = 2;
+}
+
+message GetWalletResponse {
+  int64 wallet_id = 1;
+  int64 user_id = 2;
+  string account_no = 3;
+  string currency = 4;
+  string balance = 5;
+  string frozen_balance = 6;
+  string available_balance = 7;
+  string status = 8;
+}
+
+message DepositRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  string amount = 3;
+  string payment_method = 4;
+  string payment_channel = 5;
+  string channel_trade_no = 6;
+  string remark = 7;
+}
+
+message DepositResponse {
+  string transaction_no = 1;
+  string balance = 2;
+  string status = 3;
+}
+
+message WithdrawRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  string amount = 3;
+  string bank_account = 4;
+  string bank_name = 5;
+  string account_name = 6;
+  string remark = 7;
+}
+
+message WithdrawResponse {
+  string transaction_no = 1;
+  string balance = 2;
+  string status = 3;
+}
+
+message TransferRequest {
+  int64 from_user_id = 1;
+  int64 to_user_id = 2;
+  string currency = 3;
+  string amount = 4;
+  string remark = 5;
+}
+
+message TransferResponse {
+  string transaction_no = 1;
+  string from_balance = 2;
+  string to_balance = 3;
+  string status = 4;
+}
+
+message FreezeBalanceRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  string amount = 3;
+  string reason = 4;
+}
+
+message FreezeBalanceResponse {
+  string transaction_no = 1;
+  string frozen_balance = 2;
+  string status = 3;
+}
+
+message UnfreezeBalanceRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  string amount = 3;
+  string reason = 4;
+}
+
+message UnfreezeBalanceResponse {
+  string transaction_no = 1;
+  string frozen_balance = 2;
+  string status = 3;
+}
+
+message GetTransactionsRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string type = 5;
+  string start_time = 6;
+  string end_time = 7;
+}
+
+message Transaction {
+  string transaction_no = 1;
+  int64 user_id = 2;
+  string type = 3;
+  string amount = 4;
+  string balance = 5;
+  string status = 6;
+  string remark = 7;
+  string created_at = 8;
+}
+
+message GetTransactionsResponse {
+  repeated Transaction transactions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetBalanceHistoryRequest {
+  int64 user_id = 1;
+  string currency = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message BalanceHistory {
+  string balance = 1;
+  string change = 2;
+  string type = 3;
+  string created_at = 4;
+}
+
+message GetBalanceHistoryResponse {
+  repeated BalanceHistory history = 1;
+  int32 total = 2;
+}
