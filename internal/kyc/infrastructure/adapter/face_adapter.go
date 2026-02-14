@@ -14,9 +14,9 @@ import (
 )
 
 type FacePlusPlusAdapter struct {
-	apiKey    string
-	apiSecret string
-	endpoint  string
+	apiKey     string
+	apiSecret  string
+	endpoint   string
 	httpClient *http.Client
 }
 
@@ -36,17 +36,17 @@ func NewFacePlusPlusAdapter(apiKey, apiSecret, endpoint string) *FacePlusPlusAda
 
 func (f *FacePlusPlusAdapter) VerifyFace(ctx context.Context, idImageURL, faceImageURL string) (*domain.FaceVerificationResult, error) {
 	reqBody := map[string]string{
-		"api_key":           f.apiKey,
-		"api_secret":        f.apiSecret,
-		"image_url1":        idImageURL,
-		"image_url2":        faceImageURL,
+		"api_key":    f.apiKey,
+		"api_secret": f.apiSecret,
+		"image_url1": idImageURL,
+		"image_url2": faceImageURL,
 	}
-	
+
 	result, err := f.callFaceAPI(ctx, "/facepp/v3/compare", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return f.parseCompareResult(result), nil
 }
 
@@ -55,12 +55,12 @@ func (f *FacePlusPlusAdapter) VerifyLiveness(ctx context.Context, livenessData [
 		"api_key":    f.apiKey,
 		"api_secret": f.apiSecret,
 	}
-	
+
 	result, err := f.callFaceAPIWithBinary(ctx, "/facepp/v3/liveness/body_analysis", reqBody, livenessData)
 	if err != nil {
 		return false, err
 	}
-	
+
 	return f.parseLivenessResult(result), nil
 }
 
@@ -69,16 +69,16 @@ func (f *FacePlusPlusAdapter) DetectFace(ctx context.Context, imageData []byte) 
 		"api_key":    f.apiKey,
 		"api_secret": f.apiSecret,
 	}
-	
+
 	result, err := f.callFaceAPIWithBinary(ctx, "/facepp/v3/detect", reqBody, imageData)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return f.parseDetectResult(result), nil
 }
 
-func (f *FacePlusPlusAdapter) callFaceAPI(ctx context.Context, path string, body map[string]string) (map[string]interface{}, error) {
+func (f *FacePlusPlusAdapter) callFaceAPI(ctx context.Context, path string, body map[string]string) (map[string]any, error) {
 	formData := make([]byte, 0)
 	for k, v := range body {
 		if len(formData) > 0 {
@@ -86,48 +86,48 @@ func (f *FacePlusPlusAdapter) callFaceAPI(ctx context.Context, path string, body
 		}
 		formData = append(formData, fmt.Sprintf("%s=%s", k, v)...)
 	}
-	
+
 	url := fmt.Sprintf("%s%s", f.endpoint, path)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(formData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	
+
 	resp, err := f.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call Face API: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Face API returned error: %s", string(respBody))
 	}
-	
-	var result map[string]interface{}
+
+	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	return result, nil
 }
 
-func (f *FacePlusPlusAdapter) callFaceAPIWithBinary(ctx context.Context, path string, body map[string]string, imageData []byte) (map[string]interface{}, error) {
+func (f *FacePlusPlusAdapter) callFaceAPIWithBinary(ctx context.Context, path string, body map[string]string, imageData []byte) (map[string]any, error) {
 	url := fmt.Sprintf("%s%s", f.endpoint, path)
-	
+
 	var b bytes.Buffer
 	writer := multipart.NewWriter(&b)
-	
+
 	for k, v := range body {
 		_ = writer.WriteField(k, v)
 	}
-	
+
 	part, err := writer.CreateFormFile("image_file", "image.jpg")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
@@ -135,52 +135,52 @@ func (f *FacePlusPlusAdapter) callFaceAPIWithBinary(ctx context.Context, path st
 	if _, err := part.Write(imageData); err != nil {
 		return nil, fmt.Errorf("failed to write image data: %w", err)
 	}
-	
+
 	if err := writer.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close writer: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", url, &b)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	
+
 	resp, err := f.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call Face API: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Face API returned error: %s", string(respBody))
 	}
-	
-	var result map[string]interface{}
+
+	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	return result, nil
 }
 
-func (f *FacePlusPlusAdapter) parseCompareResult(result map[string]interface{}) *domain.FaceVerificationResult {
+func (f *FacePlusPlusAdapter) parseCompareResult(result map[string]any) *domain.FaceVerificationResult {
 	res := &domain.FaceVerificationResult{}
-	
+
 	if confidence, ok := result["confidence"].(float64); ok {
 		res.SimilarityScore = confidence / 100.0
 		res.Passed = confidence >= 80.0
 	}
-	
-	if faces, ok := result["faces"].([]interface{}); ok && len(faces) > 0 {
-		if face, ok := faces[0].(map[string]interface{}); ok {
-			if faceRect, ok := face["face_rectangle"].(map[string]interface{}); ok {
+
+	if faces, ok := result["faces"].([]any); ok && len(faces) > 0 {
+		if face, ok := faces[0].(map[string]any); ok {
+			if faceRect, ok := face["face_rectangle"].(map[string]any); ok {
 				res.FaceRect = &domain.Rect{}
 				if x, ok := faceRect["left"].(float64); ok {
 					res.FaceRect.X = int(x)
@@ -197,11 +197,11 @@ func (f *FacePlusPlusAdapter) parseCompareResult(result map[string]interface{}) 
 			}
 		}
 	}
-	
+
 	return res
 }
 
-func (f *FacePlusPlusAdapter) parseLivenessResult(result map[string]interface{}) bool {
+func (f *FacePlusPlusAdapter) parseLivenessResult(result map[string]any) bool {
 	if status, ok := result["status"].(string); ok {
 		return status == "success" || status == "pass"
 	}
@@ -211,16 +211,16 @@ func (f *FacePlusPlusAdapter) parseLivenessResult(result map[string]interface{})
 	return false
 }
 
-func (f *FacePlusPlusAdapter) parseDetectResult(result map[string]interface{}) *domain.FaceDetectionResult {
+func (f *FacePlusPlusAdapter) parseDetectResult(result map[string]any) *domain.FaceDetectionResult {
 	res := &domain.FaceDetectionResult{}
-	
-	if faces, ok := result["faces"].([]interface{}); ok {
+
+	if faces, ok := result["faces"].([]any); ok {
 		res.FaceCount = len(faces)
 		res.Detected = len(faces) > 0
-		
+
 		if len(faces) > 0 {
-			if face, ok := faces[0].(map[string]interface{}); ok {
-				if faceRect, ok := face["face_rectangle"].(map[string]interface{}); ok {
+			if face, ok := faces[0].(map[string]any); ok {
+				if faceRect, ok := face["face_rectangle"].(map[string]any); ok {
 					res.FaceRect = &domain.Rect{}
 					if x, ok := faceRect["left"].(float64); ok {
 						res.FaceRect.X = int(x)
@@ -235,9 +235,9 @@ func (f *FacePlusPlusAdapter) parseDetectResult(result map[string]interface{}) *
 						res.FaceRect.Height = int(h)
 					}
 				}
-				
-				if attrs, ok := face["attributes"].(map[string]interface{}); ok {
-					if quality, ok := attrs["face_quality"].(map[string]interface{}); ok {
+
+				if attrs, ok := face["attributes"].(map[string]any); ok {
+					if quality, ok := attrs["face_quality"].(map[string]any); ok {
 						if score, ok := quality["value"].(float64); ok {
 							res.Quality = score / 100.0
 						}
@@ -246,16 +246,16 @@ func (f *FacePlusPlusAdapter) parseDetectResult(result map[string]interface{}) *
 			}
 		}
 	}
-	
+
 	return res
 }
 
 type TencentCloudFaceAdapter struct {
-	secretID     string
-	secretKey    string
-	region       string
-	endpoint     string
-	httpClient   *http.Client
+	secretID   string
+	secretKey  string
+	region     string
+	endpoint   string
+	httpClient *http.Client
 }
 
 func NewTencentCloudFaceAdapter(secretID, secretKey, region string) *TencentCloudFaceAdapter {

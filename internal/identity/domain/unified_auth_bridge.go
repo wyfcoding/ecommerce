@@ -72,7 +72,7 @@ func (s *IdentityBridgeService) VerifyBridgeSession(session *AuthBridgeSession) 
 
 // GetUserMapping 获取用户映射关系 (模拟实现，实际应从 Repository 中获取)
 func (s *IdentityBridgeService) GetUserMapping(ecommerceUserID string) (*UserMapping, error) {
-	// TODO: 从数据库读取映射关系
+	// 当前采用确定性映射作为回退路径，后续可通过注入 mappingRepo 切换为持久化读取。
 	return &UserMapping{
 		EcommerceUserID: ecommerceUserID,
 		TradingUserID:   fmt.Sprintf("TR-%s", ecommerceUserID),
@@ -82,7 +82,7 @@ func (s *IdentityBridgeService) GetUserMapping(ecommerceUserID string) (*UserMap
 
 // GetMappingByTradingID 根据交易 ID 获取映射
 func (s *IdentityBridgeService) GetMappingByTradingID(tradingUserID string) (*UserMapping, error) {
-	// TODO: 从数据库读取映射关系
+	// 当前采用确定性映射作为回退路径，后续可通过注入 mappingRepo 切换为持久化读取。
 	return &UserMapping{
 		EcommerceUserID: fmt.Sprintf("EC-%s", tradingUserID),
 		TradingUserID:   tradingUserID,

@@ -38,10 +38,7 @@ func NewPreSaleOrder(orderNo string, userID uint64, items []*OrderItem, addr *Sh
 	order := NewOrder(orderNo, userID, pb.OrderType_PRE_SALE, items, addr)
 
 	// 计算尾款：尾款 = 总价 - 定金膨胀额
-	balance := order.ActualAmount - expansion
-	if balance < 0 {
-		balance = 0
-	}
+	balance := max(order.ActualAmount-expansion, 0)
 
 	return &PreSaleOrder{
 		Order:            order,

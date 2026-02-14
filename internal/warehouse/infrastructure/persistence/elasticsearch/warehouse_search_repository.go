@@ -215,8 +215,8 @@ func parseWarehouseSort(sortBy string) (string, bool) {
 	}
 
 	desc := true
-	if strings.HasPrefix(sortBy, "-") {
-		sortBy = strings.TrimPrefix(sortBy, "-")
+	if after, ok := strings.CutPrefix(sortBy, "-"); ok {
+		sortBy = after
 		desc = true
 	}
 
@@ -252,8 +252,8 @@ func parseTransferSort(sortBy string) (string, bool) {
 	}
 
 	desc := true
-	if strings.HasPrefix(sortBy, "-") {
-		sortBy = strings.TrimPrefix(sortBy, "-")
+	if after, ok := strings.CutPrefix(sortBy, "-"); ok {
+		sortBy = after
 		desc = true
 	}
 

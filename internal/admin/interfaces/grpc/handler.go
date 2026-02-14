@@ -398,10 +398,3 @@ func (s *Server) permissionToProto(p *domain.Permission) *pb.Permission {
 		Description: p.Description,
 	}
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

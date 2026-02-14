@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"math/rand"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -36,38 +37,38 @@ type PaymentChannel struct {
 }
 
 type RoutingFactor struct {
-	Amount          int64
-	Currency        string
-	Region          string
-	UserID          uint64
-	UserPreference  string
-	DeviceType      string
-	PaymentMethod   string
+	Amount         int64
+	Currency       string
+	Region         string
+	UserID         uint64
+	UserPreference string
+	DeviceType     string
+	PaymentMethod  string
 }
 
 type RoutingResult struct {
-	PrimaryChannel   *PaymentChannel `json:"primary_channel"`
+	PrimaryChannel   *PaymentChannel   `json:"primary_channel"`
 	BackupChannels   []*PaymentChannel `json:"backup_channels"`
-	RoutingReason    string          `json:"routing_reason"`
-	RoutingScore     float64         `json:"routing_score"`
-	FallbackStrategy string          `json:"fallback_strategy"`
+	RoutingReason    string            `json:"routing_reason"`
+	RoutingScore     float64           `json:"routing_score"`
+	FallbackStrategy string            `json:"fallback_strategy"`
 }
 
 type RoutingStrategy string
 
 const (
-	RoutingStrategyCost       RoutingStrategy = "cost"
-	RoutingStrategySuccess    RoutingStrategy = "success"
-	RoutingStrategyLatency    RoutingStrategy = "latency"
-	RoutingStrategyBalanced   RoutingStrategy = "balanced"
-	RoutingStrategyUserPref   RoutingStrategy = "user_preference"
+	RoutingStrategyCost     RoutingStrategy = "cost"
+	RoutingStrategySuccess  RoutingStrategy = "success"
+	RoutingStrategyLatency  RoutingStrategy = "latency"
+	RoutingStrategyBalanced RoutingStrategy = "balanced"
+	RoutingStrategyUserPref RoutingStrategy = "user_preference"
 )
 
 type ChannelRouter struct {
-	channels    map[string]*PaymentChannel
-	mu          sync.RWMutex
-	statistics  *ChannelStatistics
-	strategy    RoutingStrategy
+	channels   map[string]*PaymentChannel
+	mu         sync.RWMutex
+	statistics *ChannelStatistics
+	strategy   RoutingStrategy
 }
 
 type ChannelStatistics struct {
@@ -196,13 +197,7 @@ func (r *ChannelRouter) isChannelEligible(ch *PaymentChannel, factor *RoutingFac
 		return false
 	}
 	if factor.Currency != "" {
-		currencySupported := false
-		for _, c := range ch.SupportCurrency {
-			if c == factor.Currency {
-				currencySupported = true
-				break
-			}
-		}
+		currencySupported := slices.Contains(ch.SupportCurrency, factor.Currency)
 		if !currencySupported {
 			return false
 		}
@@ -384,11 +379,4 @@ type PaymentError struct {
 
 func (e *PaymentError) Error() string {
 	return e.Message
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

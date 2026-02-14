@@ -8,24 +8,25 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/identity/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UserPersonaModel struct {
 	gorm.Model
-	ID          uint64 `gorm:"column:id;primaryKey;autoIncrement"`
-	UserID      uint64 `gorm:"column:user_id;uniqueIndex;not null"`
-	Type        string `gorm:"column:type;type:varchar(32);not null"`
-	Tags        string `gorm:"column:tags;type:text"`
-	Interests   string `gorm:"column:interests;type:text"`
-	Industry    string `gorm:"column:industry;type:varchar(64)"`
-	Skills      string `gorm:"column:skills;type:text"`
-	Certs       string `gorm:"column:certs;type:text"`
-	Experience  int    `gorm:"column:experience;default:0"`
-	AvgOrderVal int64  `gorm:"column:avg_order_val;default:0"`
-	FreqCat     string `gorm:"column:freq_cat;type:text"`
-	PrefTime    string `gorm:"column:pref_time;type:varchar(32)"`
-	Followers   int32  `gorm:"column:followers;default:0"`
-	Following   int32  `gorm:"column:following;default:0"`
+	ID          uint64  `gorm:"column:id;primaryKey;autoIncrement"`
+	UserID      uint64  `gorm:"column:user_id;uniqueIndex;not null"`
+	Type        string  `gorm:"column:type;type:varchar(32);not null"`
+	Tags        string  `gorm:"column:tags;type:text"`
+	Interests   string  `gorm:"column:interests;type:text"`
+	Industry    string  `gorm:"column:industry;type:varchar(64)"`
+	Skills      string  `gorm:"column:skills;type:text"`
+	Certs       string  `gorm:"column:certs;type:text"`
+	Experience  int     `gorm:"column:experience;default:0"`
+	AvgOrderVal int64   `gorm:"column:avg_order_val;default:0"`
+	FreqCat     string  `gorm:"column:freq_cat;type:text"`
+	PrefTime    string  `gorm:"column:pref_time;type:varchar(32)"`
+	Followers   int32   `gorm:"column:followers;default:0"`
+	Following   int32   `gorm:"column:following;default:0"`
 	Engagement  float64 `gorm:"column:engagement;default:0"`
 }
 
@@ -158,11 +159,9 @@ func (r *IdentityRepository) FindPersonaByUserID(ctx context.Context, userID uin
 
 func (r *IdentityRepository) SavePersona(ctx context.Context, persona *domain.UserPersona) error {
 	model := toPersonaModel(persona)
-	return r.db.WithContext(ctx).Clauses(gorm.Clause{
-		Expression: &gorm.ClauseOnConflict{
-			Columns:   []gorm.Column{{Name: "user_id"}},
-			DoUpdates: gorm.AssignmentColumns([]string{"type", "tags", "interests", "industry", "skills", "certs", "experience", "avg_order_val", "freq_cat", "pref_time", "followers", "following", "engagement", "updated_at"}),
-		},
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"type", "tags", "interests", "industry", "skills", "certs", "experience", "avg_order_val", "freq_cat", "pref_time", "followers", "following", "engagement", "updated_at"}),
 	}).Create(model).Error
 }
 
@@ -338,17 +337,17 @@ func toPersonaDomain(m *UserPersonaModel) *domain.UserPersona {
 
 func toPersonaModel(p *domain.UserPersona) *UserPersonaModel {
 	m := &UserPersonaModel{
-		ID:         p.ID,
-		UserID:     p.UserID,
-		Type:       string(p.Type),
-		Tags:       joinString(p.Tags),
-		Interests:  joinString(p.Interests),
+		ID:          p.ID,
+		UserID:      p.UserID,
+		Type:        string(p.Type),
+		Tags:        joinString(p.Tags),
+		Interests:   joinString(p.Interests),
 		AvgOrderVal: p.ShoppingHabit.AvgOrderValue,
-		FreqCat:    joinString(p.ShoppingHabit.FreqCategory),
-		PrefTime:   p.ShoppingHabit.PreferredTime,
-		Followers:  p.SocialMetrics.Followers,
-		Following:  p.SocialMetrics.Following,
-		Engagement: p.SocialMetrics.Engagement,
+		FreqCat:     joinString(p.ShoppingHabit.FreqCategory),
+		PrefTime:    p.ShoppingHabit.PreferredTime,
+		Followers:   p.SocialMetrics.Followers,
+		Following:   p.SocialMetrics.Following,
+		Engagement:  p.SocialMetrics.Engagement,
 	}
 	if p.Professional != nil {
 		m.Industry = p.Professional.Industry
@@ -425,10 +424,10 @@ func toAuthSessionModel(s *domain.AuthSession) *AuthSessionModel {
 
 func toKYCRecordDomain(m *KYCRecordModel) *domain.KYCRecord {
 	return &domain.KYCRecord{
-		ID:             m.ID,
-		UserID:         m.UserID,
-		Level:          domain.KYCLevel(m.Level),
-		Status:         domain.KYCStatus(m.Status),
+		ID:     m.ID,
+		UserID: m.UserID,
+		Level:  domain.KYCLevel(m.Level),
+		Status: domain.KYCStatus(m.Status),
 		IDInfo: &domain.IDDocument{
 			Type:        domain.IDType(m.IDType),
 			Number:      m.IDNumber,

@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"strconv"
 
 	pb "github.com/wyfcoding/ecommerce/go-api/crossborder/v1"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/application"
@@ -24,7 +25,7 @@ func (h *CrossBorderHandler) CalculateDuty(ctx context.Context, req *pb.Calculat
 		Price  float64
 		Qty    int32
 	}, len(req.Items))
-	
+
 	for i, it := range req.Items {
 		items[i] = struct {
 			HSCode string
@@ -53,7 +54,7 @@ func (h *CrossBorderHandler) CreateDeclaration(ctx context.Context, req *pb.Crea
 		Price  float64
 		Qty    int32
 	}, len(req.Items))
-	
+
 	for i, it := range req.Items {
 		items[i] = struct {
 			SKUID  string
@@ -63,7 +64,12 @@ func (h *CrossBorderHandler) CreateDeclaration(ctx context.Context, req *pb.Crea
 		}{it.SkuId, it.HsCode, it.Price, it.Quantity}
 	}
 
-	id, err := h.app.CreateDeclaration(ctx, req.OrderId, req.UserId, req.LogisticsNo, req.Currency, req.DeclaredValue, items)
+	userID, err := strconv.ParseUint(req.UserId, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := h.app.CreateDeclaration(ctx, req.OrderId, userID, req.LogisticsNo, req.Currency, req.DeclaredValue, items)
 	if err != nil {
 		return nil, err
 	}

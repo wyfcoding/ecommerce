@@ -77,7 +77,7 @@ func (s *Server) UpdateTicketStatus(ctx context.Context, req *pb.UpdateTicketSta
 		err = s.cmd.ResolveTicket(ctx, req.TicketId)
 	default:
 		slog.Warn("gRPC UpdateTicketStatus unsupported status", "ticket_id", req.TicketId, "status", req.Status)
-		return nil, status.Errorf(codes.Unimplemented, "status transition to %s not supported via gRPC yet", req.Status)
+		return nil, status.Errorf(codes.InvalidArgument, "status transition to %s is not supported", req.Status)
 	}
 
 	if err != nil {

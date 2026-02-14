@@ -103,16 +103,16 @@ type Report interface {
 
 // ReportData 报表数据
 type ReportData struct {
-	ReportType   string      `json:"report_type"`
-	ReportFormat string      `json:"report_format"`
-	GeneratedAt  time.Time   `json:"generated_at"`
-	PeriodStart  time.Time   `json:"period_start"`
-	PeriodEnd    time.Time   `json:"period_end"`
-	CountryCode  string      `json:"country_code,omitempty"`
-	RegionCode   string      `json:"region_code,omitempty"`
-	Summary      interface{} `json:"summary"`
-	Details      interface{} `json:"details,omitempty"`
-	RawData      []byte      `json:"-"` // 原始字节数据
+	ReportType   string    `json:"report_type"`
+	ReportFormat string    `json:"report_format"`
+	GeneratedAt  time.Time `json:"generated_at"`
+	PeriodStart  time.Time `json:"period_start"`
+	PeriodEnd    time.Time `json:"period_end"`
+	CountryCode  string    `json:"country_code,omitempty"`
+	RegionCode   string    `json:"region_code,omitempty"`
+	Summary      any       `json:"summary"`
+	Details      any       `json:"details,omitempty"`
+	RawData      []byte    `json:"-"` // 原始字节数据
 }
 
 // --- 增值税申报表 ---

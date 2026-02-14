@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/redis/go-redis/v9"
 	pb "github.com/wyfcoding/ecommerce/go-api/fiat/v1"
 	"github.com/wyfcoding/ecommerce/internal/fiat/application"
 	"github.com/wyfcoding/ecommerce/internal/fiat/domain"
@@ -36,12 +35,6 @@ func main() {
 		logger.Error("failed to connect database", "error", err)
 		os.Exit(1)
 	}
-
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
-	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
 
 	txRepo := infrastructure.NewGormFiatTransactionRepository(db)
 	rateRepo := infrastructure.NewGormExchangeRateRepository(db)

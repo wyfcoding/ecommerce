@@ -6,82 +6,82 @@ import (
 )
 
 var (
-	ErrAnalyticsNotFound    = errors.New("analytics not found")
-	ErrInvalidDateRange     = errors.New("invalid date range")
-	ErrInsufficientData     = errors.New("insufficient data")
+	ErrAnalyticsNotFound = errors.New("analytics not found")
+	ErrInvalidDateRange  = errors.New("invalid date range")
+	ErrInsufficientData  = errors.New("insufficient data")
 )
 
 type MetricType string
 
 const (
-	MetricTypeImpression   MetricType = "IMPRESSION"
-	MetricTypeClick        MetricType = "CLICK"
-	MetricTypeConversion   MetricType = "CONVERSION"
-	MetricTypeGMV          MetricType = "GMV"
-	MetricTypeRevenue      MetricType = "REVENUE"
-	MetricTypeCost         MetricType = "COST"
-	MetricTypeROI          MetricType = "ROI"
-	MetricTypeCTR          MetricType = "CTR"
-	MetricTypeCVR          MetricType = "CVR"
-	MetricTypeAOV          MetricType = "AOV"
-	MetricTypeCAC          MetricType = "CAC"
-	MetricTypeLTV          MetricType = "LTV"
+	MetricTypeImpression MetricType = "IMPRESSION"
+	MetricTypeClick      MetricType = "CLICK"
+	MetricTypeConversion MetricType = "CONVERSION"
+	MetricTypeGMV        MetricType = "GMV"
+	MetricTypeRevenue    MetricType = "REVENUE"
+	MetricTypeCost       MetricType = "COST"
+	MetricTypeROI        MetricType = "ROI"
+	MetricTypeCTR        MetricType = "CTR"
+	MetricTypeCVR        MetricType = "CVR"
+	MetricTypeAOV        MetricType = "AOV"
+	MetricTypeCAC        MetricType = "CAC"
+	MetricTypeLTV        MetricType = "LTV"
 )
 
 type CampaignAnalytics struct {
-	ID               uint      `json:"id"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	CampaignID       uint64    `json:"campaign_id"`
-	CampaignName     string    `json:"campaign_name"`
-	CampaignType     CampaignType `json:"campaign_type"`
-	Date             time.Time `json:"date"`
-	
-	Impressions      int64     `json:"impressions"`
-	Clicks           int64     `json:"clicks"`
-	CTR              float64   `json:"ctr"`
-	
-	Visitors         int64     `json:"visitors"`
-	UniqueVisitors   int64     `json:"unique_visitors"`
-	
-	Orders           int64     `json:"orders"`
-	OrderAmount      int64     `json:"order_amount"`
-	CVR              float64   `json:"cvr"`
-	AOV              float64   `json:"aov"`
-	
-	GMV              int64     `json:"gmv"`
-	Revenue          int64     `json:"revenue"`
-	Discount         int64     `json:"discount"`
-	Refund           int64     `json:"refund"`
-	NetRevenue       int64     `json:"net_revenue"`
-	
-	Cost             int64     `json:"cost"`
-	CPC              float64   `json:"cpc"`
-	CPM              float64   `json:"cpm"`
-	CPA              float64   `json:"cpa"`
-	ROI              float64   `json:"roi"`
-	ROAS             float64   `json:"roas"`
-	
-	NewUsers         int64     `json:"new_users"`
-	NewUserCost      float64   `json:"new_user_cost"`
-	RepeatUsers      int64     `json:"repeat_users"`
-	RepeatRate       float64   `json:"repeat_rate"`
-	
-	Participations   int64     `json:"participations"`
-	SuccessCount     int64     `json:"success_count"`
-	SuccessRate      float64   `json:"success_rate"`
-	
-	ShareCount       int64     `json:"share_count"`
-	LikeCount        int64     `json:"like_count"`
-	CommentCount     int64     `json:"comment_count"`
-	
-	DeviceBreakdown  *DeviceBreakdown `json:"device_breakdown"`
-	RegionBreakdown  *RegionBreakdown `json:"region_breakdown"`
-	AgeBreakdown     *AgeBreakdown    `json:"age_breakdown"`
-	GenderBreakdown  *GenderBreakdown `json:"gender_breakdown"`
-	
-	TopProducts      []*TopProduct    `json:"top_products"`
-	TopChannels      []*TopChannel    `json:"top_channels"`
+	ID           uint         `json:"id"`
+	CreatedAt    time.Time    `json:"created_at"`
+	UpdatedAt    time.Time    `json:"updated_at"`
+	CampaignID   uint64       `json:"campaign_id"`
+	CampaignName string       `json:"campaign_name"`
+	CampaignType CampaignType `json:"campaign_type"`
+	Date         time.Time    `json:"date"`
+
+	Impressions int64   `json:"impressions"`
+	Clicks      int64   `json:"clicks"`
+	CTR         float64 `json:"ctr"`
+
+	Visitors       int64 `json:"visitors"`
+	UniqueVisitors int64 `json:"unique_visitors"`
+
+	Orders      int64   `json:"orders"`
+	OrderAmount int64   `json:"order_amount"`
+	CVR         float64 `json:"cvr"`
+	AOV         float64 `json:"aov"`
+
+	GMV        int64 `json:"gmv"`
+	Revenue    int64 `json:"revenue"`
+	Discount   int64 `json:"discount"`
+	Refund     int64 `json:"refund"`
+	NetRevenue int64 `json:"net_revenue"`
+
+	Cost int64   `json:"cost"`
+	CPC  float64 `json:"cpc"`
+	CPM  float64 `json:"cpm"`
+	CPA  float64 `json:"cpa"`
+	ROI  float64 `json:"roi"`
+	ROAS float64 `json:"roas"`
+
+	NewUsers    int64   `json:"new_users"`
+	NewUserCost float64 `json:"new_user_cost"`
+	RepeatUsers int64   `json:"repeat_users"`
+	RepeatRate  float64 `json:"repeat_rate"`
+
+	Participations int64   `json:"participations"`
+	SuccessCount   int64   `json:"success_count"`
+	SuccessRate    float64 `json:"success_rate"`
+
+	ShareCount   int64 `json:"share_count"`
+	LikeCount    int64 `json:"like_count"`
+	CommentCount int64 `json:"comment_count"`
+
+	DeviceBreakdown *DeviceBreakdown `json:"device_breakdown"`
+	RegionBreakdown *RegionBreakdown `json:"region_breakdown"`
+	AgeBreakdown    *AgeBreakdown    `json:"age_breakdown"`
+	GenderBreakdown *GenderBreakdown `json:"gender_breakdown"`
+
+	TopProducts []*TopProduct `json:"top_products"`
+	TopChannels []*TopChannel `json:"top_channels"`
 }
 
 type DeviceBreakdown struct {
@@ -102,10 +102,10 @@ type RegionMetric struct {
 }
 
 type AgeBreakdown struct {
-	Age18_24 int64 `json:"age_18_24"`
-	Age25_34 int64 `json:"age_25_34"`
-	Age35_44 int64 `json:"age_35_44"`
-	Age45_54 int64 `json:"age_45_54"`
+	Age18_24  int64 `json:"age_18_24"`
+	Age25_34  int64 `json:"age_25_34"`
+	Age35_44  int64 `json:"age_35_44"`
+	Age45_54  int64 `json:"age_45_54"`
 	Age55Plus int64 `json:"age_55_plus"`
 }
 
@@ -130,55 +130,55 @@ type TopChannel struct {
 }
 
 type AnalyticsReport struct {
-	ID           uint                   `json:"id"`
-	CreatedAt    time.Time              `json:"created_at"`
-	ReportNo     string                 `json:"report_no"`
-	ReportType   string                 `json:"report_type"`
-	StartDate    time.Time              `json:"start_date"`
-	EndDate      time.Time              `json:"end_date"`
-	
-	Summary      *AnalyticsSummary      `json:"summary"`
-	DailyData    []*CampaignAnalytics   `json:"daily_data"`
-	Comparisons  []*MetricComparison    `json:"comparisons"`
-	Trends       []*MetricTrend         `json:"trends"`
-	Insights     []*AnalyticsInsight    `json:"insights"`
-	
-	Status       string                 `json:"status"`
-	GeneratedAt  *time.Time             `json:"generated_at"`
+	ID         uint      `json:"id"`
+	CreatedAt  time.Time `json:"created_at"`
+	ReportNo   string    `json:"report_no"`
+	ReportType string    `json:"report_type"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+
+	Summary     *AnalyticsSummary    `json:"summary"`
+	DailyData   []*CampaignAnalytics `json:"daily_data"`
+	Comparisons []*MetricComparison  `json:"comparisons"`
+	Trends      []*MetricTrend       `json:"trends"`
+	Insights    []*AnalyticsInsight  `json:"insights"`
+
+	Status      string     `json:"status"`
+	GeneratedAt *time.Time `json:"generated_at"`
 }
 
 type AnalyticsSummary struct {
-	TotalImpressions   int64   `json:"total_impressions"`
-	TotalClicks        int64   `json:"total_clicks"`
-	AvgCTR             float64 `json:"avg_ctr"`
-	
-	TotalOrders        int64   `json:"total_orders"`
-	TotalGMV           int64   `json:"total_gmv"`
-	TotalRevenue       int64   `json:"total_revenue"`
-	AvgCVR             float64 `json:"avg_cvr"`
-	AvgAOV             float64 `json:"avg_aov"`
-	
-	TotalCost          int64   `json:"total_cost"`
-	TotalROI           float64 `json:"total_roi"`
-	TotalROAS          float64 `json:"total_roas"`
-	
-	TotalNewUsers      int64   `json:"total_new_users"`
-	AvgCAC             float64 `json:"avg_cac"`
-	
-	TotalParticipations int64  `json:"total_participations"`
-	TotalSuccess       int64   `json:"total_success"`
-	AvgSuccessRate     float64 `json:"avg_success_rate"`
-	
-	PeriodOverPeriod   *PeriodComparison `json:"period_over_period"`
+	TotalImpressions int64   `json:"total_impressions"`
+	TotalClicks      int64   `json:"total_clicks"`
+	AvgCTR           float64 `json:"avg_ctr"`
+
+	TotalOrders  int64   `json:"total_orders"`
+	TotalGMV     int64   `json:"total_gmv"`
+	TotalRevenue int64   `json:"total_revenue"`
+	AvgCVR       float64 `json:"avg_cvr"`
+	AvgAOV       float64 `json:"avg_aov"`
+
+	TotalCost int64   `json:"total_cost"`
+	TotalROI  float64 `json:"total_roi"`
+	TotalROAS float64 `json:"total_roas"`
+
+	TotalNewUsers int64   `json:"total_new_users"`
+	AvgCAC        float64 `json:"avg_cac"`
+
+	TotalParticipations int64   `json:"total_participations"`
+	TotalSuccess        int64   `json:"total_success"`
+	AvgSuccessRate      float64 `json:"avg_success_rate"`
+
+	PeriodOverPeriod *PeriodComparison `json:"period_over_period"`
 }
 
 type PeriodComparison struct {
-	GMVChange         float64 `json:"gmv_change"`
-	RevenueChange     float64 `json:"revenue_change"`
-	OrdersChange      float64 `json:"orders_change"`
-	ROIChange         float64 `json:"roi_change"`
-	CVRChange         float64 `json:"cvr_change"`
-	NewUsersChange    float64 `json:"new_users_change"`
+	GMVChange      float64 `json:"gmv_change"`
+	RevenueChange  float64 `json:"revenue_change"`
+	OrdersChange   float64 `json:"orders_change"`
+	ROIChange      float64 `json:"roi_change"`
+	CVRChange      float64 `json:"cvr_change"`
+	NewUsersChange float64 `json:"new_users_change"`
 }
 
 type MetricComparison struct {
@@ -190,9 +190,9 @@ type MetricComparison struct {
 }
 
 type MetricTrend struct {
-	MetricName string    `json:"metric_name"`
+	MetricName string        `json:"metric_name"`
 	Values     []*TrendValue `json:"values"`
-	Trend      string    `json:"trend"`
+	Trend      string        `json:"trend"`
 }
 
 type TrendValue struct {
@@ -213,17 +213,17 @@ type AnalyticsInsight struct {
 }
 
 type AnalyticsAlert struct {
-	ID          uint      `json:"id"`
-	CreatedAt   time.Time `json:"created_at"`
-	CampaignID  uint64    `json:"campaign_id"`
-	MetricType  MetricType `json:"metric_type"`
-	AlertType   string    `json:"alert_type"`
-	Threshold   float64   `json:"threshold"`
-	CurrentValue float64  `json:"current_value"`
-	Message     string    `json:"message"`
-	Status      string    `json:"status"`
+	ID             uint       `json:"id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	CampaignID     uint64     `json:"campaign_id"`
+	MetricType     MetricType `json:"metric_type"`
+	AlertType      string     `json:"alert_type"`
+	Threshold      float64    `json:"threshold"`
+	CurrentValue   float64    `json:"current_value"`
+	Message        string     `json:"message"`
+	Status         string     `json:"status"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
-	AcknowledgedBy uint64 `json:"acknowledged_by"`
+	AcknowledgedBy uint64     `json:"acknowledged_by"`
 }
 
 func NewCampaignAnalytics(campaignID uint64, campaignName string, campaignType CampaignType, date time.Time) *CampaignAnalytics {
@@ -432,28 +432,28 @@ func (a *AnalyticsAlert) Acknowledge(by uint64) {
 }
 
 type AnalyticsRepository interface {
-	Save(ctx interface{}, analytics *CampaignAnalytics) error
-	FindByID(ctx interface{}, id uint) (*CampaignAnalytics, error)
-	FindByCampaignID(ctx interface{}, campaignID uint64, startDate, endDate time.Time) ([]*CampaignAnalytics, error)
-	FindByDate(ctx interface{}, date time.Time) ([]*CampaignAnalytics, error)
-	FindByType(ctx interface{}, campaignType CampaignType, startDate, endDate time.Time) ([]*CampaignAnalytics, error)
-	AggregateByCampaign(ctx interface{}, campaignID uint64, startDate, endDate time.Time) (*AnalyticsSummary, error)
-	AggregateByType(ctx interface{}, campaignType CampaignType, startDate, endDate time.Time) (*AnalyticsSummary, error)
-	
-	SaveReport(ctx interface{}, report *AnalyticsReport) error
-	FindReportByID(ctx interface{}, id uint) (*AnalyticsReport, error)
-	FindReportsByDateRange(ctx interface{}, startDate, endDate time.Time) ([]*AnalyticsReport, error)
-	
-	SaveAlert(ctx interface{}, alert *AnalyticsAlert) error
-	FindAlertByID(ctx interface{}, id uint) (*AnalyticsAlert, error)
-	FindActiveAlerts(ctx interface{}) ([]*AnalyticsAlert, error)
-	FindAlertsByCampaign(ctx interface{}, campaignID uint64) ([]*AnalyticsAlert, error)
+	Save(ctx any, analytics *CampaignAnalytics) error
+	FindByID(ctx any, id uint) (*CampaignAnalytics, error)
+	FindByCampaignID(ctx any, campaignID uint64, startDate, endDate time.Time) ([]*CampaignAnalytics, error)
+	FindByDate(ctx any, date time.Time) ([]*CampaignAnalytics, error)
+	FindByType(ctx any, campaignType CampaignType, startDate, endDate time.Time) ([]*CampaignAnalytics, error)
+	AggregateByCampaign(ctx any, campaignID uint64, startDate, endDate time.Time) (*AnalyticsSummary, error)
+	AggregateByType(ctx any, campaignType CampaignType, startDate, endDate time.Time) (*AnalyticsSummary, error)
+
+	SaveReport(ctx any, report *AnalyticsReport) error
+	FindReportByID(ctx any, id uint) (*AnalyticsReport, error)
+	FindReportsByDateRange(ctx any, startDate, endDate time.Time) ([]*AnalyticsReport, error)
+
+	SaveAlert(ctx any, alert *AnalyticsAlert) error
+	FindAlertByID(ctx any, id uint) (*AnalyticsAlert, error)
+	FindActiveAlerts(ctx any) ([]*AnalyticsAlert, error)
+	FindAlertsByCampaign(ctx any, campaignID uint64) ([]*AnalyticsAlert, error)
 }
 
 type AnalyticsService interface {
-	RecordMetric(ctx interface{}, campaignID uint64, metricType MetricType, value float64) error
-	GetCampaignAnalytics(ctx interface{}, campaignID uint64, startDate, endDate time.Time) (*AnalyticsSummary, error)
-	GenerateReport(ctx interface{}, reportType string, startDate, endDate time.Time) (*AnalyticsReport, error)
-	GetInsights(ctx interface{}, campaignID uint64) ([]*AnalyticsInsight, error)
-	CheckAlerts(ctx interface{}) error
+	RecordMetric(ctx any, campaignID uint64, metricType MetricType, value float64) error
+	GetCampaignAnalytics(ctx any, campaignID uint64, startDate, endDate time.Time) (*AnalyticsSummary, error)
+	GenerateReport(ctx any, reportType string, startDate, endDate time.Time) (*AnalyticsReport, error)
+	GetInsights(ctx any, campaignID uint64) ([]*AnalyticsInsight, error)
+	CheckAlerts(ctx any) error
 }

@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
 var (
-	ErrSpecTemplateNotFound    = errors.New("spec template not found")
-	ErrSpecTemplateInUse       = errors.New("spec template is in use")
-	ErrSpecOptionNotFound      = errors.New("spec option not found")
-	ErrDuplicateSpecName       = errors.New("duplicate spec name")
-	ErrInvalidSpecValue        = errors.New("invalid spec value")
+	ErrSpecTemplateNotFound = errors.New("spec template not found")
+	ErrSpecTemplateInUse    = errors.New("spec template is in use")
+	ErrSpecOptionNotFound   = errors.New("spec option not found")
+	ErrDuplicateSpecName    = errors.New("duplicate spec name")
+	ErrInvalidSpecValue     = errors.New("invalid spec value")
 )
 
 type SpecTemplateStatus int8
@@ -50,34 +51,34 @@ type SpecTemplate struct {
 }
 
 type SpecDefinition struct {
-	ID           uint               `json:"id"`
-	CreatedAt    time.Time          `json:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at"`
-	TemplateID   uint               `json:"template_id"`
-	Name         string             `json:"name"`
-	DisplayName  string             `json:"display_name"`
-	SpecType     SpecType           `json:"spec_type"`
-	Required     bool               `json:"required"`
-	Sort         int                `json:"sort"`
-	Searchable   bool               `json:"searchable"`
-	Filterable   bool               `json:"filterable"`
-	Options      []*SpecOption      `json:"options"`
-	DefaultValue string             `json:"default_value"`
-	Unit         string             `json:"unit"`
-	MinValue     float64            `json:"min_value"`
-	MaxValue     float64            `json:"max_value"`
+	ID           uint          `json:"id"`
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
+	TemplateID   uint          `json:"template_id"`
+	Name         string        `json:"name"`
+	DisplayName  string        `json:"display_name"`
+	SpecType     SpecType      `json:"spec_type"`
+	Required     bool          `json:"required"`
+	Sort         int           `json:"sort"`
+	Searchable   bool          `json:"searchable"`
+	Filterable   bool          `json:"filterable"`
+	Options      []*SpecOption `json:"options"`
+	DefaultValue string        `json:"default_value"`
+	Unit         string        `json:"unit"`
+	MinValue     float64       `json:"min_value"`
+	MaxValue     float64       `json:"max_value"`
 }
 
 type SpecType int8
 
 const (
-	SpecTypeText    SpecType = 1
-	SpecTypeNumber  SpecType = 2
-	SpecTypeSelect  SpecType = 3
+	SpecTypeText        SpecType = 1
+	SpecTypeNumber      SpecType = 2
+	SpecTypeSelect      SpecType = 3
 	SpecTypeMultiSelect SpecType = 4
-	SpecTypeColor   SpecType = 5
-	SpecTypeImage   SpecType = 6
-	SpecTypeDate    SpecType = 7
+	SpecTypeColor       SpecType = 5
+	SpecTypeImage       SpecType = 6
+	SpecTypeDate        SpecType = 7
 )
 
 func (t SpecType) String() string {
@@ -115,25 +116,25 @@ type SpecOption struct {
 }
 
 type SpecValue struct {
-	SpecID    uint64 `json:"spec_id"`
-	SpecName  string `json:"spec_name"`
-	Value     string `json:"value"`
-	ValueID   uint64 `json:"value_id"`
-	Unit      string `json:"unit"`
-	ImageURL  string `json:"image_url"`
+	SpecID   uint64 `json:"spec_id"`
+	SpecName string `json:"spec_name"`
+	Value    string `json:"value"`
+	ValueID  uint64 `json:"value_id"`
+	Unit     string `json:"unit"`
+	ImageURL string `json:"image_url"`
 }
 
 type SKUCombination struct {
-	ID           uint               `json:"id"`
-	CreatedAt    time.Time          `json:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at"`
-	ProductID    uint64             `json:"product_id"`
-	SkuCode      string             `json:"sku_code"`
-	SpecValues   []*SpecValue       `json:"spec_values"`
-	Price        int64              `json:"price"`
-	Stock        int32              `json:"stock"`
-	ImageURL     string             `json:"image_url"`
-	Enabled      bool               `json:"enabled"`
+	ID         uint         `json:"id"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
+	ProductID  uint64       `json:"product_id"`
+	SkuCode    string       `json:"sku_code"`
+	SpecValues []*SpecValue `json:"spec_values"`
+	Price      int64        `json:"price"`
+	Stock      int32        `json:"stock"`
+	ImageURL   string       `json:"image_url"`
+	Enabled    bool         `json:"enabled"`
 }
 
 func NewSpecTemplate(templateNo, name, description string, categoryID uint64, creatorID uint64, creatorName string) *SpecTemplate {
@@ -306,11 +307,12 @@ func (c *SKUCombination) GetSpecValue(specName string) *SpecValue {
 }
 
 func (c *SKUCombination) GenerateSkuCode(prefix string) string {
-	code := prefix
+	var code strings.Builder
+	code.WriteString(prefix)
 	for _, sv := range c.SpecValues {
-		code += fmt.Sprintf("-%s", sv.Value)
+		code.WriteString(fmt.Sprintf("-%s", sv.Value))
 	}
-	return code
+	return code.String()
 }
 
 func (c *SKUCombination) UpdatePrice(price int64) {

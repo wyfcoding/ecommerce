@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	pb "github.com/wyfcoding/ecommerce/go-api/kyc/v1"
+	pb "github.com/wyfcoding/ecommerce/go-api/kyc"
 	"github.com/wyfcoding/ecommerce/internal/kyc/application"
 	"github.com/wyfcoding/ecommerce/internal/kyc/domain"
 	kycmysql "github.com/wyfcoding/ecommerce/internal/kyc/infrastructure/persistence/mysql"

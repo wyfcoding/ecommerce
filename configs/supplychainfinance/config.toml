@@ -1,0 +1,4 @@
+service_name = "supplychainfinance"
+
+[server]
+http_addr = ":8080"

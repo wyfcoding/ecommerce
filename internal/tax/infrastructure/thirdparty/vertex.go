@@ -58,7 +58,7 @@ func (p *VertexProvider) CalculateTax(ctx context.Context, request *TaxCalculati
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		var errResp map[string]interface{}
+		var errResp map[string]any
 		json.NewDecoder(resp.Body).Decode(&errResp)
 		return nil, fmt.Errorf("Vertex API error: status=%d, error=%v", resp.StatusCode, errResp)
 	}
@@ -241,7 +241,7 @@ type vertexLineItem struct {
 	UnitPrice      float64              `json:"unitPrice"`
 	Quantity       vertexQuantity       `json:"quantity"`
 	ExtendedPrice  float64              `json:"extendedPrice"`
-	FlexibleFields vertexFlexibleFields `json:"flexibleFields,omitempty"`
+	FlexibleFields vertexFlexibleFields `json:"flexibleFields"`
 }
 
 type vertexProduct struct {

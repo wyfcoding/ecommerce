@@ -8,7 +8,7 @@ import (
 
 type DomainEvent interface {
 	EventType() string
-	OccurredAt() time.Time
+	OccurredTime() time.Time
 	AggregateID() string
 }
 
@@ -21,9 +21,9 @@ type SettlementCreatedEvent struct {
 	OccurredAt   time.Time       `json:"occurred_at"`
 }
 
-func (e *SettlementCreatedEvent) EventType() string    { return "settlement.created" }
-func (e *SettlementCreatedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementCreatedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementCreatedEvent) EventType() string       { return "settlement.created" }
+func (e *SettlementCreatedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementCreatedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementCalculationStartedEvent struct {
 	SettlementID string    `json:"settlement_id"`
@@ -31,9 +31,11 @@ type SettlementCalculationStartedEvent struct {
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (e *SettlementCalculationStartedEvent) EventType() string    { return "settlement.calculation_started" }
-func (e *SettlementCalculationStartedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementCalculationStartedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementCalculationStartedEvent) EventType() string {
+	return "settlement.calculation_started"
+}
+func (e *SettlementCalculationStartedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementCalculationStartedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementCalculationCompletedEvent struct {
 	SettlementID     string          `json:"settlement_id"`
@@ -43,9 +45,11 @@ type SettlementCalculationCompletedEvent struct {
 	OccurredAt       time.Time       `json:"occurred_at"`
 }
 
-func (e *SettlementCalculationCompletedEvent) EventType() string    { return "settlement.calculation_completed" }
-func (e *SettlementCalculationCompletedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementCalculationCompletedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementCalculationCompletedEvent) EventType() string {
+	return "settlement.calculation_completed"
+}
+func (e *SettlementCalculationCompletedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementCalculationCompletedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementApprovedEvent struct {
 	SettlementID string    `json:"settlement_id"`
@@ -54,9 +58,9 @@ type SettlementApprovedEvent struct {
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (e *SettlementApprovedEvent) EventType() string    { return "settlement.approved" }
-func (e *SettlementApprovedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementApprovedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementApprovedEvent) EventType() string       { return "settlement.approved" }
+func (e *SettlementApprovedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementApprovedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementRejectedEvent struct {
 	SettlementID string    `json:"settlement_id"`
@@ -65,9 +69,9 @@ type SettlementRejectedEvent struct {
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (e *SettlementRejectedEvent) EventType() string    { return "settlement.rejected" }
-func (e *SettlementRejectedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementRejectedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementRejectedEvent) EventType() string       { return "settlement.rejected" }
+func (e *SettlementRejectedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementRejectedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementPaymentStartedEvent struct {
 	SettlementID  string          `json:"settlement_id"`
@@ -77,9 +81,9 @@ type SettlementPaymentStartedEvent struct {
 	OccurredAt    time.Time       `json:"occurred_at"`
 }
 
-func (e *SettlementPaymentStartedEvent) EventType() string    { return "settlement.payment_started" }
-func (e *SettlementPaymentStartedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementPaymentStartedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementPaymentStartedEvent) EventType() string       { return "settlement.payment_started" }
+func (e *SettlementPaymentStartedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementPaymentStartedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementPaidEvent struct {
 	SettlementID   string          `json:"settlement_id"`
@@ -89,9 +93,9 @@ type SettlementPaidEvent struct {
 	OccurredAt     time.Time       `json:"occurred_at"`
 }
 
-func (e *SettlementPaidEvent) EventType() string    { return "settlement.paid" }
-func (e *SettlementPaidEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementPaidEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementPaidEvent) EventType() string       { return "settlement.paid" }
+func (e *SettlementPaidEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementPaidEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementPaymentFailedEvent struct {
 	SettlementID string    `json:"settlement_id"`
@@ -100,9 +104,9 @@ type SettlementPaymentFailedEvent struct {
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (e *SettlementPaymentFailedEvent) EventType() string    { return "settlement.payment_failed" }
-func (e *SettlementPaymentFailedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementPaymentFailedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementPaymentFailedEvent) EventType() string       { return "settlement.payment_failed" }
+func (e *SettlementPaymentFailedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementPaymentFailedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementCancelledEvent struct {
 	SettlementID string    `json:"settlement_id"`
@@ -111,9 +115,9 @@ type SettlementCancelledEvent struct {
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (e *SettlementCancelledEvent) EventType() string    { return "settlement.cancelled" }
-func (e *SettlementCancelledEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementCancelledEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementCancelledEvent) EventType() string       { return "settlement.cancelled" }
+func (e *SettlementCancelledEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementCancelledEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type SettlementAdjustedEvent struct {
 	SettlementID     string          `json:"settlement_id"`
@@ -122,9 +126,9 @@ type SettlementAdjustedEvent struct {
 	OccurredAt       time.Time       `json:"occurred_at"`
 }
 
-func (e *SettlementAdjustedEvent) EventType() string    { return "settlement.adjusted" }
-func (e *SettlementAdjustedEvent) AggregateID() string  { return e.SettlementID }
-func (e *SettlementAdjustedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *SettlementAdjustedEvent) EventType() string       { return "settlement.adjusted" }
+func (e *SettlementAdjustedEvent) AggregateID() string     { return e.SettlementID }
+func (e *SettlementAdjustedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type BankAccountAddedEvent struct {
 	BankAccountID uint64    `json:"bank_account_id"`
@@ -134,9 +138,9 @@ type BankAccountAddedEvent struct {
 	OccurredAt    time.Time `json:"occurred_at"`
 }
 
-func (e *BankAccountAddedEvent) EventType() string    { return "bank_account.added" }
-func (e *BankAccountAddedEvent) AggregateID() string  { return string(rune(e.BankAccountID)) }
-func (e *BankAccountAddedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *BankAccountAddedEvent) EventType() string       { return "bank_account.added" }
+func (e *BankAccountAddedEvent) AggregateID() string     { return string(rune(e.BankAccountID)) }
+func (e *BankAccountAddedEvent) OccurredTime() time.Time { return e.OccurredAt }
 
 type BankAccountActivatedEvent struct {
 	BankAccountID uint64    `json:"bank_account_id"`
@@ -144,6 +148,6 @@ type BankAccountActivatedEvent struct {
 	OccurredAt    time.Time `json:"occurred_at"`
 }
 
-func (e *BankAccountActivatedEvent) EventType() string    { return "bank_account.activated" }
-func (e *BankAccountActivatedEvent) AggregateID() string  { return string(rune(e.BankAccountID)) }
-func (e *BankAccountActivatedEvent) OccurredAt() time.Time { return e.OccurredAt }
+func (e *BankAccountActivatedEvent) EventType() string       { return "bank_account.activated" }
+func (e *BankAccountActivatedEvent) AggregateID() string     { return string(rune(e.BankAccountID)) }
+func (e *BankAccountActivatedEvent) OccurredTime() time.Time { return e.OccurredAt }

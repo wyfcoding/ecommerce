@@ -56,13 +56,13 @@ type OAuthAccount struct {
 }
 
 type OAuthState struct {
-	ID        uint      `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	State     string    `json:"state"`
-	Provider  OAuthProvider `json:"provider"`
-	RedirectURL string    `json:"redirect_url"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Used      bool      `json:"used"`
+	ID          uint          `json:"id"`
+	CreatedAt   time.Time     `json:"created_at"`
+	State       string        `json:"state"`
+	Provider    OAuthProvider `json:"provider"`
+	RedirectURL string        `json:"redirect_url"`
+	ExpiresAt   time.Time     `json:"expires_at"`
+	Used        bool          `json:"used"`
 }
 
 type OAuthToken struct {
@@ -172,16 +172,16 @@ func generateOAuthState() string {
 }
 
 type OAuthRepository interface {
-	FindByProviderID(ctx interface{}, provider OAuthProvider, providerID string) (*OAuthAccount, error)
-	FindByUserID(ctx interface{}, userID uint64) ([]*OAuthAccount, error)
-	FindByUserIDAndProvider(ctx interface{}, userID uint64, provider OAuthProvider) (*OAuthAccount, error)
-	Save(ctx interface{}, account *OAuthAccount) error
-	Update(ctx interface{}, account *OAuthAccount) error
-	Delete(ctx interface{}, id uint) error
-	
-	SaveState(ctx interface{}, state *OAuthState) error
-	FindState(ctx interface{}, state string) (*OAuthState, error)
-	DeleteExpiredStates(ctx interface{}) error
+	FindByProviderID(ctx any, provider OAuthProvider, providerID string) (*OAuthAccount, error)
+	FindByUserID(ctx any, userID uint64) ([]*OAuthAccount, error)
+	FindByUserIDAndProvider(ctx any, userID uint64, provider OAuthProvider) (*OAuthAccount, error)
+	Save(ctx any, account *OAuthAccount) error
+	Update(ctx any, account *OAuthAccount) error
+	Delete(ctx any, id uint) error
+
+	SaveState(ctx any, state *OAuthState) error
+	FindState(ctx any, state string) (*OAuthState, error)
+	DeleteExpiredStates(ctx any) error
 }
 
 type OAuthProviderAdapter interface {

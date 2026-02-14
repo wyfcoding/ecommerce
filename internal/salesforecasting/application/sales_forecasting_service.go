@@ -214,10 +214,10 @@ func (s *SalesForecastingService) calculateTrainingMetrics(data []*domain.Histor
 }
 
 type PredictSalesCommand struct {
-	ModelID                  string
-	StartDate                time.Time
-	EndDate                  time.Time
-	ProductIDs               []string
+	ModelID                   string
+	StartDate                 time.Time
+	EndDate                   time.Time
+	ProductIDs                []string
 	IncludeConfidenceInterval bool
 }
 
@@ -338,10 +338,10 @@ func (s *SalesForecastingService) CalculateAccuracy(ctx context.Context, modelID
 }
 
 type GetDemandForecastCommand struct {
-	ProductIDs            []string
-	CategoryIDs           []string
-	ForecastDays          int
-	IncludeSeasonality    bool
+	ProductIDs             []string
+	CategoryIDs            []string
+	ForecastDays           int
+	IncludeSeasonality     bool
 	IncludePromotionEffect bool
 }
 
@@ -442,7 +442,7 @@ func sqrt(x float64) float64 {
 		return 0
 	}
 	var lo, hi float64 = 0, x
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		mid := (lo + hi) / 2
 		if mid*mid > x {
 			hi = mid

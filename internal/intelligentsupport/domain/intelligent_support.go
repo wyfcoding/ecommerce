@@ -9,18 +9,18 @@ import (
 )
 
 var (
-	ErrConversationNotFound = errors.New("conversation not found")
+	ErrConversationNotFound  = errors.New("conversation not found")
 	ErrKnowledgeBaseNotFound = errors.New("knowledge base not found")
-	ErrArticleNotFound      = errors.New("article not found")
-	ErrConversationEnded    = errors.New("conversation has ended")
-	ErrTransferFailed       = errors.New("transfer to human failed")
+	ErrArticleNotFound       = errors.New("article not found")
+	ErrConversationEnded     = errors.New("conversation has ended")
+	ErrTransferFailed        = errors.New("transfer to human failed")
 )
 
 type ConversationStatus string
 
 const (
-	ConversationStatusActive     ConversationStatus = "ACTIVE"
-	ConversationStatusEnded      ConversationStatus = "ENDED"
+	ConversationStatusActive      ConversationStatus = "ACTIVE"
+	ConversationStatusEnded       ConversationStatus = "ENDED"
 	ConversationStatusTransferred ConversationStatus = "TRANSFERRED"
 )
 
@@ -45,40 +45,40 @@ const (
 type IntentCategory string
 
 const (
-	IntentOrderInquiry   IntentCategory = "ORDER_INQUIRY"
-	IntentProductQuestion IntentCategory = "PRODUCT_QUESTION"
-	IntentReturnRefund   IntentCategory = "RETURN_REFUND"
-	IntentPaymentIssue   IntentCategory = "PAYMENT_ISSUE"
+	IntentOrderInquiry     IntentCategory = "ORDER_INQUIRY"
+	IntentProductQuestion  IntentCategory = "PRODUCT_QUESTION"
+	IntentReturnRefund     IntentCategory = "RETURN_REFUND"
+	IntentPaymentIssue     IntentCategory = "PAYMENT_ISSUE"
 	IntentShippingTracking IntentCategory = "SHIPPING_TRACKING"
-	IntentAccountIssue   IntentCategory = "ACCOUNT_ISSUE"
-	IntentComplaint      IntentCategory = "COMPLAINT"
-	IntentGeneralInquiry IntentCategory = "GENERAL_INQUIRY"
-	IntentOther          IntentCategory = "OTHER"
+	IntentAccountIssue     IntentCategory = "ACCOUNT_ISSUE"
+	IntentComplaint        IntentCategory = "COMPLAINT"
+	IntentGeneralInquiry   IntentCategory = "GENERAL_INQUIRY"
+	IntentOther            IntentCategory = "OTHER"
 )
 
 type Conversation struct {
-	ID               string            `json:"id"`
-	UserID           uint64            `json:"user_id"`
+	ID               string             `json:"id"`
+	UserID           uint64             `json:"user_id"`
 	Status           ConversationStatus `json:"status"`
-	Messages         []*Message        `json:"messages"`
-	PrimaryIntent    IntentCategory    `json:"primary_intent"`
-	OverallSentiment Sentiment         `json:"overall_sentiment"`
-	AssignedAgentID  string            `json:"assigned_agent_id"`
-	StartedAt        time.Time         `json:"started_at"`
-	EndedAt          *time.Time        `json:"ended_at"`
-	Metadata         map[string]string `json:"metadata"`
+	Messages         []*Message         `json:"messages"`
+	PrimaryIntent    IntentCategory     `json:"primary_intent"`
+	OverallSentiment Sentiment          `json:"overall_sentiment"`
+	AssignedAgentID  string             `json:"assigned_agent_id"`
+	StartedAt        time.Time          `json:"started_at"`
+	EndedAt          *time.Time         `json:"ended_at"`
+	Metadata         map[string]string  `json:"metadata"`
 }
 
 type Message struct {
-	ID           string        `json:"id"`
-	ConversationID string      `json:"conversation_id"`
-	Sender       MessageSender `json:"sender"`
-	Content      string        `json:"content"`
-	Attachments  []*Attachment `json:"attachments"`
-	Sentiment    Sentiment     `json:"sentiment"`
-	Intent       IntentCategory `json:"intent"`
-	Confidence   float64       `json:"confidence"`
-	CreatedAt    time.Time     `json:"created_at"`
+	ID             string         `json:"id"`
+	ConversationID string         `json:"conversation_id"`
+	Sender         MessageSender  `json:"sender"`
+	Content        string         `json:"content"`
+	Attachments    []*Attachment  `json:"attachments"`
+	Sentiment      Sentiment      `json:"sentiment"`
+	Intent         IntentCategory `json:"intent"`
+	Confidence     float64        `json:"confidence"`
+	CreatedAt      time.Time      `json:"created_at"`
 }
 
 type Attachment struct {
@@ -121,13 +121,13 @@ type QuickReply struct {
 }
 
 type ChatbotResponse struct {
-	ResponseText      string       `json:"response_text"`
-	SuggestedArticles []string     `json:"suggested_articles"`
-	QuickReplies      []*QuickReply `json:"quick_replies"`
-	NeedsHumanTransfer bool        `json:"needs_human_transfer"`
-	TransferReason    string       `json:"transfer_reason"`
-	DetectedIntent    IntentCategory `json:"detected_intent"`
-	Confidence        float64      `json:"confidence"`
+	ResponseText       string         `json:"response_text"`
+	SuggestedArticles  []string       `json:"suggested_articles"`
+	QuickReplies       []*QuickReply  `json:"quick_replies"`
+	NeedsHumanTransfer bool           `json:"needs_human_transfer"`
+	TransferReason     string         `json:"transfer_reason"`
+	DetectedIntent     IntentCategory `json:"detected_intent"`
+	Confidence         float64        `json:"confidence"`
 }
 
 type SentimentAnalysis struct {
@@ -218,11 +218,11 @@ func NewKnowledgeBase(name, language string) *KnowledgeBase {
 func NewKnowledgeArticle(knowledgeBaseID, title, content string) *KnowledgeArticle {
 	return &KnowledgeArticle{
 		KnowledgeBaseID:  knowledgeBaseID,
-		Title:           title,
-		Content:         content,
-		Keywords:        []string{},
-		Tags:            []string{},
-		IsActive:        true,
+		Title:            title,
+		Content:          content,
+		Keywords:         []string{},
+		Tags:             []string{},
+		IsActive:         true,
 		HelpfulnessScore: 0.0,
 	}
 }
@@ -236,12 +236,12 @@ func (a *KnowledgeArticle) UpdateHelpfulnessScore(wasHelpful bool) {
 	if totalFeedback == 0 {
 		return
 	}
-	
+
 	helpfulCount := int(a.HelpfulnessScore * float64(totalFeedback) / 100)
 	if wasHelpful {
 		helpfulCount++
 	}
-	
+
 	a.HelpfulnessScore = float64(helpfulCount) / float64(totalFeedback+1) * 100
 }
 
@@ -325,15 +325,15 @@ func NewSimpleNLPService() *SimpleNLPService {
 
 func (s *SimpleNLPService) AnalyzeSentiment(text string) (*SentimentAnalysis, error) {
 	text = strings.ToLower(text)
-	
+
 	negativeWords := []string{"bad", "terrible", "awful", "horrible", "disappointed", "angry", "frustrated", "worst", "hate", "problem", "issue", "broken", "failed", "error"}
 	positiveWords := []string{"good", "great", "excellent", "amazing", "wonderful", "fantastic", "best", "love", "happy", "satisfied", "thanks", "thank", "helpful"}
-	
+
 	var negCount, posCount int
 	var foundKeywords []string
-	
-	words := strings.Fields(text)
-	for _, word := range words {
+
+	words := strings.FieldsSeq(text)
+	for word := range words {
 		for _, neg := range negativeWords {
 			if strings.Contains(word, neg) {
 				negCount++
@@ -347,10 +347,10 @@ func (s *SimpleNLPService) AnalyzeSentiment(text string) (*SentimentAnalysis, er
 			}
 		}
 	}
-	
+
 	var sentiment Sentiment
 	var confidence float64
-	
+
 	switch {
 	case negCount > posCount+1:
 		if negCount > 2 {
@@ -370,7 +370,7 @@ func (s *SimpleNLPService) AnalyzeSentiment(text string) (*SentimentAnalysis, er
 		sentiment = SentimentNeutral
 		confidence = 0.5
 	}
-	
+
 	return &SentimentAnalysis{
 		Sentiment:   sentiment,
 		Confidence:  confidence,
@@ -381,21 +381,21 @@ func (s *SimpleNLPService) AnalyzeSentiment(text string) (*SentimentAnalysis, er
 
 func (s *SimpleNLPService) DetectIntent(text string, context []*Message) (*IntentResult, error) {
 	text = strings.ToLower(text)
-	
+
 	intentPatterns := map[IntentCategory][]string{
-		IntentOrderInquiry:    {"order", "订单", "purchase", "购买", "my order", "我的订单"},
-		IntentProductQuestion: {"product", "商品", "item", "物品", "price", "价格", "specification", "规格"},
-		IntentReturnRefund:    {"return", "退货", "refund", "退款", "exchange", "换货", "money back", "退钱"},
-		IntentPaymentIssue:    {"payment", "支付", "pay", "付款", "charge", "扣款", "transaction", "交易"},
+		IntentOrderInquiry:     {"order", "订单", "purchase", "购买", "my order", "我的订单"},
+		IntentProductQuestion:  {"product", "商品", "item", "物品", "price", "价格", "specification", "规格"},
+		IntentReturnRefund:     {"return", "退货", "refund", "退款", "exchange", "换货", "money back", "退钱"},
+		IntentPaymentIssue:     {"payment", "支付", "pay", "付款", "charge", "扣款", "transaction", "交易"},
 		IntentShippingTracking: {"shipping", "发货", "delivery", "配送", "track", "物流", "package", "包裹"},
-		IntentAccountIssue:    {"account", "账户", "login", "登录", "password", "密码", "profile", "资料"},
-		IntentComplaint:       {"complaint", "投诉", "report", "举报", "issue", "问题", "problem", "麻烦"},
-		IntentGeneralInquiry:  {"help", "帮助", "question", "问题", "how", "怎么", "what", "什么"},
+		IntentAccountIssue:     {"account", "账户", "login", "登录", "password", "密码", "profile", "资料"},
+		IntentComplaint:        {"complaint", "投诉", "report", "举报", "issue", "问题", "problem", "麻烦"},
+		IntentGeneralInquiry:   {"help", "帮助", "question", "问题", "how", "怎么", "what", "什么"},
 	}
-	
+
 	var bestIntent IntentCategory = IntentOther
 	var bestScore int
-	
+
 	for intent, patterns := range intentPatterns {
 		score := 0
 		for _, pattern := range patterns {
@@ -408,14 +408,14 @@ func (s *SimpleNLPService) DetectIntent(text string, context []*Message) (*Inten
 			bestIntent = intent
 		}
 	}
-	
+
 	confidence := 0.5
 	if bestScore > 0 {
 		confidence = float64(bestScore) / float64(len(intentPatterns[bestIntent]))
 	}
-	
+
 	entities := s.extractSimpleEntities(text)
-	
+
 	return &IntentResult{
 		Intent:     bestIntent,
 		Confidence: confidence,
@@ -429,15 +429,12 @@ func (s *SimpleNLPService) ExtractEntities(text string) ([]*Entity, error) {
 
 func (s *SimpleNLPService) extractSimpleEntities(text string) []*Entity {
 	var entities []*Entity
-	
+
 	orderPatterns := []string{"order #", "订单号", "order number"}
 	for _, pattern := range orderPatterns {
 		if idx := strings.Index(strings.ToLower(text), pattern); idx != -1 {
 			start := idx + len(pattern)
-			end := start + 10
-			if end > len(text) {
-				end = len(text)
-			}
+			end := min(start+10, len(text))
 			value := strings.TrimSpace(text[start:end])
 			entities = append(entities, &Entity{
 				Type:  "ORDER_ID",
@@ -447,7 +444,7 @@ func (s *SimpleNLPService) extractSimpleEntities(text string) []*Entity {
 			})
 		}
 	}
-	
+
 	return entities
 }
 
@@ -468,29 +465,29 @@ func (e *SimpleChatbotEngine) GenerateResponse(ctx context.Context, conversation
 	if err != nil {
 		return nil, err
 	}
-	
+
 	sentiment, err := e.nlpService.AnalyzeSentiment(userMessage)
 	if err != nil {
 		sentiment = &SentimentAnalysis{Sentiment: SentimentNeutral}
 	}
-	
+
 	responseText := e.generateResponseText(intentResult.Intent, sentiment.Sentiment)
-	
+
 	articles, _, err := e.articleRepo.Search(ctx, "", userMessage, nil, "", 3)
 	if err != nil {
 		articles = nil
 	}
-	
+
 	var suggestedArticleIDs []string
 	for _, a := range articles {
 		suggestedArticleIDs = append(suggestedArticleIDs, a.ID)
 	}
-	
+
 	needsTransfer, transferReason := e.ShouldTransferToHuman(&Conversation{
 		PrimaryIntent:    intentResult.Intent,
 		OverallSentiment: sentiment.Sentiment,
 	})
-	
+
 	return &ChatbotResponse{
 		ResponseText:       responseText,
 		SuggestedArticles:  suggestedArticleIDs,
@@ -504,23 +501,23 @@ func (e *SimpleChatbotEngine) GenerateResponse(ctx context.Context, conversation
 
 func (e *SimpleChatbotEngine) generateResponseText(intent IntentCategory, sentiment Sentiment) string {
 	responses := map[IntentCategory]string{
-		IntentOrderInquiry:    "I can help you with your order. Could you please provide your order number?",
-		IntentProductQuestion: "I'd be happy to help with product information. What would you like to know?",
-		IntentReturnRefund:    "I understand you want to process a return or refund. Let me guide you through the process.",
-		IntentPaymentIssue:    "I can help with payment issues. What specific problem are you experiencing?",
+		IntentOrderInquiry:     "I can help you with your order. Could you please provide your order number?",
+		IntentProductQuestion:  "I'd be happy to help with product information. What would you like to know?",
+		IntentReturnRefund:     "I understand you want to process a return or refund. Let me guide you through the process.",
+		IntentPaymentIssue:     "I can help with payment issues. What specific problem are you experiencing?",
 		IntentShippingTracking: "I can help track your package. Please provide your tracking number or order ID.",
-		IntentAccountIssue:    "I can assist with account-related issues. What do you need help with?",
-		IntentComplaint:       "I'm sorry to hear about your issue. Let me help resolve this for you.",
-		IntentGeneralInquiry:  "Hello! How can I assist you today?",
-		IntentOther:           "I'm here to help. Could you please tell me more about what you need?",
+		IntentAccountIssue:     "I can assist with account-related issues. What do you need help with?",
+		IntentComplaint:        "I'm sorry to hear about your issue. Let me help resolve this for you.",
+		IntentGeneralInquiry:   "Hello! How can I assist you today?",
+		IntentOther:            "I'm here to help. Could you please tell me more about what you need?",
 	}
-	
+
 	response := responses[intent]
-	
+
 	if sentiment == SentimentNegative || sentiment == SentimentVeryNegative {
 		response = "I apologize for any inconvenience. " + response
 	}
-	
+
 	return response
 }
 
@@ -547,7 +544,7 @@ func (e *SimpleChatbotEngine) GetQuickReplies(intent IntentCategory) []*QuickRep
 			{Text: "Talk to agent", Payload: "TRANSFER_HUMAN", Type: "action"},
 		},
 	}
-	
+
 	if r, ok := replies[intent]; ok {
 		return r
 	}
@@ -561,11 +558,11 @@ func (e *SimpleChatbotEngine) ShouldTransferToHuman(conversation *Conversation) 
 	if conversation.OverallSentiment == SentimentVeryNegative {
 		return true, "Customer is very frustrated"
 	}
-	
+
 	if conversation.PrimaryIntent == IntentComplaint {
 		return true, "Customer has a complaint"
 	}
-	
+
 	if len(conversation.Messages) > 10 {
 		botMessageCount := 0
 		for _, m := range conversation.Messages {
@@ -577,6 +574,6 @@ func (e *SimpleChatbotEngine) ShouldTransferToHuman(conversation *Conversation) 
 			return true, "Extended conversation without resolution"
 		}
 	}
-	
+
 	return false, ""
 }

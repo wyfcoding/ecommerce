@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -47,11 +48,11 @@ func (c TagCategory) String() string {
 type TagSource int8
 
 const (
-	TagSourceSystem    TagSource = 1
-	TagSourceManual    TagSource = 2
-	TagSourceAlgorithm TagSource = 3
+	TagSourceSystem     TagSource = 1
+	TagSourceManual     TagSource = 2
+	TagSourceAlgorithm  TagSource = 3
 	TagSourceThirdParty TagSource = 4
-	TagSourceUserInput TagSource = 5
+	TagSourceUserInput  TagSource = 5
 )
 
 func (s TagSource) String() string {
@@ -74,9 +75,9 @@ func (s TagSource) String() string {
 type TagStatus int8
 
 const (
-	TagStatusActive   TagStatus = 1
-	TagStatusExpired  TagStatus = 2
-	TagStatusInvalid  TagStatus = 3
+	TagStatusActive  TagStatus = 1
+	TagStatusExpired TagStatus = 2
+	TagStatusInvalid TagStatus = 3
 )
 
 func (s TagStatus) String() string {
@@ -93,60 +94,60 @@ func (s TagStatus) String() string {
 }
 
 type UserTag struct {
-	ID          uint64      `json:"id"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
-	ProfileID   uint64      `json:"profile_id"`
-	UserID      uint64      `json:"user_id"`
-	TagKey      string      `json:"tag_key"`
-	TagValue    string      `json:"tag_value"`
-	TagType     string      `json:"tag_type"`
-	Category    TagCategory `json:"category"`
-	Source      TagSource   `json:"source"`
-	Confidence  float64     `json:"confidence"`
-	Weight      float64     `json:"weight"`
-	Status      TagStatus   `json:"status"`
-	ExpiresAt   *time.Time  `json:"expires_at"`
-	ValidFrom   *time.Time  `json:"valid_from"`
-	ValidTo     *time.Time  `json:"valid_to"`
+	ID          uint64         `json:"id"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	ProfileID   uint64         `json:"profile_id"`
+	UserID      uint64         `json:"user_id"`
+	TagKey      string         `json:"tag_key"`
+	TagValue    string         `json:"tag_value"`
+	TagType     string         `json:"tag_type"`
+	Category    TagCategory    `json:"category"`
+	Source      TagSource      `json:"source"`
+	Confidence  float64        `json:"confidence"`
+	Weight      float64        `json:"weight"`
+	Status      TagStatus      `json:"status"`
+	ExpiresAt   *time.Time     `json:"expires_at"`
+	ValidFrom   *time.Time     `json:"valid_from"`
+	ValidTo     *time.Time     `json:"valid_to"`
 	Metadata    map[string]any `json:"metadata"`
-	ParentTagID uint64      `json:"parent_tag_id"`
-	Level       int         `json:"level"`
-	Path        string      `json:"path"`
+	ParentTagID uint64         `json:"parent_tag_id"`
+	Level       int            `json:"level"`
+	Path        string         `json:"path"`
 }
 
 type TagDefinition struct {
-	ID           uint64        `json:"id"`
-	CreatedAt    time.Time     `json:"created_at"`
-	UpdatedAt    time.Time     `json:"updated_at"`
-	TagKey       string        `json:"tag_key"`
-	TagName      string        `json:"tag_name"`
-	Description  string        `json:"description"`
-	Category     TagCategory   `json:"category"`
-	TagType      string        `json:"tag_type"`
-	DataType     string        `json:"data_type"`
-	AllowedValues []string     `json:"allowed_values"`
-	DefaultValue string        `json:"default_value"`
-	IsRequired   bool          `json:"is_required"`
-	IsMultiple   bool          `json:"is_multiple"`
-	IsSystem     bool          `json:"is_system"`
-	SortOrder    int           `json:"sort_order"`
-	ParentID     uint64        `json:"parent_id"`
-	Children     []*TagDefinition `json:"children"`
-	Enabled      bool          `json:"enabled"`
+	ID            uint64           `json:"id"`
+	CreatedAt     time.Time        `json:"created_at"`
+	UpdatedAt     time.Time        `json:"updated_at"`
+	TagKey        string           `json:"tag_key"`
+	TagName       string           `json:"tag_name"`
+	Description   string           `json:"description"`
+	Category      TagCategory      `json:"category"`
+	TagType       string           `json:"tag_type"`
+	DataType      string           `json:"data_type"`
+	AllowedValues []string         `json:"allowed_values"`
+	DefaultValue  string           `json:"default_value"`
+	IsRequired    bool             `json:"is_required"`
+	IsMultiple    bool             `json:"is_multiple"`
+	IsSystem      bool             `json:"is_system"`
+	SortOrder     int              `json:"sort_order"`
+	ParentID      uint64           `json:"parent_id"`
+	Children      []*TagDefinition `json:"children"`
+	Enabled       bool             `json:"enabled"`
 }
 
 type TagGroup struct {
-	ID          uint64          `json:"id"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	GroupKey    string          `json:"group_key"`
-	GroupName   string          `json:"group_name"`
-	Description string          `json:"description"`
-	Category    TagCategory     `json:"category"`
+	ID          uint64           `json:"id"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+	GroupKey    string           `json:"group_key"`
+	GroupName   string           `json:"group_name"`
+	Description string           `json:"description"`
+	Category    TagCategory      `json:"category"`
 	Tags        []*TagDefinition `json:"tags"`
-	SortOrder   int             `json:"sort_order"`
-	Enabled     bool            `json:"enabled"`
+	SortOrder   int              `json:"sort_order"`
+	Enabled     bool             `json:"enabled"`
 }
 
 func NewUserTag(profileID, userID uint64, tagKey, tagValue string, category TagCategory, source TagSource) *UserTag {
@@ -255,10 +256,8 @@ func NewTagDefinition(tagKey, tagName string, category TagCategory, tagType, dat
 }
 
 func (d *TagDefinition) AddAllowedValue(value string) {
-	for _, v := range d.AllowedValues {
-		if v == value {
-			return
-		}
+	if slices.Contains(d.AllowedValues, value) {
+		return
 	}
 	d.AllowedValues = append(d.AllowedValues, value)
 }
@@ -276,12 +275,7 @@ func (d *TagDefinition) IsValueAllowed(value string) bool {
 	if len(d.AllowedValues) == 0 {
 		return true
 	}
-	for _, v := range d.AllowedValues {
-		if v == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(d.AllowedValues, value)
 }
 
 func (d *TagDefinition) AddChild(child *TagDefinition) {

@@ -17,20 +17,20 @@ var (
 )
 
 type ProfileCommandService struct {
-	profileRepo    domain.UserProfileRepository
-	tagRepo        domain.UserTagRepository
-	tagDefRepo     domain.TagDefinitionRepository
-	behaviorRepo   domain.BehaviorFeaturesRepository
-	preferenceRepo domain.UserPreferencesRepository
+	profileRepo     domain.UserProfileRepository
+	tagRepo         domain.UserTagRepository
+	tagDefRepo      domain.TagDefinitionRepository
+	behaviorRepo    domain.BehaviorFeaturesRepository
+	preferenceRepo  domain.UserPreferencesRepository
 	consumptionRepo domain.ConsumptionProfileRepository
-	ruleRepo       domain.ProfileRuleRepository
-	segmentRepo    domain.ProfileSegmentRepository
-	calculator     domain.ProfileCalculator
-	eventPublisher EventPublisher
+	ruleRepo        domain.ProfileRuleRepository
+	segmentRepo     domain.ProfileSegmentRepository
+	calculator      domain.ProfileCalculator
+	eventPublisher  EventPublisher
 }
 
 type EventPublisher interface {
-	Publish(ctx context.Context, event interface{}) error
+	Publish(ctx context.Context, event any) error
 }
 
 func NewProfileCommandService(
@@ -46,16 +46,16 @@ func NewProfileCommandService(
 	eventPublisher EventPublisher,
 ) *ProfileCommandService {
 	return &ProfileCommandService{
-		profileRepo:    profileRepo,
-		tagRepo:        tagRepo,
-		tagDefRepo:     tagDefRepo,
-		behaviorRepo:   behaviorRepo,
-		preferenceRepo: preferenceRepo,
+		profileRepo:     profileRepo,
+		tagRepo:         tagRepo,
+		tagDefRepo:      tagDefRepo,
+		behaviorRepo:    behaviorRepo,
+		preferenceRepo:  preferenceRepo,
 		consumptionRepo: consumptionRepo,
-		ruleRepo:       ruleRepo,
-		segmentRepo:    segmentRepo,
-		calculator:     calculator,
-		eventPublisher: eventPublisher,
+		ruleRepo:        ruleRepo,
+		segmentRepo:     segmentRepo,
+		calculator:      calculator,
+		eventPublisher:  eventPublisher,
 	}
 }
 
@@ -374,7 +374,7 @@ func (s *ProfileCommandService) evaluateCondition(condition *domain.RuleConditio
 	return false
 }
 
-func (s *ProfileCommandService) compareValue(actual interface{}, operator, expected string) bool {
+func (s *ProfileCommandService) compareValue(actual any, operator, expected string) bool {
 	return true
 }
 

@@ -4,23 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
-	"ecommerce/internal/wallet/domain"
-	"pkg/idgen"
-	"pkg/messagequeue"
+	"github.com/wyfcoding/ecommerce/internal/wallet/domain"
+	"github.com/wyfcoding/pkg/idgen"
 )
 
 var (
-	ErrWalletNotFound     = errors.New("wallet not found")
+	ErrWalletNotFound      = errors.New("wallet not found")
 	ErrInsufficientBalance = errors.New("insufficient balance")
-	ErrInvalidAmount      = errors.New("invalid amount")
-	ErrWalletFrozen      = errors.New("wallet is frozen")
+	ErrInvalidAmount       = errors.New("invalid amount")
+	ErrWalletFrozen        = errors.New("wallet is frozen")
 )
 
 type WalletService struct {
 	walletRepo      domain.WalletRepository
 	transactionRepo domain.TransactionRepository
-	eventPublisher messagequeue.Publisher
 }
 
 func NewWalletService(
@@ -40,15 +39,15 @@ func (s *WalletService) CreateWallet(ctx context.Context, userID uint64, currenc
 	}
 
 	wallet := &domain.Wallet{
-		WalletID:       idgen.NextID(),
-		UserID:         userID,
-		AccountNo:      fmt.Sprintf("W%d%s", userID, currency),
-		Currency:       currency,
-		WalletType:     walletType,
-		Balance:        0,
-		FrozenBalance:  0,
+		WalletID:         idgen.GenID(),
+		UserID:           userID,
+		AccountNo:        fmt.Sprintf("W%d%s", userID, currency),
+		Currency:         currency,
+		WalletType:       walletType,
+		Balance:          0,
+		FrozenBalance:    0,
 		AvailableBalance: 0,
-		Status:         domain.WalletStatusNormal,
+		Status:           domain.WalletStatusNormal,
 	}
 
 	if err := s.walletRepo.Create(wallet); err != nil {
@@ -72,25 +71,27 @@ func (s *WalletService) Deposit(ctx context.Context, userID uint64, currency, am
 		return nil, ErrWalletNotFound
 	}
 
-	amount := 0.0
-	if err := parseAmount(amountStr, &amount); err != nil {
+	amount, err := parseAmount(amountStr)
+	if err != nil {
 		return nil, ErrInvalidAmount
 	}
 
+	balanceBefore := wallet.Balance
 	wallet.Balance += amount
 	wallet.AvailableBalance += amount
 
-	if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance); err != nil {
+	if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance, wallet.AvailableBalance); err != nil {
 		return nil, err
 	}
 
 	tx := &domain.Transaction{
-		TransactionNo: fmt.Sprintf("D%d%d", userID, idgen.NextID()),
+		TransactionNo: fmt.Sprintf("D%d%d", userID, idgen.GenID()),
 		WalletID:      wallet.ID,
 		UserID:        userID,
 		Type:          domain.TransactionTypeDeposit,
 		Amount:        amount,
-		Balance:       wallet.Balance,
+		BalanceBefore: balanceBefore,
+		BalanceAfter:  wallet.Balance,
 		Status:        domain.TransactionStatusSuccess,
 		Remark:        remark,
 	}
@@ -108,8 +109,8 @@ func (s *WalletService) Withdraw(ctx context.Context, userID uint64, currency, a
 		return nil, ErrWalletNotFound
 	}
 
-	amount := 0.0
-	if err := parseAmount(amountStr, &amount); err != nil {
+	amount, err := parseAmount(amountStr)
+	if err != nil {
 		return nil, ErrInvalidAmount
 	}
 
@@ -117,20 +118,22 @@ func (s *WalletService) Withdraw(ctx context.Context, userID uint64, currency, a
 		return nil, ErrInsufficientBalance
 	}
 
+	balanceBefore := wallet.Balance
 	wallet.Balance -= amount
 	wallet.AvailableBalance -= amount
 
-	if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance); err != nil {
+	if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance, wallet.AvailableBalance); err != nil {
 		return nil, err
 	}
 
 	tx := &domain.Transaction{
-		TransactionNo: fmt.Sprintf("W%d%d", userID, idgen.NextID()),
+		TransactionNo: fmt.Sprintf("W%d%d", userID, idgen.GenID()),
 		WalletID:      wallet.ID,
 		UserID:        userID,
 		Type:          domain.TransactionTypeWithdraw,
 		Amount:        -amount,
-		Balance:       wallet.Balance,
+		BalanceBefore: balanceBefore,
+		BalanceAfter:  wallet.Balance,
 		Status:        domain.TransactionStatusSuccess,
 		Remark:        remark,
 	}
@@ -143,8 +146,8 @@ func (s *WalletService) Withdraw(ctx context.Context, userID uint64, currency, a
 }
 
 func (s *WalletService) Transfer(ctx context.Context, fromUserID, toUserID uint64, currency, amountStr, remark string) (*domain.Transaction, error) {
-	amount := 0.0
-	if err := parseAmount(amountStr, &amount); err != nil {
+	amount, err := parseAmount(amountStr)
+	if err != nil {
 		return nil, ErrInvalidAmount
 	}
 
@@ -162,29 +165,32 @@ func (s *WalletService) Transfer(ctx context.Context, fromUserID, toUserID uint6
 		return nil, ErrWalletNotFound
 	}
 
+	fromBalanceBefore := fromWallet.Balance
 	fromWallet.Balance -= amount
 	fromWallet.AvailableBalance -= amount
 
+	toBalanceBefore := toWallet.Balance
 	toWallet.Balance += amount
 	toWallet.AvailableBalance += amount
 
-	if err := s.walletRepo.UpdateBalance(fromWallet.ID, fromWallet.Balance, fromWallet.FrozenBalance); err != nil {
+	if err := s.walletRepo.UpdateBalance(fromWallet.ID, fromWallet.Balance, fromWallet.FrozenBalance, fromWallet.AvailableBalance); err != nil {
 		return nil, err
 	}
 
-	if err := s.walletRepo.UpdateBalance(toWallet.ID, toWallet.Balance, toWallet.FrozenBalance); err != nil {
+	if err := s.walletRepo.UpdateBalance(toWallet.ID, toWallet.Balance, toWallet.FrozenBalance, toWallet.AvailableBalance); err != nil {
 		return nil, err
 	}
 
 	tx := &domain.Transaction{
-		TransactionNo: fmt.Sprintf("T%d%d", fromUserID, idgen.NextID()),
+		TransactionNo: fmt.Sprintf("T%d%d", fromUserID, idgen.GenID()),
 		WalletID:      fromWallet.ID,
 		UserID:        fromUserID,
 		Type:          domain.TransactionTypeTransfer,
 		Amount:        -amount,
-		Balance:       fromWallet.Balance,
+		BalanceBefore: fromBalanceBefore,
+		BalanceAfter:  fromWallet.Balance,
 		Status:        domain.TransactionStatusSuccess,
-		Remark:        remark,
+		Remark:        fmt.Sprintf("%s -> to=%d,before_to=%d,after_to=%d", remark, toUserID, toBalanceBefore, toWallet.Balance),
 	}
 
 	if err := s.transactionRepo.Create(tx); err != nil {
@@ -194,13 +200,13 @@ func (s *WalletService) Transfer(ctx context.Context, fromUserID, toUserID uint6
 	return tx, nil
 }
 
-func parseAmount(amountStr string, amount *float64) error {
-	_, err := fmt.Sscanf(amountStr, "%f", amount)
+func parseAmount(amountStr string) (int64, error) {
+	amount, err := strconv.ParseInt(amountStr, 10, 64)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if *amount <= 0 {
-		return ErrInvalidAmount
+	if amount <= 0 {
+		return 0, ErrInvalidAmount
 	}
-	return nil
+	return amount, nil
 }

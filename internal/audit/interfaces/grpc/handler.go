@@ -239,10 +239,3 @@ func convertAuditReportToProto(r *domain.AuditReport) *pb.AuditReport {
 	}
 	return resp
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

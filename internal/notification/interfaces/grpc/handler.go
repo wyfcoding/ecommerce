@@ -108,10 +108,3 @@ func convertNotificationToProto(n *domain.Notification) *pb.Notification {
 		CreatedAt:      timestamppb.New(n.CreatedAt),              // 创建时间。
 	}
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

@@ -3,15 +3,19 @@ package grpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt" // 导入格式化包，用于错误信息。
 	"log/slog"
 	"strconv" // 导入字符串和数字转换工具。
 
 	pb "github.com/wyfcoding/ecommerce/go-api/dataprocessing/v1"         // 导入数据处理模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/dataprocessing/application" // 导入数据处理模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/dataprocessing/domain"
 
 	"google.golang.org/grpc/codes"  // gRPC状态码。
 	"google.golang.org/grpc/status" // gRPC状态处理。
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 // Server 结构体实现了 DataProcessingService 的 gRPC 服务端接口。
@@ -62,10 +66,55 @@ func (s *Server) ProcessData(ctx context.Context, req *pb.ProcessDataRequest) (*
 // GetProcessingStatus 处理获取数据处理任务状态的gRPC请求。
 // req: 包含处理ID的请求体。
 // 返回任务状态响应和可能发生的gRPC错误。
-func (s *Server) GetProcessingStatus(_ context.Context, req *pb.GetProcessingStatusRequest) (*pb.ProcessingStatusResponse, error) {
-	// 注意：应用服务层当前未直接暴露根据ID获取单个任务的方法（GetTask）。
-	// ListTasks方法需要workflowID作为过滤条件，不适合直接通过ProcessingId查询。
-	// 理想情况下，应用服务层应该提供一个公共的GetTask方法。
-	// 此处返回Unimplemented错误。
-	return nil, status.Error(codes.Unimplemented, "GetProcessingStatus not implemented yet")
+func (s *Server) GetProcessingStatus(ctx context.Context, req *pb.GetProcessingStatusRequest) (*pb.ProcessingStatusResponse, error) {
+	id, err := strconv.ParseUint(req.ProcessingId, 10, 64)
+	if err != nil || id == 0 {
+		return nil, status.Error(codes.InvalidArgument, "invalid processing_id")
+	}
+
+	task, err := s.app.GetTask(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, domain.ErrTaskNotFound) {
+			return nil, status.Error(codes.NotFound, "processing task not found")
+		}
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get processing status: %v", err))
+	}
+	if task == nil {
+		return nil, status.Error(codes.NotFound, "processing task not found")
+	}
+
+	resp := &pb.ProcessingStatusResponse{
+		ProcessingId: req.ProcessingId,
+		Status:       toProtoTaskStatus(task.Status),
+	}
+	if task.StartTime != nil {
+		resp.StartedAt = timestamppb.New(*task.StartTime)
+	}
+	if task.EndTime != nil {
+		ts := timestamppb.New(*task.EndTime)
+		resp.CompletedAt = ts
+	}
+	if task.Result != "" {
+		resultURL := task.Result
+		resp.ResultDataUrl = &resultURL
+	}
+
+	return resp, nil
+}
+
+func toProtoTaskStatus(statusValue domain.TaskStatus) string {
+	switch statusValue {
+	case domain.TaskStatusPending:
+		return "PENDING"
+	case domain.TaskStatusRunning:
+		return "RUNNING"
+	case domain.TaskStatusCompleted:
+		return "SUCCESS"
+	case domain.TaskStatusFailed:
+		return "FAILED"
+	case domain.TaskStatusCancelled:
+		return "CANCELLED"
+	default:
+		return "UNKNOWN"
+	}
 }

@@ -102,10 +102,7 @@ func (c *FIFOCostCalculator) CalculateOutboundCost(ctx context.Context, quantity
 			continue
 		}
 
-		allocQty := batch.AvailableQuantity()
-		if allocQty > remaining {
-			allocQty = remaining
-		}
+		allocQty := min(batch.AvailableQuantity(), remaining)
 
 		batchCost := int64(allocQty) * batch.UnitCost
 		totalCost += batchCost

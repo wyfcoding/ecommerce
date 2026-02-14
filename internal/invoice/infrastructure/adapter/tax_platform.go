@@ -16,11 +16,11 @@ import (
 )
 
 type TaxPlatformAdapter struct {
-	endpoint    string
-	appKey      string
-	appSecret   string
-	merchantID  string
-	httpClient  *http.Client
+	endpoint   string
+	appKey     string
+	appSecret  string
+	merchantID string
+	httpClient *http.Client
 }
 
 func NewTaxPlatformAdapter(endpoint, appKey, appSecret, merchantID string) *TaxPlatformAdapter {
@@ -36,139 +36,139 @@ func NewTaxPlatformAdapter(endpoint, appKey, appSecret, merchantID string) *TaxP
 }
 
 func (a *TaxPlatformAdapter) IssueInvoice(ctx context.Context, req *domain.IssueInvoiceRequest) (*domain.IssueInvoiceResult, error) {
-	apiReq := map[string]interface{}{
-		"fpqqlsh":      req.OrderNo,
-		"xsf_nsrsbh":   a.merchantID,
-		"ghfmc":        req.Title.Name,
-		"ghf_nsrsbh":   req.Title.TaxID,
-		"ghfyhzh":      req.Title.Bank + " " + req.Title.Account,
-		"ghfdzdh":      req.Title.Address + " " + req.Title.Phone,
-		"kplx":         a.getInvoiceTypeCode(req.InvoiceType),
-		"hzfs":         a.getMediumCode(req.InvoiceMedium),
-		"items":        a.convertItems(req.Items),
-		"hjje":         float64(req.Amount) / 100,
-		"hjse":         float64(0) / 100,
-		"bz":           req.Remark,
-		"ghf_email":    req.Title.Email,
-		"ghf_sj":       req.Title.ReceiverPhone,
+	apiReq := map[string]any{
+		"fpqqlsh":    req.OrderNo,
+		"xsf_nsrsbh": a.merchantID,
+		"ghfmc":      req.Title.Name,
+		"ghf_nsrsbh": req.Title.TaxID,
+		"ghfyhzh":    req.Title.Bank + " " + req.Title.Account,
+		"ghfdzdh":    req.Title.Address + " " + req.Title.Phone,
+		"kplx":       a.getInvoiceTypeCode(req.InvoiceType),
+		"hzfs":       a.getMediumCode(req.InvoiceMedium),
+		"items":      a.convertItems(req.Items),
+		"hjje":       float64(req.Amount) / 100,
+		"hjse":       float64(0) / 100,
+		"bz":         req.Remark,
+		"ghf_email":  req.Title.Email,
+		"ghf_sj":     req.Title.ReceiverPhone,
 	}
-	
+
 	resp, err := a.doRequest(ctx, "/api/v1/invoice/issue", apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("issue invoice failed: %w", err)
 	}
-	
+
 	return a.parseIssueResult(resp), nil
 }
 
 func (a *TaxPlatformAdapter) RedInvoice(ctx context.Context, req *domain.RedInvoiceRequest) (*domain.RedInvoiceResult, error) {
-	apiReq := map[string]interface{}{
-		"yfp_dm":    req.OriginalInvoiceCode,
-		"yfp_hm":    req.OriginalInvoiceNo,
-		"kpyy":      req.Reason,
-		"kprq":      time.Now().Format("2006-01-02"),
+	apiReq := map[string]any{
+		"yfp_dm": req.OriginalInvoiceCode,
+		"yfp_hm": req.OriginalInvoiceNo,
+		"kpyy":   req.Reason,
+		"kprq":   time.Now().Format("2006-01-02"),
 	}
-	
+
 	resp, err := a.doRequest(ctx, "/api/v1/invoice/red", apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("red invoice failed: %w", err)
 	}
-	
+
 	return a.parseRedResult(resp), nil
 }
 
 func (a *TaxPlatformAdapter) VerifyInvoice(ctx context.Context, req *domain.VerifyInvoiceRequest) (*domain.InvoiceVerification, error) {
-	apiReq := map[string]interface{}{
-		"fp_dm":     req.InvoiceCode,
-		"fp_hm":     req.InvoiceNo,
-		"jym":       req.CheckCode,
-		"kpje":      float64(req.Amount) / 100,
-		"kprq":      req.IssueDate,
+	apiReq := map[string]any{
+		"fp_dm": req.InvoiceCode,
+		"fp_hm": req.InvoiceNo,
+		"jym":   req.CheckCode,
+		"kpje":  float64(req.Amount) / 100,
+		"kprq":  req.IssueDate,
 	}
-	
+
 	resp, err := a.doRequest(ctx, "/api/v1/invoice/verify", apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("verify invoice failed: %w", err)
 	}
-	
+
 	return a.parseVerifyResult(resp), nil
 }
 
 func (a *TaxPlatformAdapter) QueryInvoice(ctx context.Context, req *domain.QueryInvoiceRequest) (*domain.QueryInvoiceResult, error) {
-	apiReq := map[string]interface{}{
-		"fp_dm":     req.InvoiceCode,
-		"fp_hm":     req.InvoiceNo,
+	apiReq := map[string]any{
+		"fp_dm": req.InvoiceCode,
+		"fp_hm": req.InvoiceNo,
 	}
-	
+
 	resp, err := a.doRequest(ctx, "/api/v1/invoice/query", apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("query invoice failed: %w", err)
 	}
-	
+
 	return a.parseQueryResult(resp), nil
 }
 
 func (a *TaxPlatformAdapter) DownloadInvoice(ctx context.Context, req *domain.DownloadInvoiceRequest) (*domain.DownloadInvoiceResult, error) {
-	apiReq := map[string]interface{}{
+	apiReq := map[string]any{
 		"fp_dm":     req.InvoiceCode,
 		"fp_hm":     req.InvoiceNo,
 		"file_type": req.FileType,
 	}
-	
+
 	resp, err := a.doRequest(ctx, "/api/v1/invoice/download", apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("download invoice failed: %w", err)
 	}
-	
+
 	return a.parseDownloadResult(resp), nil
 }
 
-func (a *TaxPlatformAdapter) doRequest(ctx context.Context, path string, body interface{}) (map[string]interface{}, error) {
+func (a *TaxPlatformAdapter) doRequest(ctx context.Context, path string, body any) (map[string]any, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	timestamp := time.Now().Unix()
 	signature := a.generateSignature(string(jsonBody), timestamp)
-	
+
 	url := fmt.Sprintf("%s%s", a.endpoint, path)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-App-Key", a.appKey)
 	req.Header.Set("X-Timestamp", fmt.Sprintf("%d", timestamp))
 	req.Header.Set("X-Signature", signature)
-	
+
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("API error: %s", string(respBody))
 	}
-	
-	var result map[string]interface{}
+
+	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
 func (a *TaxPlatformAdapter) generateSignature(body string, timestamp int64) string {
 	h := hmac.New(sha256.New, []byte(a.appSecret))
-	h.Write([]byte(fmt.Sprintf("%s%d", body, timestamp)))
+	h.Write(fmt.Appendf(nil, "%s%d", body, timestamp))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
@@ -196,27 +196,27 @@ func (a *TaxPlatformAdapter) getMediumCode(medium domain.InvoiceMedium) int {
 	}
 }
 
-func (a *TaxPlatformAdapter) convertItems(items []domain.InvoiceItemRequest) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(items))
+func (a *TaxPlatformAdapter) convertItems(items []domain.InvoiceItemRequest) []map[string]any {
+	result := make([]map[string]any, len(items))
 	for i, item := range items {
-		result[i] = map[string]interface{}{
-			"xm":        item.ProductName,
-			"ggxh":      item.Spec,
-			"dw":        item.Unit,
-			"sl":        item.Quantity,
-			"dj":        float64(item.Price) / 100,
-			"je":        float64(item.Amount) / 100,
-			"slv":       item.TaxRate,
-			"se":        float64(item.TaxAmount) / 100,
+		result[i] = map[string]any{
+			"xm":   item.ProductName,
+			"ggxh": item.Spec,
+			"dw":   item.Unit,
+			"sl":   item.Quantity,
+			"dj":   float64(item.Price) / 100,
+			"je":   float64(item.Amount) / 100,
+			"slv":  item.TaxRate,
+			"se":   float64(item.TaxAmount) / 100,
 		}
 	}
 	return result
 }
 
-func (a *TaxPlatformAdapter) parseIssueResult(resp map[string]interface{}) *domain.IssueInvoiceResult {
+func (a *TaxPlatformAdapter) parseIssueResult(resp map[string]any) *domain.IssueInvoiceResult {
 	result := &domain.IssueInvoiceResult{}
-	
-	if data, ok := resp["data"].(map[string]interface{}); ok {
+
+	if data, ok := resp["data"].(map[string]any); ok {
 		if code, ok := data["fp_dm"].(string); ok {
 			result.InvoiceCode = code
 		}
@@ -236,14 +236,14 @@ func (a *TaxPlatformAdapter) parseIssueResult(resp map[string]interface{}) *doma
 			result.IssuedAt = issuedAt
 		}
 	}
-	
+
 	return result
 }
 
-func (a *TaxPlatformAdapter) parseRedResult(resp map[string]interface{}) *domain.RedInvoiceResult {
+func (a *TaxPlatformAdapter) parseRedResult(resp map[string]any) *domain.RedInvoiceResult {
 	result := &domain.RedInvoiceResult{}
-	
-	if data, ok := resp["data"].(map[string]interface{}); ok {
+
+	if data, ok := resp["data"].(map[string]any); ok {
 		if code, ok := data["fp_dm"].(string); ok {
 			result.RedInvoiceCode = code
 		}
@@ -260,14 +260,14 @@ func (a *TaxPlatformAdapter) parseRedResult(resp map[string]interface{}) *domain
 			result.XMLUrl = xmlUrl
 		}
 	}
-	
+
 	return result
 }
 
-func (a *TaxPlatformAdapter) parseVerifyResult(resp map[string]interface{}) *domain.InvoiceVerification {
+func (a *TaxPlatformAdapter) parseVerifyResult(resp map[string]any) *domain.InvoiceVerification {
 	result := &domain.InvoiceVerification{}
-	
-	if data, ok := resp["data"].(map[string]interface{}); ok {
+
+	if data, ok := resp["data"].(map[string]any); ok {
 		if code, ok := data["fp_dm"].(string); ok {
 			result.InvoiceCode = code
 		}
@@ -305,15 +305,15 @@ func (a *TaxPlatformAdapter) parseVerifyResult(resp map[string]interface{}) *dom
 			result.InvalidationMark = invalidationMark
 		}
 	}
-	
+
 	result.VerifyTime = time.Now()
 	return result
 }
 
-func (a *TaxPlatformAdapter) parseQueryResult(resp map[string]interface{}) *domain.QueryInvoiceResult {
+func (a *TaxPlatformAdapter) parseQueryResult(resp map[string]any) *domain.QueryInvoiceResult {
 	result := &domain.QueryInvoiceResult{}
-	
-	if data, ok := resp["data"].(map[string]interface{}); ok {
+
+	if data, ok := resp["data"].(map[string]any); ok {
 		if code, ok := data["fp_dm"].(string); ok {
 			result.InvoiceCode = code
 		}
@@ -330,14 +330,14 @@ func (a *TaxPlatformAdapter) parseQueryResult(resp map[string]interface{}) *doma
 			result.XMLUrl = xmlUrl
 		}
 	}
-	
+
 	return result
 }
 
-func (a *TaxPlatformAdapter) parseDownloadResult(resp map[string]interface{}) *domain.DownloadInvoiceResult {
+func (a *TaxPlatformAdapter) parseDownloadResult(resp map[string]any) *domain.DownloadInvoiceResult {
 	result := &domain.DownloadInvoiceResult{}
-	
-	if data, ok := resp["data"].(map[string]interface{}); ok {
+
+	if data, ok := resp["data"].(map[string]any); ok {
 		if fileUrl, ok := data["file_url"].(string); ok {
 			result.FileUrl = fileUrl
 		}
@@ -348,7 +348,7 @@ func (a *TaxPlatformAdapter) parseDownloadResult(resp map[string]interface{}) *d
 			result.ExpireTime = expireTime
 		}
 	}
-	
+
 	return result
 }
 

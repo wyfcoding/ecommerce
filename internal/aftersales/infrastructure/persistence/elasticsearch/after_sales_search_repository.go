@@ -48,10 +48,7 @@ func (r *afterSalesSearchRepository) Search(ctx context.Context, query *domain.A
 	if limit <= 0 {
 		limit = 10
 	}
-	offset := (query.Page - 1) * limit
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((query.Page-1)*limit, 0)
 
 	esQuery := map[string]any{
 		"from":             offset,

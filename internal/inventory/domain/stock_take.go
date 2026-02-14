@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 )
 
 var (
-	ErrStockTakeNotFound       = errors.New("stock take not found")
-	ErrStockTakeAlreadyClosed  = errors.New("stock take already closed")
-	ErrStockTakeNotInProgress  = errors.New("stock take not in progress")
-	ErrStockTakeItemNotFound   = errors.New("stock take item not found")
-	ErrStockTakeCannotModify   = errors.New("stock take cannot be modified")
-	ErrInvalidStockTakeStatus  = errors.New("invalid stock take status")
+	ErrStockTakeNotFound      = errors.New("stock take not found")
+	ErrStockTakeAlreadyClosed = errors.New("stock take already closed")
+	ErrStockTakeNotInProgress = errors.New("stock take not in progress")
+	ErrStockTakeItemNotFound  = errors.New("stock take item not found")
+	ErrStockTakeCannotModify  = errors.New("stock take cannot be modified")
+	ErrInvalidStockTakeStatus = errors.New("invalid stock take status")
 )
 
 type StockTakeStatus int8
@@ -73,10 +74,10 @@ func (t StockTakeType) String() string {
 type StockTakeItemStatus int8
 
 const (
-	StockTakeItemStatusPending    StockTakeItemStatus = 1
-	StockTakeItemStatusCounted    StockTakeItemStatus = 2
-	StockTakeItemStatusVerified   StockTakeItemStatus = 3
-	StockTakeItemStatusAdjusted   StockTakeItemStatus = 4
+	StockTakeItemStatusPending     StockTakeItemStatus = 1
+	StockTakeItemStatusCounted     StockTakeItemStatus = 2
+	StockTakeItemStatusVerified    StockTakeItemStatus = 3
+	StockTakeItemStatusAdjusted    StockTakeItemStatus = 4
 	StockTakeItemStatusDiscrepancy StockTakeItemStatus = 5
 )
 
@@ -98,33 +99,33 @@ func (s StockTakeItemStatus) String() string {
 }
 
 type StockTake struct {
-	ID               uint              `json:"id"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
-	StockTakeNo      string            `json:"stock_take_no"`
-	WarehouseID      uint64            `json:"warehouse_id"`
-	WarehouseName    string            `json:"warehouse_name"`
-	Type             StockTakeType     `json:"type"`
-	Status           StockTakeStatus   `json:"status"`
-	ScheduledAt      *time.Time        `json:"scheduled_at"`
-	StartedAt        *time.Time        `json:"started_at"`
-	CompletedAt      *time.Time        `json:"completed_at"`
-	CancelledAt      *time.Time        `json:"cancelled_at"`
-	CancelReason     string            `json:"cancel_reason"`
-	CreatorID        uint64            `json:"creator_id"`
-	CreatorName      string            `json:"creator_name"`
-	SupervisorID     uint64            `json:"supervisor_id"`
-	SupervisorName   string            `json:"supervisor_name"`
-	TotalItems       int               `json:"total_items"`
-	CountedItems     int               `json:"counted_items"`
-	DiscrepancyItems int               `json:"discrepancy_items"`
-	AdjustedItems    int               `json:"adjusted_items"`
-	TotalValue       int64             `json:"total_value"`
-	DiscrepancyValue int64             `json:"discrepancy_value"`
-	Notes            string            `json:"notes"`
-	Items            []*StockTakeItem  `json:"items"`
+	ID               uint                `json:"id"`
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
+	StockTakeNo      string              `json:"stock_take_no"`
+	WarehouseID      uint64              `json:"warehouse_id"`
+	WarehouseName    string              `json:"warehouse_name"`
+	Type             StockTakeType       `json:"type"`
+	Status           StockTakeStatus     `json:"status"`
+	ScheduledAt      *time.Time          `json:"scheduled_at"`
+	StartedAt        *time.Time          `json:"started_at"`
+	CompletedAt      *time.Time          `json:"completed_at"`
+	CancelledAt      *time.Time          `json:"cancelled_at"`
+	CancelReason     string              `json:"cancel_reason"`
+	CreatorID        uint64              `json:"creator_id"`
+	CreatorName      string              `json:"creator_name"`
+	SupervisorID     uint64              `json:"supervisor_id"`
+	SupervisorName   string              `json:"supervisor_name"`
+	TotalItems       int                 `json:"total_items"`
+	CountedItems     int                 `json:"counted_items"`
+	DiscrepancyItems int                 `json:"discrepancy_items"`
+	AdjustedItems    int                 `json:"adjusted_items"`
+	TotalValue       int64               `json:"total_value"`
+	DiscrepancyValue int64               `json:"discrepancy_value"`
+	Notes            string              `json:"notes"`
+	Items            []*StockTakeItem    `json:"items"`
 	Histories        []*StockTakeHistory `json:"histories"`
-	FreezeInventory  bool              `json:"freeze_inventory"`
+	FreezeInventory  bool                `json:"freeze_inventory"`
 }
 
 type StockTakeItem struct {
@@ -171,13 +172,13 @@ type StockTakeHistory struct {
 }
 
 type StockTakeConfig struct {
-	AutoFreezeInventory  bool          `json:"auto_freeze_inventory"`
-	RequireSecondCount   bool          `json:"require_second_count"`
-	DiscrepancyThreshold float64       `json:"discrepancy_threshold"`
-	MaxDiscrepancyValue  int64         `json:"max_discrepancy_value"`
-	RequireSupervisor    bool          `json:"require_supervisor"`
-	TimeoutHours         int           `json:"timeout_hours"`
-	AllowPartialComplete bool          `json:"allow_partial_complete"`
+	AutoFreezeInventory  bool    `json:"auto_freeze_inventory"`
+	RequireSecondCount   bool    `json:"require_second_count"`
+	DiscrepancyThreshold float64 `json:"discrepancy_threshold"`
+	MaxDiscrepancyValue  int64   `json:"max_discrepancy_value"`
+	RequireSupervisor    bool    `json:"require_supervisor"`
+	TimeoutHours         int     `json:"timeout_hours"`
+	AllowPartialComplete bool    `json:"allow_partial_complete"`
 }
 
 func DefaultStockTakeConfig() *StockTakeConfig {
@@ -194,37 +195,37 @@ func DefaultStockTakeConfig() *StockTakeConfig {
 
 func NewStockTake(stockTakeNo string, warehouseID uint64, warehouseName string, takeType StockTakeType, creatorID uint64, creatorName string) *StockTake {
 	return &StockTake{
-		StockTakeNo:   stockTakeNo,
-		WarehouseID:   warehouseID,
-		WarehouseName: warehouseName,
-		Type:          takeType,
-		Status:        StockTakeStatusPending,
-		CreatorID:     creatorID,
-		CreatorName:   creatorName,
-		TotalItems:    0,
-		CountedItems:  0,
-		Items:         make([]*StockTakeItem, 0),
-		Histories:     make([]*StockTakeHistory, 0),
+		StockTakeNo:     stockTakeNo,
+		WarehouseID:     warehouseID,
+		WarehouseName:   warehouseName,
+		Type:            takeType,
+		Status:          StockTakeStatusPending,
+		CreatorID:       creatorID,
+		CreatorName:     creatorName,
+		TotalItems:      0,
+		CountedItems:    0,
+		Items:           make([]*StockTakeItem, 0),
+		Histories:       make([]*StockTakeHistory, 0),
 		FreezeInventory: false,
 	}
 }
 
 func (s *StockTake) AddItem(skuID uint64, skuCode, productName, skuName, location, batchNo string, systemQuantity int32, unitCost int64) *StockTakeItem {
 	item := &StockTakeItem{
-		StockTakeID:     s.ID,
-		SkuID:           skuID,
-		SkuCode:         skuCode,
-		ProductName:     productName,
-		SkuName:         skuName,
-		Location:        location,
-		BatchNo:         batchNo,
-		SystemQuantity:  systemQuantity,
-		CountedQuantity: 0,
+		StockTakeID:      s.ID,
+		SkuID:            skuID,
+		SkuCode:          skuCode,
+		ProductName:      productName,
+		SkuName:          skuName,
+		Location:         location,
+		BatchNo:          batchNo,
+		SystemQuantity:   systemQuantity,
+		CountedQuantity:  0,
 		VarianceQuantity: 0,
-		UnitCost:        unitCost,
-		VarianceValue:   0,
-		Status:          StockTakeItemStatusPending,
-		IsRecounted:     false,
+		UnitCost:         unitCost,
+		VarianceValue:    0,
+		Status:           StockTakeItemStatusPending,
+		IsRecounted:      false,
 	}
 	s.Items = append(s.Items, item)
 	s.TotalItems = len(s.Items)
@@ -448,11 +449,8 @@ func (s *StockTake) findItemBySkuID(skuID uint64) *StockTakeItem {
 func (s *StockTake) countItemsByStatus(statuses ...StockTakeItemStatus) int {
 	count := 0
 	for _, item := range s.Items {
-		for _, status := range statuses {
-			if item.Status == status {
-				count++
-				break
-			}
+		if slices.Contains(statuses, item.Status) {
+			count++
 		}
 	}
 	return count

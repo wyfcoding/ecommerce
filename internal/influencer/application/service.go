@@ -22,14 +22,17 @@ func NewInfluencerService(repo domain.InfluencerRepository) *InfluencerService {
 func (s *InfluencerService) RegisterInfluencer(ctx context.Context, req *pb.RegisterInfluencerRequest) (*pb.RegisterInfluencerResponse, error) {
 	infID := fmt.Sprintf("inf_%d", time.Now().UnixNano())
 	inf := &domain.Influencer{
-		UserID:        req.UserId,
-		InfluencerID:  infID,
-		Name:          req.Name,
-		Platform:      req.Platform,
-		Handle:        req.Handle,
-		FollowerCount: req.FollowerCount,
-		Status:        domain.StatusPending,
-		TotalEarnings: decimal.Zero,
+		UserID:          req.UserId,
+		InfluencerID:    infID,
+		Name:            req.Name,
+		Status:          domain.StatusPending,
+		Level:           "BRONZE",
+		TotalEarnings:   decimal.Zero,
+		PendingEarnings: decimal.Zero,
+		Platforms:       []domain.PlatformInfo{},
+	}
+	if req.Platform != "" || req.Handle != "" || req.FollowerCount > 0 {
+		inf.AddPlatform(req.Platform, req.Handle, "", int64(req.FollowerCount))
 	}
 
 	if err := s.repo.SaveInfluencer(ctx, inf); err != nil {

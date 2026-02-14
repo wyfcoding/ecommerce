@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -28,41 +29,41 @@ var (
 type FinanceType string
 
 const (
-	FinanceTypeInvoice        FinanceType = "INVOICE"
-	FinanceTypePurchaseOrder  FinanceType = "PURCHASE_ORDER"
-	FinanceTypeInventory      FinanceType = "INVENTORY"
-	FinanceTypeSupplier       FinanceType = "SUPPLIER"
-	FinanceTypeDistributor    FinanceType = "DISTRIBUTOR"
-	FinanceTypeFactoring      FinanceType = "FACTORING"
+	FinanceTypeInvoice          FinanceType = "INVOICE"
+	FinanceTypePurchaseOrder    FinanceType = "PURCHASE_ORDER"
+	FinanceTypeInventory        FinanceType = "INVENTORY"
+	FinanceTypeSupplier         FinanceType = "SUPPLIER"
+	FinanceTypeDistributor      FinanceType = "DISTRIBUTOR"
+	FinanceTypeFactoring        FinanceType = "FACTORING"
 	FinanceTypeReverseFactoring FinanceType = "REVERSE_FACTORING"
-	FinanceTypeForfaiting     FinanceType = "FORFAITING"
-	FinanceTypeWorkingCapital FinanceType = "WORKING_CAPITAL"
+	FinanceTypeForfaiting       FinanceType = "FORFAITING"
+	FinanceTypeWorkingCapital   FinanceType = "WORKING_CAPITAL"
 )
 
 type FinanceStatus string
 
 const (
-	FinanceStatusDraft      FinanceStatus = "DRAFT"
-	FinanceStatusPending    FinanceStatus = "PENDING"
+	FinanceStatusDraft       FinanceStatus = "DRAFT"
+	FinanceStatusPending     FinanceStatus = "PENDING"
 	FinanceStatusUnderReview FinanceStatus = "UNDER_REVIEW"
-	FinanceStatusApproved   FinanceStatus = "APPROVED"
-	FinanceStatusRejected   FinanceStatus = "REJECTED"
-	FinanceStatusDisbursed  FinanceStatus = "DISBURSED"
-	FinanceStatusActive     FinanceStatus = "ACTIVE"
-	FinanceStatusRepaying   FinanceStatus = "REPAYING"
-	FinanceStatusCompleted  FinanceStatus = "COMPLETED"
-	FinanceStatusDefaulted  FinanceStatus = "DEFAULTED"
-	FinanceStatusCancelled  FinanceStatus = "CANCELLED"
-	FinanceStatusOverdue    FinanceStatus = "OVERDUE"
+	FinanceStatusApproved    FinanceStatus = "APPROVED"
+	FinanceStatusRejected    FinanceStatus = "REJECTED"
+	FinanceStatusDisbursed   FinanceStatus = "DISBURSED"
+	FinanceStatusActive      FinanceStatus = "ACTIVE"
+	FinanceStatusRepaying    FinanceStatus = "REPAYING"
+	FinanceStatusCompleted   FinanceStatus = "COMPLETED"
+	FinanceStatusDefaulted   FinanceStatus = "DEFAULTED"
+	FinanceStatusCancelled   FinanceStatus = "CANCELLED"
+	FinanceStatusOverdue     FinanceStatus = "OVERDUE"
 )
 
 type CreditLineStatus string
 
 const (
-	CreditLineStatusActive     CreditLineStatus = "ACTIVE"
-	CreditLineStatusFrozen     CreditLineStatus = "FROZEN"
-	CreditLineStatusClosed     CreditLineStatus = "CLOSED"
-	CreditLineStatusSuspended  CreditLineStatus = "SUSPENDED"
+	CreditLineStatusActive    CreditLineStatus = "ACTIVE"
+	CreditLineStatusFrozen    CreditLineStatus = "FROZEN"
+	CreditLineStatusClosed    CreditLineStatus = "CLOSED"
+	CreditLineStatusSuspended CreditLineStatus = "SUSPENDED"
 )
 
 type RiskLevel string
@@ -77,11 +78,11 @@ const (
 type RepaymentFrequency string
 
 const (
-	RepaymentFrequencyOneTime     RepaymentFrequency = "ONE_TIME"
-	RepaymentFrequencyWeekly      RepaymentFrequency = "WEEKLY"
-	RepaymentFrequencyBiWeekly    RepaymentFrequency = "BI_WEEKLY"
-	RepaymentFrequencyMonthly     RepaymentFrequency = "MONTHLY"
-	RepaymentFrequencyQuarterly   RepaymentFrequency = "QUARTERLY"
+	RepaymentFrequencyOneTime      RepaymentFrequency = "ONE_TIME"
+	RepaymentFrequencyWeekly       RepaymentFrequency = "WEEKLY"
+	RepaymentFrequencyBiWeekly     RepaymentFrequency = "BI_WEEKLY"
+	RepaymentFrequencyMonthly      RepaymentFrequency = "MONTHLY"
+	RepaymentFrequencyQuarterly    RepaymentFrequency = "QUARTERLY"
 	RepaymentFrequencySemiAnnually RepaymentFrequency = "SEMI_ANNUALLY"
 )
 
@@ -108,32 +109,32 @@ const (
 )
 
 type FinanceApplication struct {
-	ID              string          `json:"id"`
-	ApplicantID     string          `json:"applicant_id"`
-	ApplicantName   string          `json:"applicant_name"`
-	ApplicantType   string          `json:"applicant_type"`
-	FinanceType     FinanceType     `json:"finance_type"`
-	RequestedAmount decimal.Decimal `json:"requested_amount"`
-	ApprovedAmount  decimal.Decimal `json:"approved_amount"`
-	Currency        string          `json:"currency"`
-	Purpose         string          `json:"purpose"`
-	TermDays        int             `json:"term_days"`
-	Status          FinanceStatus   `json:"status"`
-	CreditLineID    string          `json:"credit_line_id"`
-	CollateralIDs   []string        `json:"collateral_ids"`
-	GuaranteeIDs    []string        `json:"guarantee_ids"`
-	RiskLevel       RiskLevel       `json:"risk_level"`
-	RiskScore       decimal.Decimal `json:"risk_score"`
-	InterestRate    decimal.Decimal `json:"interest_rate"`
-	FeeAmount       decimal.Decimal `json:"fee_amount"`
+	ID              string            `json:"id"`
+	ApplicantID     string            `json:"applicant_id"`
+	ApplicantName   string            `json:"applicant_name"`
+	ApplicantType   string            `json:"applicant_type"`
+	FinanceType     FinanceType       `json:"finance_type"`
+	RequestedAmount decimal.Decimal   `json:"requested_amount"`
+	ApprovedAmount  decimal.Decimal   `json:"approved_amount"`
+	Currency        string            `json:"currency"`
+	Purpose         string            `json:"purpose"`
+	TermDays        int               `json:"term_days"`
+	Status          FinanceStatus     `json:"status"`
+	CreditLineID    string            `json:"credit_line_id"`
+	CollateralIDs   []string          `json:"collateral_ids"`
+	GuaranteeIDs    []string          `json:"guarantee_ids"`
+	RiskLevel       RiskLevel         `json:"risk_level"`
+	RiskScore       decimal.Decimal   `json:"risk_score"`
+	InterestRate    decimal.Decimal   `json:"interest_rate"`
+	FeeAmount       decimal.Decimal   `json:"fee_amount"`
 	Documents       map[string]string `json:"documents"`
-	ApprovalHistory []string        `json:"approval_history"`
-	SubmittedAt     time.Time       `json:"submitted_at"`
-	ApprovedAt      *time.Time      `json:"approved_at"`
-	RejectedAt      *time.Time      `json:"rejected_at"`
-	RejectionReason string          `json:"rejection_reason"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	ApprovalHistory []string          `json:"approval_history"`
+	SubmittedAt     time.Time         `json:"submitted_at"`
+	ApprovedAt      *time.Time        `json:"approved_at"`
+	RejectedAt      *time.Time        `json:"rejected_at"`
+	RejectionReason string            `json:"rejection_reason"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 func NewFinanceApplication(applicantID, applicantName string, financeType FinanceType, amount decimal.Decimal, currency string, termDays int, purpose string) *FinanceApplication {
@@ -188,20 +189,16 @@ func (fa *FinanceApplication) Cancel(reason string) {
 }
 
 func (fa *FinanceApplication) AddCollateral(collateralID string) {
-	for _, c := range fa.CollateralIDs {
-		if c == collateralID {
-			return
-		}
+	if slices.Contains(fa.CollateralIDs, collateralID) {
+		return
 	}
 	fa.CollateralIDs = append(fa.CollateralIDs, collateralID)
 	fa.UpdatedAt = time.Now()
 }
 
 func (fa *FinanceApplication) AddGuarantee(guaranteeID string) {
-	for _, g := range fa.GuaranteeIDs {
-		if g == guaranteeID {
-			return
-		}
+	if slices.Contains(fa.GuaranteeIDs, guaranteeID) {
+		return
 	}
 	fa.GuaranteeIDs = append(fa.GuaranteeIDs, guaranteeID)
 	fa.UpdatedAt = time.Now()
@@ -219,26 +216,26 @@ func (fa *FinanceApplication) SetRiskAssessment(level RiskLevel, score decimal.D
 }
 
 type CreditLine struct {
-	ID              string           `json:"id"`
-	OwnerID         string           `json:"owner_id"`
-	OwnerName       string           `json:"owner_name"`
-	OwnerType       string           `json:"owner_type"`
-	TotalLimit      decimal.Decimal  `json:"total_limit"`
-	UsedAmount      decimal.Decimal  `json:"used_amount"`
-	AvailableAmount decimal.Decimal  `json:"available_amount"`
-	Currency        string           `json:"currency"`
-	Status          CreditLineStatus `json:"status"`
-	InterestRate    decimal.Decimal  `json:"interest_rate"`
-	AnnualFee       decimal.Decimal  `json:"annual_fee"`
-	EffectiveFrom   time.Time        `json:"effective_from"`
-	EffectiveTo     time.Time        `json:"effective_to"`
-	ReviewFrequency string           `json:"review_frequency"`
-	LastReview      *time.Time       `json:"last_review"`
-	NextReview      *time.Time       `json:"next_review"`
-	FinancingIDs    []string         `json:"financing_ids"`
+	ID              string            `json:"id"`
+	OwnerID         string            `json:"owner_id"`
+	OwnerName       string            `json:"owner_name"`
+	OwnerType       string            `json:"owner_type"`
+	TotalLimit      decimal.Decimal   `json:"total_limit"`
+	UsedAmount      decimal.Decimal   `json:"used_amount"`
+	AvailableAmount decimal.Decimal   `json:"available_amount"`
+	Currency        string            `json:"currency"`
+	Status          CreditLineStatus  `json:"status"`
+	InterestRate    decimal.Decimal   `json:"interest_rate"`
+	AnnualFee       decimal.Decimal   `json:"annual_fee"`
+	EffectiveFrom   time.Time         `json:"effective_from"`
+	EffectiveTo     time.Time         `json:"effective_to"`
+	ReviewFrequency string            `json:"review_frequency"`
+	LastReview      *time.Time        `json:"last_review"`
+	NextReview      *time.Time        `json:"next_review"`
+	FinancingIDs    []string          `json:"financing_ids"`
 	Terms           map[string]string `json:"terms"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 func NewCreditLine(ownerID, ownerName, ownerType string, limit decimal.Decimal, currency string) *CreditLine {
@@ -339,54 +336,54 @@ func (cl *CreditLine) UtilizationRate() decimal.Decimal {
 }
 
 type InvoiceFinancing struct {
-	ID               string          `json:"id"`
-	ApplicationID    string          `json:"application_id"`
-	BorrowerID       string          `json:"borrower_id"`
-	BorrowerName     string          `json:"borrower_name"`
-	InvoiceID        string          `json:"invoice_id"`
-	InvoiceNumber    string          `json:"invoice_number"`
-	InvoiceAmount    decimal.Decimal `json:"invoice_amount"`
-	FinancingAmount  decimal.Decimal `json:"financing_amount"`
-	AdvanceRate      decimal.Decimal `json:"advance_rate"`
-	Currency         string          `json:"currency"`
-	InterestRate     decimal.Decimal `json:"interest_rate"`
-	InterestAmount   decimal.Decimal `json:"interest_amount"`
-	FeeAmount        decimal.Decimal `json:"fee_amount"`
+	ID                 string          `json:"id"`
+	ApplicationID      string          `json:"application_id"`
+	BorrowerID         string          `json:"borrower_id"`
+	BorrowerName       string          `json:"borrower_name"`
+	InvoiceID          string          `json:"invoice_id"`
+	InvoiceNumber      string          `json:"invoice_number"`
+	InvoiceAmount      decimal.Decimal `json:"invoice_amount"`
+	FinancingAmount    decimal.Decimal `json:"financing_amount"`
+	AdvanceRate        decimal.Decimal `json:"advance_rate"`
+	Currency           string          `json:"currency"`
+	InterestRate       decimal.Decimal `json:"interest_rate"`
+	InterestAmount     decimal.Decimal `json:"interest_amount"`
+	FeeAmount          decimal.Decimal `json:"fee_amount"`
 	DisbursementAmount decimal.Decimal `json:"disbursement_amount"`
-	OutstandingAmount decimal.Decimal `json:"outstanding_amount"`
-	RepaidAmount     decimal.Decimal `json:"repaid_amount"`
-	Status           FinanceStatus   `json:"status"`
-	InvoiceDate      time.Time       `json:"invoice_date"`
-	InvoiceDueDate   time.Time       `json:"invoice_due_date"`
-	DisbursementDate *time.Time      `json:"disbursement_date"`
-	MaturityDate     time.Time       `json:"maturity_date"`
-	BuyerID          string          `json:"buyer_id"`
-	BuyerName        string          `json:"buyer_name"`
-	CreditLineID     string          `json:"credit_line_id"`
-	CollateralID     string          `json:"collateral_id"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	OutstandingAmount  decimal.Decimal `json:"outstanding_amount"`
+	RepaidAmount       decimal.Decimal `json:"repaid_amount"`
+	Status             FinanceStatus   `json:"status"`
+	InvoiceDate        time.Time       `json:"invoice_date"`
+	InvoiceDueDate     time.Time       `json:"invoice_due_date"`
+	DisbursementDate   *time.Time      `json:"disbursement_date"`
+	MaturityDate       time.Time       `json:"maturity_date"`
+	BuyerID            string          `json:"buyer_id"`
+	BuyerName          string          `json:"buyer_name"`
+	CreditLineID       string          `json:"credit_line_id"`
+	CollateralID       string          `json:"collateral_id"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
 func NewInvoiceFinancing(applicationID, borrowerID, invoiceID string, invoiceAmount, advanceRate decimal.Decimal, currency string) *InvoiceFinancing {
 	financingAmount := invoiceAmount.Mul(advanceRate)
 	return &InvoiceFinancing{
-		ApplicationID:    applicationID,
-		BorrowerID:       borrowerID,
-		InvoiceID:        invoiceID,
-		InvoiceAmount:    invoiceAmount,
-		FinancingAmount:  financingAmount,
-		AdvanceRate:      advanceRate,
-		Currency:         currency,
-		InterestRate:     decimal.NewFromFloat(0.06),
-		InterestAmount:   decimal.Zero,
-		FeeAmount:        decimal.Zero,
+		ApplicationID:      applicationID,
+		BorrowerID:         borrowerID,
+		InvoiceID:          invoiceID,
+		InvoiceAmount:      invoiceAmount,
+		FinancingAmount:    financingAmount,
+		AdvanceRate:        advanceRate,
+		Currency:           currency,
+		InterestRate:       decimal.NewFromFloat(0.06),
+		InterestAmount:     decimal.Zero,
+		FeeAmount:          decimal.Zero,
 		DisbursementAmount: financingAmount,
-		OutstandingAmount: financingAmount,
-		RepaidAmount:     decimal.Zero,
-		Status:           FinanceStatusPending,
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		OutstandingAmount:  financingAmount,
+		RepaidAmount:       decimal.Zero,
+		Status:             FinanceStatusPending,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
 	}
 }
 
@@ -482,7 +479,7 @@ func (srp *SupplierRiskProfile) CalculateOverallScore() {
 		Add(srp.PaymentHistoryScore.Mul(decimal.NewFromFloat(0.15))).
 		Add(srp.DeliveryPerfScore.Mul(decimal.NewFromFloat(0.05))).
 		Add(srp.QualityScore.Mul(decimal.NewFromFloat(0.05)))
-	
+
 	srp.determineRiskLevel()
 	srp.UpdatedAt = time.Now()
 }
@@ -536,24 +533,24 @@ func (srp *SupplierRiskProfile) MarkAssessed() {
 }
 
 type BuyerRiskProfile struct {
-	ID                    string          `json:"id"`
-	BuyerID               string          `json:"buyer_id"`
-	BuyerName             string          `json:"buyer_name"`
-	OverallRiskLevel      RiskLevel       `json:"overall_risk_level"`
-	OverallRiskScore      decimal.Decimal `json:"overall_risk_score"`
-	CreditRating          string          `json:"credit_rating"`
-	PaymentBehaviorScore  decimal.Decimal `json:"payment_behavior_score"`
+	ID                      string          `json:"id"`
+	BuyerID                 string          `json:"buyer_id"`
+	BuyerName               string          `json:"buyer_name"`
+	OverallRiskLevel        RiskLevel       `json:"overall_risk_level"`
+	OverallRiskScore        decimal.Decimal `json:"overall_risk_score"`
+	CreditRating            string          `json:"credit_rating"`
+	PaymentBehaviorScore    decimal.Decimal `json:"payment_behavior_score"`
 	FinancialStabilityScore decimal.Decimal `json:"financial_stability_score"`
-	TotalOrders           int64           `json:"total_orders"`
-	TotalOrderValue       decimal.Decimal `json:"total_order_value"`
-	OnTimePayments        int64           `json:"on_time_payments"`
-	LatePayments          int64           `json:"late_payments"`
-	Defaults              int64           `json:"defaults"`
-	DefaultRate           decimal.Decimal `json:"default_rate"`
-	Alerts                []string        `json:"alerts"`
-	LastAssessment        *time.Time      `json:"last_assessment"`
-	CreatedAt             time.Time       `json:"created_at"`
-	UpdatedAt             time.Time       `json:"updated_at"`
+	TotalOrders             int64           `json:"total_orders"`
+	TotalOrderValue         decimal.Decimal `json:"total_order_value"`
+	OnTimePayments          int64           `json:"on_time_payments"`
+	LatePayments            int64           `json:"late_payments"`
+	Defaults                int64           `json:"defaults"`
+	DefaultRate             decimal.Decimal `json:"default_rate"`
+	Alerts                  []string        `json:"alerts"`
+	LastAssessment          *time.Time      `json:"last_assessment"`
+	CreatedAt               time.Time       `json:"created_at"`
+	UpdatedAt               time.Time       `json:"updated_at"`
 }
 
 func NewBuyerRiskProfile(buyerID, buyerName string) *BuyerRiskProfile {
@@ -571,7 +568,7 @@ func NewBuyerRiskProfile(buyerID, buyerName string) *BuyerRiskProfile {
 func (brp *BuyerRiskProfile) CalculateOverallScore() {
 	brp.OverallRiskScore = brp.PaymentBehaviorScore.Mul(decimal.NewFromFloat(0.6)).
 		Add(brp.FinancialStabilityScore.Mul(decimal.NewFromFloat(0.4)))
-	
+
 	brp.determineRiskLevel()
 	brp.UpdatedAt = time.Now()
 }
@@ -626,25 +623,25 @@ func (brp *BuyerRiskProfile) MarkAssessed() {
 }
 
 type Collateral struct {
-	ID              string          `json:"id"`
-	OwnerID         string          `json:"owner_id"`
-	OwnerName       string          `json:"owner_name"`
-	CollateralType  CollateralType  `json:"collateral_type"`
-	Description     string          `json:"description"`
-	OriginalValue   decimal.Decimal `json:"original_value"`
-	CurrentValue    decimal.Decimal `json:"current_value"`
-	Haircut         decimal.Decimal `json:"haircut"`
-	EligibleValue   decimal.Decimal `json:"eligible_value"`
-	Currency        string          `json:"currency"`
-	Status          string          `json:"status"`
-	Location        string          `json:"location"`
-	Custodian       string          `json:"custodian"`
-	FinancingIDs    []string        `json:"financing_ids"`
-	LastValuation   *time.Time      `json:"last_valuation"`
-	NextValuation   *time.Time      `json:"next_valuation"`
-	Details         map[string]string `json:"details"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	ID             string            `json:"id"`
+	OwnerID        string            `json:"owner_id"`
+	OwnerName      string            `json:"owner_name"`
+	CollateralType CollateralType    `json:"collateral_type"`
+	Description    string            `json:"description"`
+	OriginalValue  decimal.Decimal   `json:"original_value"`
+	CurrentValue   decimal.Decimal   `json:"current_value"`
+	Haircut        decimal.Decimal   `json:"haircut"`
+	EligibleValue  decimal.Decimal   `json:"eligible_value"`
+	Currency       string            `json:"currency"`
+	Status         string            `json:"status"`
+	Location       string            `json:"location"`
+	Custodian      string            `json:"custodian"`
+	FinancingIDs   []string          `json:"financing_ids"`
+	LastValuation  *time.Time        `json:"last_valuation"`
+	NextValuation  *time.Time        `json:"next_valuation"`
+	Details        map[string]string `json:"details"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 func NewCollateral(ownerID, ownerName string, collateralType CollateralType, value decimal.Decimal, currency string) *Collateral {
@@ -695,39 +692,39 @@ func (c *Collateral) AddFinancing(financingID string) {
 }
 
 type Guarantee struct {
-	ID             string        `json:"id"`
-	GuarantorID    string        `json:"guarantor_id"`
-	GuarantorName  string        `json:"guarantor_name"`
-	BeneficiaryID  string        `json:"beneficiary_id"`
-	BeneficiaryName string       `json:"beneficiary_name"`
-	GuaranteeType  GuaranteeType `json:"guarantee_type"`
+	ID              string          `json:"id"`
+	GuarantorID     string          `json:"guarantor_id"`
+	GuarantorName   string          `json:"guarantor_name"`
+	BeneficiaryID   string          `json:"beneficiary_id"`
+	BeneficiaryName string          `json:"beneficiary_name"`
+	GuaranteeType   GuaranteeType   `json:"guarantee_type"`
 	GuaranteeAmount decimal.Decimal `json:"guarantee_amount"`
-	Currency       string        `json:"currency"`
-	Status         string        `json:"status"`
-	EffectiveFrom  time.Time     `json:"effective_from"`
-	EffectiveTo    time.Time     `json:"effective_to"`
-	FinancingID    string        `json:"financing_id"`
-	ClaimHistory   []string      `json:"claim_history"`
-	Terms          string        `json:"terms"`
-	CreatedAt      time.Time     `json:"created_at"`
-	UpdatedAt      time.Time     `json:"updated_at"`
+	Currency        string          `json:"currency"`
+	Status          string          `json:"status"`
+	EffectiveFrom   time.Time       `json:"effective_from"`
+	EffectiveTo     time.Time       `json:"effective_to"`
+	FinancingID     string          `json:"financing_id"`
+	ClaimHistory    []string        `json:"claim_history"`
+	Terms           string          `json:"terms"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 func NewGuarantee(guarantorID, guarantorName, beneficiaryID, beneficiaryName string, guaranteeType GuaranteeType, amount decimal.Decimal, currency string) *Guarantee {
 	return &Guarantee{
-		GuarantorID:    guarantorID,
-		GuarantorName:  guarantorName,
-		BeneficiaryID:  beneficiaryID,
+		GuarantorID:     guarantorID,
+		GuarantorName:   guarantorName,
+		BeneficiaryID:   beneficiaryID,
 		BeneficiaryName: beneficiaryName,
-		GuaranteeType:  guaranteeType,
+		GuaranteeType:   guaranteeType,
 		GuaranteeAmount: amount,
-		Currency:       currency,
-		Status:         "PENDING",
-		EffectiveFrom:  time.Now(),
-		EffectiveTo:    time.Now().AddDate(1, 0, 0),
-		ClaimHistory:   []string{},
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		Currency:        currency,
+		Status:          "PENDING",
+		EffectiveFrom:   time.Now(),
+		EffectiveTo:     time.Now().AddDate(1, 0, 0),
+		ClaimHistory:    []string{},
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 }
 
@@ -752,54 +749,54 @@ func (g *Guarantee) IsExpired() bool {
 }
 
 type RepaymentPlan struct {
-	ID                 string             `json:"id"`
-	FinancingID        string             `json:"financing_id"`
-	BorrowerID         string             `json:"borrower_id"`
-	TotalAmount        decimal.Decimal    `json:"total_amount"`
-	PaidAmount         decimal.Decimal    `json:"paid_amount"`
-	RemainingAmount    decimal.Decimal    `json:"remaining_amount"`
-	RepaymentFrequency RepaymentFrequency `json:"repayment_frequency"`
-	TotalInstallments  int                `json:"total_installments"`
-	PaidInstallments   int                `json:"paid_installments"`
-	RemainingInstallments int             `json:"remaining_installments"`
-	NextPaymentAmount  decimal.Decimal    `json:"next_payment_amount"`
-	NextPaymentDate    time.Time          `json:"next_payment_date"`
-	Status             string             `json:"status"`
-	Installments       []RepaymentInstallment `json:"installments"`
-	CreatedAt          time.Time          `json:"created_at"`
-	UpdatedAt          time.Time          `json:"updated_at"`
+	ID                    string                 `json:"id"`
+	FinancingID           string                 `json:"financing_id"`
+	BorrowerID            string                 `json:"borrower_id"`
+	TotalAmount           decimal.Decimal        `json:"total_amount"`
+	PaidAmount            decimal.Decimal        `json:"paid_amount"`
+	RemainingAmount       decimal.Decimal        `json:"remaining_amount"`
+	RepaymentFrequency    RepaymentFrequency     `json:"repayment_frequency"`
+	TotalInstallments     int                    `json:"total_installments"`
+	PaidInstallments      int                    `json:"paid_installments"`
+	RemainingInstallments int                    `json:"remaining_installments"`
+	NextPaymentAmount     decimal.Decimal        `json:"next_payment_amount"`
+	NextPaymentDate       time.Time              `json:"next_payment_date"`
+	Status                string                 `json:"status"`
+	Installments          []RepaymentInstallment `json:"installments"`
+	CreatedAt             time.Time              `json:"created_at"`
+	UpdatedAt             time.Time              `json:"updated_at"`
 }
 
 type RepaymentInstallment struct {
-	ID                string          `json:"id"`
-	PlanID            string          `json:"plan_id"`
-	InstallmentNumber int             `json:"installment_number"`
-	DueDate           time.Time       `json:"due_date"`
-	PrincipalAmount   decimal.Decimal `json:"principal_amount"`
-	InterestAmount    decimal.Decimal `json:"interest_amount"`
-	FeeAmount         decimal.Decimal `json:"fee_amount"`
-	TotalAmount       decimal.Decimal `json:"total_amount"`
+	ID                 string          `json:"id"`
+	PlanID             string          `json:"plan_id"`
+	InstallmentNumber  int             `json:"installment_number"`
+	DueDate            time.Time       `json:"due_date"`
+	PrincipalAmount    decimal.Decimal `json:"principal_amount"`
+	InterestAmount     decimal.Decimal `json:"interest_amount"`
+	FeeAmount          decimal.Decimal `json:"fee_amount"`
+	TotalAmount        decimal.Decimal `json:"total_amount"`
 	RemainingPrincipal decimal.Decimal `json:"remaining_principal"`
-	Status            string          `json:"status"`
-	PaidDate          *time.Time      `json:"paid_date"`
-	PaidAmount        decimal.Decimal `json:"paid_amount"`
+	Status             string          `json:"status"`
+	PaidDate           *time.Time      `json:"paid_date"`
+	PaidAmount         decimal.Decimal `json:"paid_amount"`
 }
 
 func NewRepaymentPlan(financingID, borrowerID string, totalAmount decimal.Decimal, frequency RepaymentFrequency, installments int) *RepaymentPlan {
 	return &RepaymentPlan{
-		FinancingID:        financingID,
-		BorrowerID:         borrowerID,
-		TotalAmount:        totalAmount,
-		PaidAmount:         decimal.Zero,
-		RemainingAmount:    totalAmount,
-		RepaymentFrequency: frequency,
-		TotalInstallments:  installments,
-		PaidInstallments:   0,
+		FinancingID:           financingID,
+		BorrowerID:            borrowerID,
+		TotalAmount:           totalAmount,
+		PaidAmount:            decimal.Zero,
+		RemainingAmount:       totalAmount,
+		RepaymentFrequency:    frequency,
+		TotalInstallments:     installments,
+		PaidInstallments:      0,
 		RemainingInstallments: installments,
-		Status:             "ACTIVE",
-		Installments:       []RepaymentInstallment{},
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
+		Status:                "ACTIVE",
+		Installments:          []RepaymentInstallment{},
+		CreatedAt:             time.Now(),
+		UpdatedAt:             time.Now(),
 	}
 }
 
@@ -822,7 +819,7 @@ func (rp *RepaymentPlan) RecordPayment(installmentID string, amount decimal.Deci
 			break
 		}
 	}
-	
+
 	if rp.RemainingInstallments == 0 {
 		rp.Status = "COMPLETED"
 	}
@@ -841,18 +838,18 @@ func (rp *RepaymentPlan) MarkOverdue(installmentID string) {
 }
 
 type FinanceAccount struct {
-	ID                string          `json:"id"`
-	OwnerID           string          `json:"owner_id"`
-	OwnerName         string          `json:"owner_name"`
-	AccountType       string          `json:"account_type"`
-	Balance           decimal.Decimal `json:"balance"`
-	AvailableBalance  decimal.Decimal `json:"available_balance"`
-	Currency          string          `json:"currency"`
-	Status            string          `json:"status"`
-	CreditLineIDs     []string        `json:"credit_line_ids"`
-	FinancingIDs      []string        `json:"financing_ids"`
-	OpenedAt          time.Time       `json:"opened_at"`
-	UpdatedAt         time.Time       `json:"updated_at"`
+	ID               string          `json:"id"`
+	OwnerID          string          `json:"owner_id"`
+	OwnerName        string          `json:"owner_name"`
+	AccountType      string          `json:"account_type"`
+	Balance          decimal.Decimal `json:"balance"`
+	AvailableBalance decimal.Decimal `json:"available_balance"`
+	Currency         string          `json:"currency"`
+	Status           string          `json:"status"`
+	CreditLineIDs    []string        `json:"credit_line_ids"`
+	FinancingIDs     []string        `json:"financing_ids"`
+	OpenedAt         time.Time       `json:"opened_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
 func NewFinanceAccount(ownerID, ownerName, accountType, currency string) *FinanceAccount {

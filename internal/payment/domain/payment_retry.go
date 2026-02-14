@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 )
@@ -32,61 +33,61 @@ const (
 )
 
 type PaymentRetry struct {
-	ID              uint64        `json:"id"`
-	CreatedAt       time.Time     `json:"created_at"`
-	UpdatedAt       time.Time     `json:"updated_at"`
-	PaymentID       uint64        `json:"payment_id"`
-	PaymentNo       string        `json:"payment_no"`
-	OrderID         uint64        `json:"order_id"`
-	UserID          uint64        `json:"user_id"`
-	Amount          int64         `json:"amount"`
-	OriginalChannel string        `json:"original_channel"`
-	CurrentChannel  string        `json:"current_channel"`
-	Status          RetryStatus   `json:"status"`
-	AttemptCount    int           `json:"attempt_count"`
-	MaxAttempts     int           `json:"max_attempts"`
-	NextRetryAt     *time.Time    `json:"next_retry_at"`
-	LastAttemptAt   *time.Time    `json:"last_attempt_at"`
-	LastError       string        `json:"last_error"`
-	Strategy        RetryStrategy `json:"strategy"`
-	BaseDelayMs     int64         `json:"base_delay_ms"`
-	MaxDelayMs      int64         `json:"max_delay_ms"`
+	ID              uint64          `json:"id"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	PaymentID       uint64          `json:"payment_id"`
+	PaymentNo       string          `json:"payment_no"`
+	OrderID         uint64          `json:"order_id"`
+	UserID          uint64          `json:"user_id"`
+	Amount          int64           `json:"amount"`
+	OriginalChannel string          `json:"original_channel"`
+	CurrentChannel  string          `json:"current_channel"`
+	Status          RetryStatus     `json:"status"`
+	AttemptCount    int             `json:"attempt_count"`
+	MaxAttempts     int             `json:"max_attempts"`
+	NextRetryAt     *time.Time      `json:"next_retry_at"`
+	LastAttemptAt   *time.Time      `json:"last_attempt_at"`
+	LastError       string          `json:"last_error"`
+	Strategy        RetryStrategy   `json:"strategy"`
+	BaseDelayMs     int64           `json:"base_delay_ms"`
+	MaxDelayMs      int64           `json:"max_delay_ms"`
 	Attempts        []*RetryAttempt `json:"attempts"`
 }
 
 type RetryAttempt struct {
-	ID           uint64    `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	RetryID      uint64    `json:"retry_id"`
-	AttemptNum   int       `json:"attempt_num"`
-	Channel      string    `json:"channel"`
-	Amount       int64     `json:"amount"`
-	StartedAt    time.Time `json:"started_at"`
+	ID           uint64     `json:"id"`
+	CreatedAt    time.Time  `json:"created_at"`
+	RetryID      uint64     `json:"retry_id"`
+	AttemptNum   int        `json:"attempt_num"`
+	Channel      string     `json:"channel"`
+	Amount       int64      `json:"amount"`
+	StartedAt    time.Time  `json:"started_at"`
 	FinishedAt   *time.Time `json:"finished_at"`
-	Success      bool      `json:"success"`
-	ErrorCode    string    `json:"error_code"`
-	ErrorMessage string    `json:"error_message"`
-	LatencyMs    int64     `json:"latency_ms"`
+	Success      bool       `json:"success"`
+	ErrorCode    string     `json:"error_code"`
+	ErrorMessage string     `json:"error_message"`
+	LatencyMs    int64      `json:"latency_ms"`
 }
 
 type RetryConfig struct {
-	MaxAttempts       int
-	Strategy          RetryStrategy
-	BaseDelayMs       int64
-	MaxDelayMs        int64
-	JitterPercent     float64
-	RetryableErrors   []string
+	MaxAttempts        int
+	Strategy           RetryStrategy
+	BaseDelayMs        int64
+	MaxDelayMs         int64
+	JitterPercent      float64
+	RetryableErrors    []string
 	NonRetryableErrors []string
 }
 
 func DefaultRetryConfig() *RetryConfig {
 	return &RetryConfig{
-		MaxAttempts:       3,
-		Strategy:          RetryStrategyExponential,
-		BaseDelayMs:       1000,
-		MaxDelayMs:        60000,
-		JitterPercent:     0.1,
-		RetryableErrors:   []string{"TIMEOUT", "NETWORK_ERROR", "GATEWAY_BUSY", "INSUFFICIENT_FUNDS"},
+		MaxAttempts:        3,
+		Strategy:           RetryStrategyExponential,
+		BaseDelayMs:        1000,
+		MaxDelayMs:         60000,
+		JitterPercent:      0.1,
+		RetryableErrors:    []string{"TIMEOUT", "NETWORK_ERROR", "GATEWAY_BUSY", "INSUFFICIENT_FUNDS"},
 		NonRetryableErrors: []string{"INVALID_CARD", "CARD_DECLINED", "FRAUD_DETECTED"},
 	}
 }
@@ -128,15 +129,9 @@ func (r *PaymentRetry) CalculateNextRetryDelay() time.Duration {
 	case RetryStrategyFixed:
 		delayMs = r.BaseDelayMs
 	case RetryStrategyExponential:
-		delayMs = r.BaseDelayMs * int64(1<<(r.AttemptCount-1))
-		if delayMs > r.MaxDelayMs {
-			delayMs = r.MaxDelayMs
-		}
+		delayMs = min(r.BaseDelayMs*int64(1<<(r.AttemptCount-1)), r.MaxDelayMs)
 	case RetryStrategyLinear:
-		delayMs = r.BaseDelayMs * int64(r.AttemptCount)
-		if delayMs > r.MaxDelayMs {
-			delayMs = r.MaxDelayMs
-		}
+		delayMs = min(r.BaseDelayMs*int64(r.AttemptCount), r.MaxDelayMs)
 	default:
 		delayMs = r.BaseDelayMs
 	}
@@ -189,17 +184,10 @@ func (r *PaymentRetry) Abandon() {
 }
 
 func (r *PaymentRetry) IsRetryableError(errorCode string, config *RetryConfig) bool {
-	for _, nonRetryable := range config.NonRetryableErrors {
-		if errorCode == nonRetryable {
-			return false
-		}
+	if slices.Contains(config.NonRetryableErrors, errorCode) {
+		return false
 	}
-	for _, retryable := range config.RetryableErrors {
-		if errorCode == retryable {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(config.RetryableErrors, errorCode)
 }
 
 type RetryManager struct {

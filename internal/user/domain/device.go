@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	ErrDeviceNotFound      = errors.New("device not found")
-	ErrDeviceAlreadyBound  = errors.New("device already bound to another user")
-	ErrTooManyDevices      = errors.New("too many devices for this user")
-	ErrDeviceNotTrusted    = errors.New("device is not trusted")
-	ErrDeviceBanned        = errors.New("device is banned")
+	ErrDeviceNotFound     = errors.New("device not found")
+	ErrDeviceAlreadyBound = errors.New("device already bound to another user")
+	ErrTooManyDevices     = errors.New("too many devices for this user")
+	ErrDeviceNotTrusted   = errors.New("device is not trusted")
+	ErrDeviceBanned       = errors.New("device is banned")
 )
 
 type DeviceStatus int8
@@ -60,91 +60,91 @@ const (
 )
 
 type UserDevice struct {
-	ID             uint            `json:"id"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	UserID         uint64          `json:"user_id"`
-	DeviceID       string          `json:"device_id"`
-	DeviceName     string          `json:"device_name"`
-	DeviceType     DeviceType      `json:"device_type"`
-	OS             string          `json:"os"`
-	OSVersion      string          `json:"os_version"`
-	AppVersion     string          `json:"app_version"`
-	Brand          string          `json:"brand"`
-	Model          string          `json:"model"`
-	ScreenSize     string          `json:"screen_size"`
-	NetworkType    string          `json:"network_type"`
-	Carrier        string          `json:"carrier"`
-	IMEI           string          `json:"imei"`
-	IDFA           string          `json:"idfa"`
-	IDFV           string          `json:"idfv"`
-	AndroidID      string          `json:"android_id"`
-	PushToken      string          `json:"push_token"`
-	Status         DeviceStatus    `json:"status"`
-	TrustLevel     DeviceTrustLevel `json:"trust_level"`
-	LastLoginIP    string          `json:"last_login_ip"`
-	LastLoginAt    *time.Time      `json:"last_login_at"`
-	LastActiveAt   *time.Time      `json:"last_active_at"`
-	LoginCount     int64           `json:"login_count"`
-	IsActive       bool            `json:"is_active"`
-	IsPrimary      bool            `json:"is_primary"`
-	IsPushEnabled  bool            `json:"is_push_enabled"`
-	Fingerprint    string          `json:"fingerprint"`
-	Location       string          `json:"location"`
-	Timezone       string          `json:"timezone"`
-	Language       string          `json:"language"`
-	FirstLoginAt   *time.Time      `json:"first_login_at"`
-	VerifiedAt     *time.Time      `json:"verified_at"`
-	BannedAt       *time.Time      `json:"banned_at"`
-	BannedReason   string          `json:"banned_reason"`
+	ID            uint             `json:"id"`
+	CreatedAt     time.Time        `json:"created_at"`
+	UpdatedAt     time.Time        `json:"updated_at"`
+	UserID        uint64           `json:"user_id"`
+	DeviceID      string           `json:"device_id"`
+	DeviceName    string           `json:"device_name"`
+	DeviceType    DeviceType       `json:"device_type"`
+	OS            string           `json:"os"`
+	OSVersion     string           `json:"os_version"`
+	AppVersion    string           `json:"app_version"`
+	Brand         string           `json:"brand"`
+	Model         string           `json:"model"`
+	ScreenSize    string           `json:"screen_size"`
+	NetworkType   string           `json:"network_type"`
+	Carrier       string           `json:"carrier"`
+	IMEI          string           `json:"imei"`
+	IDFA          string           `json:"idfa"`
+	IDFV          string           `json:"idfv"`
+	AndroidID     string           `json:"android_id"`
+	PushToken     string           `json:"push_token"`
+	Status        DeviceStatus     `json:"status"`
+	TrustLevel    DeviceTrustLevel `json:"trust_level"`
+	LastLoginIP   string           `json:"last_login_ip"`
+	LastLoginAt   *time.Time       `json:"last_login_at"`
+	LastActiveAt  *time.Time       `json:"last_active_at"`
+	LoginCount    int64            `json:"login_count"`
+	IsActive      bool             `json:"is_active"`
+	IsPrimary     bool             `json:"is_primary"`
+	IsPushEnabled bool             `json:"is_push_enabled"`
+	Fingerprint   string           `json:"fingerprint"`
+	Location      string           `json:"location"`
+	Timezone      string           `json:"timezone"`
+	Language      string           `json:"language"`
+	FirstLoginAt  *time.Time       `json:"first_login_at"`
+	VerifiedAt    *time.Time       `json:"verified_at"`
+	BannedAt      *time.Time       `json:"banned_at"`
+	BannedReason  string           `json:"banned_reason"`
 }
 
 type DeviceLoginRecord struct {
-	ID           uint      `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UserID       uint64    `json:"user_id"`
-	DeviceID     string    `json:"device_id"`
-	LoginIP      string    `json:"login_ip"`
-	LoginAt      time.Time `json:"login_at"`
-	LoginType    string    `json:"login_type"`
-	LoginResult  string    `json:"login_result"`
-	FailReason   string    `json:"fail_reason"`
-	Location     string    `json:"location"`
-	Country      string    `json:"country"`
-	Province     string    `json:"province"`
-	City         string    `json:"city"`
-	ISP          string    `json:"isp"`
-	UserAgent    string    `json:"user_agent"`
-	RiskLevel    int8      `json:"risk_level"`
-	RiskTags     string    `json:"risk_tags"`
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UserID      uint64    `json:"user_id"`
+	DeviceID    string    `json:"device_id"`
+	LoginIP     string    `json:"login_ip"`
+	LoginAt     time.Time `json:"login_at"`
+	LoginType   string    `json:"login_type"`
+	LoginResult string    `json:"login_result"`
+	FailReason  string    `json:"fail_reason"`
+	Location    string    `json:"location"`
+	Country     string    `json:"country"`
+	Province    string    `json:"province"`
+	City        string    `json:"city"`
+	ISP         string    `json:"isp"`
+	UserAgent   string    `json:"user_agent"`
+	RiskLevel   int8      `json:"risk_level"`
+	RiskTags    string    `json:"risk_tags"`
 }
 
 type DeviceVerification struct {
-	ID           uint      `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UserID       uint64    `json:"user_id"`
-	DeviceID     string    `json:"device_id"`
-	VerifyType   string    `json:"verify_type"`
-	VerifyCode   string    `json:"verify_code"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	VerifiedAt   *time.Time `json:"verified_at"`
-	Attempts     int       `json:"attempts"`
-	MaxAttempts  int       `json:"max_attempts"`
+	ID          uint       `json:"id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UserID      uint64     `json:"user_id"`
+	DeviceID    string     `json:"device_id"`
+	VerifyType  string     `json:"verify_type"`
+	VerifyCode  string     `json:"verify_code"`
+	ExpiresAt   time.Time  `json:"expires_at"`
+	VerifiedAt  *time.Time `json:"verified_at"`
+	Attempts    int        `json:"attempts"`
+	MaxAttempts int        `json:"max_attempts"`
 }
 
 func NewUserDevice(userID uint64, deviceID string, deviceType DeviceType) *UserDevice {
 	now := time.Now()
 	return &UserDevice{
-		UserID:       userID,
-		DeviceID:     deviceID,
-		DeviceType:   deviceType,
-		Status:       DeviceStatusActive,
-		TrustLevel:   DeviceTrustLevelNone,
-		IsActive:     true,
+		UserID:        userID,
+		DeviceID:      deviceID,
+		DeviceType:    deviceType,
+		Status:        DeviceStatusActive,
+		TrustLevel:    DeviceTrustLevelNone,
+		IsActive:      true,
 		IsPushEnabled: true,
-		LoginCount:   0,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		LoginCount:    0,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 }
 
@@ -345,22 +345,22 @@ func (v *DeviceVerification) RemainingAttempts() int {
 }
 
 type DeviceRepository interface {
-	FindByID(ctx interface{}, id uint) (*UserDevice, error)
-	FindByDeviceID(ctx interface{}, deviceID string) (*UserDevice, error)
-	FindByUserID(ctx interface{}, userID uint64) ([]*UserDevice, error)
-	FindActiveByUserID(ctx interface{}, userID uint64) ([]*UserDevice, error)
-	FindPrimaryByUserID(ctx interface{}, userID uint64) (*UserDevice, error)
-	Save(ctx interface{}, device *UserDevice) error
-	Update(ctx interface{}, device *UserDevice) error
-	Delete(ctx interface{}, id uint) error
-	CountByUserID(ctx interface{}, userID uint64) (int64, error)
-	
-	SaveLoginRecord(ctx interface{}, record *DeviceLoginRecord) error
-	FindLoginRecords(ctx interface{}, userID uint64, limit, offset int) ([]*DeviceLoginRecord, error)
-	FindRecentLogins(ctx interface{}, userID uint64, duration time.Duration) ([]*DeviceLoginRecord, error)
-	
-	SaveVerification(ctx interface{}, verification *DeviceVerification) error
-	FindVerification(ctx interface{}, userID uint64, deviceID string) (*DeviceVerification, error)
+	FindByID(ctx any, id uint) (*UserDevice, error)
+	FindByDeviceID(ctx any, deviceID string) (*UserDevice, error)
+	FindByUserID(ctx any, userID uint64) ([]*UserDevice, error)
+	FindActiveByUserID(ctx any, userID uint64) ([]*UserDevice, error)
+	FindPrimaryByUserID(ctx any, userID uint64) (*UserDevice, error)
+	Save(ctx any, device *UserDevice) error
+	Update(ctx any, device *UserDevice) error
+	Delete(ctx any, id uint) error
+	CountByUserID(ctx any, userID uint64) (int64, error)
+
+	SaveLoginRecord(ctx any, record *DeviceLoginRecord) error
+	FindLoginRecords(ctx any, userID uint64, limit, offset int) ([]*DeviceLoginRecord, error)
+	FindRecentLogins(ctx any, userID uint64, duration time.Duration) ([]*DeviceLoginRecord, error)
+
+	SaveVerification(ctx any, verification *DeviceVerification) error
+	FindVerification(ctx any, userID uint64, deviceID string) (*DeviceVerification, error)
 }
 
 type DeviceSecurityService interface {

@@ -329,10 +329,7 @@ func (m *FIFOManager) AllocateFIFO(ctx context.Context, skuID, warehouseID uint6
 			continue
 		}
 
-		allocQty := available
-		if allocQty > remaining {
-			allocQty = remaining
-		}
+		allocQty := min(available, remaining)
 
 		allocations = append(allocations, &BatchAllocation{
 			Batch:    batch,

@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	ErrIdempotencyKeyNotFound    = errors.New("idempotency key not found")
-	ErrIdempotencyKeyExpired     = errors.New("idempotency key expired")
-	ErrDuplicateCallback         = errors.New("duplicate callback detected")
-	ErrCallbackProcessing        = errors.New("callback is processing")
-	ErrCallbackAlreadyProcessed  = errors.New("callback already processed")
-	ErrInvalidCallbackSignature  = errors.New("invalid callback signature")
+	ErrIdempotencyKeyNotFound   = errors.New("idempotency key not found")
+	ErrIdempotencyKeyExpired    = errors.New("idempotency key expired")
+	ErrDuplicateCallback        = errors.New("duplicate callback detected")
+	ErrCallbackProcessing       = errors.New("callback is processing")
+	ErrCallbackAlreadyProcessed = errors.New("callback already processed")
+	ErrInvalidCallbackSignature = errors.New("invalid callback signature")
 )
 
 type CallbackStatus int8
@@ -46,41 +46,41 @@ func (s CallbackStatus) String() string {
 }
 
 type IdempotencyKey struct {
-	ID           uint      `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	Key          string    `json:"key"`
-	KeyHash      string    `json:"key_hash"`
-	BusinessType string    `json:"business_type"`
-	BusinessID   uint64    `json:"business_id"`
+	ID           uint           `json:"id"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	Key          string         `json:"key"`
+	KeyHash      string         `json:"key_hash"`
+	BusinessType string         `json:"business_type"`
+	BusinessID   uint64         `json:"business_id"`
 	Status       CallbackStatus `json:"status"`
-	ResponseData string    `json:"response_data"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	ProcessedAt  *time.Time `json:"processed_at"`
-	Attempts     int       `json:"attempts"`
+	ResponseData string         `json:"response_data"`
+	ExpiresAt    time.Time      `json:"expires_at"`
+	ProcessedAt  *time.Time     `json:"processed_at"`
+	Attempts     int            `json:"attempts"`
 }
 
 type CallbackRecord struct {
-	ID              uint      `json:"id"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	CallbackNo      string    `json:"callback_no"`
-	IdempotencyKey  string    `json:"idempotency_key"`
-	Channel         string    `json:"channel"`
-	ChannelCallback string    `json:"channel_callback"`
-	BusinessType    string    `json:"business_type"`
-	BusinessID      uint64    `json:"business_id"`
+	ID              uint           `json:"id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	CallbackNo      string         `json:"callback_no"`
+	IdempotencyKey  string         `json:"idempotency_key"`
+	Channel         string         `json:"channel"`
+	ChannelCallback string         `json:"channel_callback"`
+	BusinessType    string         `json:"business_type"`
+	BusinessID      uint64         `json:"business_id"`
 	Status          CallbackStatus `json:"status"`
-	RawData         string    `json:"raw_data"`
-	ParsedData      string    `json:"parsed_data"`
-	Signature       string    `json:"signature"`
-	SignatureValid  bool      `json:"signature_valid"`
-	ProcessedAt     *time.Time `json:"processed_at"`
-	ProcessResult   string    `json:"process_result"`
-	ProcessError    string    `json:"process_error"`
-	ProcessDuration int64     `json:"process_duration"`
-	IPAddress       string    `json:"ip_address"`
-	UserAgent       string    `json:"user_agent"`
+	RawData         string         `json:"raw_data"`
+	ParsedData      string         `json:"parsed_data"`
+	Signature       string         `json:"signature"`
+	SignatureValid  bool           `json:"signature_valid"`
+	ProcessedAt     *time.Time     `json:"processed_at"`
+	ProcessResult   string         `json:"process_result"`
+	ProcessError    string         `json:"process_error"`
+	ProcessDuration int64          `json:"process_duration"`
+	IPAddress       string         `json:"ip_address"`
+	UserAgent       string         `json:"user_agent"`
 }
 
 type IdempotencyConfig struct {
@@ -118,14 +118,14 @@ func NewIdempotencyKey(key, businessType string, businessID uint64, ttl time.Dur
 
 func NewCallbackRecord(callbackNo, idempotencyKey, channel, businessType string, businessID uint64, rawData string) *CallbackRecord {
 	return &CallbackRecord{
-		CallbackNo:      callbackNo,
-		IdempotencyKey:  idempotencyKey,
-		Channel:         channel,
-		BusinessType:    businessType,
-		BusinessID:      businessID,
-		Status:          CallbackStatusPending,
-		RawData:         rawData,
-		SignatureValid:  false,
+		CallbackNo:     callbackNo,
+		IdempotencyKey: idempotencyKey,
+		Channel:        channel,
+		BusinessType:   businessType,
+		BusinessID:     businessID,
+		Status:         CallbackStatusPending,
+		RawData:        rawData,
+		SignatureValid: false,
 	}
 }
 
@@ -367,7 +367,7 @@ func (h *CallbackHandler) Handle(ctx context.Context, callback *CallbackRecord) 
 
 func (h *CallbackHandler) HandleWithRetry(ctx context.Context, callback *CallbackRecord, maxRetries int) (string, error) {
 	var lastErr error
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		result, err := h.Handle(ctx, callback)
 		if err == nil {
 			return result, nil

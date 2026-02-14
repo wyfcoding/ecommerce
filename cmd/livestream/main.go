@@ -50,8 +50,8 @@ func main() {
 	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
 
 	repo := infrastructure.NewGormLivestreamRepository(db.DB, rdb)
-	cmdSvc := application.NewLivestreamCommandService(repo, nil, logger)
-	querySvc := application.NewLivestreamQueryService(repo, logger)
+	cmdSvc := application.NewLivestreamCommandService(repo, nil, logger.Logger)
+	querySvc := application.NewLivestreamQueryService(repo, logger.Logger)
 	app := application.NewLivestreamApplicationService(cmdSvc, querySvc)
 	handler := interfaces.NewLivestreamHandler(app)
 

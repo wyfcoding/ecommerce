@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/domain"
@@ -24,7 +24,7 @@ func NewCrossBorderService(
 	customsGateway domain.CustomsGatewayService,
 	docStorage domain.DocumentStorageService,
 	notification domain.NotificationService,
-	logger interface{},
+	logger any,
 ) *CrossBorderService {
 	lg := getLogger(logger)
 
@@ -121,15 +121,9 @@ func (s *CrossBorderService) ListDeclarations(ctx context.Context, page, pageSiz
 	return s.querySvc.ListDeclarations(ctx, page, pageSize, status, userID)
 }
 
-type logger interface {
-	Info(msg string, args ...any)
-	Warn(msg string, args ...any)
-	Error(msg string, args ...any)
-}
-
-func getLogger(l interface{}) *log.Logger {
-	if lg, ok := l.(*log.Logger); ok {
+func getLogger(l any) *slog.Logger {
+	if lg, ok := l.(*slog.Logger); ok && lg != nil {
 		return lg
 	}
-	return log.Default()
+	return slog.Default()
 }

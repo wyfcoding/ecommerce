@@ -33,119 +33,119 @@ func NewAliyunOCRAdapter(accessKeyID, accessKeySecret, endpoint string) *AliyunO
 
 func (a *AliyunOCRAdapter) RecognizeIDCard(ctx context.Context, imageData []byte, side domain.DocumentSide) (*domain.IDDocumentInfo, error) {
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
-	
+
 	sideStr := "face"
 	if side == domain.DocumentSideBack {
 		sideStr = "back"
 	}
-	
-	reqBody := map[string]interface{}{
-		"image":     base64Image,
-		"side":      sideStr,
-		"configure": map[string]interface{}{
+
+	reqBody := map[string]any{
+		"image": base64Image,
+		"side":  sideStr,
+		"configure": map[string]any{
 			"side": "face",
 		},
 	}
-	
+
 	result, err := a.callOCRAPI(ctx, "/ocr/idcard", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return a.parseIDCardResult(result, side), nil
 }
 
 func (a *AliyunOCRAdapter) RecognizePassport(ctx context.Context, imageData []byte) (*domain.IDDocumentInfo, error) {
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
-	
-	reqBody := map[string]interface{}{
+
+	reqBody := map[string]any{
 		"image": base64Image,
 	}
-	
+
 	result, err := a.callOCRAPI(ctx, "/ocr/passport", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return a.parsePassportResult(result), nil
 }
 
 func (a *AliyunOCRAdapter) RecognizeDriversLicense(ctx context.Context, imageData []byte) (*domain.IDDocumentInfo, error) {
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
-	
-	reqBody := map[string]interface{}{
+
+	reqBody := map[string]any{
 		"image": base64Image,
 	}
-	
+
 	result, err := a.callOCRAPI(ctx, "/ocr/driver-license", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return a.parseDriversLicenseResult(result), nil
 }
 
 func (a *AliyunOCRAdapter) RecognizeBusinessLicense(ctx context.Context, imageData []byte) (*domain.IDDocumentInfo, error) {
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
-	
-	reqBody := map[string]interface{}{
+
+	reqBody := map[string]any{
 		"image": base64Image,
 	}
-	
+
 	result, err := a.callOCRAPI(ctx, "/ocr/business-license", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return a.parseBusinessLicenseResult(result), nil
 }
 
-func (a *AliyunOCRAdapter) callOCRAPI(ctx context.Context, path string, body interface{}) (map[string]interface{}, error) {
+func (a *AliyunOCRAdapter) callOCRAPI(ctx context.Context, path string, body any) (map[string]any, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	
+
 	url := fmt.Sprintf("%s%s", a.endpoint, path)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("APPCODE %s", a.accessKeyID))
-	
+
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call OCR API: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("OCR API returned error: %s", string(respBody))
 	}
-	
-	var result map[string]interface{}
+
+	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	return result, nil
 }
 
-func (a *AliyunOCRAdapter) parseIDCardResult(result map[string]interface{}, side domain.DocumentSide) *domain.IDDocumentInfo {
+func (a *AliyunOCRAdapter) parseIDCardResult(result map[string]any, side domain.DocumentSide) *domain.IDDocumentInfo {
 	info := &domain.IDDocumentInfo{}
-	
-	data, ok := result["data"].(map[string]interface{})
+
+	data, ok := result["data"].(map[string]any)
 	if !ok {
 		return info
 	}
-	
+
 	if side == domain.DocumentSideFront {
 		if name, ok := data["name"].(string); ok {
 			info.Name = name
@@ -182,24 +182,24 @@ func (a *AliyunOCRAdapter) parseIDCardResult(result map[string]interface{}, side
 			}
 		}
 	}
-	
+
 	if confidence, ok := data["confidence"].(float64); ok {
 		info.ConfidenceScore = confidence
 	} else {
 		info.ConfidenceScore = 0.95
 	}
-	
+
 	return info
 }
 
-func (a *AliyunOCRAdapter) parsePassportResult(result map[string]interface{}) *domain.IDDocumentInfo {
+func (a *AliyunOCRAdapter) parsePassportResult(result map[string]any) *domain.IDDocumentInfo {
 	info := &domain.IDDocumentInfo{}
-	
-	data, ok := result["data"].(map[string]interface{})
+
+	data, ok := result["data"].(map[string]any)
 	if !ok {
 		return info
 	}
-	
+
 	if name, ok := data["name"].(string); ok {
 		info.Name = name
 	}
@@ -222,19 +222,19 @@ func (a *AliyunOCRAdapter) parsePassportResult(result map[string]interface{}) *d
 			info.ExpiryDate = &t
 		}
 	}
-	
+
 	info.ConfidenceScore = 0.90
 	return info
 }
 
-func (a *AliyunOCRAdapter) parseDriversLicenseResult(result map[string]interface{}) *domain.IDDocumentInfo {
+func (a *AliyunOCRAdapter) parseDriversLicenseResult(result map[string]any) *domain.IDDocumentInfo {
 	info := &domain.IDDocumentInfo{}
-	
-	data, ok := result["data"].(map[string]interface{})
+
+	data, ok := result["data"].(map[string]any)
 	if !ok {
 		return info
 	}
-	
+
 	if name, ok := data["name"].(string); ok {
 		info.Name = name
 	}
@@ -255,19 +255,19 @@ func (a *AliyunOCRAdapter) parseDriversLicenseResult(result map[string]interface
 			info.BirthDate = &t
 		}
 	}
-	
+
 	info.ConfidenceScore = 0.90
 	return info
 }
 
-func (a *AliyunOCRAdapter) parseBusinessLicenseResult(result map[string]interface{}) *domain.IDDocumentInfo {
+func (a *AliyunOCRAdapter) parseBusinessLicenseResult(result map[string]any) *domain.IDDocumentInfo {
 	info := &domain.IDDocumentInfo{}
-	
-	data, ok := result["data"].(map[string]interface{})
+
+	data, ok := result["data"].(map[string]any)
 	if !ok {
 		return info
 	}
-	
+
 	if name, ok := data["name"].(string); ok {
 		info.Name = name
 	}
@@ -282,7 +282,7 @@ func (a *AliyunOCRAdapter) parseBusinessLicenseResult(result map[string]interfac
 			info.IssueDate = &t
 		}
 	}
-	
+
 	info.ConfidenceScore = 0.90
 	return info
 }

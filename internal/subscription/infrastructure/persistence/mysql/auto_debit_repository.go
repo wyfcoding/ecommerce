@@ -12,25 +12,25 @@ import (
 // AutoDebitRecordModel 自动扣款记录模型
 type AutoDebitRecordModel struct {
 	gorm.Model
-	RecordID       string                  `gorm:"column:record_id;type:varchar(64);uniqueIndex;not null;comment:扣款记录ID"`
-	SubscriptionID uint                    `gorm:"column:subscription_id;not null;index;comment:订阅ID"`
-	Amount         uint64                  `gorm:"column:amount;not null;comment:扣款金额(分)"`
-	AttemptCount   int                     `gorm:"column:attempt_count;not null;default:0;comment:尝试次数"`
-	LastAttempt    time.Time               `gorm:"column:last_attempt;not null;comment:最后尝试时间"`
-	Status         domain.DebitStatus      `gorm:"column:status;type:varchar(20);not null;comment:扣款状态"`
-	ErrorMessage   string                  `gorm:"column:error_message;type:varchar(512);comment:错误信息"`
+	RecordID       string             `gorm:"column:record_id;type:varchar(64);uniqueIndex;not null;comment:扣款记录ID"`
+	SubscriptionID uint               `gorm:"column:subscription_id;not null;index;comment:订阅ID"`
+	Amount         uint64             `gorm:"column:amount;not null;comment:扣款金额(分)"`
+	AttemptCount   int                `gorm:"column:attempt_count;not null;default:0;comment:尝试次数"`
+	LastAttempt    time.Time          `gorm:"column:last_attempt;not null;comment:最后尝试时间"`
+	Status         domain.DebitStatus `gorm:"column:status;type:varchar(20);not null;comment:扣款状态"`
+	ErrorMessage   string             `gorm:"column:error_message;type:varchar(512);comment:错误信息"`
 }
 
 // RenewalReminderModel 续费提醒模型
 type RenewalReminderModel struct {
 	gorm.Model
-	SubscriptionID uint                    `gorm:"column:subscription_id;not null;index;comment:订阅ID"`
-	UserID         uint64                  `gorm:"column:user_id;not null;index;comment:用户ID"`
-	PlanName       string                  `gorm:"column:plan_name;type:varchar(128);comment:计划名称"`
-	EndDate        time.Time               `gorm:"column:end_date;not null;comment:结束时间"`
-	DaysRemaining  int                     `gorm:"column:days_remaining;not null;comment:剩余天数"`
-	ReminderType   domain.ReminderType     `gorm:"column:reminder_type;type:varchar(20);not null;comment:提醒类型"`
-	SentAt         time.Time               `gorm:"column:sent_at;not null;comment:发送时间"`
+	SubscriptionID uint                `gorm:"column:subscription_id;not null;index;comment:订阅ID"`
+	UserID         uint64              `gorm:"column:user_id;not null;index;comment:用户ID"`
+	PlanName       string              `gorm:"column:plan_name;type:varchar(128);comment:计划名称"`
+	EndDate        time.Time           `gorm:"column:end_date;not null;comment:结束时间"`
+	DaysRemaining  int                 `gorm:"column:days_remaining;not null;comment:剩余天数"`
+	ReminderType   domain.ReminderType `gorm:"column:reminder_type;type:varchar(20);not null;comment:提醒类型"`
+	SentAt         time.Time           `gorm:"column:sent_at;not null;comment:发送时间"`
 }
 
 // ReminderSentLogModel 提醒发送日志模型
@@ -41,9 +41,9 @@ type ReminderSentLogModel struct {
 	SentAt         time.Time           `gorm:"column:sent_at;not null;comment:发送时间"`
 }
 
-func (AutoDebitRecordModel) TableName() string    { return "auto_debit_records" }
-func (RenewalReminderModel) TableName() string    { return "renewal_reminders" }
-func (ReminderSentLogModel) TableName() string    { return "reminder_sent_logs" }
+func (AutoDebitRecordModel) TableName() string { return "auto_debit_records" }
+func (RenewalReminderModel) TableName() string { return "renewal_reminders" }
+func (ReminderSentLogModel) TableName() string { return "reminder_sent_logs" }
 
 // AutoDebitRepository 自动扣款仓储实现
 type AutoDebitRepository struct {
@@ -77,7 +77,7 @@ func (r *AutoDebitRepository) GetBySubscriptionID(ctx context.Context, subscript
 		Find(&models).Error; err != nil {
 		return nil, err
 	}
-	
+
 	records := make([]*domain.AutoDebitRecord, len(models))
 	for i, m := range models {
 		records[i] = toAutoDebitRecord(&m)
@@ -94,7 +94,7 @@ func (r *AutoDebitRepository) GetPendingRecords(ctx context.Context, limit int) 
 		Find(&models).Error; err != nil {
 		return nil, err
 	}
-	
+
 	records := make([]*domain.AutoDebitRecord, len(models))
 	for i, m := range models {
 		records[i] = toAutoDebitRecord(&m)
@@ -106,8 +106,8 @@ func (r *AutoDebitRepository) UpdateStatus(ctx context.Context, recordID string,
 	return r.db.WithContext(ctx).
 		Model(&AutoDebitRecordModel{}).
 		Where("record_id = ?", recordID).
-		Updates(map[string]interface{}{
-			"status":       status,
+		Updates(map[string]any{
+			"status":        status,
 			"error_message": errorMsg,
 		}).Error
 }

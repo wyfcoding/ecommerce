@@ -132,10 +132,7 @@ func (h *GRPCHandler) GetByUserID(ctx context.Context, req *merchantv1.GetByUser
 }
 
 func (h *GRPCHandler) List(ctx context.Context, req *merchantv1.ListMerchantsRequest) (*merchantv1.ListMerchantsResponse, error) {
-	page := int(req.GetPage())
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.GetPage()), 1)
 	pageSize := int(req.GetPageSize())
 	if pageSize < 1 {
 		pageSize = 20
@@ -206,20 +203,20 @@ func (h *GRPCHandler) UpdateSettings(ctx context.Context, req *merchantv1.Update
 	cmd := application.UpdateSettingsCommand{
 		MerchantID: uint(req.GetMerchantId()),
 		Settings: &application.SettingsDTO{
-			AutoConfirmOrder:       boolPtr(settings.GetAutoConfirmOrder()),
-			AutoConfirmDays:        int32Ptr(settings.GetAutoConfirmDays()),
-			EnableCOD:              boolPtr(settings.GetEnableCod()),
-			EnableInvoice:          boolPtr(settings.GetEnableInvoice()),
+			AutoConfirmOrder:       new(settings.GetAutoConfirmOrder()),
+			AutoConfirmDays:        new(settings.GetAutoConfirmDays()),
+			EnableCOD:              new(settings.GetEnableCod()),
+			EnableInvoice:          new(settings.GetEnableInvoice()),
 			SupportedPayments:      settings.GetSupportedPayments(),
-			FreeShippingThreshold:  int64Ptr(settings.GetShippingSettings().GetFreeShippingThreshold()),
-			DefaultShippingFee:     int64Ptr(settings.GetShippingSettings().GetDefaultShippingFee()),
-			EnableSameDayDelivery:  boolPtr(settings.GetShippingSettings().GetEnableSameDayDelivery()),
-			OrderNotification:      boolPtr(settings.GetNotificationSettings().GetOrderNotification()),
-			StockAlert:             boolPtr(settings.GetNotificationSettings().GetStockAlert()),
-			ReviewNotification:     boolPtr(settings.GetNotificationSettings().GetReviewNotification()),
-			SettlementNotification: boolPtr(settings.GetNotificationSettings().GetSettlementNotification()),
-			NotificationPhone:      stringPtr(settings.GetNotificationSettings().GetNotificationPhone()),
-			NotificationEmail:      stringPtr(settings.GetNotificationSettings().GetNotificationEmail()),
+			FreeShippingThreshold:  new(settings.GetShippingSettings().GetFreeShippingThreshold()),
+			DefaultShippingFee:     new(settings.GetShippingSettings().GetDefaultShippingFee()),
+			EnableSameDayDelivery:  new(settings.GetShippingSettings().GetEnableSameDayDelivery()),
+			OrderNotification:      new(settings.GetNotificationSettings().GetOrderNotification()),
+			StockAlert:             new(settings.GetNotificationSettings().GetStockAlert()),
+			ReviewNotification:     new(settings.GetNotificationSettings().GetReviewNotification()),
+			SettlementNotification: new(settings.GetNotificationSettings().GetSettlementNotification()),
+			NotificationPhone:      new(settings.GetNotificationSettings().GetNotificationPhone()),
+			NotificationEmail:      new(settings.GetNotificationSettings().GetNotificationEmail()),
 		},
 	}
 
@@ -319,10 +316,7 @@ func (h *GRPCHandler) GetStore(ctx context.Context, req *merchantv1.GetStoreRequ
 }
 
 func (h *GRPCHandler) ListStores(ctx context.Context, req *merchantv1.ListStoresRequest) (*merchantv1.ListStoresResponse, error) {
-	page := int(req.GetPage())
-	if page < 1 {
-		page = 1
-	}
+	page := max(int(req.GetPage()), 1)
 	pageSize := int(req.GetPageSize())
 	if pageSize < 1 {
 		pageSize = 20
@@ -408,14 +402,14 @@ func toProtoSettings(settings *domain.MerchantSettings) *merchantv1.MerchantSett
 	}
 
 	return &merchantv1.MerchantSettings{
-		MerchantId:       uint64(settings.MerchantID),
-		AutoConfirmOrder: settings.AutoConfirmOrder,
-		AutoConfirmDays:  settings.AutoConfirmDays,
-		EnableCod:        settings.EnableCOD,
-		EnableInvoice:    settings.EnableInvoice,
+		MerchantId:        uint64(settings.MerchantID),
+		AutoConfirmOrder:  settings.AutoConfirmOrder,
+		AutoConfirmDays:   settings.AutoConfirmDays,
+		EnableCod:         settings.EnableCOD,
+		EnableInvoice:     settings.EnableInvoice,
 		SupportedPayments: supportedPayments,
 		ShippingSettings: &merchantv1.ShippingSettings{
-			SupportedCarrierIds:  []uint64{},
+			SupportedCarrierIds:   []uint64{},
 			FreeShippingThreshold: settings.FreeShippingThreshold,
 			DefaultShippingFee:    settings.DefaultShippingFee,
 			EnableSameDayDelivery: settings.EnableSameDayDelivery,
@@ -473,7 +467,14 @@ func decodeCategories(raw string) ([]string, error) {
 	return categories, nil
 }
 
-func boolPtr(v bool) *bool       { return &v }
-func int32Ptr(v int32) *int32    { return &v }
-func int64Ptr(v int64) *int64    { return &v }
-func stringPtr(v string) *string { return &v }
+//go:fix inline
+func boolPtr(v bool) *bool { return new(v) }
+
+//go:fix inline
+func int32Ptr(v int32) *int32 { return new(v) }
+
+//go:fix inline
+func int64Ptr(v int64) *int64 { return new(v) }
+
+//go:fix inline
+func stringPtr(v string) *string { return new(v) }

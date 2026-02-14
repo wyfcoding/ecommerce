@@ -44,8 +44,8 @@ func (h *WebsocketHandler) HandleWebsocket(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
 		authHeader := c.GetHeader("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			token = strings.TrimPrefix(authHeader, "Bearer ")
+		if after, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
+			token = after
 		}
 	}
 

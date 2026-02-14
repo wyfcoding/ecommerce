@@ -117,10 +117,7 @@ func (r *GormFulfillmentRepository) List(ctx context.Context, filter *domain.Ful
 	}
 
 	var fulfillments []*domain.Fulfillment
-	offset := (filter.Page - 1) * filter.PageSize
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((filter.Page-1)*filter.PageSize, 0)
 
 	if err := query.
 		Preload("Items").

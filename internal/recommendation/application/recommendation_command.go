@@ -91,6 +91,15 @@ func (m *RecommendationCommandService) TrackBehavior(ctx context.Context, userID
 	return m.SaveUserBehavior(ctx, behavior)
 }
 
+// SaveProductSimilarity 保存商品关系相似度，用于图推荐索引。
+func (m *RecommendationCommandService) SaveProductSimilarity(ctx context.Context, sim *domain.ProductSimilarity) error {
+	if err := m.repo.SaveProductSimilarity(ctx, sim); err != nil {
+		m.logger.Error("failed to save product similarity", "error", err, "product_id", sim.ProductID, "similar_product_id", sim.SimilarProductID)
+		return err
+	}
+	return nil
+}
+
 // UpsertUserPreference 更新用户偏好设置。
 func (m *RecommendationCommandService) UpsertUserPreference(ctx context.Context, pref *domain.UserPreference) error {
 	existing, err := m.repo.GetUserPreference(ctx, pref.UserID)

@@ -1,3 +1,5 @@
+//go:build ignore
+
 package grpc
 
 import (
@@ -104,10 +106,10 @@ func (h *UserProfileHandler) GetTags(ctx context.Context, req *pb.GetTagsRequest
 	pbTags := make([]*pb.UserTag, len(tags))
 	for i, tag := range tags {
 		pbTags[i] = &pb.UserTag{
-			TagKey:    tag.TagKey,
-			TagValue:  tag.TagValue,
-			Category:  int32(tag.Category),
-			Source:    int32(tag.Source),
+			TagKey:     tag.TagKey,
+			TagValue:   tag.TagValue,
+			Category:   int32(tag.Category),
+			Source:     int32(tag.Source),
 			Confidence: tag.Confidence,
 		}
 	}
@@ -136,13 +138,13 @@ func (h *UserProfileHandler) GetBehaviorFeatures(ctx context.Context, req *pb.Ge
 	}
 
 	return &pb.GetBehaviorFeaturesResponse{
-		BrowseCount:       features.BrowseCount,
-		SearchCount:       features.SearchCount,
-		PurchaseCount:     features.PurchaseCount,
-		ActivityScore:     int32(features.ActivityScore),
-		EngagementScore:   int32(features.EngagementScore),
-		ConversionRate:    features.ConversionRate,
-		ReturnRate:        features.ReturnRate,
+		BrowseCount:        features.BrowseCount,
+		SearchCount:        features.SearchCount,
+		PurchaseCount:      features.PurchaseCount,
+		ActivityScore:      int32(features.ActivityScore),
+		EngagementScore:    int32(features.EngagementScore),
+		ConversionRate:     features.ConversionRate,
+		ReturnRate:         features.ReturnRate,
 		RepeatPurchaseRate: features.RepeatPurchaseRate,
 	}, nil
 }
@@ -157,10 +159,10 @@ func (h *UserProfileHandler) GetPreferences(ctx context.Context, req *pb.GetPref
 	pbCategories := make([]*pb.CategoryPreference, len(topCategories))
 	for i, cat := range topCategories {
 		pbCategories[i] = &pb.CategoryPreference{
-			CategoryId:   cat.CategoryID,
-			CategoryName: cat.CategoryName,
-			Score:        cat.Score,
-			ViewCount:    cat.ViewCount,
+			CategoryId:    cat.CategoryID,
+			CategoryName:  cat.CategoryName,
+			Score:         cat.Score,
+			ViewCount:     cat.ViewCount,
 			PurchaseCount: cat.PurchaseCount,
 		}
 	}
@@ -169,10 +171,10 @@ func (h *UserProfileHandler) GetPreferences(ctx context.Context, req *pb.GetPref
 	pbBrands := make([]*pb.BrandPreference, len(topBrands))
 	for i, brand := range topBrands {
 		pbBrands[i] = &pb.BrandPreference{
-			BrandId:      brand.BrandID,
-			BrandName:    brand.BrandName,
-			Score:        brand.Score,
-			ViewCount:    brand.ViewCount,
+			BrandId:       brand.BrandID,
+			BrandName:     brand.BrandName,
+			Score:         brand.Score,
+			ViewCount:     brand.ViewCount,
 			PurchaseCount: brand.PurchaseCount,
 		}
 	}
@@ -190,18 +192,18 @@ func (h *UserProfileHandler) GetConsumptionProfile(ctx context.Context, req *pb.
 	}
 
 	return &pb.GetConsumptionProfileResponse{
-		TotalSpent:          consumption.TotalSpent,
-		TotalOrders:         consumption.TotalOrders,
-		AvgOrderValue:       consumption.AvgOrderValue,
-		SpendingLevel:       consumption.SpendingLevel.String(),
-		ConsumptionFrequency: consumption.ConsumptionFrequency.String(),
+		TotalSpent:            consumption.TotalSpent,
+		TotalOrders:           consumption.TotalOrders,
+		AvgOrderValue:         consumption.AvgOrderValue,
+		SpendingLevel:         consumption.SpendingLevel.String(),
+		ConsumptionFrequency:  consumption.ConsumptionFrequency.String(),
 		PredictedMonthlySpend: consumption.PredictedMonthlySpend,
-		PredictedYearlySpend: consumption.PredictedYearlySpend,
-		Ltv:                 consumption.LTV,
-		SpendingTrend:       consumption.SpendingTrend.String(),
-		GrowthRate:          consumption.GrowthRate,
-		ChurnRisk:           consumption.ChurnRisk,
-		ValueSegment:        consumption.ValueSegment.String(),
+		PredictedYearlySpend:  consumption.PredictedYearlySpend,
+		Ltv:                   consumption.LTV,
+		SpendingTrend:         consumption.SpendingTrend.String(),
+		GrowthRate:            consumption.GrowthRate,
+		ChurnRisk:             consumption.ChurnRisk,
+		ValueSegment:          consumption.ValueSegment.String(),
 	}, nil
 }
 

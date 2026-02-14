@@ -13,12 +13,12 @@ import (
 
 // KYCReadRepository KYC读模型仓储
 type KYCReadRepository struct {
-	client *redis.Client
+	client redis.UniversalClient
 	ttl    time.Duration
 }
 
 // NewKYCReadRepository 创建KYC读模型仓储
-func NewKYCReadRepository(client *redis.Client, ttl time.Duration) domain.KYCReadRepository {
+func NewKYCReadRepository(client redis.UniversalClient, ttl time.Duration) domain.KYCReadRepository {
 	return &KYCReadRepository{
 		client: client,
 		ttl:    ttl,

@@ -637,5 +637,5 @@ type PromotionRuleRepository interface {
 	FindActiveMemberPrices(ctx context.Context) ([]*MemberPriceRule, error)
 	FindActiveNewUserPrices(ctx context.Context) ([]*NewUserPriceRule, error)
 
-	FindByScope(ctx context.Context, ruleType PromotionRuleType, scopeType string, scopeIDs []uint64) ([]interface{}, error)
+	FindByScope(ctx context.Context, ruleType PromotionRuleType, scopeType string, scopeIDs []uint64) ([]any, error)
 }

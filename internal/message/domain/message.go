@@ -6,24 +6,24 @@ import (
 )
 
 var (
-	ErrMessageNotFound      = errors.New("message not found")
-	ErrMessageAlreadyRead   = errors.New("message already read")
+	ErrMessageNotFound       = errors.New("message not found")
+	ErrMessageAlreadyRead    = errors.New("message already read")
 	ErrMessageAlreadyDeleted = errors.New("message already deleted")
-	ErrTemplateNotFound     = errors.New("template not found")
-	ErrInvalidTemplate      = errors.New("invalid template")
+	ErrTemplateNotFound      = errors.New("template not found")
+	ErrInvalidTemplate       = errors.New("invalid template")
 )
 
 type MessageType string
 
 const (
-	MessageTypeSystem      MessageType = "SYSTEM"
-	MessageTypeOrder       MessageType = "ORDER"
-	MessageTypePayment     MessageType = "PAYMENT"
-	MessageTypePromotion   MessageType = "PROMOTION"
-	MessageTypeActivity    MessageType = "ACTIVITY"
+	MessageTypeSystem       MessageType = "SYSTEM"
+	MessageTypeOrder        MessageType = "ORDER"
+	MessageTypePayment      MessageType = "PAYMENT"
+	MessageTypePromotion    MessageType = "PROMOTION"
+	MessageTypeActivity     MessageType = "ACTIVITY"
 	MessageTypeNotification MessageType = "NOTIFICATION"
 	MessageTypeAnnouncement MessageType = "ANNOUNCEMENT"
-	MessageTypeAlert       MessageType = "ALERT"
+	MessageTypeAlert        MessageType = "ALERT"
 )
 
 type MessageStatus string
@@ -45,79 +45,79 @@ const (
 )
 
 type UserMessage struct {
-	ID           uint           `json:"id"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	UserID       uint64         `json:"user_id"`
-	MessageID    uint64         `json:"message_id"`
-	Type         MessageType    `json:"type"`
-	Title        string         `json:"title"`
-	Content      string         `json:"content"`
-	Summary      string         `json:"summary"`
-	Status       MessageStatus  `json:"status"`
-	Priority     MessagePriority `json:"priority"`
-	Category     string         `json:"category"`
-	SubCategory  string         `json:"sub_category"`
-	SenderID     uint64         `json:"sender_id"`
-	SenderName   string         `json:"sender_name"`
-	SenderAvatar string         `json:"sender_avatar"`
-	Link         string         `json:"link"`
-	ImageURL     string         `json:"image_url"`
+	ID           uint                 `json:"id"`
+	CreatedAt    time.Time            `json:"created_at"`
+	UpdatedAt    time.Time            `json:"updated_at"`
+	UserID       uint64               `json:"user_id"`
+	MessageID    uint64               `json:"message_id"`
+	Type         MessageType          `json:"type"`
+	Title        string               `json:"title"`
+	Content      string               `json:"content"`
+	Summary      string               `json:"summary"`
+	Status       MessageStatus        `json:"status"`
+	Priority     MessagePriority      `json:"priority"`
+	Category     string               `json:"category"`
+	SubCategory  string               `json:"sub_category"`
+	SenderID     uint64               `json:"sender_id"`
+	SenderName   string               `json:"sender_name"`
+	SenderAvatar string               `json:"sender_avatar"`
+	Link         string               `json:"link"`
+	ImageURL     string               `json:"image_url"`
 	Attachments  []*MessageAttachment `json:"attachments"`
-	ExtraData    string         `json:"extra_data"`
-	ReadAt       *time.Time     `json:"read_at"`
-	DeletedAt    *time.Time     `json:"deleted_at"`
-	ArchivedAt   *time.Time     `json:"archived_at"`
-	ExpiresAt    *time.Time     `json:"expires_at"`
-	PushedAt     *time.Time     `json:"pushed_at"`
-	PushStatus   string         `json:"push_status"`
+	ExtraData    string               `json:"extra_data"`
+	ReadAt       *time.Time           `json:"read_at"`
+	DeletedAt    *time.Time           `json:"deleted_at"`
+	ArchivedAt   *time.Time           `json:"archived_at"`
+	ExpiresAt    *time.Time           `json:"expires_at"`
+	PushedAt     *time.Time           `json:"pushed_at"`
+	PushStatus   string               `json:"push_status"`
 }
 
 type MessageAttachment struct {
-	ID         uint      `json:"id"`
-	MessageID  uint      `json:"message_id"`
-	Name       string    `json:"name"`
-	URL        string    `json:"url"`
-	Size       int64     `json:"size"`
-	Type       string    `json:"type"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID        uint      `json:"id"`
+	MessageID uint      `json:"message_id"`
+	Name      string    `json:"name"`
+	URL       string    `json:"url"`
+	Size      int64     `json:"size"`
+	Type      string    `json:"type"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type MessageTemplate struct {
-	ID          uint      `json:"id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Code        string    `json:"code"`
-	Name        string    `json:"name"`
+	ID          uint        `json:"id"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
+	Code        string      `json:"code"`
+	Name        string      `json:"name"`
 	Type        MessageType `json:"type"`
-	Title       string    `json:"title"`
-	Content     string    `json:"content"`
-	Summary     string    `json:"summary"`
-	Category    string    `json:"category"`
-	Variables   []string  `json:"variables"`
-	Enabled     bool      `json:"enabled"`
-	Description string    `json:"description"`
+	Title       string      `json:"title"`
+	Content     string      `json:"content"`
+	Summary     string      `json:"summary"`
+	Category    string      `json:"category"`
+	Variables   []string    `json:"variables"`
+	Enabled     bool        `json:"enabled"`
+	Description string      `json:"description"`
 }
 
 type MessageBatch struct {
-	ID           uint      `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	BatchNo      string    `json:"batch_no"`
-	Name         string    `json:"name"`
+	ID           uint        `json:"id"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	BatchNo      string      `json:"batch_no"`
+	Name         string      `json:"name"`
 	Type         MessageType `json:"type"`
-	TemplateID   uint      `json:"template_id"`
-	Title        string    `json:"title"`
-	Content      string    `json:"content"`
-	TargetType   string    `json:"target_type"`
-	TargetCount  int       `json:"target_count"`
-	SentCount    int       `json:"sent_count"`
-	SuccessCount int       `json:"success_count"`
-	FailCount    int       `json:"fail_count"`
-	Status       string    `json:"status"`
-	ScheduledAt  *time.Time `json:"scheduled_at"`
-	SentAt       *time.Time `json:"sent_at"`
-	CompletedAt  *time.Time `json:"completed_at"`
+	TemplateID   uint        `json:"template_id"`
+	Title        string      `json:"title"`
+	Content      string      `json:"content"`
+	TargetType   string      `json:"target_type"`
+	TargetCount  int         `json:"target_count"`
+	SentCount    int         `json:"sent_count"`
+	SuccessCount int         `json:"success_count"`
+	FailCount    int         `json:"fail_count"`
+	Status       string      `json:"status"`
+	ScheduledAt  *time.Time  `json:"scheduled_at"`
+	SentAt       *time.Time  `json:"sent_at"`
+	CompletedAt  *time.Time  `json:"completed_at"`
 }
 
 type MessageCategory struct {
@@ -148,30 +148,30 @@ type MessageSetting struct {
 }
 
 type MessageStatistics struct {
-	ID              uint      `json:"id"`
-	Date            time.Time `json:"date"`
+	ID              uint        `json:"id"`
+	Date            time.Time   `json:"date"`
 	Type            MessageType `json:"type"`
-	TotalSent       int64     `json:"total_sent"`
-	TotalRead       int64     `json:"total_read"`
-	TotalDeleted    int64     `json:"total_deleted"`
-	ReadRate        float64   `json:"read_rate"`
-	AvgReadTime     int64     `json:"avg_read_time"`
-	PushSuccess     int64     `json:"push_success"`
-	PushFail        int64     `json:"push_fail"`
-	PushSuccessRate float64   `json:"push_success_rate"`
+	TotalSent       int64       `json:"total_sent"`
+	TotalRead       int64       `json:"total_read"`
+	TotalDeleted    int64       `json:"total_deleted"`
+	ReadRate        float64     `json:"read_rate"`
+	AvgReadTime     int64       `json:"avg_read_time"`
+	PushSuccess     int64       `json:"push_success"`
+	PushFail        int64       `json:"push_fail"`
+	PushSuccessRate float64     `json:"push_success_rate"`
 }
 
 func NewUserMessage(userID uint64, msgType MessageType, title, content string) *UserMessage {
 	return &UserMessage{
-		UserID:    userID,
-		Type:      msgType,
-		Title:     title,
-		Content:   content,
-		Status:    MessageStatusUnread,
-		Priority:  MessagePriorityNormal,
+		UserID:      userID,
+		Type:        msgType,
+		Title:       title,
+		Content:     content,
+		Status:      MessageStatusUnread,
+		Priority:    MessagePriorityNormal,
 		Attachments: make([]*MessageAttachment, 0),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 }
 
@@ -395,47 +395,47 @@ func (s *MessageSetting) EnableInApp(enabled bool) {
 }
 
 type MessageRepository interface {
-	Save(ctx interface{}, message *UserMessage) error
-	Update(ctx interface{}, message *UserMessage) error
-	FindByID(ctx interface{}, id uint) (*UserMessage, error)
-	FindByUserID(ctx interface{}, userID uint64, status MessageStatus, limit, offset int) ([]*UserMessage, error)
-	FindUnreadByUserID(ctx interface{}, userID uint64) ([]*UserMessage, error)
-	CountUnreadByUserID(ctx interface{}, userID uint64) (int64, error)
-	CountByUserID(ctx interface{}, userID uint64, status MessageStatus) (int64, error)
-	DeleteByUserID(ctx interface{}, userID uint64) error
-	MarkAllRead(ctx interface{}, userID uint64) error
-	DeleteExpiredMessages(ctx interface{}) error
-	
-	SaveTemplate(ctx interface{}, template *MessageTemplate) error
-	FindTemplateByID(ctx interface{}, id uint) (*MessageTemplate, error)
-	FindTemplateByCode(ctx interface{}, code string) (*MessageTemplate, error)
-	FindEnabledTemplates(ctx interface{}) ([]*MessageTemplate, error)
-	
-	SaveBatch(ctx interface{}, batch *MessageBatch) error
-	FindBatchByID(ctx interface{}, id uint) (*MessageBatch, error)
-	FindPendingBatches(ctx interface{}) ([]*MessageBatch, error)
-	
-	SaveSetting(ctx interface{}, setting *MessageSetting) error
-	FindSettingByUserID(ctx interface{}, userID uint64) (*MessageSetting, error)
-	
-	SaveStatistics(ctx interface{}, stats *MessageStatistics) error
-	FindStatisticsByDate(ctx interface{}, date time.Time) ([]*MessageStatistics, error)
+	Save(ctx any, message *UserMessage) error
+	Update(ctx any, message *UserMessage) error
+	FindByID(ctx any, id uint) (*UserMessage, error)
+	FindByUserID(ctx any, userID uint64, status MessageStatus, limit, offset int) ([]*UserMessage, error)
+	FindUnreadByUserID(ctx any, userID uint64) ([]*UserMessage, error)
+	CountUnreadByUserID(ctx any, userID uint64) (int64, error)
+	CountByUserID(ctx any, userID uint64, status MessageStatus) (int64, error)
+	DeleteByUserID(ctx any, userID uint64) error
+	MarkAllRead(ctx any, userID uint64) error
+	DeleteExpiredMessages(ctx any) error
+
+	SaveTemplate(ctx any, template *MessageTemplate) error
+	FindTemplateByID(ctx any, id uint) (*MessageTemplate, error)
+	FindTemplateByCode(ctx any, code string) (*MessageTemplate, error)
+	FindEnabledTemplates(ctx any) ([]*MessageTemplate, error)
+
+	SaveBatch(ctx any, batch *MessageBatch) error
+	FindBatchByID(ctx any, id uint) (*MessageBatch, error)
+	FindPendingBatches(ctx any) ([]*MessageBatch, error)
+
+	SaveSetting(ctx any, setting *MessageSetting) error
+	FindSettingByUserID(ctx any, userID uint64) (*MessageSetting, error)
+
+	SaveStatistics(ctx any, stats *MessageStatistics) error
+	FindStatisticsByDate(ctx any, date time.Time) ([]*MessageStatistics, error)
 }
 
 type MessageService interface {
-	SendMessage(ctx interface{}, userID uint64, msgType MessageType, title, content string, opts ...MessageOption) (*UserMessage, error)
-	SendBatchMessages(ctx interface{}, userIDs []uint64, msgType MessageType, title, content string) error
-	SendFromTemplate(ctx interface{}, userID uint64, templateCode string, variables map[string]string) (*UserMessage, error)
-	GetUserMessages(ctx interface{}, userID uint64, status MessageStatus, limit, offset int) ([]*UserMessage, error)
-	GetUnreadMessages(ctx interface{}, userID uint64) ([]*UserMessage, error)
-	GetUnreadCount(ctx interface{}, userID uint64) (int64, error)
-	MarkAsRead(ctx interface{}, messageID uint) error
-	MarkAllAsRead(ctx interface{}, userID uint64) error
-	DeleteMessage(ctx interface{}, messageID uint) error
-	CreateTemplate(ctx interface{}, template *MessageTemplate) error
-	GetTemplate(ctx interface{}, code string) (*MessageTemplate, error)
-	GetUserSettings(ctx interface{}, userID uint64) (*MessageSetting, error)
-	UpdateUserSettings(ctx interface{}, userID uint64, settings map[string]bool) error
+	SendMessage(ctx any, userID uint64, msgType MessageType, title, content string, opts ...MessageOption) (*UserMessage, error)
+	SendBatchMessages(ctx any, userIDs []uint64, msgType MessageType, title, content string) error
+	SendFromTemplate(ctx any, userID uint64, templateCode string, variables map[string]string) (*UserMessage, error)
+	GetUserMessages(ctx any, userID uint64, status MessageStatus, limit, offset int) ([]*UserMessage, error)
+	GetUnreadMessages(ctx any, userID uint64) ([]*UserMessage, error)
+	GetUnreadCount(ctx any, userID uint64) (int64, error)
+	MarkAsRead(ctx any, messageID uint) error
+	MarkAllAsRead(ctx any, userID uint64) error
+	DeleteMessage(ctx any, messageID uint) error
+	CreateTemplate(ctx any, template *MessageTemplate) error
+	GetTemplate(ctx any, code string) (*MessageTemplate, error)
+	GetUserSettings(ctx any, userID uint64) (*MessageSetting, error)
+	UpdateUserSettings(ctx any, userID uint64, settings map[string]bool) error
 }
 
 type MessageOption func(*UserMessage)

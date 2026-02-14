@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	ErrApprovalNotFound      = errors.New("approval not found")
-	ErrApprovalAlreadyExists = errors.New("approval already exists")
-	ErrApprovalNotPending    = errors.New("approval is not pending")
+	ErrApprovalNotFound       = errors.New("approval not found")
+	ErrApprovalAlreadyExists  = errors.New("approval already exists")
+	ErrApprovalNotPending     = errors.New("approval is not pending")
 	ErrApprovalAlreadyHandled = errors.New("approval already handled")
-	ErrInvalidApprovalAction = errors.New("invalid approval action")
+	ErrInvalidApprovalAction  = errors.New("invalid approval action")
 )
 
 type ApprovalStatus string
@@ -26,12 +26,12 @@ const (
 type ApprovalType string
 
 const (
-	ApprovalTypeCampaign     ApprovalType = "CAMPAIGN"
-	ApprovalTypeCoupon       ApprovalType = "COUPON"
-	ApprovalTypeFlashsale    ApprovalType = "FLASHSALE"
-	ApprovalTypeGroupbuy     ApprovalType = "GROUPBUY"
-	ApprovalTypeBanner       ApprovalType = "BANNER"
-	ApprovalTypePromotion    ApprovalType = "PROMOTION"
+	ApprovalTypeCampaign  ApprovalType = "CAMPAIGN"
+	ApprovalTypeCoupon    ApprovalType = "COUPON"
+	ApprovalTypeFlashsale ApprovalType = "FLASHSALE"
+	ApprovalTypeGroupbuy  ApprovalType = "GROUPBUY"
+	ApprovalTypeBanner    ApprovalType = "BANNER"
+	ApprovalTypePromotion ApprovalType = "PROMOTION"
 )
 
 type ApprovalPriority string
@@ -44,33 +44,33 @@ const (
 )
 
 type CampaignApproval struct {
-	ID             uint             `json:"id"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
-	ApprovalNo     string           `json:"approval_no"`
-	ApprovalType   ApprovalType     `json:"approval_type"`
-	TargetID       uint64           `json:"target_id"`
-	TargetName     string           `json:"target_name"`
-	Title          string           `json:"title"`
-	Description    string           `json:"description"`
-	Priority       ApprovalPriority `json:"priority"`
-	Status         ApprovalStatus   `json:"status"`
-	RequesterID    uint64           `json:"requester_id"`
-	RequesterName  string           `json:"requester_name"`
-	Department     string           `json:"department"`
-	Budget         int64            `json:"budget"`
-	StartTime      time.Time        `json:"start_time"`
-	EndTime        time.Time        `json:"end_time"`
-	Attachments    []string         `json:"attachments"`
-	ApprovalFlow   *ApprovalFlow    `json:"approval_flow"`
-	CurrentStep    int              `json:"current_step"`
+	ID              uint              `json:"id"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
+	ApprovalNo      string            `json:"approval_no"`
+	ApprovalType    ApprovalType      `json:"approval_type"`
+	TargetID        uint64            `json:"target_id"`
+	TargetName      string            `json:"target_name"`
+	Title           string            `json:"title"`
+	Description     string            `json:"description"`
+	Priority        ApprovalPriority  `json:"priority"`
+	Status          ApprovalStatus    `json:"status"`
+	RequesterID     uint64            `json:"requester_id"`
+	RequesterName   string            `json:"requester_name"`
+	Department      string            `json:"department"`
+	Budget          int64             `json:"budget"`
+	StartTime       time.Time         `json:"start_time"`
+	EndTime         time.Time         `json:"end_time"`
+	Attachments     []string          `json:"attachments"`
+	ApprovalFlow    *ApprovalFlow     `json:"approval_flow"`
+	CurrentStep     int               `json:"current_step"`
 	ApprovalHistory []*ApprovalRecord `json:"approval_history"`
-	ExpiresAt      *time.Time       `json:"expires_at"`
-	ApprovedAt     *time.Time       `json:"approved_at"`
-	RejectedAt     *time.Time       `json:"rejected_at"`
-	CancelledAt    *time.Time       `json:"cancelled_at"`
-	CancelReason   string           `json:"cancel_reason"`
-	Remarks        string           `json:"remarks"`
+	ExpiresAt       *time.Time        `json:"expires_at"`
+	ApprovedAt      *time.Time        `json:"approved_at"`
+	RejectedAt      *time.Time        `json:"rejected_at"`
+	CancelledAt     *time.Time        `json:"cancelled_at"`
+	CancelReason    string            `json:"cancel_reason"`
+	Remarks         string            `json:"remarks"`
 }
 
 type ApprovalFlow struct {
@@ -85,18 +85,18 @@ type ApprovalFlow struct {
 }
 
 type ApprovalStep struct {
-	ID           uint             `json:"id"`
-	CreatedAt    time.Time        `json:"created_at"`
-	UpdatedAt    time.Time        `json:"updated_at"`
-	FlowID       uint             `json:"flow_id"`
-	StepNo       int              `json:"step_no"`
-	Name         string           `json:"name"`
-	Description  string           `json:"description"`
-	Approvers    []*Approver      `json:"approvers"`
-	ApproveType  string           `json:"approve_type"`
-	MinApprovals int              `json:"min_approvals"`
-	Timeout      int              `json:"timeout"`
-	TimeoutAction string          `json:"timeout_action"`
+	ID            uint        `json:"id"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
+	FlowID        uint        `json:"flow_id"`
+	StepNo        int         `json:"step_no"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description"`
+	Approvers     []*Approver `json:"approvers"`
+	ApproveType   string      `json:"approve_type"`
+	MinApprovals  int         `json:"min_approvals"`
+	Timeout       int         `json:"timeout"`
+	TimeoutAction string      `json:"timeout_action"`
 }
 
 type Approver struct {
@@ -109,55 +109,55 @@ type Approver struct {
 }
 
 type ApprovalRecord struct {
-	ID          uint           `json:"id"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	ApprovalID  uint           `json:"approval_id"`
-	StepNo      int            `json:"step_no"`
-	ApproverID  uint64         `json:"approver_id"`
-	ApproverName string        `json:"approver_name"`
-	Action      string         `json:"action"`
-	Comment     string         `json:"comment"`
-	Attachments []string       `json:"attachments"`
-	ApprovedAt  time.Time      `json:"approved_at"`
+	ID           uint      `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	ApprovalID   uint      `json:"approval_id"`
+	StepNo       int       `json:"step_no"`
+	ApproverID   uint64    `json:"approver_id"`
+	ApproverName string    `json:"approver_name"`
+	Action       string    `json:"action"`
+	Comment      string    `json:"comment"`
+	Attachments  []string  `json:"attachments"`
+	ApprovedAt   time.Time `json:"approved_at"`
 }
 
 type ApprovalNotification struct {
-	ID           uint           `json:"id"`
-	CreatedAt    time.Time      `json:"created_at"`
-	ApprovalID   uint           `json:"approval_id"`
-	ApprovalNo   string         `json:"approval_no"`
-	ApproverID   uint64         `json:"approver_id"`
-	Title        string         `json:"title"`
-	Content      string         `json:"content"`
-	Type         string         `json:"type"`
-	Read         bool           `json:"read"`
-	ReadAt       *time.Time     `json:"read_at"`
-	SentAt       *time.Time     `json:"sent_at"`
+	ID         uint       `json:"id"`
+	CreatedAt  time.Time  `json:"created_at"`
+	ApprovalID uint       `json:"approval_id"`
+	ApprovalNo string     `json:"approval_no"`
+	ApproverID uint64     `json:"approver_id"`
+	Title      string     `json:"title"`
+	Content    string     `json:"content"`
+	Type       string     `json:"type"`
+	Read       bool       `json:"read"`
+	ReadAt     *time.Time `json:"read_at"`
+	SentAt     *time.Time `json:"sent_at"`
 }
 
 func NewCampaignApproval(approvalType ApprovalType, targetID uint64, targetName, title, description string,
 	requesterID uint64, requesterName, department string, budget int64, startTime, endTime time.Time) *CampaignApproval {
 	return &CampaignApproval{
-		ApprovalNo:     generateApprovalNo(),
-		ApprovalType:   approvalType,
-		TargetID:       targetID,
-		TargetName:     targetName,
-		Title:          title,
-		Description:    description,
-		Priority:       ApprovalPriorityMedium,
-		Status:         ApprovalStatusPending,
-		RequesterID:    requesterID,
-		RequesterName:  requesterName,
-		Department:     department,
-		Budget:         budget,
-		StartTime:      startTime,
-		EndTime:        endTime,
-		Attachments:    make([]string, 0),
+		ApprovalNo:      generateApprovalNo(),
+		ApprovalType:    approvalType,
+		TargetID:        targetID,
+		TargetName:      targetName,
+		Title:           title,
+		Description:     description,
+		Priority:        ApprovalPriorityMedium,
+		Status:          ApprovalStatusPending,
+		RequesterID:     requesterID,
+		RequesterName:   requesterName,
+		Department:      department,
+		Budget:          budget,
+		StartTime:       startTime,
+		EndTime:         endTime,
+		Attachments:     make([]string, 0),
 		ApprovalHistory: make([]*ApprovalRecord, 0),
-		CurrentStep:    1,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CurrentStep:     1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 }
 
@@ -189,7 +189,7 @@ func (a *CampaignApproval) Approve(approverID uint64, approverName, comment stri
 	if a.Status != ApprovalStatusPending {
 		return ErrApprovalNotPending
 	}
-	
+
 	record := &ApprovalRecord{
 		ApprovalID:   a.ID,
 		StepNo:       a.CurrentStep,
@@ -202,7 +202,7 @@ func (a *CampaignApproval) Approve(approverID uint64, approverName, comment stri
 		UpdatedAt:    time.Now(),
 	}
 	a.ApprovalHistory = append(a.ApprovalHistory, record)
-	
+
 	if a.ApprovalFlow != nil && a.CurrentStep < len(a.ApprovalFlow.Steps) {
 		a.CurrentStep++
 	} else {
@@ -210,7 +210,7 @@ func (a *CampaignApproval) Approve(approverID uint64, approverName, comment stri
 		now := time.Now()
 		a.ApprovedAt = &now
 	}
-	
+
 	a.UpdatedAt = time.Now()
 	return nil
 }
@@ -219,7 +219,7 @@ func (a *CampaignApproval) Reject(approverID uint64, approverName, reason string
 	if a.Status != ApprovalStatusPending {
 		return ErrApprovalNotPending
 	}
-	
+
 	record := &ApprovalRecord{
 		ApprovalID:   a.ID,
 		StepNo:       a.CurrentStep,
@@ -232,7 +232,7 @@ func (a *CampaignApproval) Reject(approverID uint64, approverName, reason string
 		UpdatedAt:    time.Now(),
 	}
 	a.ApprovalHistory = append(a.ApprovalHistory, record)
-	
+
 	a.Status = ApprovalStatusRejected
 	now := time.Now()
 	a.RejectedAt = &now
@@ -244,7 +244,7 @@ func (a *CampaignApproval) Cancel(reason string) error {
 	if a.Status != ApprovalStatusPending {
 		return ErrApprovalNotPending
 	}
-	
+
 	a.Status = ApprovalStatusCancelled
 	a.CancelReason = reason
 	now := time.Now()
@@ -312,15 +312,15 @@ func (f *ApprovalFlow) NewVersion() {
 
 func NewApprovalStep(name, description string, approveType string, minApprovals, timeout int) *ApprovalStep {
 	return &ApprovalStep{
-		Name:         name,
-		Description:  description,
-		Approvers:    make([]*Approver, 0),
-		ApproveType:  approveType,
-		MinApprovals: minApprovals,
-		Timeout:      timeout,
+		Name:          name,
+		Description:   description,
+		Approvers:     make([]*Approver, 0),
+		ApproveType:   approveType,
+		MinApprovals:  minApprovals,
+		Timeout:       timeout,
 		TimeoutAction: "ESCALATE",
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 }
 
@@ -340,34 +340,34 @@ func (s *ApprovalStep) RemoveApprover(userID uint64) {
 }
 
 type ApprovalRepository interface {
-	Save(ctx interface{}, approval *CampaignApproval) error
-	Update(ctx interface{}, approval *CampaignApproval) error
-	FindByID(ctx interface{}, id uint) (*CampaignApproval, error)
-	FindByApprovalNo(ctx interface{}, approvalNo string) (*CampaignApproval, error)
-	FindByTargetID(ctx interface{}, approvalType ApprovalType, targetID uint64) ([]*CampaignApproval, error)
-	FindPendingByRequester(ctx interface{}, requesterID uint64) ([]*CampaignApproval, error)
-	FindPendingByApprover(ctx interface{}, approverID uint64) ([]*CampaignApproval, error)
-	FindExpired(ctx interface{}) ([]*CampaignApproval, error)
-	
-	SaveFlow(ctx interface{}, flow *ApprovalFlow) error
-	UpdateFlow(ctx interface{}, flow *ApprovalFlow) error
-	FindFlowByID(ctx interface{}, id uint) (*ApprovalFlow, error)
-	FindFlowByType(ctx interface{}, approvalType ApprovalType) (*ApprovalFlow, error)
-	FindEnabledFlows(ctx interface{}) ([]*ApprovalFlow, error)
-	
-	SaveNotification(ctx interface{}, notification *ApprovalNotification) error
-	FindNotificationByID(ctx interface{}, id uint) (*ApprovalNotification, error)
-	FindUnreadNotifications(ctx interface{}, approverID uint64) ([]*ApprovalNotification, error)
-	MarkNotificationRead(ctx interface{}, id uint) error
+	Save(ctx any, approval *CampaignApproval) error
+	Update(ctx any, approval *CampaignApproval) error
+	FindByID(ctx any, id uint) (*CampaignApproval, error)
+	FindByApprovalNo(ctx any, approvalNo string) (*CampaignApproval, error)
+	FindByTargetID(ctx any, approvalType ApprovalType, targetID uint64) ([]*CampaignApproval, error)
+	FindPendingByRequester(ctx any, requesterID uint64) ([]*CampaignApproval, error)
+	FindPendingByApprover(ctx any, approverID uint64) ([]*CampaignApproval, error)
+	FindExpired(ctx any) ([]*CampaignApproval, error)
+
+	SaveFlow(ctx any, flow *ApprovalFlow) error
+	UpdateFlow(ctx any, flow *ApprovalFlow) error
+	FindFlowByID(ctx any, id uint) (*ApprovalFlow, error)
+	FindFlowByType(ctx any, approvalType ApprovalType) (*ApprovalFlow, error)
+	FindEnabledFlows(ctx any) ([]*ApprovalFlow, error)
+
+	SaveNotification(ctx any, notification *ApprovalNotification) error
+	FindNotificationByID(ctx any, id uint) (*ApprovalNotification, error)
+	FindUnreadNotifications(ctx any, approverID uint64) ([]*ApprovalNotification, error)
+	MarkNotificationRead(ctx any, id uint) error
 }
 
 type ApprovalService interface {
-	CreateApproval(ctx interface{}, approvalType ApprovalType, targetID uint64, 
+	CreateApproval(ctx any, approvalType ApprovalType, targetID uint64,
 		title, description string, requesterID uint64) (*CampaignApproval, error)
-	Approve(ctx interface{}, approvalID uint, approverID uint64, comment string) error
-	Reject(ctx interface{}, approvalID uint, approverID uint64, reason string) error
-	Cancel(ctx interface{}, approvalID uint, reason string) error
-	GetPendingApprovals(ctx interface{}, approverID uint64) ([]*CampaignApproval, error)
-	GetApprovalHistory(ctx interface{}, approvalID uint) ([]*ApprovalRecord, error)
-	ExpireApprovals(ctx interface{}) error
+	Approve(ctx any, approvalID uint, approverID uint64, comment string) error
+	Reject(ctx any, approvalID uint, approverID uint64, reason string) error
+	Cancel(ctx any, approvalID uint, reason string) error
+	GetPendingApprovals(ctx any, approverID uint64) ([]*CampaignApproval, error)
+	GetApprovalHistory(ctx any, approvalID uint) ([]*ApprovalRecord, error)
+	ExpireApprovals(ctx any) error
 }

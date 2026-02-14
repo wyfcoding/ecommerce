@@ -2,157 +2,158 @@ package domain
 
 import (
 	"context"
+	"slices"
 	"time"
 )
 
 type UserPreferences struct {
-	ID                    uint64             `json:"id"`
-	CreatedAt             time.Time          `json:"created_at"`
-	UpdatedAt             time.Time          `json:"updated_at"`
-	UserID                uint64             `json:"user_id"`
-	ProfileID             uint64             `json:"profile_id"`
-	CategoryPreferences   []*CategoryPreference `json:"category_preferences"`
-	BrandPreferences      []*BrandPreference    `json:"brand_preferences"`
-	PricePreferences      *PricePreference      `json:"price_preferences"`
-	TimePreferences       *TimePreference       `json:"time_preferences"`
-	ChannelPreferences    []*ChannelPreference  `json:"channel_preferences"`
-	PaymentPreferences    []*PaymentPreference  `json:"payment_preferences"`
-	DeliveryPreferences   *DeliveryPreference   `json:"delivery_preferences"`
-	ContentPreferences    *ContentPreference    `json:"content_preferences"`
-	CommunicationPrefs    *CommunicationPreference `json:"communication_prefs"`
-	OverallStyle          string               `json:"overall_style"`
-	PreferenceStrength    float64              `json:"preference_strength"`
-	LastUpdatedSource     string               `json:"last_updated_source"`
+	ID                  uint64                   `json:"id"`
+	CreatedAt           time.Time                `json:"created_at"`
+	UpdatedAt           time.Time                `json:"updated_at"`
+	UserID              uint64                   `json:"user_id"`
+	ProfileID           uint64                   `json:"profile_id"`
+	CategoryPreferences []*CategoryPreference    `json:"category_preferences"`
+	BrandPreferences    []*BrandPreference       `json:"brand_preferences"`
+	PricePreferences    *PricePreference         `json:"price_preferences"`
+	TimePreferences     *TimePreference          `json:"time_preferences"`
+	ChannelPreferences  []*ChannelPreference     `json:"channel_preferences"`
+	PaymentPreferences  []*PaymentPreference     `json:"payment_preferences"`
+	DeliveryPreferences *DeliveryPreference      `json:"delivery_preferences"`
+	ContentPreferences  *ContentPreference       `json:"content_preferences"`
+	CommunicationPrefs  *CommunicationPreference `json:"communication_prefs"`
+	OverallStyle        string                   `json:"overall_style"`
+	PreferenceStrength  float64                  `json:"preference_strength"`
+	LastUpdatedSource   string                   `json:"last_updated_source"`
 }
 
 type CategoryPreference struct {
-	ID            uint64    `json:"id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	PreferenceID  uint64    `json:"preference_id"`
-	UserID        uint64    `json:"user_id"`
-	CategoryID    uint64    `json:"category_id"`
-	CategoryName  string    `json:"category_name"`
-	CategoryPath  string    `json:"category_path"`
-	Score         float64   `json:"score"`
-	ViewCount     int64     `json:"view_count"`
-	PurchaseCount int64     `json:"purchase_count"`
-	LastViewAt    *time.Time `json:"last_view_at"`
+	ID             uint64     `json:"id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	PreferenceID   uint64     `json:"preference_id"`
+	UserID         uint64     `json:"user_id"`
+	CategoryID     uint64     `json:"category_id"`
+	CategoryName   string     `json:"category_name"`
+	CategoryPath   string     `json:"category_path"`
+	Score          float64    `json:"score"`
+	ViewCount      int64      `json:"view_count"`
+	PurchaseCount  int64      `json:"purchase_count"`
+	LastViewAt     *time.Time `json:"last_view_at"`
 	LastPurchaseAt *time.Time `json:"last_purchase_at"`
-	IsFavorite    bool      `json:"is_favorite"`
-	Level         int       `json:"level"`
+	IsFavorite     bool       `json:"is_favorite"`
+	Level          int        `json:"level"`
 }
 
 type BrandPreference struct {
-	ID            uint64    `json:"id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	PreferenceID  uint64    `json:"preference_id"`
-	UserID        uint64    `json:"user_id"`
-	BrandID       uint64    `json:"brand_id"`
-	BrandName     string    `json:"brand_name"`
-	Score         float64   `json:"score"`
-	ViewCount     int64     `json:"view_count"`
-	PurchaseCount int64     `json:"purchase_count"`
-	LastViewAt    *time.Time `json:"last_view_at"`
+	ID             uint64     `json:"id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	PreferenceID   uint64     `json:"preference_id"`
+	UserID         uint64     `json:"user_id"`
+	BrandID        uint64     `json:"brand_id"`
+	BrandName      string     `json:"brand_name"`
+	Score          float64    `json:"score"`
+	ViewCount      int64      `json:"view_count"`
+	PurchaseCount  int64      `json:"purchase_count"`
+	LastViewAt     *time.Time `json:"last_view_at"`
 	LastPurchaseAt *time.Time `json:"last_purchase_at"`
-	IsFavorite    bool      `json:"is_favorite"`
-	LoyaltyLevel  int       `json:"loyalty_level"`
+	IsFavorite     bool       `json:"is_favorite"`
+	LoyaltyLevel   int        `json:"loyalty_level"`
 }
 
 type PricePreference struct {
-	ID               uint64  `json:"id"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	PreferenceID     uint64  `json:"preference_id"`
-	UserID           uint64  `json:"user_id"`
-	MinPrice         int64   `json:"min_price"`
-	MaxPrice         int64   `json:"max_price"`
-	AvgPurchasePrice int64   `json:"avg_purchase_price"`
-	PriceSensitivity float64 `json:"price_sensitivity"`
-	DiscountPreference float64 `json:"discount_preference"`
-	PriceRange       string  `json:"price_range"`
-	PremiumRatio     float64 `json:"premium_ratio"`
-	BudgetRatio      float64 `json:"budget_ratio"`
+	ID                 uint64    `json:"id"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+	PreferenceID       uint64    `json:"preference_id"`
+	UserID             uint64    `json:"user_id"`
+	MinPrice           int64     `json:"min_price"`
+	MaxPrice           int64     `json:"max_price"`
+	AvgPurchasePrice   int64     `json:"avg_purchase_price"`
+	PriceSensitivity   float64   `json:"price_sensitivity"`
+	DiscountPreference float64   `json:"discount_preference"`
+	PriceRange         string    `json:"price_range"`
+	PremiumRatio       float64   `json:"premium_ratio"`
+	BudgetRatio        float64   `json:"budget_ratio"`
 }
 
 type TimePreference struct {
-	ID              uint64    `json:"id"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	PreferenceID    uint64    `json:"preference_id"`
-	UserID          uint64    `json:"user_id"`
-	PreferredHours  []int     `json:"preferred_hours"`
-	PreferredDays   []int     `json:"preferred_days"`
-	PeakHour        int       `json:"peak_hour"`
-	PeakDay         int       `json:"peak_day"`
-	MorningRatio    float64   `json:"morning_ratio"`
-	AfternoonRatio  float64   `json:"afternoon_ratio"`
-	EveningRatio    float64   `json:"evening_ratio"`
-	NightRatio      float64   `json:"night_ratio"`
-	WeekendRatio    float64   `json:"weekend_ratio"`
-	WeekdayRatio    float64   `json:"weekday_ratio"`
-	HolidayActive   bool      `json:"holiday_active"`
+	ID             uint64    `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	PreferenceID   uint64    `json:"preference_id"`
+	UserID         uint64    `json:"user_id"`
+	PreferredHours []int     `json:"preferred_hours"`
+	PreferredDays  []int     `json:"preferred_days"`
+	PeakHour       int       `json:"peak_hour"`
+	PeakDay        int       `json:"peak_day"`
+	MorningRatio   float64   `json:"morning_ratio"`
+	AfternoonRatio float64   `json:"afternoon_ratio"`
+	EveningRatio   float64   `json:"evening_ratio"`
+	NightRatio     float64   `json:"night_ratio"`
+	WeekendRatio   float64   `json:"weekend_ratio"`
+	WeekdayRatio   float64   `json:"weekday_ratio"`
+	HolidayActive  bool      `json:"holiday_active"`
 }
 
 type ChannelPreference struct {
-	ID           uint64    `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	PreferenceID uint64    `json:"preference_id"`
-	UserID       uint64    `json:"user_id"`
-	Channel      string    `json:"channel"`
-	Score        float64   `json:"score"`
-	VisitCount   int64     `json:"visit_count"`
-	ConvertCount int64     `json:"convert_count"`
+	ID           uint64     `json:"id"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	PreferenceID uint64     `json:"preference_id"`
+	UserID       uint64     `json:"user_id"`
+	Channel      string     `json:"channel"`
+	Score        float64    `json:"score"`
+	VisitCount   int64      `json:"visit_count"`
+	ConvertCount int64      `json:"convert_count"`
 	LastVisitAt  *time.Time `json:"last_visit_at"`
-	IsPreferred  bool      `json:"is_preferred"`
+	IsPreferred  bool       `json:"is_preferred"`
 }
 
 type PaymentPreference struct {
-	ID           uint64    `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	PreferenceID uint64    `json:"preference_id"`
-	UserID       uint64    `json:"user_id"`
-	PaymentType  string    `json:"payment_type"`
-	Score        float64   `json:"score"`
-	UseCount     int64     `json:"use_count"`
-	TotalAmount  int64     `json:"total_amount"`
+	ID           uint64     `json:"id"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	PreferenceID uint64     `json:"preference_id"`
+	UserID       uint64     `json:"user_id"`
+	PaymentType  string     `json:"payment_type"`
+	Score        float64    `json:"score"`
+	UseCount     int64      `json:"use_count"`
+	TotalAmount  int64      `json:"total_amount"`
 	LastUsedAt   *time.Time `json:"last_used_at"`
-	IsPreferred  bool      `json:"is_preferred"`
+	IsPreferred  bool       `json:"is_preferred"`
 }
 
 type DeliveryPreference struct {
-	ID                uint64    `json:"id"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
-	PreferenceID      uint64    `json:"preference_id"`
-	UserID            uint64    `json:"user_id"`
-	PreferredMethod   string    `json:"preferred_method"`
-	ExpressRatio      float64   `json:"express_ratio"`
-	StandardRatio     float64   `json:"standard_ratio"`
-	EconomyRatio      float64   `json:"economy_ratio"`
-	SameDayRatio      float64   `json:"same_day_ratio"`
-	PickupRatio       float64   `json:"pickup_ratio"`
-	SpeedPriority     int       `json:"speed_priority"`
-	CostPriority      int       `json:"cost_priority"`
-	InsuranceRatio    float64   `json:"insurance_ratio"`
-}
-
-type ContentPreference struct {
 	ID              uint64    `json:"id"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	PreferenceID    uint64    `json:"preference_id"`
 	UserID          uint64    `json:"user_id"`
-	ContentType     string    `json:"content_type"`
-	ViewCount       int64     `json:"view_count"`
-	LikeCount       int64     `json:"like_count"`
-	ShareCount      int64     `json:"share_count"`
-	CommentCount    int64     `json:"comment_count"`
-	Score           float64   `json:"score"`
-	LastInteractAt  *time.Time `json:"last_interact_at"`
+	PreferredMethod string    `json:"preferred_method"`
+	ExpressRatio    float64   `json:"express_ratio"`
+	StandardRatio   float64   `json:"standard_ratio"`
+	EconomyRatio    float64   `json:"economy_ratio"`
+	SameDayRatio    float64   `json:"same_day_ratio"`
+	PickupRatio     float64   `json:"pickup_ratio"`
+	SpeedPriority   int       `json:"speed_priority"`
+	CostPriority    int       `json:"cost_priority"`
+	InsuranceRatio  float64   `json:"insurance_ratio"`
+}
+
+type ContentPreference struct {
+	ID             uint64     `json:"id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	PreferenceID   uint64     `json:"preference_id"`
+	UserID         uint64     `json:"user_id"`
+	ContentType    string     `json:"content_type"`
+	ViewCount      int64      `json:"view_count"`
+	LikeCount      int64      `json:"like_count"`
+	ShareCount     int64      `json:"share_count"`
+	CommentCount   int64      `json:"comment_count"`
+	Score          float64    `json:"score"`
+	LastInteractAt *time.Time `json:"last_interact_at"`
 }
 
 type CommunicationPreference struct {
@@ -361,19 +362,15 @@ func (t *TimePreference) SetPeakTime(hour, day int) {
 }
 
 func (t *TimePreference) AddPreferredHour(hour int) {
-	for _, h := range t.PreferredHours {
-		if h == hour {
-			return
-		}
+	if slices.Contains(t.PreferredHours, hour) {
+		return
 	}
 	t.PreferredHours = append(t.PreferredHours, hour)
 }
 
 func (t *TimePreference) AddPreferredDay(day int) {
-	for _, d := range t.PreferredDays {
-		if d == day {
-			return
-		}
+	if slices.Contains(t.PreferredDays, day) {
+		return
 	}
 	t.PreferredDays = append(t.PreferredDays, day)
 }

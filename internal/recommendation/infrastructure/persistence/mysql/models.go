@@ -101,6 +101,14 @@ func toUserPreferenceModel(pref *domain.UserPreference) *UserPreferenceModel {
 	if pref == nil {
 		return nil
 	}
+	var categoryID uint64
+	if len(pref.CategoryIDs) > 0 {
+		categoryID = pref.CategoryIDs[0]
+	}
+	var brandID uint64
+	if len(pref.BrandIDs) > 0 {
+		brandID = pref.BrandIDs[0]
+	}
 	return &UserPreferenceModel{
 		Model: gorm.Model{
 			ID:        uint(pref.ID),
@@ -108,10 +116,10 @@ func toUserPreferenceModel(pref *domain.UserPreference) *UserPreferenceModel {
 			UpdatedAt: pref.UpdatedAt,
 		},
 		UserID:     pref.UserID,
-		CategoryID: pref.CategoryID,
-		BrandID:    pref.BrandID,
-		PriceMin:   pref.PriceMin,
-		PriceMax:   pref.PriceMax,
+		CategoryID: categoryID,
+		BrandID:    brandID,
+		PriceMin:   pref.PriceRangeMin,
+		PriceMax:   pref.PriceRangeMax,
 		Tags:       pref.Tags,
 		Weight:     pref.Weight,
 	}
@@ -121,18 +129,23 @@ func toUserPreference(model *UserPreferenceModel) *domain.UserPreference {
 	if model == nil {
 		return nil
 	}
-	return &domain.UserPreference{
-		ID:         uint64(model.ID),
-		CreatedAt:  model.CreatedAt,
-		UpdatedAt:  model.UpdatedAt,
-		UserID:     model.UserID,
-		CategoryID: model.CategoryID,
-		BrandID:    model.BrandID,
-		PriceMin:   model.PriceMin,
-		PriceMax:   model.PriceMax,
-		Tags:       model.Tags,
-		Weight:     model.Weight,
+	pref := &domain.UserPreference{
+		ID:            uint64(model.ID),
+		CreatedAt:     model.CreatedAt,
+		UpdatedAt:     model.UpdatedAt,
+		UserID:        model.UserID,
+		PriceRangeMin: model.PriceMin,
+		PriceRangeMax: model.PriceMax,
+		Tags:          model.Tags,
+		Weight:        model.Weight,
 	}
+	if model.CategoryID != 0 {
+		pref.CategoryIDs = []uint64{model.CategoryID}
+	}
+	if model.BrandID != 0 {
+		pref.BrandIDs = []uint64{model.BrandID}
+	}
+	return pref
 }
 
 func toProductSimilarityModel(sim *domain.ProductSimilarity) *ProductSimilarityModel {
@@ -173,7 +186,6 @@ func toUserBehaviorModel(behavior *domain.UserBehavior) *UserBehaviorModel {
 		Model: gorm.Model{
 			ID:        uint(behavior.ID),
 			CreatedAt: behavior.CreatedAt,
-			UpdatedAt: behavior.UpdatedAt,
 		},
 		UserID:    behavior.UserID,
 		ProductID: behavior.ProductID,
@@ -190,7 +202,6 @@ func toUserBehavior(model *UserBehaviorModel) *domain.UserBehavior {
 	return &domain.UserBehavior{
 		ID:        uint64(model.ID),
 		CreatedAt: model.CreatedAt,
-		UpdatedAt: model.UpdatedAt,
 		UserID:    model.UserID,
 		ProductID: model.ProductID,
 		Action:    model.Action,

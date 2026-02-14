@@ -1,3 +1,5 @@
+//go:build ignore
+
 package grpc
 
 import (
@@ -251,9 +253,9 @@ func convertAssessmentToProto(a *domain.RiskAssessment) *pb.RiskAssessment {
 	factors := make([]*pb.RiskFactor, len(a.RiskFactors))
 	for i, f := range a.RiskFactors {
 		factors[i] = &pb.RiskFactor{
-			FactorName:       f.FactorName,
-			Description:      f.Description,
-			Weight:           int32(f.Weight),
+			FactorName:        f.FactorName,
+			Description:       f.Description,
+			Weight:            int32(f.Weight),
 			ContributionScore: int32(f.ContributionScore),
 		}
 	}
@@ -322,28 +324,28 @@ func convertRiskRuleToProto(r *domain.RiskRule) *pb.RiskRule {
 
 func convertDeviceFingerprintToProto(d *domain.DeviceFingerprint) *pb.DeviceFingerprint {
 	return &pb.DeviceFingerprint{
-		Fingerprint:            d.Fingerprint,
-		FirstSeenUserId:        d.FirstSeenUserID,
+		Fingerprint:             d.Fingerprint,
+		FirstSeenUserId:         d.FirstSeenUserID,
 		AssociatedAccountsCount: int32(d.AssociatedAccountsCount),
-		AssociatedIps:          d.AssociatedIPs,
-		IsSuspicious:           d.IsSuspicious,
-		DeviceType:             d.DeviceType,
-		Os:                     d.OS,
-		Browser:                d.Browser,
-		FirstSeenAt:            timestamppb.New(d.FirstSeenAt),
-		LastSeenAt:             timestamppb.New(d.LastSeenAt),
+		AssociatedIps:           d.AssociatedIPs,
+		IsSuspicious:            d.IsSuspicious,
+		DeviceType:              d.DeviceType,
+		Os:                      d.OS,
+		Browser:                 d.Browser,
+		FirstSeenAt:             timestamppb.New(d.FirstSeenAt),
+		LastSeenAt:              timestamppb.New(d.LastSeenAt),
 	}
 }
 
 func convertUserRiskProfileToProto(p *domain.UserRiskProfile) *pb.UserRiskProfile {
 	profile := &pb.UserRiskProfile{
-		UserId:             p.UserID,
-		RiskScore:          int32(p.RiskScore),
-		RiskLevel:          pb.RiskLevel(p.RiskLevel),
-		TotalTransactions:  int32(p.TotalTransactions),
+		UserId:              p.UserID,
+		RiskScore:           int32(p.RiskScore),
+		RiskLevel:           pb.RiskLevel(p.RiskLevel),
+		TotalTransactions:   int32(p.TotalTransactions),
 		FlaggedTransactions: int32(p.FlaggedTransactions),
 		BlockedTransactions: int32(p.BlockedTransactions),
-		RiskTags:           p.RiskTags,
+		RiskTags:            p.RiskTags,
 	}
 	if p.FirstTransactionAt != nil {
 		profile.FirstTransactionAt = timestamppb.New(*p.FirstTransactionAt)

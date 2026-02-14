@@ -90,30 +90,30 @@ func (l UserLevel) PrevLevel() UserLevel {
 type BenefitType string
 
 const (
-	BenefitTypeDiscount      BenefitType = "DISCOUNT"
-	BenefitTypeFreeShipping  BenefitType = "FREE_SHIPPING"
-	BenefitTypePriority      BenefitType = "PRIORITY"
-	BenefitTypeExclusive     BenefitType = "EXCLUSIVE"
-	BenefitTypePoints        BenefitType = "POINTS_BONUS"
-	BenefitTypeCoupon        BenefitType = "COUPON"
-	BenefitTypeService       BenefitType = "SERVICE"
-	BenefitTypeReturn        BenefitType = "RETURN"
-	BenefitTypeBirthday      BenefitType = "BIRTHDAY"
-	BenefitTypeEarlyAccess   BenefitType = "EARLY_ACCESS"
+	BenefitTypeDiscount     BenefitType = "DISCOUNT"
+	BenefitTypeFreeShipping BenefitType = "FREE_SHIPPING"
+	BenefitTypePriority     BenefitType = "PRIORITY"
+	BenefitTypeExclusive    BenefitType = "EXCLUSIVE"
+	BenefitTypePoints       BenefitType = "POINTS_BONUS"
+	BenefitTypeCoupon       BenefitType = "COUPON"
+	BenefitTypeService      BenefitType = "SERVICE"
+	BenefitTypeReturn       BenefitType = "RETURN"
+	BenefitTypeBirthday     BenefitType = "BIRTHDAY"
+	BenefitTypeEarlyAccess  BenefitType = "EARLY_ACCESS"
 )
 
 type UserLevelInfo struct {
-	ID              uint      `json:"id"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	UserID          uint64    `json:"user_id"`
-	CurrentLevel    UserLevel `json:"current_level"`
-	CurrentPoints   int64     `json:"current_points"`
-	TotalPoints     int64     `json:"total_points"`
-	LevelStartDate  *time.Time `json:"level_start_date"`
-	LevelExpiryDate *time.Time `json:"level_expiry_date"`
-	NextLevelPoints int64     `json:"next_level_points"`
-	IsLifetime      bool      `json:"is_lifetime"`
+	ID              uint                  `json:"id"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+	UserID          uint64                `json:"user_id"`
+	CurrentLevel    UserLevel             `json:"current_level"`
+	CurrentPoints   int64                 `json:"current_points"`
+	TotalPoints     int64                 `json:"total_points"`
+	LevelStartDate  *time.Time            `json:"level_start_date"`
+	LevelExpiryDate *time.Time            `json:"level_expiry_date"`
+	NextLevelPoints int64                 `json:"next_level_points"`
+	IsLifetime      bool                  `json:"is_lifetime"`
 	UpgradeHistory  []*LevelUpgradeRecord `json:"upgrade_history"`
 }
 
@@ -129,20 +129,20 @@ type LevelUpgradeRecord struct {
 }
 
 type LevelBenefit struct {
-	ID           uint        `json:"id"`
-	CreatedAt    time.Time   `json:"created_at"`
-	UpdatedAt    time.Time   `json:"updated_at"`
-	Level        UserLevel   `json:"level"`
-	BenefitType  BenefitType `json:"benefit_type"`
-	Name         string      `json:"name"`
-	Description  string      `json:"description"`
-	Value        float64     `json:"value"`
-	Unit         string      `json:"unit"`
-	MaxUsage     int         `json:"max_usage"`
-	Period       string      `json:"period"`
-	Icon         string      `json:"icon"`
-	Enabled      bool        `json:"enabled"`
-	Priority     int         `json:"priority"`
+	ID          uint        `json:"id"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
+	Level       UserLevel   `json:"level"`
+	BenefitType BenefitType `json:"benefit_type"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Value       float64     `json:"value"`
+	Unit        string      `json:"unit"`
+	MaxUsage    int         `json:"max_usage"`
+	Period      string      `json:"period"`
+	Icon        string      `json:"icon"`
+	Enabled     bool        `json:"enabled"`
+	Priority    int         `json:"priority"`
 }
 
 type LevelConfig struct {
@@ -167,13 +167,13 @@ type LevelConfig struct {
 }
 
 type UserBenefitUsage struct {
-	ID         uint      `json:"id"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	UserID     uint64    `json:"user_id"`
-	BenefitID  uint      `json:"benefit_id"`
-	UsageCount int       `json:"usage_count"`
-	Period     string    `json:"period"`
+	ID         uint       `json:"id"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	UserID     uint64     `json:"user_id"`
+	BenefitID  uint       `json:"benefit_id"`
+	UsageCount int        `json:"usage_count"`
+	Period     string     `json:"period"`
 	ResetAt    *time.Time `json:"reset_at"`
 }
 
@@ -225,12 +225,12 @@ func (l *UserLevelInfo) upgrade(newLevel UserLevel, reason string) {
 	l.CurrentLevel = newLevel
 	now := time.Now()
 	l.LevelStartDate = &now
-	
+
 	expiryDate := now.AddDate(1, 0, 0)
 	l.LevelExpiryDate = &expiryDate
-	
+
 	l.UpdatedAt = now
-	
+
 	record := &LevelUpgradeRecord{
 		UserID:       l.UserID,
 		FromLevel:    oldLevel,
@@ -252,7 +252,7 @@ func (l *UserLevelInfo) Downgrade(reason string) {
 	now := time.Now()
 	l.LevelStartDate = &now
 	l.UpdatedAt = now
-	
+
 	record := &LevelUpgradeRecord{
 		UserID:       l.UserID,
 		FromLevel:    oldLevel,
@@ -289,7 +289,7 @@ func (l *UserLevelInfo) GetProgress(configs []LevelConfig) float64 {
 	if nextLevel == l.CurrentLevel {
 		return 100.0
 	}
-	
+
 	for _, config := range configs {
 		if config.Level == nextLevel {
 			if config.MinPoints <= 0 {
@@ -310,7 +310,7 @@ func (l *UserLevelInfo) GetNextLevelPoints(configs []LevelConfig) int64 {
 	if nextLevel == l.CurrentLevel {
 		return 0
 	}
-	
+
 	for _, config := range configs {
 		if config.Level == nextLevel {
 			return config.MinPoints - l.CurrentPoints
@@ -351,23 +351,23 @@ func NewLevelBenefit(level UserLevel, benefitType BenefitType, name string, valu
 }
 
 type LevelRepository interface {
-	FindLevelInfoByUserID(ctx interface{}, userID uint64) (*UserLevelInfo, error)
-	SaveLevelInfo(ctx interface{}, info *UserLevelInfo) error
-	UpdateLevelInfo(ctx interface{}, info *UserLevelInfo) error
-	
-	FindLevelConfigs(ctx interface{}) ([]LevelConfig, error)
-	FindLevelConfigByLevel(ctx interface{}, level UserLevel) (*LevelConfig, error)
-	SaveLevelConfig(ctx interface{}, config *LevelConfig) error
-	
-	FindBenefitsByLevel(ctx interface{}, level UserLevel) ([]LevelBenefit, error)
-	FindAllBenefits(ctx interface{}) ([]LevelBenefit, error)
-	SaveBenefit(ctx interface{}, benefit *LevelBenefit) error
-	
-	FindUpgradeHistory(ctx interface{}, userID uint64) ([]LevelUpgradeRecord, error)
-	SaveUpgradeRecord(ctx interface{}, record *LevelUpgradeRecord) error
-	
-	FindBenefitUsage(ctx interface{}, userID uint64, benefitID uint) (*UserBenefitUsage, error)
-	SaveBenefitUsage(ctx interface{}, usage *UserBenefitUsage) error
+	FindLevelInfoByUserID(ctx any, userID uint64) (*UserLevelInfo, error)
+	SaveLevelInfo(ctx any, info *UserLevelInfo) error
+	UpdateLevelInfo(ctx any, info *UserLevelInfo) error
+
+	FindLevelConfigs(ctx any) ([]LevelConfig, error)
+	FindLevelConfigByLevel(ctx any, level UserLevel) (*LevelConfig, error)
+	SaveLevelConfig(ctx any, config *LevelConfig) error
+
+	FindBenefitsByLevel(ctx any, level UserLevel) ([]LevelBenefit, error)
+	FindAllBenefits(ctx any) ([]LevelBenefit, error)
+	SaveBenefit(ctx any, benefit *LevelBenefit) error
+
+	FindUpgradeHistory(ctx any, userID uint64) ([]LevelUpgradeRecord, error)
+	SaveUpgradeRecord(ctx any, record *LevelUpgradeRecord) error
+
+	FindBenefitUsage(ctx any, userID uint64, benefitID uint) (*UserBenefitUsage, error)
+	SaveBenefitUsage(ctx any, usage *UserBenefitUsage) error
 }
 
 type LevelService interface {

@@ -1,0 +1,4 @@
+service_name = "support"
+
+[server]
+http_addr = ":8080"

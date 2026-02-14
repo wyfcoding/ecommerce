@@ -58,7 +58,7 @@ func (p *AvalaraProvider) CalculateTax(ctx context.Context, request *TaxCalculat
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		var errResp map[string]interface{}
+		var errResp map[string]any
 		json.NewDecoder(resp.Body).Decode(&errResp)
 		return nil, fmt.Errorf("Avalara API error: status=%d, error=%v", resp.StatusCode, errResp)
 	}

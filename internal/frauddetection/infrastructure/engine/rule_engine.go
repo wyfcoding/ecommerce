@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -46,9 +47,9 @@ func (e *RuleEngineImpl) Evaluate(ctx context.Context, rule *domain.RiskRule, tx
 }
 
 type VelocityCondition struct {
-	Type     string `json:"type"`     // "count" or "amount"
-	Duration int    `json:"duration"` // in minutes
-	Threshold int   `json:"threshold"`
+	Type      string `json:"type"`     // "count" or "amount"
+	Duration  int    `json:"duration"` // in minutes
+	Threshold int    `json:"threshold"`
 }
 
 func (e *RuleEngineImpl) evaluateVelocityRule(ctx context.Context, rule *domain.RiskRule, txCtx *domain.TransactionContext) (bool, int, error) {
@@ -125,17 +126,13 @@ func (e *RuleEngineImpl) evaluateGeographyRule(rule *domain.RiskRule, txCtx *dom
 		return false, 0, nil
 	}
 
-	for _, blocked := range cond.BlockedCountries {
-		if txCtx.Country == blocked {
-			return true, rule.RiskWeight, nil
-		}
+	if slices.Contains(cond.BlockedCountries, txCtx.Country) {
+		return true, rule.RiskWeight, nil
 	}
 
 	if len(cond.AllowedCountries) > 0 {
-		for _, allowed := range cond.AllowedCountries {
-			if txCtx.Country == allowed {
-				return false, 0, nil
-			}
+		if slices.Contains(cond.AllowedCountries, txCtx.Country) {
+			return false, 0, nil
 		}
 		return true, rule.RiskWeight, nil
 	}
@@ -215,17 +212,15 @@ func (e *RuleEngineImpl) evaluateDeviceRule(rule *domain.RiskRule, txCtx *domain
 		return true, rule.RiskWeight, nil
 	}
 
-	for _, blocked := range cond.BlockedDevices {
-		if txCtx.DeviceFingerprint == blocked {
-			return true, rule.RiskWeight, nil
-		}
+	if slices.Contains(cond.BlockedDevices, txCtx.DeviceFingerprint) {
+		return true, rule.RiskWeight, nil
 	}
 
 	return false, 0, nil
 }
 
 func (e *RuleEngineImpl) evaluateCustomRule(rule *domain.RiskRule, txCtx *domain.TransactionContext) (bool, int, error) {
-	conditions := make(map[string]interface{})
+	conditions := make(map[string]any)
 	if err := json.Unmarshal([]byte(rule.Condition), &conditions); err != nil {
 		return false, 0, fmt.Errorf("invalid custom condition: %w", err)
 	}
@@ -245,7 +240,7 @@ func (e *RuleEngineImpl) evaluateCustomRule(rule *domain.RiskRule, txCtx *domain
 				}
 			}
 		case "metadata_match":
-			if metadataCond, ok := value.(map[string]interface{}); ok {
+			if metadataCond, ok := value.(map[string]any); ok {
 				if e.matchMetadata(txCtx.Metadata, metadataCond) {
 					return true, rule.RiskWeight, nil
 				}
@@ -275,7 +270,7 @@ func (e *RuleEngineImpl) checkAmountMultiplier(txCtx *domain.TransactionContext,
 	return float64(txCtx.Amount) > avgAmount*multiplier
 }
 
-func (e *RuleEngineImpl) matchMetadata(metadata map[string]string, conditions map[string]interface{}) bool {
+func (e *RuleEngineImpl) matchMetadata(metadata map[string]string, conditions map[string]any) bool {
 	for key, expectedValue := range conditions {
 		if actualValue, ok := metadata[key]; ok {
 			if actualValue != fmt.Sprintf("%v", expectedValue) {

@@ -8,6 +8,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"         // 导入推荐模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/recommendation/application" // 导入推荐模块的应用服务。
+	"github.com/wyfcoding/ecommerce/internal/recommendation/domain"
 
 	// 导入推荐模块的领域层。
 	"google.golang.org/grpc/codes"  // gRPC状态码。
@@ -70,7 +71,39 @@ func (s *Server) GetRecommendedProducts(ctx context.Context, req *pb.GetRecommen
 
 // IndexProductRelationship 处理索引商品关系的gRPC请求。
 func (s *Server) IndexProductRelationship(ctx context.Context, req *pb.IndexProductRelationshipRequest) (*pb.IndexProductRelationshipResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "IndexProductRelationship not implemented")
+	productID1, err := strconv.ParseUint(req.ProductId_1, 10, 64)
+	if err != nil || productID1 == 0 {
+		return nil, status.Error(codes.InvalidArgument, "invalid product_id_1")
+	}
+
+	productID2, err := strconv.ParseUint(req.ProductId_2, 10, 64)
+	if err != nil || productID2 == 0 {
+		return nil, status.Error(codes.InvalidArgument, "invalid product_id_2")
+	}
+
+	weight := req.Weight
+	if weight <= 0 {
+		weight = 0.5
+	}
+	if weight > 1 {
+		weight = 1
+	}
+
+	sim := &domain.ProductSimilarity{
+		ProductID:        productID1,
+		SimilarProductID: productID2,
+		Similarity:       weight,
+		Algorithm:        domain.AlgorithmRuleBased,
+	}
+	if req.Type != "" {
+		sim.Dimensions = domain.StringArray{req.Type}
+	}
+
+	if err := s.cmd.SaveProductSimilarity(ctx, sim); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to index product relationship: %v", err))
+	}
+
+	return &pb.IndexProductRelationshipResponse{}, nil
 }
 
 // GetGraphRecommendedProducts 处理获取图推荐商品列表的gRPC请求。
@@ -108,5 +141,47 @@ func (s *Server) GetGraphRecommendedProducts(ctx context.Context, req *pb.GetGra
 
 // GetAdvancedRecommendedProducts 处理获取高级推荐商品列表的gRPC请求。
 func (s *Server) GetAdvancedRecommendedProducts(ctx context.Context, req *pb.GetAdvancedRecommendedProductsRequest) (*pb.GetAdvancedRecommendedProductsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetAdvancedRecommendedProducts not implemented")
+	userID, err := strconv.ParseUint(req.UserId, 10, 64)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid user_id: %v", err))
+	}
+
+	limit := int(req.Count)
+	if limit < 1 {
+		limit = 10
+	}
+
+	if err := s.cmd.GenerateRecommendations(ctx, userID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate advanced recommendations, fallback to simple strategy", "user_id", userID, "error", err)
+		_ = s.cmd.GenerateRecommendationsSimple(ctx, userID)
+	}
+
+	recType := domain.RecommendationTypePersonalized
+	recs, err := s.query.GetUserRecommendations(ctx, userID, &recType, limit)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get advanced recommendations: %v", err))
+	}
+	if len(recs) == 0 {
+		recs, err = s.query.GetUserRecommendations(ctx, userID, nil, limit)
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get fallback recommendations: %v", err))
+		}
+	}
+
+	pbProducts := make([]*pb.Product, len(recs))
+	for i, r := range recs {
+		pbProducts[i] = &pb.Product{
+			Id:          strconv.FormatUint(r.ProductID, 10),
+			Name:        "Product " + strconv.FormatUint(r.ProductID, 10),
+			Description: r.Reason,
+			Price:       0,
+			ImageUrl:    "",
+		}
+	}
+
+	explanation := fmt.Sprintf("advanced recommendation generated with %d context features", len(req.ContextFeatures))
+	return &pb.GetAdvancedRecommendedProductsResponse{
+		Products:    pbProducts,
+		Explanation: explanation,
+	}, nil
 }

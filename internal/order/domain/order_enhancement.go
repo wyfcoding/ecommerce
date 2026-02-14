@@ -402,7 +402,7 @@ func NewGiftCardOrder(orderNo string, userID uint64, faceValue int64, quantity i
 	}
 
 	// 预生成礼品卡（支付后激活）
-	for i := int32(0); i < quantity; i++ {
+	for i := range quantity {
 		gco.GiftCards[i] = &GiftCard{
 			FaceValue:  faceValue,
 			Balance:    faceValue,

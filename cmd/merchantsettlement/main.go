@@ -53,7 +53,7 @@ func main() {
 		nil,
 		nil,
 	)
-	handler := interfaces.NewMerchantSettlementHandler(app)
+	handler := interfaces.NewMerchantSettlementGRPCServer(app)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.GRPC.Port))
 	if err != nil {

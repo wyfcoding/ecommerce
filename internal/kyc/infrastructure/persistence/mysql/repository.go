@@ -14,27 +14,27 @@ import (
 // KYCApplicationModel KYC申请数据库模型
 type KYCApplicationModel struct {
 	gorm.Model
-	ApplicationID string         `gorm:"column:application_id;type:varchar(64);uniqueIndex;not null"`
-	UserID        uint64         `gorm:"column:user_id;index;not null"`
-	UserType      int            `gorm:"column:user_type;default:0"`
-	MerchantID    uint64         `gorm:"column:merchant_id;index"`
-	FullName      string         `gorm:"column:full_name;type:varchar(128);not null"`
-	IDNumber      string         `gorm:"column:id_number;type:varchar(64);index;not null"`
-	IDType        int            `gorm:"column:id_type;not null"`
-	Nationality   string         `gorm:"column:nationality;type:varchar(64)"`
-	BirthDate     *time.Time     `gorm:"column:birth_date"`
-	Gender        string         `gorm:"column:gender;type:char(1)"`
-	Address       string         `gorm:"column:address;type:varchar(512)"`
-	Country       string         `gorm:"column:country;type:varchar(32)"`
-	Province      string         `gorm:"column:province;type:varchar(64)"`
-	City          string         `gorm:"column:city;type:varchar(64)"`
-	PostalCode    string         `gorm:"column:postal_code;type:varchar(16)"`
-	Status        int            `gorm:"column:status;index;not null;default:1"`
-	Level         int            `gorm:"column:level;not null;default:1"`
-	RiskScore     int            `gorm:"column:risk_score;default:0"`
-	VerifiedAt    *time.Time     `gorm:"column:verified_at"`
-	ExpiresAt     *time.Time     `gorm:"column:expires_at;index"`
-	Version       int            `gorm:"column:version;not null;default:1"`
+	ApplicationID string     `gorm:"column:application_id;type:varchar(64);uniqueIndex;not null"`
+	UserID        uint64     `gorm:"column:user_id;index;not null"`
+	UserType      int        `gorm:"column:user_type;default:0"`
+	MerchantID    uint64     `gorm:"column:merchant_id;index"`
+	FullName      string     `gorm:"column:full_name;type:varchar(128);not null"`
+	IDNumber      string     `gorm:"column:id_number;type:varchar(64);index;not null"`
+	IDType        int        `gorm:"column:id_type;not null"`
+	Nationality   string     `gorm:"column:nationality;type:varchar(64)"`
+	BirthDate     *time.Time `gorm:"column:birth_date"`
+	Gender        string     `gorm:"column:gender;type:char(1)"`
+	Address       string     `gorm:"column:address;type:varchar(512)"`
+	Country       string     `gorm:"column:country;type:varchar(32)"`
+	Province      string     `gorm:"column:province;type:varchar(64)"`
+	City          string     `gorm:"column:city;type:varchar(64)"`
+	PostalCode    string     `gorm:"column:postal_code;type:varchar(16)"`
+	Status        int        `gorm:"column:status;index;not null;default:1"`
+	Level         int        `gorm:"column:level;not null;default:1"`
+	RiskScore     int        `gorm:"column:risk_score;default:0"`
+	VerifiedAt    *time.Time `gorm:"column:verified_at"`
+	ExpiresAt     *time.Time `gorm:"column:expires_at;index"`
+	Version       int        `gorm:"column:version;not null;default:1"`
 }
 
 // TableName 指定表名
@@ -45,23 +45,23 @@ func (KYCApplicationModel) TableName() string {
 // DocumentModel 证件数据库模型
 type DocumentModel struct {
 	gorm.Model
-	ApplicationID string    `gorm:"column:application_id;type:varchar(64);index;not null"`
-	DocumentID    string    `gorm:"column:document_id;type:varchar(64);uniqueIndex;not null"`
-	DocumentType  int       `gorm:"column:document_type;not null"`
-	Side          int       `gorm:"column:side;not null"`
-	DocumentURL   string    `gorm:"column:document_url;type:varchar(512);not null"`
-	OCRName       string    `gorm:"column:ocr_name;type:varchar(128)"`
-	OCRIDNumber   string    `gorm:"column:ocr_id_number;type:varchar(64)"`
-	OCRGender     string    `gorm:"column:ocr_gender;type:char(1)"`
-	OCRNationality string   `gorm:"column:ocr_nationality;type:varchar(64)"`
-	OCRBirthDate  *time.Time `gorm:"column:ocr_birth_date"`
-	OCRAddress    string    `gorm:"column:ocr_address;type:varchar(512)"`
-	OCRIssueAuth  string    `gorm:"column:ocr_issue_auth;type:varchar(128)"`
-	OCRIssueDate  *time.Time `gorm:"column:ocr_issue_date"`
-	OCRExpiryDate *time.Time `gorm:"column:ocr_expiry_date"`
-	OCRConfidence float64   `gorm:"column:ocr_confidence"`
-	Verified      bool      `gorm:"column:verified;default:false"`
-	UploadedAt    time.Time `gorm:"column:uploaded_at;not null"`
+	ApplicationID  string     `gorm:"column:application_id;type:varchar(64);index;not null"`
+	DocumentID     string     `gorm:"column:document_id;type:varchar(64);uniqueIndex;not null"`
+	DocumentType   int        `gorm:"column:document_type;not null"`
+	Side           int        `gorm:"column:side;not null"`
+	DocumentURL    string     `gorm:"column:document_url;type:varchar(512);not null"`
+	OCRName        string     `gorm:"column:ocr_name;type:varchar(128)"`
+	OCRIDNumber    string     `gorm:"column:ocr_id_number;type:varchar(64)"`
+	OCRGender      string     `gorm:"column:ocr_gender;type:char(1)"`
+	OCRNationality string     `gorm:"column:ocr_nationality;type:varchar(64)"`
+	OCRBirthDate   *time.Time `gorm:"column:ocr_birth_date"`
+	OCRAddress     string     `gorm:"column:ocr_address;type:varchar(512)"`
+	OCRIssueAuth   string     `gorm:"column:ocr_issue_auth;type:varchar(128)"`
+	OCRIssueDate   *time.Time `gorm:"column:ocr_issue_date"`
+	OCRExpiryDate  *time.Time `gorm:"column:ocr_expiry_date"`
+	OCRConfidence  float64    `gorm:"column:ocr_confidence"`
+	Verified       bool       `gorm:"column:verified;default:false"`
+	UploadedAt     time.Time  `gorm:"column:uploaded_at;not null"`
 }
 
 // TableName 指定表名
@@ -89,13 +89,13 @@ func (FaceVerificationModel) TableName() string {
 // AuditRecordModel 审核记录数据库模型
 type AuditRecordModel struct {
 	gorm.Model
-	RecordID      string    `gorm:"column:record_id;type:varchar(64);uniqueIndex;not null"`
-	ApplicationID string    `gorm:"column:application_id;type:varchar(64);index;not null"`
-	AuditorID     uint64    `gorm:"column:auditor_id;not null"`
-	AuditorName   string    `gorm:"column:auditor_name;type:varchar(128);not null"`
-	Action        int       `gorm:"column:action;not null"`
-	Reason        string    `gorm:"column:reason;type:varchar(512)"`
-	Comment       string    `gorm:"column:comment;type:text"`
+	RecordID      string `gorm:"column:record_id;type:varchar(64);uniqueIndex;not null"`
+	ApplicationID string `gorm:"column:application_id;type:varchar(64);index;not null"`
+	AuditorID     uint64 `gorm:"column:auditor_id;not null"`
+	AuditorName   string `gorm:"column:auditor_name;type:varchar(128);not null"`
+	Action        int    `gorm:"column:action;not null"`
+	Reason        string `gorm:"column:reason;type:varchar(512)"`
+	Comment       string `gorm:"column:comment;type:text"`
 }
 
 // TableName 指定表名
@@ -106,23 +106,23 @@ func (AuditRecordModel) TableName() string {
 // MerchantKYCModel 商家KYC数据库模型
 type MerchantKYCModel struct {
 	gorm.Model
-	ApplicationID           string    `gorm:"column:application_id;type:varchar(64);uniqueIndex;not null"`
-	MerchantID              uint64    `gorm:"column:merchant_id;index;not null"`
-	CompanyName             string    `gorm:"column:company_name;type:varchar(256);not null"`
-	RegistrationNumber      string    `gorm:"column:registration_number;type:varchar(64);not null"`
-	TaxID                   string    `gorm:"column:tax_id;type:varchar(64)"`
-	LegalRepresentativeName string    `gorm:"column:legal_representative_name;type:varchar(128);not null"`
-	LegalRepresentativeID   string    `gorm:"column:legal_representative_id;type:varchar(64);not null"`
-	BusinessAddress         string    `gorm:"column:business_address;type:varchar(512)"`
-	Country                 string    `gorm:"column:country;type:varchar(32)"`
-	Province                string    `gorm:"column:province;type:varchar(64)"`
-	City                    string    `gorm:"column:city;type:varchar(64)"`
-	PostalCode              string    `gorm:"column:postal_code;type:varchar(16)"`
-	ContactPhone            string    `gorm:"column:contact_phone;type:varchar(32)"`
-	ContactEmail            string    `gorm:"column:contact_email;type:varchar(128)"`
-	BankName                string    `gorm:"column:bank_name;type:varchar(128)"`
-	BankAccount             string    `gorm:"column:bank_account;type:varchar(64)"`
-	BankAccountName         string    `gorm:"column:bank_account_name;type:varchar(128)"`
+	ApplicationID           string `gorm:"column:application_id;type:varchar(64);uniqueIndex;not null"`
+	MerchantID              uint64 `gorm:"column:merchant_id;index;not null"`
+	CompanyName             string `gorm:"column:company_name;type:varchar(256);not null"`
+	RegistrationNumber      string `gorm:"column:registration_number;type:varchar(64);not null"`
+	TaxID                   string `gorm:"column:tax_id;type:varchar(64)"`
+	LegalRepresentativeName string `gorm:"column:legal_representative_name;type:varchar(128);not null"`
+	LegalRepresentativeID   string `gorm:"column:legal_representative_id;type:varchar(64);not null"`
+	BusinessAddress         string `gorm:"column:business_address;type:varchar(512)"`
+	Country                 string `gorm:"column:country;type:varchar(32)"`
+	Province                string `gorm:"column:province;type:varchar(64)"`
+	City                    string `gorm:"column:city;type:varchar(64)"`
+	PostalCode              string `gorm:"column:postal_code;type:varchar(16)"`
+	ContactPhone            string `gorm:"column:contact_phone;type:varchar(32)"`
+	ContactEmail            string `gorm:"column:contact_email;type:varchar(128)"`
+	BankName                string `gorm:"column:bank_name;type:varchar(128)"`
+	BankAccount             string `gorm:"column:bank_account;type:varchar(64)"`
+	BankAccountName         string `gorm:"column:bank_account_name;type:varchar(128)"`
 }
 
 // TableName 指定表名
@@ -151,25 +151,25 @@ func (r *KYCRepository) Update(ctx context.Context, app *domain.KYCApplication) 
 	model := toApplicationModel(app)
 	result := r.db.WithContext(ctx).Model(&KYCApplicationModel{}).
 		Where("id = ? AND version = ?", model.ID, model.Version).
-		Updates(map[string]interface{}{
-			"full_name":    model.FullName,
-			"id_number":    model.IDNumber,
-			"id_type":      model.IDType,
-			"nationality":  model.Nationality,
-			"birth_date":   model.BirthDate,
-			"gender":       model.Gender,
-			"address":      model.Address,
-			"country":      model.Country,
-			"province":     model.Province,
-			"city":         model.City,
-			"postal_code":  model.PostalCode,
-			"status":       model.Status,
-			"level":        model.Level,
-			"risk_score":   model.RiskScore,
-			"verified_at":  model.VerifiedAt,
-			"expires_at":   model.ExpiresAt,
-			"version":      gorm.Expr("version + 1"),
-			"updated_at":   time.Now(),
+		Updates(map[string]any{
+			"full_name":   model.FullName,
+			"id_number":   model.IDNumber,
+			"id_type":     model.IDType,
+			"nationality": model.Nationality,
+			"birth_date":  model.BirthDate,
+			"gender":      model.Gender,
+			"address":     model.Address,
+			"country":     model.Country,
+			"province":    model.Province,
+			"city":        model.City,
+			"postal_code": model.PostalCode,
+			"status":      model.Status,
+			"level":       model.Level,
+			"risk_score":  model.RiskScore,
+			"verified_at": model.VerifiedAt,
+			"expires_at":  model.ExpiresAt,
+			"version":     gorm.Expr("version + 1"),
+			"updated_at":  time.Now(),
 		})
 	if result.Error != nil {
 		return result.Error
@@ -675,7 +675,7 @@ func (r *MerchantKYCRepository) Save(ctx context.Context, info *domain.MerchantK
 		BankAccountName:         info.BankAccountName,
 	}
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "application_id"}},
+		Columns: []clause.Column{{Name: "application_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"company_name", "registration_number", "tax_id", "legal_representative_name",
 			"legal_representative_id", "business_address", "updated_at",

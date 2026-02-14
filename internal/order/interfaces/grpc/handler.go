@@ -540,7 +540,7 @@ func firstNonEmpty(values []string) string {
 }
 
 func extractFirstIP(value string) string {
-	for _, part := range strings.Split(value, ",") {
+	for part := range strings.SplitSeq(value, ",") {
 		ip := strings.TrimSpace(part)
 		if ip == "" {
 			continue

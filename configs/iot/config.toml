@@ -1,0 +1,4 @@
+service_name = "iot"
+
+[server]
+http_addr = ":8080"

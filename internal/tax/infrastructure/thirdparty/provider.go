@@ -365,7 +365,7 @@ func NewHTTPClient(baseURL, apiKey string, timeout time.Duration, maxRetries int
 }
 
 // DoRequest 执行HTTP请求
-func (c *HTTPClient) DoRequest(ctx context.Context, method, path string, body interface{}, result interface{}) error {
+func (c *HTTPClient) DoRequest(ctx context.Context, method, path string, body any, result any) error {
 	url := c.baseURL + path
 
 	var bodyJSON []byte

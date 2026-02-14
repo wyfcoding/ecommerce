@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -21,12 +22,12 @@ const (
 type TransactionStatus string
 
 const (
-	TxStatusPending   TransactionStatus = "PENDING"
+	TxStatusPending    TransactionStatus = "PENDING"
 	TxStatusProcessing TransactionStatus = "PROCESSING"
-	TxStatusSuccess   TransactionStatus = "SUCCESS"
-	TxStatusFailed    TransactionStatus = "FAILED"
-	TxStatusCancelled TransactionStatus = "CANCELLED"
-	TxStatusRefunded  TransactionStatus = "REFUNDED"
+	TxStatusSuccess    TransactionStatus = "SUCCESS"
+	TxStatusFailed     TransactionStatus = "FAILED"
+	TxStatusCancelled  TransactionStatus = "CANCELLED"
+	TxStatusRefunded   TransactionStatus = "REFUNDED"
 )
 
 type TransactionType string
@@ -49,27 +50,27 @@ type Currency struct {
 }
 
 type FiatTransaction struct {
-	ID             uint64           `json:"id"`
-	TransactionID  string           `json:"transaction_id"`
-	UserID         uint64           `json:"user_id"`
-	Type           TransactionType  `json:"type"`
-	Amount         decimal.Decimal  `json:"amount"`
-	Currency       string           `json:"currency"`
-	Channel        ChannelType      `json:"channel"`
-	BankCode       string           `json:"bank_code"`
-	BankAccountID  uint64           `json:"bank_account_id"`
-	Status         TransactionStatus `json:"status"`
-	FeeAmount      decimal.Decimal  `json:"fee_amount"`
-	FeeCurrency    string           `json:"fee_currency"`
-	ExchangeRate   decimal.Decimal  `json:"exchange_rate"`
-	ReferenceNo    string           `json:"reference_no"`
-	ExternalTxID   string           `json:"external_tx_id"`
-	FailReason     string           `json:"fail_reason"`
-	ProcessedAt    *time.Time       `json:"processed_at"`
-	CompletedAt    *time.Time       `json:"completed_at"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
-	events         []DomainEvent
+	ID            uint64            `json:"id"`
+	TransactionID string            `json:"transaction_id"`
+	UserID        uint64            `json:"user_id"`
+	Type          TransactionType   `json:"type"`
+	Amount        decimal.Decimal   `json:"amount"`
+	Currency      string            `json:"currency"`
+	Channel       ChannelType       `json:"channel"`
+	BankCode      string            `json:"bank_code"`
+	BankAccountID uint64            `json:"bank_account_id"`
+	Status        TransactionStatus `json:"status"`
+	FeeAmount     decimal.Decimal   `json:"fee_amount"`
+	FeeCurrency   string            `json:"fee_currency"`
+	ExchangeRate  decimal.Decimal   `json:"exchange_rate"`
+	ReferenceNo   string            `json:"reference_no"`
+	ExternalTxID  string            `json:"external_tx_id"`
+	FailReason    string            `json:"fail_reason"`
+	ProcessedAt   *time.Time        `json:"processed_at"`
+	CompletedAt   *time.Time        `json:"completed_at"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
+	events        []DomainEvent
 }
 
 func NewFiatTransaction(transactionID string, userID uint64, txType TransactionType, amount decimal.Decimal, currency string, channel ChannelType) *FiatTransaction {
@@ -230,22 +231,22 @@ func (r *ExchangeRate) Update(rate, buyRate, sellRate decimal.Decimal) {
 }
 
 type BankAccount struct {
-	ID            uint64        `json:"id"`
-	UserID        uint64        `json:"user_id"`
-	BankName      string        `json:"bank_name"`
-	BankCode      string        `json:"bank_code"`
-	AccountName   string        `json:"account_name"`
-	AccountNo     string        `json:"account_no"`
-	AccountType   string        `json:"account_type"`
-	Currency      string        `json:"currency"`
-	Country       string        `json:"country"`
-	SwiftCode     string        `json:"swift_code"`
-	IBAN          string        `json:"iban"`
-	IsVerified    bool          `json:"is_verified"`
-	IsDefault     bool          `json:"is_default"`
-	Status        AccountStatus `json:"status"`
-	CreatedAt     time.Time     `json:"created_at"`
-	UpdatedAt     time.Time     `json:"updated_at"`
+	ID          uint64        `json:"id"`
+	UserID      uint64        `json:"user_id"`
+	BankName    string        `json:"bank_name"`
+	BankCode    string        `json:"bank_code"`
+	AccountName string        `json:"account_name"`
+	AccountNo   string        `json:"account_no"`
+	AccountType string        `json:"account_type"`
+	Currency    string        `json:"currency"`
+	Country     string        `json:"country"`
+	SwiftCode   string        `json:"swift_code"`
+	IBAN        string        `json:"iban"`
+	IsVerified  bool          `json:"is_verified"`
+	IsDefault   bool          `json:"is_default"`
+	Status      AccountStatus `json:"status"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
 }
 
 type AccountStatus string
@@ -293,38 +294,28 @@ func (a *BankAccount) Unfreeze() {
 }
 
 type FiatChannel struct {
-	ID           uint64      `json:"id"`
-	Code         string      `json:"code"`
-	Name         string      `json:"name"`
-	ChannelType  ChannelType `json:"channel_type"`
-	Currencies   []string    `json:"currencies"`
-	Countries    []string    `json:"countries"`
-	MinAmount    decimal.Decimal `json:"min_amount"`
-	MaxAmount    decimal.Decimal `json:"max_amount"`
-	FeeRate      decimal.Decimal `json:"fee_rate"`
-	FeeFixed     decimal.Decimal `json:"fee_fixed"`
-	IsActive     bool        `json:"is_active"`
-	Priority     int         `json:"priority"`
-	CreatedAt    time.Time   `json:"created_at"`
-	UpdatedAt    time.Time   `json:"updated_at"`
+	ID          uint64          `json:"id"`
+	Code        string          `json:"code"`
+	Name        string          `json:"name"`
+	ChannelType ChannelType     `json:"channel_type"`
+	Currencies  []string        `json:"currencies"`
+	Countries   []string        `json:"countries"`
+	MinAmount   decimal.Decimal `json:"min_amount"`
+	MaxAmount   decimal.Decimal `json:"max_amount"`
+	FeeRate     decimal.Decimal `json:"fee_rate"`
+	FeeFixed    decimal.Decimal `json:"fee_fixed"`
+	IsActive    bool            `json:"is_active"`
+	Priority    int             `json:"priority"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 func (c *FiatChannel) SupportsCurrency(currency string) bool {
-	for _, curr := range c.Currencies {
-		if curr == currency {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.Currencies, currency)
 }
 
 func (c *FiatChannel) SupportsCountry(country string) bool {
-	for _, ctr := range c.Countries {
-		if ctr == country {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.Countries, country)
 }
 
 func (c *FiatChannel) CalculateFee(amount decimal.Decimal) decimal.Decimal {

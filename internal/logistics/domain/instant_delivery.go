@@ -187,10 +187,7 @@ func (d *InstantDelivery) estimateDeliveryTime() {
 	case InstantTypeExpress:
 		// 极速达：30分钟取货 + 距离/30公里每小时
 		pickupTime := now.Add(30 * time.Minute)
-		deliveryMinutes := int(d.Distance / 30 * 60)
-		if deliveryMinutes < 30 {
-			deliveryMinutes = 30
-		}
+		deliveryMinutes := max(int(d.Distance/30*60), 30)
 		deliveryTime := pickupTime.Add(time.Duration(deliveryMinutes) * time.Minute)
 		d.EstimatedPickupTime = &pickupTime
 		d.EstimatedDeliveryTime = &deliveryTime

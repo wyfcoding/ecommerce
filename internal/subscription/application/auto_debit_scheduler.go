@@ -13,14 +13,14 @@ import (
 
 // AutoDebitScheduler 自动扣款调度服务
 type AutoDebitScheduler struct {
-	subscriptionRepo  domain.SubscriptionRepository
-	autoDebitRepo     domain.AutoDebitRepository
-	paymentGateway    domain.PaymentGateway
-	notification      domain.NotificationSender
-	publisher         messagequeue.EventPublisher
-	logger            *slog.Logger
-	maxRetryAttempts  int
-	retryInterval     time.Duration
+	subscriptionRepo domain.SubscriptionRepository
+	autoDebitRepo    domain.AutoDebitRepository
+	paymentGateway   domain.PaymentGateway
+	notification     domain.NotificationSender
+	publisher        messagequeue.EventPublisher
+	logger           *slog.Logger
+	maxRetryAttempts int
+	retryInterval    time.Duration
 }
 
 // NewAutoDebitScheduler 创建自动扣款调度服务
@@ -33,38 +33,38 @@ func NewAutoDebitScheduler(
 	logger *slog.Logger,
 ) *AutoDebitScheduler {
 	return &AutoDebitScheduler{
-		subscriptionRepo:  subscriptionRepo,
-		autoDebitRepo:     autoDebitRepo,
-		paymentGateway:    paymentGateway,
-		notification:      notification,
-		publisher:         publisher,
-		logger:            logger,
-		maxRetryAttempts:  3,
-		retryInterval:     time.Hour,
+		subscriptionRepo: subscriptionRepo,
+		autoDebitRepo:    autoDebitRepo,
+		paymentGateway:   paymentGateway,
+		notification:     notification,
+		publisher:        publisher,
+		logger:           logger,
+		maxRetryAttempts: 3,
+		retryInterval:    time.Hour,
 	}
 }
 
 // ProcessAutoDebits 处理需要自动扣款的订阅
 func (s *AutoDebitScheduler) ProcessAutoDebits(ctx context.Context) error {
 	now := time.Now()
-	
+
 	query := &domain.SubscriptionQuery{
-		Status:   ptrSubscriptionStatus(domain.SubscriptionStatusActive),
-		AutoRenew: ptrBool(true),
-		PageSize: 100,
+		Status:    new(domain.SubscriptionStatusActive),
+		AutoRenew: new(true),
+		PageSize:  100,
 	}
-	
+
 	subscriptions, _, err := s.subscriptionRepo.ListSubscriptions(ctx, query)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to list subscriptions for auto debit", "error", err)
 		return err
 	}
-	
+
 	for _, sub := range subscriptions {
 		if !sub.NeedsAutoDebit(now) {
 			continue
 		}
-		
+
 		if err := s.processAutoDebit(ctx, sub); err != nil {
 			s.logger.ErrorContext(ctx, "failed to process auto debit",
 				"subscription_id", sub.ID,
@@ -73,7 +73,7 @@ func (s *AutoDebitScheduler) ProcessAutoDebits(ctx context.Context) error {
 			continue
 		}
 	}
-	
+
 	return nil
 }
 
@@ -83,55 +83,55 @@ func (s *AutoDebitScheduler) processAutoDebit(ctx context.Context, sub *domain.S
 	if err != nil || plan == nil {
 		return fmt.Errorf("failed to get plan: %w", err)
 	}
-	
+
 	record := sub.CreateAutoDebitRecord(plan.Price)
 	record.AttemptCount++
 	record.LastAttempt = time.Now()
-	
+
 	if err := s.autoDebitRepo.Save(ctx, record); err != nil {
 		return fmt.Errorf("failed to save debit record: %w", err)
 	}
-	
+
 	if s.paymentGateway == nil {
 		s.logger.WarnContext(ctx, "payment gateway not configured, skipping auto debit",
 			"subscription_id", sub.ID)
 		return nil
 	}
-	
-	transactionID, err := s.paymentGateway.ChargeUser(ctx, sub.UserID, plan.Price, 
+
+	transactionID, err := s.paymentGateway.ChargeUser(ctx, sub.UserID, plan.Price,
 		fmt.Sprintf("Subscription renewal - Plan: %s", plan.Name))
-	
+
 	if err != nil {
 		record.Status = domain.DebitStatusFailed
 		record.ErrorMessage = err.Error()
 		_ = s.autoDebitRepo.UpdateStatus(ctx, record.RecordID, record.Status, record.ErrorMessage)
-		
+
 		if s.notification != nil {
 			_ = s.notification.SendAutoDebitResult(ctx, sub.UserID, false, plan.Price)
 		}
-		
+
 		s.publishAutoDebitEvent(ctx, sub, record)
 		return fmt.Errorf("payment failed: %w", err)
 	}
-	
+
 	record.Status = domain.DebitStatusSucceeded
 	_ = s.autoDebitRepo.UpdateStatus(ctx, record.RecordID, record.Status, "")
-	
+
 	sub.Renew(plan.Duration)
 	if err := s.subscriptionRepo.SaveSubscription(ctx, sub); err != nil {
 		s.logger.ErrorContext(ctx, "failed to renew subscription after successful payment",
 			"subscription_id", sub.ID, "transaction_id", transactionID)
 	}
-	
+
 	if s.notification != nil {
 		_ = s.notification.SendAutoDebitResult(ctx, sub.UserID, true, plan.Price)
 	}
-	
+
 	s.publishAutoDebitEvent(ctx, sub, record)
 	s.logger.InfoContext(ctx, "auto debit completed successfully",
 		"subscription_id", sub.ID,
 		"transaction_id", transactionID)
-	
+
 	return nil
 }
 
@@ -140,7 +140,7 @@ func (s *AutoDebitScheduler) publishAutoDebitEvent(ctx context.Context, sub *dom
 	if s.publisher == nil {
 		return
 	}
-	
+
 	event := &domain.AutoDebitExecutedEvent{
 		RecordID:       record.RecordID,
 		SubscriptionID: record.SubscriptionID,
@@ -150,7 +150,7 @@ func (s *AutoDebitScheduler) publishAutoDebitEvent(ctx context.Context, sub *dom
 		AttemptCount:   record.AttemptCount,
 		Timestamp:      time.Now(),
 	}
-	
+
 	_ = s.publisher.Publish(ctx, domain.AutoDebitExecutedEventType, record.RecordID, event)
 }
 
@@ -183,40 +183,40 @@ func NewRenewalReminderService(
 // SendRenewalReminders 发送续费提醒
 func (s *RenewalReminderService) SendRenewalReminders(ctx context.Context) error {
 	now := time.Now()
-	
+
 	query := &domain.SubscriptionQuery{
-		Status:   ptrSubscriptionStatus(domain.SubscriptionStatusActive),
+		Status:   new(domain.SubscriptionStatusActive),
 		PageSize: 100,
 	}
-	
+
 	subscriptions, _, err := s.subscriptionRepo.ListSubscriptions(ctx, query)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to list subscriptions for reminders", "error", err)
 		return err
 	}
-	
+
 	for _, sub := range subscriptions {
 		shouldSend, reminderType := sub.ShouldSendReminder(now)
 		if !shouldSend {
 			continue
 		}
-		
+
 		if sent, _ := s.reminderRepo.GetSentReminders(ctx, uint(sub.ID), reminderType); sent {
 			continue
 		}
-		
+
 		plan, err := s.subscriptionRepo.GetPlan(ctx, sub.PlanID)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to get plan for reminder",
 				"subscription_id", sub.ID, "error", err)
 			continue
 		}
-		
+
 		planName := ""
 		if plan != nil {
 			planName = plan.Name
 		}
-		
+
 		reminder := &domain.RenewalReminder{
 			SubscriptionID: uint(sub.ID),
 			UserID:         sub.UserID,
@@ -225,7 +225,7 @@ func (s *RenewalReminderService) SendRenewalReminders(ctx context.Context) error
 			DaysRemaining:  int(time.Until(sub.EndDate).Hours() / 24),
 			ReminderType:   reminderType,
 		}
-		
+
 		if s.notification != nil {
 			if err := s.notification.SendRenewalReminder(ctx, sub.UserID, reminder); err != nil {
 				s.logger.ErrorContext(ctx, "failed to send renewal reminder",
@@ -233,16 +233,16 @@ func (s *RenewalReminderService) SendRenewalReminders(ctx context.Context) error
 				continue
 			}
 		}
-		
+
 		_ = s.reminderRepo.MarkAsSent(ctx, uint(sub.ID), reminderType)
 		_ = s.reminderRepo.Save(ctx, reminder)
-		
+
 		s.publishExpiringEvent(ctx, sub, reminder.DaysRemaining)
 		s.logger.InfoContext(ctx, "renewal reminder sent",
 			"subscription_id", sub.ID,
 			"reminder_type", reminderType)
 	}
-	
+
 	return nil
 }
 
@@ -251,7 +251,7 @@ func (s *RenewalReminderService) publishExpiringEvent(ctx context.Context, sub *
 	if s.publisher == nil {
 		return
 	}
-	
+
 	event := &domain.SubscriptionExpiringEvent{
 		SubscriptionID: uint64(sub.ID),
 		UserID:         sub.UserID,
@@ -260,15 +260,18 @@ func (s *RenewalReminderService) publishExpiringEvent(ctx context.Context, sub *
 		DaysRemaining:  daysRemaining,
 		Timestamp:      time.Now(),
 	}
-	
+
 	_ = s.publisher.Publish(ctx, domain.SubscriptionExpiringEventType, fmt.Sprintf("%d", sub.ID), event)
 }
 
 // 辅助函数
+//
+//go:fix inline
 func ptrSubscriptionStatus(s domain.SubscriptionStatus) *domain.SubscriptionStatus {
-	return &s
+	return new(s)
 }
 
+//go:fix inline
 func ptrBool(b bool) *bool {
-	return &b
+	return new(b)
 }

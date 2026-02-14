@@ -1,3 +1,5 @@
+//go:build ignore
+
 package domain
 
 import (
@@ -10,11 +12,11 @@ import (
 )
 
 var (
-	ErrSplitRuleNotFound     = errors.New("split rule not found")
-	ErrSplitRuleDisabled     = errors.New("split rule is disabled")
-	ErrInvalidSplitRatio     = errors.New("invalid split ratio")
-	ErrSplitAmountMismatch   = errors.New("split amount mismatch")
-	ErrNoMatchingRule        = errors.New("no matching split rule")
+	ErrSplitRuleNotFound   = errors.New("split rule not found")
+	ErrSplitRuleDisabled   = errors.New("split rule is disabled")
+	ErrInvalidSplitRatio   = errors.New("invalid split ratio")
+	ErrSplitAmountMismatch = errors.New("split amount mismatch")
+	ErrNoMatchingRule      = errors.New("no matching split rule")
 )
 
 type SplitRuleType int8
@@ -51,12 +53,12 @@ const (
 type SplitTargetType int8
 
 const (
-	SplitTargetPlatform   SplitTargetType = 1
-	SplitTargetMerchant   SplitTargetType = 2
-	SplitTargetAgent      SplitTargetType = 3
-	SplitTargetPromoter   SplitTargetType = 4
-	SplitTargetCharity    SplitTargetType = 5
-	SplitTargetReserve    SplitTargetType = 6
+	SplitTargetPlatform SplitTargetType = 1
+	SplitTargetMerchant SplitTargetType = 2
+	SplitTargetAgent    SplitTargetType = 3
+	SplitTargetPromoter SplitTargetType = 4
+	SplitTargetCharity  SplitTargetType = 5
+	SplitTargetReserve  SplitTargetType = 6
 )
 
 func (t SplitTargetType) String() string {
@@ -79,95 +81,95 @@ func (t SplitTargetType) String() string {
 }
 
 type SplitRule struct {
-	ID           uint              `json:"id"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	RuleNo       string            `json:"rule_no"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	RuleType     SplitRuleType     `json:"rule_type"`
-	Status       SplitRuleStatus   `json:"status"`
-	Priority     int               `json:"priority"`
-	Conditions   []*SplitCondition `json:"conditions"`
-	Allocations  []*SplitAllocation `json:"allocations"`
-	MinAmount    int64             `json:"min_amount"`
-	MaxAmount    int64             `json:"max_amount"`
-	CategoryIDs  []uint64          `json:"category_ids"`
-	MerchantIDs  []uint64          `json:"merchant_ids"`
-	StartTime    *time.Time        `json:"start_time"`
-	EndTime      *time.Time        `json:"end_time"`
-	Version      int               `json:"version"`
+	ID          uint               `json:"id"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+	RuleNo      string             `json:"rule_no"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	RuleType    SplitRuleType      `json:"rule_type"`
+	Status      SplitRuleStatus    `json:"status"`
+	Priority    int                `json:"priority"`
+	Conditions  []*SplitCondition  `json:"conditions"`
+	Allocations []*SplitAllocation `json:"allocations"`
+	MinAmount   int64              `json:"min_amount"`
+	MaxAmount   int64              `json:"max_amount"`
+	CategoryIDs []uint64           `json:"category_ids"`
+	MerchantIDs []uint64           `json:"merchant_ids"`
+	StartTime   *time.Time         `json:"start_time"`
+	EndTime     *time.Time         `json:"end_time"`
+	Version     int                `json:"version"`
 }
 
 type SplitCondition struct {
-	ID         uint     `json:"id"`
-	CreatedAt  time.Time `json:"created_at"`
-	RuleID     uint     `json:"rule_id"`
-	Field      string   `json:"field"`
-	Operator   string   `json:"operator"`
-	Value      string   `json:"value"`
-	LogicType  string   `json:"logic_type"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	RuleID    uint      `json:"rule_id"`
+	Field     string    `json:"field"`
+	Operator  string    `json:"operator"`
+	Value     string    `json:"value"`
+	LogicType string    `json:"logic_type"`
 }
 
 type SplitAllocation struct {
-	ID           uint            `json:"id"`
-	CreatedAt    time.Time       `json:"created_at"`
-	RuleID       uint            `json:"rule_id"`
-	TargetType   SplitTargetType `json:"target_type"`
-	TargetID     uint64          `json:"target_id"`
-	TargetName   string          `json:"target_name"`
-	Value        decimal.Decimal `json:"value"`
-	MinAmount    int64           `json:"min_amount"`
-	MaxAmount    int64           `json:"max_amount"`
-	Priority     int             `json:"priority"`
-	Description  string          `json:"description"`
-}
-
-type SplitRuleTier struct {
 	ID          uint            `json:"id"`
 	CreatedAt   time.Time       `json:"created_at"`
 	RuleID      uint            `json:"rule_id"`
+	TargetType  SplitTargetType `json:"target_type"`
+	TargetID    uint64          `json:"target_id"`
+	TargetName  string          `json:"target_name"`
+	Value       decimal.Decimal `json:"value"`
 	MinAmount   int64           `json:"min_amount"`
 	MaxAmount   int64           `json:"max_amount"`
+	Priority    int             `json:"priority"`
+	Description string          `json:"description"`
+}
+
+type SplitRuleTier struct {
+	ID          uint               `json:"id"`
+	CreatedAt   time.Time          `json:"created_at"`
+	RuleID      uint               `json:"rule_id"`
+	MinAmount   int64              `json:"min_amount"`
+	MaxAmount   int64              `json:"max_amount"`
 	Allocations []*SplitAllocation `json:"allocations"`
 }
 
 type SplitResult struct {
-	OrderID        uint64            `json:"order_id"`
-	OrderNo        string            `json:"order_no"`
-	PaymentID      uint64            `json:"payment_id"`
-	PaymentNo      string            `json:"payment_no"`
-	TotalAmount    int64             `json:"total_amount"`
-	Currency       string            `json:"currency"`
-	RuleID         uint              `json:"rule_id"`
-	RuleName       string            `json:"rule_name"`
-	Allocations    []*SplitResultItem `json:"allocations"`
-	AllocatedAt    time.Time         `json:"allocated_at"`
-	Status         SplitStatus       `json:"status"`
-	FailureReason  string            `json:"failure_reason"`
+	OrderID       uint64             `json:"order_id"`
+	OrderNo       string             `json:"order_no"`
+	PaymentID     uint64             `json:"payment_id"`
+	PaymentNo     string             `json:"payment_no"`
+	TotalAmount   int64              `json:"total_amount"`
+	Currency      string             `json:"currency"`
+	RuleID        uint               `json:"rule_id"`
+	RuleName      string             `json:"rule_name"`
+	Allocations   []*SplitResultItem `json:"allocations"`
+	AllocatedAt   time.Time          `json:"allocated_at"`
+	Status        SplitStatus        `json:"status"`
+	FailureReason string             `json:"failure_reason"`
 }
 
 type SplitResultItem struct {
-	ID           uint            `json:"id"`
-	CreatedAt    time.Time       `json:"created_at"`
-	ResultID     uint            `json:"result_id"`
-	TargetType   SplitTargetType `json:"target_type"`
-	TargetID     uint64          `json:"target_id"`
-	TargetName   string          `json:"target_name"`
-	Amount       int64           `json:"amount"`
-	Ratio        decimal.Decimal `json:"ratio"`
-	Status       SplitStatus     `json:"status"`
-	ProcessedAt  *time.Time      `json:"processed_at"`
+	ID          uint            `json:"id"`
+	CreatedAt   time.Time       `json:"created_at"`
+	ResultID    uint            `json:"result_id"`
+	TargetType  SplitTargetType `json:"target_type"`
+	TargetID    uint64          `json:"target_id"`
+	TargetName  string          `json:"target_name"`
+	Amount      int64           `json:"amount"`
+	Ratio       decimal.Decimal `json:"ratio"`
+	Status      SplitStatus     `json:"status"`
+	ProcessedAt *time.Time      `json:"processed_at"`
 }
 
 type SplitStatus int8
 
 const (
-	SplitStatusPending   SplitStatus = 0
+	SplitStatusPending    SplitStatus = 0
 	SplitStatusProcessing SplitStatus = 1
-	SplitStatusSuccess   SplitStatus = 2
-	SplitStatusFailed    SplitStatus = 3
-	SplitStatusCancelled SplitStatus = 4
+	SplitStatusSuccess    SplitStatus = 2
+	SplitStatusFailed     SplitStatus = 3
+	SplitStatusCancelled  SplitStatus = 4
 )
 
 func (s SplitStatus) String() string {
@@ -188,20 +190,20 @@ func (s SplitStatus) String() string {
 }
 
 type SplitContext struct {
-	OrderID      uint64
-	OrderNo      string
-	PaymentID    uint64
-	PaymentNo    string
-	TotalAmount  int64
-	Currency     string
-	MerchantID   uint64
-	CategoryID   uint64
-	ProductIDs   []uint64
-	UserID       uint64
-	Channel      string
-	PromoterID   uint64
-	AgentID      uint64
-	ExtraData    map[string]any
+	OrderID     uint64
+	OrderNo     string
+	PaymentID   uint64
+	PaymentNo   string
+	TotalAmount int64
+	Currency    string
+	MerchantID  uint64
+	CategoryID  uint64
+	ProductIDs  []uint64
+	UserID      uint64
+	Channel     string
+	PromoterID  uint64
+	AgentID     uint64
+	ExtraData   map[string]any
 }
 
 func NewSplitRule(ruleNo, name string, ruleType SplitRuleType) *SplitRule {

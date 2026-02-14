@@ -84,10 +84,7 @@ func (r *GormMerchantRepository) List(ctx context.Context, filter *domain.Mercha
 	}
 
 	var merchants []*domain.Merchant
-	offset := (filter.Page - 1) * filter.PageSize
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((filter.Page-1)*filter.PageSize, 0)
 
 	if err := query.Order("created_at DESC").Offset(offset).Limit(filter.PageSize).Find(&merchants).Error; err != nil {
 		return nil, 0, err
@@ -217,10 +214,7 @@ func (r *GormStoreRepository) ListByMerchantID(ctx context.Context, merchantID u
 	}
 
 	var stores []*domain.Store
-	offset := (page - 1) * pageSize
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((page-1)*pageSize, 0)
 
 	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&stores).Error; err != nil {
 		return nil, 0, err

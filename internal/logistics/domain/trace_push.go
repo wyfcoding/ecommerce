@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 )
@@ -72,72 +73,72 @@ func (s SubscriptionStatus) String() string {
 }
 
 type TraceSubscription struct {
-	ID            uint               `json:"id"`
-	CreatedAt     time.Time          `json:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-	SubscriptionNo string            `json:"subscription_no"`
-	TrackingNo    string             `json:"tracking_no"`
-	LogisticsID   uint64             `json:"logistics_id"`
-	UserID        uint64             `json:"user_id"`
-	MerchantID    uint64             `json:"merchant_id"`
-	Channels      []PushChannel      `json:"channels"`
-	Status        SubscriptionStatus `json:"status"`
-	LastPushAt    *time.Time         `json:"last_push_at"`
-	LastTraceID   uint64             `json:"last_trace_id"`
-	PushCount     int                `json:"push_count"`
-	ExpiresAt     *time.Time         `json:"expires_at"`
-	CancelledAt   *time.Time         `json:"cancelled_at"`
-	CancelReason  string             `json:"cancel_reason"`
-	WebhookURL    string             `json:"webhook_url"`
-	ExtraConfig   map[string]any     `json:"extra_config"`
+	ID             uint               `json:"id"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+	SubscriptionNo string             `json:"subscription_no"`
+	TrackingNo     string             `json:"tracking_no"`
+	LogisticsID    uint64             `json:"logistics_id"`
+	UserID         uint64             `json:"user_id"`
+	MerchantID     uint64             `json:"merchant_id"`
+	Channels       []PushChannel      `json:"channels"`
+	Status         SubscriptionStatus `json:"status"`
+	LastPushAt     *time.Time         `json:"last_push_at"`
+	LastTraceID    uint64             `json:"last_trace_id"`
+	PushCount      int                `json:"push_count"`
+	ExpiresAt      *time.Time         `json:"expires_at"`
+	CancelledAt    *time.Time         `json:"cancelled_at"`
+	CancelReason   string             `json:"cancel_reason"`
+	WebhookURL     string             `json:"webhook_url"`
+	ExtraConfig    map[string]any     `json:"extra_config"`
 }
 
 type TracePushEvent struct {
-	ID           uint      `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	TrackingNo   string    `json:"tracking_no"`
-	LogisticsID  uint64    `json:"logistics_id"`
-	TraceID      uint64    `json:"trace_id"`
-	Location     string    `json:"location"`
-	Description  string    `json:"description"`
-	Status       string    `json:"status"`
-	Timestamp    time.Time `json:"timestamp"`
-	Priority     int       `json:"priority"`
-	PushedTo     []uint64  `json:"pushed_to"`
-	FailedTo     []uint64  `json:"failed_to"`
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	TrackingNo  string    `json:"tracking_no"`
+	LogisticsID uint64    `json:"logistics_id"`
+	TraceID     uint64    `json:"trace_id"`
+	Location    string    `json:"location"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	Timestamp   time.Time `json:"timestamp"`
+	Priority    int       `json:"priority"`
+	PushedTo    []uint64  `json:"pushed_to"`
+	FailedTo    []uint64  `json:"failed_to"`
 }
 
 type TracePushRecord struct {
-	ID             uint       `json:"id"`
-	CreatedAt      time.Time  `json:"created_at"`
-	EventID        uint       `json:"event_id"`
-	SubscriptionID uint       `json:"subscription_id"`
-	UserID         uint64     `json:"user_id"`
+	ID             uint        `json:"id"`
+	CreatedAt      time.Time   `json:"created_at"`
+	EventID        uint        `json:"event_id"`
+	SubscriptionID uint        `json:"subscription_id"`
+	UserID         uint64      `json:"user_id"`
 	Channel        PushChannel `json:"channel"`
-	Status         string     `json:"status"`
-	SentAt         *time.Time `json:"sent_at"`
-	DeliveredAt    *time.Time `json:"delivered_at"`
-	ReadAt         *time.Time `json:"read_at"`
-	ErrorMessage   string     `json:"error_message"`
-	RetryCount     int        `json:"retry_count"`
+	Status         string      `json:"status"`
+	SentAt         *time.Time  `json:"sent_at"`
+	DeliveredAt    *time.Time  `json:"delivered_at"`
+	ReadAt         *time.Time  `json:"read_at"`
+	ErrorMessage   string      `json:"error_message"`
+	RetryCount     int         `json:"retry_count"`
 }
 
 type PushConfig struct {
-	MaxRetries          int           `json:"max_retries"`
-	RetryInterval       time.Duration `json:"retry_interval"`
-	BatchSize           int           `json:"batch_size"`
-	EnableBatchPush     bool          `json:"enable_batch_push"`
-	DefaultExpiration   time.Duration `json:"default_expiration"`
-	MaxSubscriptionsPerUser int        `json:"max_subscriptions_per_user"`
+	MaxRetries              int           `json:"max_retries"`
+	RetryInterval           time.Duration `json:"retry_interval"`
+	BatchSize               int           `json:"batch_size"`
+	EnableBatchPush         bool          `json:"enable_batch_push"`
+	DefaultExpiration       time.Duration `json:"default_expiration"`
+	MaxSubscriptionsPerUser int           `json:"max_subscriptions_per_user"`
 }
 
 func DefaultPushConfig() *PushConfig {
 	return &PushConfig{
-		MaxRetries:          3,
-		RetryInterval:       time.Second * 5,
-		BatchSize:           100,
-		EnableBatchPush:     true,
-		DefaultExpiration:   time.Hour * 24 * 30,
+		MaxRetries:              3,
+		RetryInterval:           time.Second * 5,
+		BatchSize:               100,
+		EnableBatchPush:         true,
+		DefaultExpiration:       time.Hour * 24 * 30,
 		MaxSubscriptionsPerUser: 50,
 	}
 }
@@ -195,23 +196,18 @@ func (s *TraceSubscription) Activate() {
 }
 
 func (s *TraceSubscription) HasChannel(channel PushChannel) bool {
-	for _, c := range s.Channels {
-		if c == channel {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.Channels, channel)
 }
 
 type TracePusher struct {
-	logger       *slog.Logger
-	config       *PushConfig
+	logger        *slog.Logger
+	config        *PushConfig
 	subscriptions map[string][]*TraceSubscription
-	mu           sync.RWMutex
-	ctx          context.Context
-	cancel       context.CancelFunc
-	repository   TracePushRepository
-	notifier     PushNotifier
+	mu            sync.RWMutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	repository    TracePushRepository
+	notifier      PushNotifier
 }
 
 type PushNotifier interface {
@@ -222,13 +218,13 @@ type PushNotifier interface {
 func NewTracePusher(logger *slog.Logger, config *PushConfig, repo TracePushRepository, notifier PushNotifier) *TracePusher {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TracePusher{
-		logger:       logger,
-		config:       config,
+		logger:        logger,
+		config:        config,
 		subscriptions: make(map[string][]*TraceSubscription),
-		ctx:          ctx,
-		cancel:       cancel,
-		repository:   repo,
-		notifier:     notifier,
+		ctx:           ctx,
+		cancel:        cancel,
+		repository:    repo,
+		notifier:      notifier,
 	}
 }
 

@@ -28,12 +28,12 @@ type RedisBasedTimeoutScheduler struct {
 }
 
 type RedisClient interface {
-	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error)
+	SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error)
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) (int64, error)
 	ZAdd(ctx context.Context, key string, members ...ZMember) (int64, error)
 	ZRangeByScore(ctx context.Context, key string, opt *ZRangeBy) ([]string, error)
-	ZRem(ctx context.Context, key string, members ...interface{}) (int64, error)
+	ZRem(ctx context.Context, key string, members ...any) (int64, error)
 }
 
 type ZMember struct {
@@ -69,8 +69,8 @@ func (s *RedisBasedTimeoutScheduler) ScheduleTimeout(orderID string, timeout tim
 	}
 
 	task := &TimeoutTask{
-		OrderID:  orderID,
-		Timeout:  timeout,
+		OrderID: orderID,
+		Timeout: timeout,
 		Callback: func(orderID string) error {
 			callback(orderID)
 			return nil

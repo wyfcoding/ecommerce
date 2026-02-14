@@ -21,54 +21,54 @@ const (
 
 type OpenApiApp struct {
 	gorm.Model
-	AppID        string    `gorm:"column:app_id;type:varchar(32);unique_index;not null"`
-	UserID       string    `gorm:"column:user_id;type:varchar(32);index;not null"`
-	AppName      string    `gorm:"column:app_name;type:varchar(100);not null"`
-	Description  string    `gorm:"column:description;type:text"`
-	APIKey       string    `gorm:"column:api_key;type:varchar(64);unique_index;not null"`
-	APISecret    string    `gorm:"column:api_secret;type:varchar(128);not null"`
-	Status       AppStatus `gorm:"column:status;type:varchar(20);not null;default:'ACTIVE'"`
-	Scopes       string    `gorm:"column:scopes;type:text"`
-	CallbackURL  string    `gorm:"column:callback_url;type:varchar(512)"`
-	IPWhitelist  string    `gorm:"column:ip_whitelist;type:text"`
-	RateLimit    int       `gorm:"column:rate_limit;type:int;not null;default:1000"`
-	DailyQuota   int64     `gorm:"column:daily_quota;type:bigint;not null;default:100000"`
-	UsedQuota    int64     `gorm:"column:used_quota;type:bigint;not null;default:0"`
-	ExpiresAt    *time.Time `gorm:"column:expires_at"`
-	LastUsedAt   *time.Time `gorm:"column:last_used_at"`
-	
+	AppID       string     `gorm:"column:app_id;type:varchar(32);unique_index;not null"`
+	UserID      string     `gorm:"column:user_id;type:varchar(32);index;not null"`
+	AppName     string     `gorm:"column:app_name;type:varchar(100);not null"`
+	Description string     `gorm:"column:description;type:text"`
+	APIKey      string     `gorm:"column:api_key;type:varchar(64);unique_index;not null"`
+	APISecret   string     `gorm:"column:api_secret;type:varchar(128);not null"`
+	Status      AppStatus  `gorm:"column:status;type:varchar(20);not null;default:'ACTIVE'"`
+	Scopes      string     `gorm:"column:scopes;type:text"`
+	CallbackURL string     `gorm:"column:callback_url;type:varchar(512)"`
+	IPWhitelist string     `gorm:"column:ip_whitelist;type:text"`
+	RateLimit   int        `gorm:"column:rate_limit;type:int;not null;default:1000"`
+	DailyQuota  int64      `gorm:"column:daily_quota;type:bigint;not null;default:100000"`
+	UsedQuota   int64      `gorm:"column:used_quota;type:bigint;not null;default:0"`
+	ExpiresAt   *time.Time `gorm:"column:expires_at"`
+	LastUsedAt  *time.Time `gorm:"column:last_used_at"`
+
 	domainEvents []DomainEvent `gorm:"-" json:"-"`
 }
 
 func (OpenApiApp) TableName() string { return "openapi_apps" }
 
 var (
-	ErrAppNotFound      = errors.New("app not found")
-	ErrAppDisabled      = errors.New("app is disabled")
-	ErrAppExpired       = errors.New("app has expired")
-	ErrQuotaExceeded    = errors.New("daily quota exceeded")
-	ErrScopeNotGranted  = errors.New("scope not granted")
+	ErrAppNotFound     = errors.New("app not found")
+	ErrAppDisabled     = errors.New("app is disabled")
+	ErrAppExpired      = errors.New("app has expired")
+	ErrQuotaExceeded   = errors.New("daily quota exceeded")
+	ErrScopeNotGranted = errors.New("scope not granted")
 )
 
 func NewOpenApiApp(userID, name, description string, scopes []string) *OpenApiApp {
 	appID := fmt.Sprintf("app_%d", time.Now().UnixNano())
 	apiKey := generateRandomKey(16)
 	apiSecret := generateRandomKey(32)
-	
+
 	app := &OpenApiApp{
-		AppID:       appID,
-		UserID:      userID,
-		AppName:     name,
-		Description: description,
-		APIKey:      apiKey,
-		APISecret:   apiSecret,
-		Status:      StatusActive,
-		Scopes:      strings.Join(scopes, ","),
-		RateLimit:   1000,
-		DailyQuota:  100000,
+		AppID:        appID,
+		UserID:       userID,
+		AppName:      name,
+		Description:  description,
+		APIKey:       apiKey,
+		APISecret:    apiSecret,
+		Status:       StatusActive,
+		Scopes:       strings.Join(scopes, ","),
+		RateLimit:    1000,
+		DailyQuota:   100000,
 		domainEvents: make([]DomainEvent, 0),
 	}
-	
+
 	app.AddDomainEvent(&AppCreatedEvent{
 		AppID:     appID,
 		UserID:    userID,
@@ -76,7 +76,7 @@ func NewOpenApiApp(userID, name, description string, scopes []string) *OpenApiAp
 		Scopes:    scopes,
 		Timestamp: time.Now(),
 	})
-	
+
 	return app
 }
 
@@ -85,12 +85,12 @@ func (a *OpenApiApp) Enable() error {
 		return errors.New("app is already active")
 	}
 	a.Status = StatusActive
-	
+
 	a.AddDomainEvent(&AppEnabledEvent{
 		AppID:     a.AppID,
 		Timestamp: time.Now(),
 	})
-	
+
 	return nil
 }
 
@@ -99,31 +99,31 @@ func (a *OpenApiApp) Disable(reason string) error {
 		return errors.New("app is already disabled")
 	}
 	a.Status = StatusDisabled
-	
+
 	a.AddDomainEvent(&AppDisabledEvent{
 		AppID:     a.AppID,
 		Reason:    reason,
 		Timestamp: time.Now(),
 	})
-	
+
 	return nil
 }
 
 func (a *OpenApiApp) RegenerateSecret() string {
 	newSecret := generateRandomKey(32)
 	a.APISecret = newSecret
-	
+
 	a.AddDomainEvent(&AppSecretRegeneratedEvent{
 		AppID:     a.AppID,
 		Timestamp: time.Now(),
 	})
-	
+
 	return newSecret
 }
 
 func (a *OpenApiApp) UpdateScopes(scopes []string) {
 	a.Scopes = strings.Join(scopes, ",")
-	
+
 	a.AddDomainEvent(&AppScopesUpdatedEvent{
 		AppID:     a.AppID,
 		Scopes:    scopes,
@@ -133,7 +133,7 @@ func (a *OpenApiApp) UpdateScopes(scopes []string) {
 
 func (a *OpenApiApp) UpdateRateLimit(limit int) {
 	a.RateLimit = limit
-	
+
 	a.AddDomainEvent(&AppRateLimitUpdatedEvent{
 		AppID:     a.AppID,
 		RateLimit: limit,
@@ -143,11 +143,11 @@ func (a *OpenApiApp) UpdateRateLimit(limit int) {
 
 func (a *OpenApiApp) UpdateQuota(quota int64) {
 	a.DailyQuota = quota
-	
+
 	a.AddDomainEvent(&AppQuotaUpdatedEvent{
-		AppID:     a.AppID,
+		AppID:      a.AppID,
 		DailyQuota: quota,
-		Timestamp: time.Now(),
+		Timestamp:  time.Now(),
 	})
 }
 
@@ -155,19 +155,19 @@ func (a *OpenApiApp) RecordUsage() error {
 	if a.Status != StatusActive {
 		return ErrAppDisabled
 	}
-	
+
 	if a.ExpiresAt != nil && time.Now().After(*a.ExpiresAt) {
 		return ErrAppExpired
 	}
-	
+
 	if a.UsedQuota >= a.DailyQuota {
 		return ErrQuotaExceeded
 	}
-	
+
 	a.UsedQuota++
 	now := time.Now()
 	a.LastUsedAt = &now
-	
+
 	return nil
 }
 
@@ -176,8 +176,8 @@ func (a *OpenApiApp) ResetDailyQuota() {
 }
 
 func (a *OpenApiApp) HasScope(scope string) bool {
-	scopes := strings.Split(a.Scopes, ",")
-	for _, s := range scopes {
+	scopes := strings.SplitSeq(a.Scopes, ",")
+	for s := range scopes {
 		if strings.TrimSpace(s) == scope {
 			return true
 		}
@@ -189,9 +189,9 @@ func (a *OpenApiApp) IsIPAllowed(ip string) bool {
 	if a.IPWhitelist == "" {
 		return true
 	}
-	
-	ips := strings.Split(a.IPWhitelist, ",")
-	for _, allowedIP := range ips {
+
+	ips := strings.SplitSeq(a.IPWhitelist, ",")
+	for allowedIP := range ips {
 		if strings.TrimSpace(allowedIP) == ip {
 			return true
 		}

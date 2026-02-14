@@ -62,5 +62,35 @@ func (s *Server) ModerateText(ctx context.Context, req *pb.ModerateTextRequest) 
 
 // ModerateImage 处理图片内容审核的gRPC请求。
 func (s *Server) ModerateImage(ctx context.Context, req *pb.ModerateImageRequest) (*pb.ModerateImageResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "ModerateImage not implemented for raw bytes directly; image upload to URL needed first.")
+	start := time.Now()
+	if len(req.ImageData) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "image_data is required")
+	}
+
+	content := fmt.Sprintf("image_payload_size=%d", len(req.ImageData))
+	record, err := s.cmdService.SubmitContent(ctx, domain.ContentTypeImage, 0, content, req.UserId)
+	if err != nil {
+		slog.Error("gRPC ModerateImage failed", "user_id", req.UserId, "error", err, "duration", time.Since(start))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to submit image for moderation: %v", err))
+	}
+
+	isSafe := false
+	var rejectionReason *string
+	switch record.Status {
+	case domain.ModerationStatusApproved:
+		isSafe = true
+	case domain.ModerationStatusRejected:
+		r := record.RejectReason
+		rejectionReason = &r
+	default:
+		r := "Pending Review"
+		rejectionReason = &r
+	}
+
+	slog.Info("gRPC ModerateImage successful", "record_id", record.ID, "is_safe", isSafe, "duration", time.Since(start))
+	return &pb.ModerateImageResponse{
+		IsSafe:           isSafe,
+		ModerationLabels: record.AITags,
+		RejectionReason:  rejectionReason,
+	}, nil
 }

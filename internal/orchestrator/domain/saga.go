@@ -98,7 +98,7 @@ type StepConfig struct {
 type SagaRepository interface {
 	SaveInstance(ctx context.Context, instance *SagaInstance) error
 	FindInstance(ctx context.Context, id string) (*SagaInstance, error)
-	FindInstances(ctx context.Context, filter map[string]interface{}) ([]*SagaInstance, error)
+	FindInstances(ctx context.Context, filter map[string]any) ([]*SagaInstance, error)
 
 	// Saga 定义管理
 	RegisterDefinition(ctx context.Context, def *SagaDefinition) error

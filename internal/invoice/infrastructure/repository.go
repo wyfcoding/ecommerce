@@ -85,10 +85,7 @@ func (r *GormInvoiceRepository) List(ctx context.Context, filter *domain.Invoice
 	}
 
 	var invoices []*domain.Invoice
-	offset := (filter.Page - 1) * filter.PageSize
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((filter.Page-1)*filter.PageSize, 0)
 
 	if err := query.Preload("Items").Order("created_at DESC").Offset(offset).Limit(filter.PageSize).Find(&invoices).Error; err != nil {
 		return nil, 0, err

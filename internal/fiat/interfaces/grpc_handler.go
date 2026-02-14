@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 
+	"github.com/shopspring/decimal"
 	pb "github.com/wyfcoding/ecommerce/go-api/fiat/v1"
 	"github.com/wyfcoding/ecommerce/internal/fiat/application"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,19 +21,20 @@ func NewFiatHandler(appService *application.FiatApplicationService) *FiatHandler
 }
 
 func (h *FiatHandler) Exchange(ctx context.Context, req *pb.ExchangeRequest) (*pb.ExchangeResponse, error) {
-	cmd := application.ExchangeCommand{
+	cmd := &application.ExchangeCommand{
 		FromCurrency: req.FromCurrency,
 		ToCurrency:   req.ToCurrency,
-		Amount:       req.Amount,
+		Amount:       decimal.NewFromInt(req.Amount),
 	}
 
-	amount, rate, err := h.appService.Exchange(ctx, cmd)
+	result, err := h.appService.Exchange(ctx, cmd)
 	if err != nil {
 		return nil, err
 	}
 
+	rate, _ := result.ExchangeRate.Float64()
 	return &pb.ExchangeResponse{
-		ExchangedAmount: amount,
+		ExchangedAmount: result.ExchangedAmount.IntPart(),
 		Rate:            rate,
 	}, nil
 }

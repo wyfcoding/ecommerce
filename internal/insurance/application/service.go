@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/insurance/domain"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
@@ -41,8 +43,8 @@ func (s *InsuranceService) CreatePolicy(ctx context.Context, req CreatePolicyReq
 		OrderID:        req.OrderID,
 		UserID:         req.UserID,
 		Type:           req.Type,
-		Premium:        req.Premium,
-		CoverageAmount: req.CoverageAmount,
+		Premium:        decimal.NewFromFloat(req.Premium),
+		CoverageAmount: decimal.NewFromFloat(req.CoverageAmount),
 		Status:         domain.PolicyStatusActive,
 		StartTime:      now,
 		EndTime:        now.AddDate(0, 0, req.DurationDays),
@@ -105,8 +107,8 @@ func (s *InsuranceService) FileClaim(ctx context.Context, req FileClaimRequest) 
 		PolicyID:        req.PolicyID,
 		UserID:          req.UserID,
 		Reason:          req.Reason,
-		AmountRequested: req.Amount,
-		Status:          domain.ClaimStatusPending,
+		AmountRequested: decimal.NewFromFloat(req.Amount),
+		Status:          domain.ClaimStatusSubmitted,
 		// EvidenceURLs could be joined or stored as JSON, simplified here to string
 		EvidenceURLs: fmt.Sprintf("%v", req.EvidenceURLs),
 	}
@@ -135,21 +137,35 @@ func (s *InsuranceService) GetClaim(ctx context.Context, claimID string) (*domai
 }
 
 func (s *InsuranceService) ListPolicies(ctx context.Context, userID, orderID string, pageSize int, pageToken string) ([]*domain.InsurancePolicy, string, error) {
-	// Simplified pagination
-	offset := 0 // Should decode pageToken
+	offset := 0
+	if pageToken != "" {
+		if parsed, err := strconv.Atoi(pageToken); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
 	limit := pageSize
 	if limit <= 0 {
 		limit = 10
 	}
 
-	policies, err := s.repo.ListPolicies(ctx, userID, orderID, offset, limit)
+	policies, total, err := s.repo.ListPolicies(ctx, userID, "", offset, limit)
 	if err != nil {
 		return nil, "", err
 	}
+	if orderID != "" {
+		filtered := make([]*domain.InsurancePolicy, 0, len(policies))
+		for _, policy := range policies {
+			if policy.OrderID == orderID {
+				filtered = append(filtered, policy)
+			}
+		}
+		policies = filtered
+	}
 
-	nextPageToken := "" // Should encode offset + limit
-	if len(policies) == limit {
-		nextPageToken = "next_page" // Dummy implementation
+	nextPageToken := ""
+	nextOffset := offset + len(policies)
+	if int64(nextOffset) < total {
+		nextPageToken = strconv.Itoa(nextOffset)
 	}
 
 	return policies, nextPageToken, nil

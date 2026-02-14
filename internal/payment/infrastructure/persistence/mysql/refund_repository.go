@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"errors"
+	"time"
 
+	paypb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
 	"github.com/wyfcoding/pkg/database/sharding"
 	"gorm.io/gorm"
@@ -68,6 +70,55 @@ func (r *refundRepository) FindByRefundNo(ctx context.Context, userID uint64, re
 	return toDomainRefund(&refund), nil
 }
 
+func (r *refundRepository) List(ctx context.Context, userID uint64, orderID uint64, status paypb.RefundStatus, startTime, endTime *time.Time, page, pageSize int) ([]*domain.Refund, int64, error) {
+	db := r.getDB(userID)
+	query := db.WithContext(ctx).Model(&RefundModel{})
+
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+	}
+	if orderID > 0 {
+		query = query.Where("order_id = ?", orderID)
+	}
+	if mappedStatus, ok := mapRefundStatus(status); ok {
+		query = query.Where("status = ?", mappedStatus)
+	}
+	if startTime != nil {
+		query = query.Where("created_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		query = query.Where("created_at <= ?", *endTime)
+	}
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	var models []RefundModel
+	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&models).Error; err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]*domain.Refund, 0, len(models))
+	for i := range models {
+		result = append(result, toDomainRefund(&models[i]))
+	}
+
+	return result, total, nil
+}
+
 func (r *refundRepository) Transaction(ctx context.Context, userID uint64, fn func(tx any) error) error {
 	db := r.getDB(userID)
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -83,4 +134,19 @@ func (r *refundRepository) WithTx(tx any) domain.RefundRepository {
 		}
 	}
 	return r
+}
+
+func mapRefundStatus(status paypb.RefundStatus) (domain.PaymentStatus, bool) {
+	switch status {
+	case paypb.RefundStatus_PENDING_REFUND:
+		return domain.PaymentStatus(paypb.PaymentStatus_REFUNDING), true
+	case paypb.RefundStatus_REFUND_SUCCESS:
+		return domain.PaymentStatus(paypb.PaymentStatus_REFUNDED), true
+	case paypb.RefundStatus_REFUND_FAILED:
+		return domain.PaymentStatus(paypb.PaymentStatus_FAILED), true
+	case paypb.RefundStatus_REFUND_CLOSED:
+		return domain.PaymentStatus(paypb.PaymentStatus_CLOSED), true
+	default:
+		return domain.PaymentStatus(paypb.PaymentStatus_PAYMENT_STATUS_UNSPECIFIED), false
+	}
 }

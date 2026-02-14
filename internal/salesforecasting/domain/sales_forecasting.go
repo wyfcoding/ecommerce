@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 )
 
@@ -19,12 +20,12 @@ var (
 type ModelType string
 
 const (
-	ModelTypeMovingAverage       ModelType = "MOVING_AVERAGE"
+	ModelTypeMovingAverage        ModelType = "MOVING_AVERAGE"
 	ModelTypeExponentialSmoothing ModelType = "EXPONENTIAL_SMOOTHING"
-	ModelTypeARIMA               ModelType = "ARIMA"
-	ModelTypeProphet             ModelType = "PROPHET"
-	ModelTypeLSTM                ModelType = "LSTM"
-	ModelTypeEnsemble            ModelType = "ENSEMBLE"
+	ModelTypeARIMA                ModelType = "ARIMA"
+	ModelTypeProphet              ModelType = "PROPHET"
+	ModelTypeLSTM                 ModelType = "LSTM"
+	ModelTypeEnsemble             ModelType = "ENSEMBLE"
 )
 
 type ModelStatus string
@@ -39,39 +40,39 @@ const (
 type Granularity string
 
 const (
-	GranularityDaily    Granularity = "DAILY"
-	GranularityWeekly   Granularity = "WEEKLY"
-	GranularityMonthly  Granularity = "MONTHLY"
+	GranularityDaily     Granularity = "DAILY"
+	GranularityWeekly    Granularity = "WEEKLY"
+	GranularityMonthly   Granularity = "MONTHLY"
 	GranularityQuarterly Granularity = "QUARTERLY"
 )
 
 type ForecastModel struct {
-	ID             string            `json:"id"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
-	Name           string            `json:"name"`
-	Description    string            `json:"description"`
-	ModelType      ModelType         `json:"model_type"`
-	Status         ModelStatus       `json:"status"`
-	Granularity    Granularity       `json:"granularity"`
-	ProductIDs     []string          `json:"product_ids"`
-	CategoryIDs    []string          `json:"category_ids"`
-	LookbackDays   int               `json:"lookback_days"`
-	ForecastDays   int               `json:"forecast_days"`
-	Parameters     map[string]string `json:"parameters"`
-	TrainingRMSE   float64           `json:"training_rmse"`
-	TrainingMAE    float64           `json:"training_mae"`
-	LastTrainedAt  *time.Time        `json:"last_trained_at"`
+	ID            string            `json:"id"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
+	Name          string            `json:"name"`
+	Description   string            `json:"description"`
+	ModelType     ModelType         `json:"model_type"`
+	Status        ModelStatus       `json:"status"`
+	Granularity   Granularity       `json:"granularity"`
+	ProductIDs    []string          `json:"product_ids"`
+	CategoryIDs   []string          `json:"category_ids"`
+	LookbackDays  int               `json:"lookback_days"`
+	ForecastDays  int               `json:"forecast_days"`
+	Parameters    map[string]string `json:"parameters"`
+	TrainingRMSE  float64           `json:"training_rmse"`
+	TrainingMAE   float64           `json:"training_mae"`
+	LastTrainedAt *time.Time        `json:"last_trained_at"`
 }
 
 type SalesPrediction struct {
-	ID              string             `json:"id"`
-	CreatedAt       time.Time          `json:"created_at"`
-	ModelID         string             `json:"model_id"`
-	ForecastStart   time.Time          `json:"forecast_start"`
-	ForecastEnd     time.Time          `json:"forecast_end"`
-	Items           []*PredictionItem  `json:"items"`
-	Metadata        map[string]string  `json:"metadata"`
+	ID            string            `json:"id"`
+	CreatedAt     time.Time         `json:"created_at"`
+	ModelID       string            `json:"model_id"`
+	ForecastStart time.Time         `json:"forecast_start"`
+	ForecastEnd   time.Time         `json:"forecast_end"`
+	Items         []*PredictionItem `json:"items"`
+	Metadata      map[string]string `json:"metadata"`
 }
 
 type PredictionItem struct {
@@ -88,14 +89,14 @@ type PredictionItem struct {
 }
 
 type ForecastAccuracy struct {
-	ID               string              `json:"id"`
-	ModelID          string              `json:"model_id"`
-	CalculatedAt     time.Time           `json:"calculated_at"`
-	MAPE             float64             `json:"mape"`
-	RMSE             float64             `json:"rmse"`
-	MAE              float64             `json:"mae"`
-	MPE              float64             `json:"mpe"`
-	TotalPredictions int                 `json:"total_predictions"`
+	ID                string               `json:"id"`
+	ModelID           string               `json:"model_id"`
+	CalculatedAt      time.Time            `json:"calculated_at"`
+	MAPE              float64              `json:"mape"`
+	RMSE              float64              `json:"rmse"`
+	MAE               float64              `json:"mae"`
+	MPE               float64              `json:"mpe"`
+	TotalPredictions  int                  `json:"total_predictions"`
 	AccuracyByProduct []*AccuracyByProduct `json:"accuracy_by_product"`
 }
 
@@ -107,13 +108,13 @@ type AccuracyByProduct struct {
 }
 
 type DemandForecast struct {
-	ID                 string              `json:"id"`
-	CreatedAt          time.Time           `json:"created_at"`
-	ForecastStart      time.Time           `json:"forecast_start"`
-	ForecastEnd        time.Time           `json:"forecast_end"`
-	Items              []*DemandItem       `json:"items"`
+	ID                 string               `json:"id"`
+	CreatedAt          time.Time            `json:"created_at"`
+	ForecastStart      time.Time            `json:"forecast_start"`
+	ForecastEnd        time.Time            `json:"forecast_end"`
+	Items              []*DemandItem        `json:"items"`
 	SeasonalityFactors []*SeasonalityFactor `json:"seasonality_factors"`
-	PromotionEffects   []*PromotionEffect  `json:"promotion_effects"`
+	PromotionEffects   []*PromotionEffect   `json:"promotion_effects"`
 }
 
 type DemandItem struct {
@@ -148,13 +149,13 @@ type HistoricalDataPoint struct {
 
 func NewForecastModel(name string, modelType ModelType, granularity Granularity) *ForecastModel {
 	return &ForecastModel{
-		Name:        name,
-		ModelType:   modelType,
-		Status:      ModelStatusDraft,
-		Granularity: granularity,
-		ProductIDs:  []string{},
-		CategoryIDs: []string{},
-		Parameters:  make(map[string]string),
+		Name:         name,
+		ModelType:    modelType,
+		Status:       ModelStatusDraft,
+		Granularity:  granularity,
+		ProductIDs:   []string{},
+		CategoryIDs:  []string{},
+		Parameters:   make(map[string]string),
 		LookbackDays: 90,
 		ForecastDays: 30,
 	}
@@ -194,8 +195,8 @@ func (p *SalesPrediction) AddItem(item *PredictionItem) {
 
 func (p *SalesPrediction) CalculateAccuracy() *ForecastAccuracy {
 	accuracy := &ForecastAccuracy{
-		ModelID:          p.ModelID,
-		CalculatedAt:     time.Now(),
+		ModelID:           p.ModelID,
+		CalculatedAt:      time.Now(),
 		AccuracyByProduct: []*AccuracyByProduct{},
 	}
 
@@ -211,8 +212,8 @@ func (p *SalesPrediction) CalculateAccuracy() *ForecastAccuracy {
 		actual := *item.ActualQuantity
 		predicted := item.PredictedQuantity
 
-		ape := math.Abs((actual - predicted) / actual) * 100
-		se := math.Pow(actual - predicted, 2)
+		ape := math.Abs((actual-predicted)/actual) * 100
+		se := math.Pow(actual-predicted, 2)
 		ae := math.Abs(actual - predicted)
 		pe := ((actual - predicted) / actual) * 100
 
@@ -349,23 +350,14 @@ func (a *MovingAverageAlgorithm) Predict(startDate, endDate time.Time, productID
 
 	for productID, productData := range dataByProduct {
 		if len(productIDs) > 0 {
-			found := false
-			for _, pid := range productIDs {
-				if pid == productID {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(productIDs, productID)
 			if !found {
 				continue
 			}
 		}
 
 		var sum float64
-		start := len(productData) - a.windowSize
-		if start < 0 {
-			start = 0
-		}
+		start := max(len(productData)-a.windowSize, 0)
 		for i := start; i < len(productData); i++ {
 			sum += productData[i].Quantity
 		}
@@ -433,13 +425,7 @@ func (a *ExponentialSmoothingAlgorithm) Predict(startDate, endDate time.Time, pr
 
 	for productID, productData := range dataByProduct {
 		if len(productIDs) > 0 {
-			found := false
-			for _, pid := range productIDs {
-				if pid == productID {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(productIDs, productID)
 			if !found {
 				continue
 			}

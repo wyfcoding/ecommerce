@@ -293,7 +293,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		redisLock,
 		logger.Logger,
 	)
-	paymentQuery := application.NewPaymentQueryService(paymentRepo, paymentReadRepo, paymentSearchRepo, eventStore, logger.Logger)
+	paymentQuery := application.NewPaymentQueryService(paymentRepo, refundRepo, paymentReadRepo, paymentSearchRepo, eventStore, logger.Logger)
 
 	// --- 5.3 Projection Consumers (Payment Events -> Read Model) ---
 	projectionService := application.NewPaymentProjectionService(paymentRepo, paymentReadRepo, paymentSearchRepo, logger.Logger)

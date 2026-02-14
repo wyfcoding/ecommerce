@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -26,126 +27,126 @@ const (
 type FreeShippingType string
 
 const (
-	FreeShippingTypeNone      FreeShippingType = "NONE"
-	FreeShippingTypeByAmount  FreeShippingType = "BY_AMOUNT"
+	FreeShippingTypeNone       FreeShippingType = "NONE"
+	FreeShippingTypeByAmount   FreeShippingType = "BY_AMOUNT"
 	FreeShippingTypeByQuantity FreeShippingType = "BY_QUANTITY"
-	FreeShippingTypeByWeight  FreeShippingType = "BY_WEIGHT"
-	FreeShippingTypeUnlimited FreeShippingType = "UNLIMITED"
+	FreeShippingTypeByWeight   FreeShippingType = "BY_WEIGHT"
+	FreeShippingTypeUnlimited  FreeShippingType = "UNLIMITED"
 )
 
 type ShippingTemplate struct {
-	ID             uint            `json:"id"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	MerchantID     uint64          `json:"merchant_id"`
-	Name           string          `json:"name"`
-	Description    string          `json:"description"`
-	FeeType        ShippingFeeType `json:"fee_type"`
-	IsDefault      bool            `json:"is_default"`
-	Enabled        bool            `json:"enabled"`
-	Rules          []*ShippingRule `json:"rules"`
+	ID                uint                `json:"id"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
+	MerchantID        uint64              `json:"merchant_id"`
+	Name              string              `json:"name"`
+	Description       string              `json:"description"`
+	FeeType           ShippingFeeType     `json:"fee_type"`
+	IsDefault         bool                `json:"is_default"`
+	Enabled           bool                `json:"enabled"`
+	Rules             []*ShippingRule     `json:"rules"`
 	FreeShippingRules []*FreeShippingRule `json:"free_shipping_rules"`
-	PickupEnabled  bool            `json:"pickup_enabled"`
-	PickupFee      int64           `json:"pickup_fee"`
-	CODFee         int64           `json:"cod_fee"`
-	InsuranceRate  float64         `json:"insurance_rate"`
-	MinInsuranceFee int64          `json:"min_insurance_fee"`
-	MaxInsuranceFee int64          `json:"max_insurance_fee"`
-	ProcessingTime int             `json:"processing_time"`
-	DeliveryDays   int             `json:"delivery_days"`
+	PickupEnabled     bool                `json:"pickup_enabled"`
+	PickupFee         int64               `json:"pickup_fee"`
+	CODFee            int64               `json:"cod_fee"`
+	InsuranceRate     float64             `json:"insurance_rate"`
+	MinInsuranceFee   int64               `json:"min_insurance_fee"`
+	MaxInsuranceFee   int64               `json:"max_insurance_fee"`
+	ProcessingTime    int                 `json:"processing_time"`
+	DeliveryDays      int                 `json:"delivery_days"`
 }
 
 type ShippingRule struct {
-	ID              uint      `json:"id"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	TemplateID      uint      `json:"template_id"`
-	RegionType      string    `json:"region_type"`
-	RegionCodes     []string  `json:"region_codes"`
-	RegionNames     []string  `json:"region_names"`
-	FirstUnit       int64     `json:"first_unit"`
-	FirstFee        int64     `json:"first_fee"`
-	AdditionalUnit  int64     `json:"additional_unit"`
-	AdditionalFee   int64     `json:"additional_fee"`
-	MaxWeight       int64     `json:"max_weight"`
-	MaxDimension    string    `json:"max_dimension"`
-	Enabled         bool      `json:"enabled"`
-	Priority        int       `json:"priority"`
+	ID             uint      `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	TemplateID     uint      `json:"template_id"`
+	RegionType     string    `json:"region_type"`
+	RegionCodes    []string  `json:"region_codes"`
+	RegionNames    []string  `json:"region_names"`
+	FirstUnit      int64     `json:"first_unit"`
+	FirstFee       int64     `json:"first_fee"`
+	AdditionalUnit int64     `json:"additional_unit"`
+	AdditionalFee  int64     `json:"additional_fee"`
+	MaxWeight      int64     `json:"max_weight"`
+	MaxDimension   string    `json:"max_dimension"`
+	Enabled        bool      `json:"enabled"`
+	Priority       int       `json:"priority"`
 }
 
 type FreeShippingRule struct {
-	ID            uint             `json:"id"`
-	CreatedAt     time.Time        `json:"created_at"`
-	UpdatedAt     time.Time        `json:"updated_at"`
-	TemplateID    uint             `json:"template_id"`
-	Type          FreeShippingType `json:"type"`
-	RegionCodes   []string         `json:"region_codes"`
-	RegionNames   []string         `json:"region_names"`
-	Threshold     int64            `json:"threshold"`
-	MaxFee        int64            `json:"max_fee"`
-	UserGroups    []string         `json:"user_groups"`
-	StartTime     *time.Time       `json:"start_time"`
-	EndTime       *time.Time       `json:"end_time"`
-	Enabled       bool             `json:"enabled"`
-	Priority      int              `json:"priority"`
+	ID          uint             `json:"id"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+	TemplateID  uint             `json:"template_id"`
+	Type        FreeShippingType `json:"type"`
+	RegionCodes []string         `json:"region_codes"`
+	RegionNames []string         `json:"region_names"`
+	Threshold   int64            `json:"threshold"`
+	MaxFee      int64            `json:"max_fee"`
+	UserGroups  []string         `json:"user_groups"`
+	StartTime   *time.Time       `json:"start_time"`
+	EndTime     *time.Time       `json:"end_time"`
+	Enabled     bool             `json:"enabled"`
+	Priority    int              `json:"priority"`
 }
 
 type ShippingFeeCalculation struct {
-	ID               uint      `json:"id"`
-	CreatedAt        time.Time `json:"created_at"`
-	OrderID          uint64    `json:"order_id"`
-	MerchantID       uint64    `json:"merchant_id"`
-	TemplateID       uint      `json:"template_id"`
-	DestinationCode  string    `json:"destination_code"`
-	Weight           int64     `json:"weight"`
-	Volume           int64     `json:"volume"`
-	Quantity         int32     `json:"quantity"`
-	Subtotal         int64     `json:"subtotal"`
-	BaseFee          int64     `json:"base_fee"`
-	AdditionalFee    int64     `json:"additional_fee"`
-	DiscountFee      int64     `json:"discount_fee"`
-	InsuranceFee     int64     `json:"insurance_fee"`
-	CODFee           int64     `json:"cod_fee"`
-	TotalFee         int64     `json:"total_fee"`
-	FreeShippingApplied bool   `json:"free_shipping_applied"`
-	FreeShippingRuleID  uint  `json:"free_shipping_rule_id"`
+	ID                  uint      `json:"id"`
+	CreatedAt           time.Time `json:"created_at"`
+	OrderID             uint64    `json:"order_id"`
+	MerchantID          uint64    `json:"merchant_id"`
+	TemplateID          uint      `json:"template_id"`
+	DestinationCode     string    `json:"destination_code"`
+	Weight              int64     `json:"weight"`
+	Volume              int64     `json:"volume"`
+	Quantity            int32     `json:"quantity"`
+	Subtotal            int64     `json:"subtotal"`
+	BaseFee             int64     `json:"base_fee"`
+	AdditionalFee       int64     `json:"additional_fee"`
+	DiscountFee         int64     `json:"discount_fee"`
+	InsuranceFee        int64     `json:"insurance_fee"`
+	CODFee              int64     `json:"cod_fee"`
+	TotalFee            int64     `json:"total_fee"`
+	FreeShippingApplied bool      `json:"free_shipping_applied"`
+	FreeShippingRuleID  uint      `json:"free_shipping_rule_id"`
 }
 
 type ShippingProvider struct {
-	ID           uint      `json:"id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	Code         string    `json:"code"`
-	Name         string    `json:"name"`
-	Logo         string    `json:"logo"`
-	Description  string    `json:"description"`
-	Enabled      bool      `json:"enabled"`
-	Priority     int       `json:"priority"`
-	APIEndpoint  string    `json:"api_endpoint"`
-	APIKey       string    `json:"api_key"`
-	SecretKey    string    `json:"secret_key"`
-	SupportCOD   bool      `json:"support_cod"`
-	SupportInsurance bool   `json:"support_insurance"`
-	SupportPickup bool     `json:"support_pickup"`
-	TrackingURL  string    `json:"tracking_url"`
-	Coverage     []string  `json:"coverage"`
-	RateTable    string    `json:"rate_table"`
+	ID               uint      `json:"id"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	Code             string    `json:"code"`
+	Name             string    `json:"name"`
+	Logo             string    `json:"logo"`
+	Description      string    `json:"description"`
+	Enabled          bool      `json:"enabled"`
+	Priority         int       `json:"priority"`
+	APIEndpoint      string    `json:"api_endpoint"`
+	APIKey           string    `json:"api_key"`
+	SecretKey        string    `json:"secret_key"`
+	SupportCOD       bool      `json:"support_cod"`
+	SupportInsurance bool      `json:"support_insurance"`
+	SupportPickup    bool      `json:"support_pickup"`
+	TrackingURL      string    `json:"tracking_url"`
+	Coverage         []string  `json:"coverage"`
+	RateTable        string    `json:"rate_table"`
 }
 
 type ShippingQuote struct {
-	ProviderID     uint      `json:"provider_id"`
-	ProviderCode   string    `json:"provider_code"`
-	ProviderName   string    `json:"provider_name"`
-	ServiceType    string    `json:"service_type"`
-	ServiceName    string    `json:"service_name"`
-	EstimatedDays  int       `json:"estimated_days"`
-	BaseFee        int64     `json:"base_fee"`
-	TotalFee       int64     `json:"total_fee"`
-	InsuranceFee   int64     `json:"insurance_fee"`
-	CODFee         int64     `json:"cod_fee"`
-	Discount       int64     `json:"discount"`
-	IsRecommended  bool      `json:"is_recommended"`
-	IsAvailable    bool      `json:"is_available"`
+	ProviderID        uint   `json:"provider_id"`
+	ProviderCode      string `json:"provider_code"`
+	ProviderName      string `json:"provider_name"`
+	ServiceType       string `json:"service_type"`
+	ServiceName       string `json:"service_name"`
+	EstimatedDays     int    `json:"estimated_days"`
+	BaseFee           int64  `json:"base_fee"`
+	TotalFee          int64  `json:"total_fee"`
+	InsuranceFee      int64  `json:"insurance_fee"`
+	CODFee            int64  `json:"cod_fee"`
+	Discount          int64  `json:"discount"`
+	IsRecommended     bool   `json:"is_recommended"`
+	IsAvailable       bool   `json:"is_available"`
 	UnavailableReason string `json:"unavailable_reason"`
 }
 
@@ -168,19 +169,19 @@ type ShippingFeeRequest struct {
 
 func NewShippingTemplate(merchantID uint64, name string, feeType ShippingFeeType) *ShippingTemplate {
 	return &ShippingTemplate{
-		MerchantID:         merchantID,
-		Name:               name,
-		FeeType:            feeType,
-		IsDefault:          false,
-		Enabled:            true,
-		Rules:              make([]*ShippingRule, 0),
-		FreeShippingRules:  make([]*FreeShippingRule, 0),
-		PickupEnabled:      false,
-		InsuranceRate:      0.005,
-		ProcessingTime:     24,
-		DeliveryDays:       3,
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
+		MerchantID:        merchantID,
+		Name:              name,
+		FeeType:           feeType,
+		IsDefault:         false,
+		Enabled:           true,
+		Rules:             make([]*ShippingRule, 0),
+		FreeShippingRules: make([]*FreeShippingRule, 0),
+		PickupEnabled:     false,
+		InsuranceRate:     0.005,
+		ProcessingTime:    24,
+		DeliveryDays:      3,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 }
 
@@ -242,12 +243,12 @@ func (t *ShippingTemplate) CalculateFee(req *ShippingFeeRequest) (*ShippingFeeCa
 		Subtotal:        req.Subtotal,
 		CreatedAt:       time.Now(),
 	}
-	
+
 	rule := t.findApplicableRule(req.DestinationCode)
 	if rule == nil {
 		return nil, ErrUnsupportedRegion
 	}
-	
+
 	switch t.FeeType {
 	case ShippingFeeTypeByWeight:
 		calc.BaseFee = rule.FirstFee
@@ -282,7 +283,7 @@ func (t *ShippingTemplate) CalculateFee(req *ShippingFeeRequest) (*ShippingFeeCa
 			calc.AdditionalFee = additionalUnits * rule.AdditionalFee
 		}
 	}
-	
+
 	freeShippingRule := t.findApplicableFreeShippingRule(req)
 	if freeShippingRule != nil {
 		calc.FreeShippingApplied = true
@@ -293,7 +294,7 @@ func (t *ShippingTemplate) CalculateFee(req *ShippingFeeRequest) (*ShippingFeeCa
 			calc.DiscountFee = calc.BaseFee + calc.AdditionalFee
 		}
 	}
-	
+
 	if req.NeedInsurance && t.InsuranceRate > 0 {
 		insuranceFee := int64(float64(req.Subtotal) * t.InsuranceRate)
 		if t.MinInsuranceFee > 0 && insuranceFee < t.MinInsuranceFee {
@@ -304,16 +305,13 @@ func (t *ShippingTemplate) CalculateFee(req *ShippingFeeRequest) (*ShippingFeeCa
 		}
 		calc.InsuranceFee = insuranceFee
 	}
-	
+
 	if req.IsCOD {
 		calc.CODFee = t.CODFee
 	}
-	
-	calc.TotalFee = calc.BaseFee + calc.AdditionalFee - calc.DiscountFee + calc.InsuranceFee + calc.CODFee
-	if calc.TotalFee < 0 {
-		calc.TotalFee = 0
-	}
-	
+
+	calc.TotalFee = max(calc.BaseFee+calc.AdditionalFee-calc.DiscountFee+calc.InsuranceFee+calc.CODFee, 0)
+
 	return calc, nil
 }
 
@@ -356,13 +354,7 @@ func (t *ShippingTemplate) findApplicableFreeShippingRule(req *ShippingFeeReques
 			}
 		}
 		if len(rule.UserGroups) > 0 && req.UserGroup != "" {
-			matched := false
-			for _, group := range rule.UserGroups {
-				if group == req.UserGroup {
-					matched = true
-					break
-				}
-			}
+			matched := slices.Contains(rule.UserGroups, req.UserGroup)
 			if !matched {
 				continue
 			}
@@ -389,17 +381,17 @@ func (t *ShippingTemplate) findApplicableFreeShippingRule(req *ShippingFeeReques
 
 func NewShippingRule(templateID uint, regionType string, regionCodes, regionNames []string) *ShippingRule {
 	return &ShippingRule{
-		TemplateID:  templateID,
-		RegionType:  regionType,
-		RegionCodes: regionCodes,
-		RegionNames: regionNames,
-		FirstUnit:   1000,
-		FirstFee:    1000,
+		TemplateID:     templateID,
+		RegionType:     regionType,
+		RegionCodes:    regionCodes,
+		RegionNames:    regionNames,
+		FirstUnit:      1000,
+		FirstFee:       1000,
 		AdditionalUnit: 500,
 		AdditionalFee:  500,
-		Enabled:     true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		Enabled:        true,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 }
 
@@ -428,15 +420,15 @@ func (r *ShippingRule) Disable() {
 
 func NewFreeShippingRule(templateID uint, freeShippingType FreeShippingType, threshold int64) *FreeShippingRule {
 	return &FreeShippingRule{
-		TemplateID: templateID,
-		Type:       freeShippingType,
-		Threshold:  threshold,
-		Enabled:    true,
+		TemplateID:  templateID,
+		Type:        freeShippingType,
+		Threshold:   threshold,
+		Enabled:     true,
 		RegionCodes: make([]string, 0),
 		RegionNames: make([]string, 0),
-		UserGroups: make([]string, 0),
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		UserGroups:  make([]string, 0),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 }
 
@@ -469,15 +461,15 @@ func (r *FreeShippingRule) Disable() {
 
 func NewShippingProvider(code, name string) *ShippingProvider {
 	return &ShippingProvider{
-		Code:         code,
-		Name:         name,
-		Enabled:      true,
-		Coverage:     make([]string, 0),
-		SupportCOD:   false,
+		Code:             code,
+		Name:             name,
+		Enabled:          true,
+		Coverage:         make([]string, 0),
+		SupportCOD:       false,
 		SupportInsurance: false,
-		SupportPickup: false,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		SupportPickup:    false,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 }
 
@@ -510,40 +502,33 @@ func isRegionMatch(pattern, code string) bool {
 	return code[:len(pattern)] == pattern
 }
 
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 type ShippingTemplateRepository interface {
-	FindByID(ctx interface{}, id uint) (*ShippingTemplate, error)
-	FindByMerchantID(ctx interface{}, merchantID uint64) ([]*ShippingTemplate, error)
-	FindDefaultByMerchantID(ctx interface{}, merchantID uint64) (*ShippingTemplate, error)
-	Save(ctx interface{}, template *ShippingTemplate) error
-	Update(ctx interface{}, template *ShippingTemplate) error
-	Delete(ctx interface{}, id uint) error
-	
-	SaveRule(ctx interface{}, rule *ShippingRule) error
-	DeleteRule(ctx interface{}, ruleID uint) error
-	
-	SaveFreeShippingRule(ctx interface{}, rule *FreeShippingRule) error
-	DeleteFreeShippingRule(ctx interface{}, ruleID uint) error
-	
-	SaveProvider(ctx interface{}, provider *ShippingProvider) error
-	FindProviderByID(ctx interface{}, id uint) (*ShippingProvider, error)
-	FindProviderByCode(ctx interface{}, code string) (*ShippingProvider, error)
-	FindEnabledProviders(ctx interface{}) ([]*ShippingProvider, error)
+	FindByID(ctx any, id uint) (*ShippingTemplate, error)
+	FindByMerchantID(ctx any, merchantID uint64) ([]*ShippingTemplate, error)
+	FindDefaultByMerchantID(ctx any, merchantID uint64) (*ShippingTemplate, error)
+	Save(ctx any, template *ShippingTemplate) error
+	Update(ctx any, template *ShippingTemplate) error
+	Delete(ctx any, id uint) error
+
+	SaveRule(ctx any, rule *ShippingRule) error
+	DeleteRule(ctx any, ruleID uint) error
+
+	SaveFreeShippingRule(ctx any, rule *FreeShippingRule) error
+	DeleteFreeShippingRule(ctx any, ruleID uint) error
+
+	SaveProvider(ctx any, provider *ShippingProvider) error
+	FindProviderByID(ctx any, id uint) (*ShippingProvider, error)
+	FindProviderByCode(ctx any, code string) (*ShippingProvider, error)
+	FindEnabledProviders(ctx any) ([]*ShippingProvider, error)
 }
 
 type ShippingFeeService interface {
-	CalculateFee(ctx interface{}, req *ShippingFeeRequest) (*ShippingFeeCalculation, error)
-	GetQuotes(ctx interface{}, req *ShippingFeeRequest) ([]*ShippingQuote, error)
-	GetTemplate(ctx interface{}, templateID uint) (*ShippingTemplate, error)
-	CreateTemplate(ctx interface{}, merchantID uint64, name string, feeType ShippingFeeType) (*ShippingTemplate, error)
-	UpdateTemplate(ctx interface{}, templateID uint, updates map[string]interface{}) error
-	DeleteTemplate(ctx interface{}, templateID uint) error
-	AddShippingRule(ctx interface{}, templateID uint, rule *ShippingRule) error
-	AddFreeShippingRule(ctx interface{}, templateID uint, rule *FreeShippingRule) error
+	CalculateFee(ctx any, req *ShippingFeeRequest) (*ShippingFeeCalculation, error)
+	GetQuotes(ctx any, req *ShippingFeeRequest) ([]*ShippingQuote, error)
+	GetTemplate(ctx any, templateID uint) (*ShippingTemplate, error)
+	CreateTemplate(ctx any, merchantID uint64, name string, feeType ShippingFeeType) (*ShippingTemplate, error)
+	UpdateTemplate(ctx any, templateID uint, updates map[string]any) error
+	DeleteTemplate(ctx any, templateID uint) error
+	AddShippingRule(ctx any, templateID uint, rule *ShippingRule) error
+	AddFreeShippingRule(ctx any, templateID uint, rule *FreeShippingRule) error
 }

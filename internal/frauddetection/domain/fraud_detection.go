@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -41,10 +42,10 @@ func (r RiskLevel) String() string {
 type RiskAction string
 
 const (
-	RiskActionAllow    RiskAction = "ALLOW"
+	RiskActionAllow     RiskAction = "ALLOW"
 	RiskActionChallenge RiskAction = "CHALLENGE"
-	RiskActionReview   RiskAction = "REVIEW"
-	RiskActionBlock    RiskAction = "BLOCK"
+	RiskActionReview    RiskAction = "REVIEW"
+	RiskActionBlock     RiskAction = "BLOCK"
 )
 
 type BlacklistType string
@@ -70,23 +71,23 @@ const (
 )
 
 type RiskAssessment struct {
-	ID              string        `json:"id"`
-	CreatedAt       time.Time     `json:"created_at"`
-	TransactionID   string        `json:"transaction_id"`
-	UserID          uint64        `json:"user_id"`
-	RiskLevel       RiskLevel     `json:"risk_level"`
-	RiskScore       int           `json:"risk_score"`
-	RecommendedAction RiskAction  `json:"recommended_action"`
-	RiskFactors     []*RiskFactor `json:"risk_factors"`
-	TriggeredRules  []string      `json:"triggered_rules"`
-	Explanation     string        `json:"explanation"`
+	ID                string        `json:"id"`
+	CreatedAt         time.Time     `json:"created_at"`
+	TransactionID     string        `json:"transaction_id"`
+	UserID            uint64        `json:"user_id"`
+	RiskLevel         RiskLevel     `json:"risk_level"`
+	RiskScore         int           `json:"risk_score"`
+	RecommendedAction RiskAction    `json:"recommended_action"`
+	RiskFactors       []*RiskFactor `json:"risk_factors"`
+	TriggeredRules    []string      `json:"triggered_rules"`
+	Explanation       string        `json:"explanation"`
 }
 
 type RiskFactor struct {
-	FactorName       string `json:"factor_name"`
-	Description      string `json:"description"`
-	Weight           int    `json:"weight"`
-	ContributionScore int   `json:"contribution_score"`
+	FactorName        string `json:"factor_name"`
+	Description       string `json:"description"`
+	Weight            int    `json:"weight"`
+	ContributionScore int    `json:"contribution_score"`
 }
 
 type BlacklistEntry struct {
@@ -116,50 +117,50 @@ type RiskRule struct {
 }
 
 type DeviceFingerprint struct {
-	Fingerprint            string    `json:"fingerprint"`
-	FirstSeenUserID        uint64    `json:"first_seen_user_id"`
-	AssociatedAccounts     []uint64  `json:"associated_accounts"`
-	AssociatedIPs          []string  `json:"associated_ips"`
-	IsSuspicious           bool      `json:"is_suspicious"`
-	DeviceType             string    `json:"device_type"`
-	OS                     string    `json:"os"`
-	Browser                string    `json:"browser"`
-	FirstSeenAt            time.Time `json:"first_seen_at"`
-	LastSeenAt             time.Time `json:"last_seen_at"`
+	Fingerprint             string    `json:"fingerprint"`
+	FirstSeenUserID         uint64    `json:"first_seen_user_id"`
+	AssociatedAccounts      []uint64  `json:"associated_accounts"`
+	AssociatedIPs           []string  `json:"associated_ips"`
+	IsSuspicious            bool      `json:"is_suspicious"`
+	DeviceType              string    `json:"device_type"`
+	OS                      string    `json:"os"`
+	Browser                 string    `json:"browser"`
+	FirstSeenAt             time.Time `json:"first_seen_at"`
+	LastSeenAt              time.Time `json:"last_seen_at"`
 	AssociatedAccountsCount int       `json:"associated_accounts_count"`
 }
 
 type UserRiskProfile struct {
-	UserID              uint64    `json:"user_id"`
-	RiskScore           int       `json:"risk_score"`
-	RiskLevel           RiskLevel `json:"risk_level"`
-	TotalTransactions   int       `json:"total_transactions"`
-	FlaggedTransactions int       `json:"flagged_transactions"`
-	BlockedTransactions int       `json:"blocked_transactions"`
-	RiskTags            []string  `json:"risk_tags"`
+	UserID              uint64     `json:"user_id"`
+	RiskScore           int        `json:"risk_score"`
+	RiskLevel           RiskLevel  `json:"risk_level"`
+	TotalTransactions   int        `json:"total_transactions"`
+	FlaggedTransactions int        `json:"flagged_transactions"`
+	BlockedTransactions int        `json:"blocked_transactions"`
+	RiskTags            []string   `json:"risk_tags"`
 	FirstTransactionAt  *time.Time `json:"first_transaction_at"`
 	LastTransactionAt   *time.Time `json:"last_transaction_at"`
 	LastAssessmentAt    *time.Time `json:"last_assessment_at"`
 }
 
 type TransactionContext struct {
-	TransactionID   string            `json:"transaction_id"`
-	UserID          uint64            `json:"user_id"`
-	Amount          int64             `json:"amount"`
-	Currency        string            `json:"currency"`
-	PaymentMethod   string            `json:"payment_method"`
-	IPAddress       string            `json:"ip_address"`
-	DeviceFingerprint string          `json:"device_fingerprint"`
-	UserAgent       string            `json:"user_agent"`
-	Country         string            `json:"country"`
-	City            string            `json:"city"`
-	Latitude        float64           `json:"latitude"`
-	Longitude       float64           `json:"longitude"`
-	MerchantID      uint64            `json:"merchant_id"`
-	CardLastFour    string            `json:"card_last_four"`
-	Email           string            `json:"email"`
-	Phone           string            `json:"phone"`
-	Metadata        map[string]string `json:"metadata"`
+	TransactionID     string            `json:"transaction_id"`
+	UserID            uint64            `json:"user_id"`
+	Amount            int64             `json:"amount"`
+	Currency          string            `json:"currency"`
+	PaymentMethod     string            `json:"payment_method"`
+	IPAddress         string            `json:"ip_address"`
+	DeviceFingerprint string            `json:"device_fingerprint"`
+	UserAgent         string            `json:"user_agent"`
+	Country           string            `json:"country"`
+	City              string            `json:"city"`
+	Latitude          float64           `json:"latitude"`
+	Longitude         float64           `json:"longitude"`
+	MerchantID        uint64            `json:"merchant_id"`
+	CardLastFour      string            `json:"card_last_four"`
+	Email             string            `json:"email"`
+	Phone             string            `json:"phone"`
+	Metadata          map[string]string `json:"metadata"`
 }
 
 type SuspiciousActivity struct {
@@ -248,40 +249,36 @@ func NewRiskRule(name string, ruleType RuleType, condition string, riskWeight in
 func NewDeviceFingerprint(fingerprint string, userID uint64, deviceType, os, browser string) *DeviceFingerprint {
 	now := time.Now()
 	return &DeviceFingerprint{
-		Fingerprint:         fingerprint,
-		FirstSeenUserID:     userID,
-		AssociatedAccounts:  []uint64{userID},
-		AssociatedIPs:       []string{},
-		IsSuspicious:        false,
-		DeviceType:          deviceType,
-		OS:                  os,
-		Browser:             browser,
-		FirstSeenAt:         now,
-		LastSeenAt:          now,
+		Fingerprint:             fingerprint,
+		FirstSeenUserID:         userID,
+		AssociatedAccounts:      []uint64{userID},
+		AssociatedIPs:           []string{},
+		IsSuspicious:            false,
+		DeviceType:              deviceType,
+		OS:                      os,
+		Browser:                 browser,
+		FirstSeenAt:             now,
+		LastSeenAt:              now,
 		AssociatedAccountsCount: 1,
 	}
 }
 
 func (d *DeviceFingerprint) AddAssociatedAccount(userID uint64) {
-	for _, id := range d.AssociatedAccounts {
-		if id == userID {
-			return
-		}
+	if slices.Contains(d.AssociatedAccounts, userID) {
+		return
 	}
 	d.AssociatedAccounts = append(d.AssociatedAccounts, userID)
 	d.AssociatedAccountsCount = len(d.AssociatedAccounts)
 	d.LastSeenAt = time.Now()
-	
+
 	if d.AssociatedAccountsCount > 5 {
 		d.IsSuspicious = true
 	}
 }
 
 func (d *DeviceFingerprint) AddAssociatedIP(ip string) {
-	for _, existingIP := range d.AssociatedIPs {
-		if existingIP == ip {
-			return
-		}
+	if slices.Contains(d.AssociatedIPs, ip) {
+		return
 	}
 	d.AssociatedIPs = append(d.AssociatedIPs, ip)
 	d.LastSeenAt = time.Now()
@@ -289,13 +286,13 @@ func (d *DeviceFingerprint) AddAssociatedIP(ip string) {
 
 func NewUserRiskProfile(userID uint64) *UserRiskProfile {
 	return &UserRiskProfile{
-		UserID:            userID,
-		RiskScore:         0,
-		RiskLevel:         RiskLevelLow,
-		TotalTransactions: 0,
+		UserID:              userID,
+		RiskScore:           0,
+		RiskLevel:           RiskLevelLow,
+		TotalTransactions:   0,
 		FlaggedTransactions: 0,
 		BlockedTransactions: 0,
-		RiskTags:          []string{},
+		RiskTags:            []string{},
 	}
 }
 
@@ -320,12 +317,12 @@ func (p *UserRiskProfile) updateRiskScore() {
 		p.RiskScore = 0
 		return
 	}
-	
+
 	blockRate := float64(p.BlockedTransactions) / float64(p.TotalTransactions) * 100
 	flagRate := float64(p.FlaggedTransactions) / float64(p.TotalTransactions) * 100
-	
+
 	p.RiskScore = int(blockRate*50 + flagRate*30)
-	
+
 	switch {
 	case p.RiskScore >= 70:
 		p.RiskLevel = RiskLevelCritical
@@ -339,10 +336,8 @@ func (p *UserRiskProfile) updateRiskScore() {
 }
 
 func (p *UserRiskProfile) AddRiskTag(tag string) {
-	for _, t := range p.RiskTags {
-		if t == tag {
-			return
-		}
+	if slices.Contains(p.RiskTags, tag) {
+		return
 	}
 	p.RiskTags = append(p.RiskTags, tag)
 }
