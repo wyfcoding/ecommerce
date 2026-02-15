@@ -63,7 +63,9 @@ func (m *AuditCommandService) SealLogs(ctx context.Context, limit int) (string, 
 // LogEvent 记录一个审计事件。
 func (m *AuditCommandService) LogEvent(ctx context.Context, userID uint64, username string, eventType domain.AuditEventType, module, action string, opts ...LogOption) error {
 	auditNo := fmt.Sprintf("AUD%d", m.idGenerator.Generate())
-	log := domain.NewAuditLog(auditNo, userID, username, eventType, module, action)
+	// 默认系统来源为 ECOMMERCE，可以通过 WithSystem 选项覆盖
+	system := "ECOMMERCE"
+	log := domain.NewAuditLog(auditNo, system, userID, username, eventType, module, action)
 
 	for _, opt := range opts {
 		opt(log)
@@ -124,6 +126,13 @@ func WithClientInfo(ip, userAgent string) LogOption {
 func WithDuration(duration int64) LogOption {
 	return func(l *domain.AuditLog) {
 		l.SetDuration(duration)
+	}
+}
+
+// WithSystem 是一个 LogOption，用于设置审计日志的系统来源。
+func WithSystem(system string) LogOption {
+	return func(l *domain.AuditLog) {
+		l.System = system
 	}
 }
 

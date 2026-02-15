@@ -45,6 +45,17 @@ func (s *Server) LogEvent(ctx context.Context, req *pb.LogEventRequest) (*emptyp
 		opts = append(opts, application.WithError(req.ErrorMsg))
 	}
 
+	// 从 Metadata 中提取系统来源信息
+	system := "ECOMMERCE" // 默认值
+	if req.Metadata != nil {
+		if val, ok := req.Metadata["system"]; ok {
+			system = val
+		}
+	}
+
+	// 添加系统来源选项
+	opts = append(opts, application.WithSystem(system))
+
 	err := s.command.LogEvent(
 		ctx,
 		req.UserId,

@@ -38,6 +38,7 @@ type AuditLog struct {
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	AuditNo      string         `json:"audit_no"`      // 审计事件的唯一编号
+	System       string         `json:"system"`        // 来源系统 (ECOMMERCE, FINANCIAL)
 	UserID       uint64         `json:"user_id"`       // 执行操作的用户ID
 	Username     string         `json:"username"`      // 执行操作的用户名
 	EventType    AuditEventType `json:"event_type"`    // 审计事件类型
@@ -88,11 +89,13 @@ type AuditReport struct {
 
 // NewAuditLog 创建并返回一个新的 AuditLog 实体实例。
 // auditNo: 审计日志的唯一编号。
+// system: 来源系统。
 // userID, username: 执行操作的用户信息。
 // eventType, module, action: 事件的分类信息。
-func NewAuditLog(auditNo string, userID uint64, username string, eventType AuditEventType, module, action string) *AuditLog {
+func NewAuditLog(auditNo string, system string, userID uint64, username string, eventType AuditEventType, module, action string) *AuditLog {
 	return &AuditLog{
 		AuditNo:   auditNo,
+		System:    system,
 		UserID:    userID,
 		Username:  username,
 		EventType: eventType,
