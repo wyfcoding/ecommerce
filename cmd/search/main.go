@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -18,6 +17,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/go-api/search/v1"
 	"github.com/wyfcoding/ecommerce/internal/search/application"
 	"github.com/wyfcoding/ecommerce/internal/search/infrastructure/persistence"
+	searchconsumer "github.com/wyfcoding/ecommerce/internal/search/interfaces/consumer"
 	searchgrpc "github.com/wyfcoding/ecommerce/internal/search/interfaces/grpc"
 	searchhttp "github.com/wyfcoding/ecommerce/internal/search/interfaces/http"
 	"github.com/wyfcoding/pkg/app"
@@ -53,7 +53,7 @@ type AppContext struct {
 	Metrics     *metrics.Metrics
 	Limiter     limiter.Limiter
 	Idempotency idempotency.Manager
-	Consumer    *kafka.Consumer
+	Consumers   []*kafka.Consumer
 }
 
 // ServiceClients 下游微服务客户端集合
@@ -174,51 +174,55 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
 
-	// 6.1 Infrastructure (Persistence)
+	// 6.1 Infrastructure (Persistence & Engine)
 	searchRepo := persistence.NewSearchRepository(db.RawDB())
+	esEngine := persistence.NewESSearchEngine(esClient, logger.Logger)
 
 	// 6.2 Application (Service)
-	query := application.NewSearchQuery(searchRepo)
-	manager := application.NewSearchManager(searchRepo, esClient, logger.Logger)
+	query := application.NewSearchQuery(searchRepo, esEngine)
+	manager := application.NewSearchManager(searchRepo, esEngine, logger.Logger)
 	searchService := application.NewSearch(manager, query, logger.Logger)
 
-	// 7. 启动 Kafka 消费者进行可靠索引同步
-	consumer := kafka.NewConsumer(&c.MessageQueue.Kafka, logger, m)
-	consumer.Start(context.Background(), 5, func(ctx context.Context, msg kafkago.Message) error {
-		if msg.Topic != "product.index.sync" {
-			return nil
-		}
-		var event map[string]any
-		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			return err
-		}
-
-		productID := fmt.Sprintf("%v", event["product_id"])
-		action := event["action"].(string)
-		// --- 幂等保护：防止索引重复更新 ---
-		idemKey := fmt.Sprintf("search:sync:%s:%s", productID, action)
-		isFirst, _, err := idemManager.TryStart(ctx, idemKey, 1*time.Hour) // 索引同步时效性强，保留 1 小时即可
-		if err != nil || !isFirst {
-			return err
-		}
-
-		if err := manager.SyncProductIndex(ctx, event); err != nil {
-			_ = idemManager.Delete(ctx, idemKey)
-			return err
-		}
-
-		_ = idemManager.Finish(ctx, idemKey, &idempotency.Response{Body: "SYNCED"}, 1*time.Hour)
-		return nil
-	})
-
-	// 6.3 Interface (HTTP Handlers)
+	// 6.3 Interface (HTTP & Consumer Handlers)
 	handler := searchhttp.NewHandler(searchService, logger.Logger)
+	productHandler := searchconsumer.NewProductEventHandler(searchService, logger.Logger)
+
+	// 7. 启动 Kafka 消费者进行多主题商品索引同步
+	productTopics := []string{"product.created", "product.updated", "product.deleted"}
+	productConsumers := make([]*kafka.Consumer, 0, len(productTopics))
+
+	for _, topic := range productTopics {
+		consumerCfg := c.MessageQueue.Kafka
+		consumerCfg.Topic = topic
+		consumerCfg.GroupID = BootstrapName + "-sync-group"
+		cons := kafka.NewConsumer(&consumerCfg, logger, m)
+
+		cons.Start(context.Background(), 3, func(ctx context.Context, msg kafkago.Message) error {
+			// 使用 IdempotencyManager 确保同一消息不重复处理 (基于 Topic+Partition+Offset 或业务 ID)
+			idemKey := fmt.Sprintf("search:sync:%s:%d:%d", msg.Topic, msg.Partition, msg.Offset)
+			isFirst, _, err := idemManager.TryStart(ctx, idemKey, 1*time.Hour)
+			if err != nil || !isFirst {
+				return err
+			}
+
+			if err := productHandler.Handle(ctx, msg); err != nil {
+				_ = idemManager.Delete(ctx, idemKey)
+				return err
+			}
+
+			_ = idemManager.Finish(ctx, idemKey, &idempotency.Response{Body: "OK"}, 1*time.Hour)
+			return nil
+		})
+		productConsumers = append(productConsumers, cons)
+	}
 
 	// 定义资源清理函数
 	cleanup := func() {
 		bootLog.Info("shutting down, releasing resources...")
-		if consumer != nil {
-			consumer.Close()
+		for _, c := range productConsumers {
+			if c != nil {
+				c.Close()
+			}
 		}
 		clientCleanup()
 		if redisCache != nil {
@@ -242,6 +246,6 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		Metrics:     m,
 		Limiter:     rateLimiter,
 		Idempotency: idemManager,
-		Consumer:    consumer,
+		Consumers:   productConsumers,
 	}, cleanup, nil
 }

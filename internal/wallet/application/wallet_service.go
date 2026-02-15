@@ -2,211 +2,168 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strconv"
+	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/wallet/domain"
 	"github.com/wyfcoding/pkg/idgen"
 )
 
 var (
-	ErrWalletNotFound      = errors.New("wallet not found")
-	ErrInsufficientBalance = errors.New("insufficient balance")
-	ErrInvalidAmount       = errors.New("invalid amount")
-	ErrWalletFrozen        = errors.New("wallet is frozen")
+	ErrWalletNotFound      = domain.ErrTransactionNotFound // Reuse or define specific
+	ErrInsufficientBalance = domain.ErrInsufficientBalance
+	ErrInvalidAmount       = domain.ErrInvalidAmount
+	ErrWalletFrozen        = domain.ErrWalletFrozen
 )
 
+// WalletService 提供钱包业务逻辑封装
 type WalletService struct {
 	walletRepo      domain.WalletRepository
 	transactionRepo domain.TransactionRepository
+	logger          *slog.Logger
 }
 
 func NewWalletService(
 	walletRepo domain.WalletRepository,
 	transactionRepo domain.TransactionRepository,
+	logger *slog.Logger,
 ) *WalletService {
 	return &WalletService{
 		walletRepo:      walletRepo,
 		transactionRepo: transactionRepo,
+		logger:          logger.With("service", "wallet_application"),
 	}
 }
 
+// CreateWallet 为用户创建新钱包
 func (s *WalletService) CreateWallet(ctx context.Context, userID uint64, currency, walletType string) (*domain.Wallet, error) {
 	existing, err := s.walletRepo.GetByUserID(userID, currency)
 	if err == nil && existing != nil {
 		return existing, nil
 	}
 
-	wallet := &domain.Wallet{
-		WalletID:         idgen.GenID(),
-		UserID:           userID,
-		AccountNo:        fmt.Sprintf("W%d%s", userID, currency),
-		Currency:         currency,
-		WalletType:       walletType,
-		Balance:          0,
-		FrozenBalance:    0,
-		AvailableBalance: 0,
-		Status:           domain.WalletStatusNormal,
-	}
+	wallet := domain.NewWallet(userID, fmt.Sprintf("W%d%s", userID, currency), currency, walletType)
+	wallet.WalletID = idgen.GenID()
 
 	if err := s.walletRepo.Create(wallet); err != nil {
+		s.logger.Error("failed to create wallet", "user_id", userID, "error", err)
 		return nil, err
 	}
 
 	return wallet, nil
 }
 
+// GetWallet 获取用户钱包信息
 func (s *WalletService) GetWallet(ctx context.Context, userID uint64, currency string) (*domain.Wallet, error) {
 	wallet, err := s.walletRepo.GetByUserID(userID, currency)
 	if err != nil {
+		return nil, err
+	}
+	if wallet == nil {
 		return nil, ErrWalletNotFound
 	}
 	return wallet, nil
 }
 
-func (s *WalletService) Deposit(ctx context.Context, userID uint64, currency, amountStr string, remark string) (*domain.Transaction, error) {
-	wallet, err := s.walletRepo.GetByUserID(userID, currency)
-	if err != nil {
-		return nil, ErrWalletNotFound
-	}
+// Deposit 充值操作
+func (s *WalletService) Deposit(ctx context.Context, userID uint64, currency string, amount int64, remark string) (*domain.Transaction, error) {
+	var tx *domain.Transaction
+	err := s.walletRepo.Transaction(func(txObj any) error {
+		wallet, err := s.walletRepo.GetByUserID(userID, currency)
+		if err != nil || wallet == nil {
+			return ErrWalletNotFound
+		}
 
-	amount, err := parseAmount(amountStr)
-	if err != nil {
-		return nil, ErrInvalidAmount
-	}
+		transaction, err := wallet.Deposit(amount)
+		if err != nil {
+			return err
+		}
+		transaction.TransactionNo = fmt.Sprintf("D%d", idgen.GenID())
+		transaction.Remark = remark
 
-	balanceBefore := wallet.Balance
-	wallet.Balance += amount
-	wallet.AvailableBalance += amount
+		if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance, wallet.AvailableBalance); err != nil {
+			return err
+		}
 
-	if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance, wallet.AvailableBalance); err != nil {
-		return nil, err
-	}
+		if err := s.transactionRepo.Create(transaction); err != nil {
+			return err
+		}
+		tx = transaction
+		return nil
+	})
 
-	tx := &domain.Transaction{
-		TransactionNo: fmt.Sprintf("D%d%d", userID, idgen.GenID()),
-		WalletID:      wallet.ID,
-		UserID:        userID,
-		Type:          domain.TransactionTypeDeposit,
-		Amount:        amount,
-		BalanceBefore: balanceBefore,
-		BalanceAfter:  wallet.Balance,
-		Status:        domain.TransactionStatusSuccess,
-		Remark:        remark,
-	}
-
-	if err := s.transactionRepo.Create(tx); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return tx, err
 }
 
-func (s *WalletService) Withdraw(ctx context.Context, userID uint64, currency, amountStr string, remark string) (*domain.Transaction, error) {
-	wallet, err := s.walletRepo.GetByUserID(userID, currency)
-	if err != nil {
-		return nil, ErrWalletNotFound
-	}
+// Withdraw 提现操作
+func (s *WalletService) Withdraw(ctx context.Context, userID uint64, currency string, amount int64, remark string) (*domain.Transaction, error) {
+	var tx *domain.Transaction
+	err := s.walletRepo.Transaction(func(txObj any) error {
+		wallet, err := s.walletRepo.GetByUserID(userID, currency)
+		if err != nil || wallet == nil {
+			return ErrWalletNotFound
+		}
 
-	amount, err := parseAmount(amountStr)
-	if err != nil {
-		return nil, ErrInvalidAmount
-	}
+		// 这里暂不传递密码校验逻辑，待 interfaces 层传入
+		transaction, err := wallet.Withdraw(amount, "", nil, nil)
+		if err != nil {
+			return err
+		}
+		transaction.TransactionNo = fmt.Sprintf("W%d", idgen.GenID())
+		transaction.Remark = remark
 
-	if wallet.AvailableBalance < amount {
-		return nil, ErrInsufficientBalance
-	}
+		if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance, wallet.AvailableBalance); err != nil {
+			return err
+		}
 
-	balanceBefore := wallet.Balance
-	wallet.Balance -= amount
-	wallet.AvailableBalance -= amount
+		if err := s.transactionRepo.Create(transaction); err != nil {
+			return err
+		}
+		tx = transaction
+		return nil
+	})
 
-	if err := s.walletRepo.UpdateBalance(wallet.ID, wallet.Balance, wallet.FrozenBalance, wallet.AvailableBalance); err != nil {
-		return nil, err
-	}
-
-	tx := &domain.Transaction{
-		TransactionNo: fmt.Sprintf("W%d%d", userID, idgen.GenID()),
-		WalletID:      wallet.ID,
-		UserID:        userID,
-		Type:          domain.TransactionTypeWithdraw,
-		Amount:        -amount,
-		BalanceBefore: balanceBefore,
-		BalanceAfter:  wallet.Balance,
-		Status:        domain.TransactionStatusSuccess,
-		Remark:        remark,
-	}
-
-	if err := s.transactionRepo.Create(tx); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return tx, err
 }
 
-func (s *WalletService) Transfer(ctx context.Context, fromUserID, toUserID uint64, currency, amountStr, remark string) (*domain.Transaction, error) {
-	amount, err := parseAmount(amountStr)
-	if err != nil {
-		return nil, ErrInvalidAmount
-	}
+// Transfer 转账操作
+func (s *WalletService) Transfer(ctx context.Context, fromUserID, toUserID uint64, currency string, amount int64, remark string) (*domain.Transaction, error) {
+	var outTx *domain.Transaction
+	err := s.walletRepo.Transaction(func(txObj any) error {
+		fromWallet, err := s.walletRepo.GetByUserID(fromUserID, currency)
+		if err != nil || fromWallet == nil {
+			return ErrWalletNotFound
+		}
 
-	fromWallet, err := s.walletRepo.GetByUserID(fromUserID, currency)
-	if err != nil {
-		return nil, ErrWalletNotFound
-	}
+		toWallet, err := s.walletRepo.GetByUserID(toUserID, currency)
+		if err != nil || toWallet == nil {
+			return ErrWalletNotFound
+		}
 
-	if fromWallet.AvailableBalance < amount {
-		return nil, ErrInsufficientBalance
-	}
+		txs, err := fromWallet.Transfer(toWallet, amount, "", nil, nil)
+		if err != nil {
+			return err
+		}
 
-	toWallet, err := s.walletRepo.GetByUserID(toUserID, currency)
-	if err != nil {
-		return nil, ErrWalletNotFound
-	}
+		batchNo := fmt.Sprintf("T%d", idgen.GenID())
+		for _, t := range txs {
+			t.TransactionNo = batchNo
+			t.Remark = remark
+			if err := s.transactionRepo.Create(t); err != nil {
+				return err
+			}
+		}
 
-	fromBalanceBefore := fromWallet.Balance
-	fromWallet.Balance -= amount
-	fromWallet.AvailableBalance -= amount
+		if err := s.walletRepo.UpdateBalance(fromWallet.ID, fromWallet.Balance, fromWallet.FrozenBalance, fromWallet.AvailableBalance); err != nil {
+			return err
+		}
+		if err := s.walletRepo.UpdateBalance(toWallet.ID, toWallet.Balance, toWallet.FrozenBalance, toWallet.AvailableBalance); err != nil {
+			return err
+		}
 
-	toBalanceBefore := toWallet.Balance
-	toWallet.Balance += amount
-	toWallet.AvailableBalance += amount
+		outTx = txs[0]
+		return nil
+	})
 
-	if err := s.walletRepo.UpdateBalance(fromWallet.ID, fromWallet.Balance, fromWallet.FrozenBalance, fromWallet.AvailableBalance); err != nil {
-		return nil, err
-	}
-
-	if err := s.walletRepo.UpdateBalance(toWallet.ID, toWallet.Balance, toWallet.FrozenBalance, toWallet.AvailableBalance); err != nil {
-		return nil, err
-	}
-
-	tx := &domain.Transaction{
-		TransactionNo: fmt.Sprintf("T%d%d", fromUserID, idgen.GenID()),
-		WalletID:      fromWallet.ID,
-		UserID:        fromUserID,
-		Type:          domain.TransactionTypeTransfer,
-		Amount:        -amount,
-		BalanceBefore: fromBalanceBefore,
-		BalanceAfter:  fromWallet.Balance,
-		Status:        domain.TransactionStatusSuccess,
-		Remark:        fmt.Sprintf("%s -> to=%d,before_to=%d,after_to=%d", remark, toUserID, toBalanceBefore, toWallet.Balance),
-	}
-
-	if err := s.transactionRepo.Create(tx); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
-}
-
-func parseAmount(amountStr string) (int64, error) {
-	amount, err := strconv.ParseInt(amountStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	if amount <= 0 {
-		return 0, ErrInvalidAmount
-	}
-	return amount, nil
+	return outTx, err
 }

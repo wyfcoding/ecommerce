@@ -307,9 +307,10 @@ func (r *ReverseLogistics) CompleteInspection(ctx context.Context, result Inspec
 	}
 
 	// 计算实际退款金额（基于质检通过数量）
-	if result == InspectionPass {
+	switch result {
+	case InspectionPass:
 		r.ActualRefundAmount = r.RefundAmount
-	} else if result == InspectionPartial {
+	case InspectionPartial:
 		// 按比例计算
 		totalQty := acceptedQty + rejectedQty
 		if totalQty > 0 {

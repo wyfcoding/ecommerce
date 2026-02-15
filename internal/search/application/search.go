@@ -81,3 +81,8 @@ func (s *Search) ClearSearchHistory(ctx context.Context, userID uint64) error {
 func (s *Search) Suggest(ctx context.Context, keyword string) ([]*domain.Suggestion, error) {
 	return s.query.Suggest(ctx, keyword, 10)
 }
+
+// SyncProductIndex 同步商品索引。
+func (s *Search) SyncProductIndex(ctx context.Context, event map[string]any) error {
+	return s.manager.SyncProductIndex(ctx, event)
+}

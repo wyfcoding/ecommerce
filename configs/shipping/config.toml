@@ -1,4 +1,0 @@
-service_name = "shipping"
-
-[server]
-http_addr = ":8080"

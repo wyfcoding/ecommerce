@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "abtest.fullname" . }}-config
+  labels:
+    {{- include "abtest.labels" . | nindent 4 }}
+data:
+  config.toml: |
+    [server]
+    name = "{{ .Values.image.repository }}"
+    environment = "prod"

@@ -1,4 +1,0 @@
-service_name = "address"
-
-[server]
-http_addr = ":8080"

@@ -2,84 +2,159 @@ syntax = "proto3";
 
 package api.cms.v1;
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/cms/v1;cmsv1";
 
-// 内容管理服务，负责页面、文章及商品描述等静态内容的增删改查。
+// CMSService provides APIs for managing ecommerce content.
 service CMSService {
-  // 创建新的内容条目。
-  rpc CreateContent(CreateContentRequest) returns (ContentResponse);
+  // Page Management
+  rpc CreatePage(CreatePageRequest) returns (Page);
+  rpc GetPage(GetPageRequest) returns (Page);
+  rpc UpdatePage(UpdatePageRequest) returns (Page);
+  rpc DeletePage(DeletePageRequest) returns (google.protobuf.Empty);
+  rpc ListPages(ListPagesRequest) returns (ListPagesResponse);
+  rpc PublishPage(PublishPageRequest) returns (Page);
 
-  // 通过 ID 获取内容详情。
-  rpc GetContentByID(GetContentByIDRequest) returns (ContentResponse);
+  // Template Management
+  rpc CreateTemplate(CreateTemplateRequest) returns (Template);
+  rpc GetTemplate(GetTemplateRequest) returns (Template);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
 
-  // 修改已有的内容信息。
-  rpc UpdateContent(UpdateContentRequest) returns (ContentResponse);
-
-  // 物理或逻辑移除内容。
-  rpc DeleteContent(DeleteContentRequest) returns (google.protobuf.Empty);
+  // Asset Management
+  rpc CreateAsset(CreateAssetRequest) returns (Asset);
+  rpc GetAsset(GetAssetRequest) returns (Asset);
+  rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse);
+  rpc DeleteAsset(DeleteAssetRequest) returns (google.protobuf.Empty);
 }
 
-// 内容详情实体。
-message ContentInfo {
-  // 系统 ID。
-  uint64 content_id = 1;
-  // 标题。
+enum PageStatus {
+  PAGE_STATUS_UNSPECIFIED = 0;
+  DRAFT = 1;
+  REVIEWING = 2;
+  PUBLISHED = 3;
+  ARCHIVED = 4;
+}
+
+message Page {
+  string id = 1;
   string title = 2;
-  // 类别 (ARTICLE, PAGE)。
-  string content_type = 3;
-  // 负载正文。
-  string content_body = 4;
-  // 作者名或 ID。
-  string author = 5;
-  // 创建时间。
-  google.protobuf.Timestamp created_at = 6;
-  // 最后修改时间。
-  google.protobuf.Timestamp updated_at = 7;
+  string slug = 3;
+  string template_id = 4;
+  string content_json = 5; // JSON representation of page components
+  PageStatus status = 6;
+  string created_by = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  google.protobuf.Timestamp published_at = 10;
+  map<string, string> metadata = 11;
 }
 
-// 创建请求。
-message CreateContentRequest {
-  // 标题。
+message CreatePageRequest {
   string title = 1;
-  // 分类。
-  string content_type = 2;
-  // 正文内容。
-  string content_body = 3;
-  // 作者。
-  string author = 4;
+  string slug = 2;
+  string template_id = 3;
+  string content_json = 4;
+  string created_by = 5;
 }
 
-// 创建响应。
-message ContentResponse {
-  // 内容详情。
-  ContentInfo content = 1;
+message GetPageRequest {
+  oneof query {
+    string id = 1;
+    string slug = 2;
+  }
 }
 
-// 查询请求。
-message GetContentByIDRequest {
-  // 目标 ID。
-  uint64 content_id = 1;
+message UpdatePageRequest {
+  string id = 1;
+  string title = 2;
+  string content_json = 4;
+  PageStatus status = 5;
 }
 
-// 修改请求。
-message UpdateContentRequest {
-  // 目标 ID。
-  uint64 content_id = 1;
-  // 修改标题。
-  optional string title = 2;
-  // 修改分类。
-  optional string content_type = 3;
-  // 修改正文。
-  optional string content_body = 4;
-  // 修改作者。
-  optional string author = 5;
+message DeletePageRequest {
+  string id = 1;
 }
 
-// 删除请求。
-message DeleteContentRequest {
-  // 目标 ID。
-  uint64 content_id = 1;
+message ListPagesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  PageStatus status = 3;
+}
+
+message ListPagesResponse {
+  repeated Page pages = 1;
+  int32 total = 2;
+}
+
+message PublishPageRequest {
+  string id = 1;
+}
+
+message Template {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string structure_json = 4; // Schema for allowed components
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message CreateTemplateRequest {
+  string name = 1;
+  string description = 2;
+  string structure_json = 3;
+}
+
+message GetTemplateRequest {
+  string id = 1;
+}
+
+message ListTemplatesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListTemplatesResponse {
+  repeated Template templates = 1;
+  int32 total = 2;
+}
+
+message Asset {
+  string id = 1;
+  string name = 2;
+  string file_type = 3;
+  string url = 4;
+  int64 size = 5;
+  string bucket = 6;
+  string key = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message CreateAssetRequest {
+  string name = 1;
+  string file_type = 2;
+  string url = 3;
+  int64 size = 4;
+  string bucket = 5;
+  string key = 6;
+}
+
+message GetAssetRequest {
+  string id = 1;
+}
+
+message ListAssetsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string file_type = 3;
+}
+
+message ListAssetsResponse {
+  repeated Asset assets = 1;
+  int32 total = 2;
+}
+
+message DeleteAssetRequest {
+  string id = 1;
 }

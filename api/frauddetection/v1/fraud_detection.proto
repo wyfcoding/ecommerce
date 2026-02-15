@@ -3,91 +3,233 @@ syntax = "proto3";
 package api.frauddetection.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/frauddetection/v1;frauddetectionv1";
 
-// 欺诈检测服务，负责核心交易流程的实时风险评分、异步评估及手动黑名单标记。
 service FraudDetectionService {
-  // 实时同步接口：对当前交易进行多维度合规性及欺诈风险判定。
-  rpc EvaluateTransaction(EvaluateTransactionRequest) returns (EvaluateTransactionResponse);
-
-  // 通过流水 ID 查询既往评估的历史判定结果。
-  rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse);
-
-  // 允许业务系统或管理员录入确认的欺诈案例，用于增强拦截规则。
-  rpc ReportFraud(ReportFraudRequest) returns (ReportFraudResponse);
+  rpc AnalyzeTransaction(AnalyzeTransactionRequest) returns (RiskAssessment);
+  rpc GetRiskAssessment(GetRiskAssessmentRequest) returns (RiskAssessment);
+  rpc GetBlacklist(GetBlacklistRequest) returns (GetBlacklistResponse);
+  rpc AddToBlacklist(AddToBlacklistRequest) returns (BlacklistEntry);
+  rpc RemoveFromBlacklist(RemoveFromBlacklistRequest) returns (google.protobuf.Empty);
+  rpc GetRiskRules(GetRiskRulesRequest) returns (GetRiskRulesResponse);
+  rpc CreateRiskRule(CreateRiskRuleRequest) returns (RiskRule);
+  rpc UpdateRiskRule(UpdateRiskRuleRequest) returns (RiskRule);
+  rpc DeleteRiskRule(DeleteRiskRuleRequest) returns (google.protobuf.Empty);
+  rpc GetDeviceFingerprint(GetDeviceFingerprintRequest) returns (DeviceFingerprint);
+  rpc RecordSuspiciousActivity(RecordSuspiciousActivityRequest) returns (google.protobuf.Empty);
+  rpc GetUserRiskProfile(GetUserRiskProfileRequest) returns (UserRiskProfile);
 }
 
-// 风险评估报告。
-message FraudEvaluation {
-  // 原始流水号。
-  string transaction_id = 1;
-  // 发起人。
-  string user_id = 2;
-  // 判定建议 (APPROVED, REVIEW, BLOCKED)。
-  string status = 3;
-  // 归一化风险得分 (0-100)。
-  double score = 4;
-  // 触发的风险特征项列表。
-  repeated string reasons = 5;
-  // 判定完成时刻。
-  google.protobuf.Timestamp evaluated_at = 6;
+enum RiskLevel {
+  RISK_LEVEL_UNSPECIFIED = 0;
+  RISK_LEVEL_LOW = 1;
+  RISK_LEVEL_MEDIUM = 2;
+  RISK_LEVEL_HIGH = 3;
+  RISK_LEVEL_CRITICAL = 4;
 }
 
-// 风险评估请求。
-message EvaluateTransactionRequest {
-  // 交易 ID。
-  string transaction_id = 1;
-  // 行为人 ID。
-  string user_id = 2;
-  // 金额数值。
-  double amount = 3;
-  // 币种。
+enum RiskAction {
+  RISK_ACTION_UNSPECIFIED = 0;
+  RISK_ACTION_ALLOW = 1;
+  RISK_ACTION_CHALLENGE = 2;
+  RISK_ACTION_REVIEW = 3;
+  RISK_ACTION_BLOCK = 4;
+}
+
+enum BlacklistType {
+  BLACKLIST_TYPE_UNSPECIFIED = 0;
+  BLACKLIST_TYPE_USER = 1;
+  BLACKLIST_TYPE_DEVICE = 2;
+  BLACKLIST_TYPE_IP = 3;
+  BLACKLIST_TYPE_CARD = 4;
+  BLACKLIST_TYPE_PHONE = 5;
+  BLACKLIST_TYPE_EMAIL = 6;
+}
+
+enum RuleType {
+  RULE_TYPE_UNSPECIFIED = 0;
+  RULE_TYPE_VELOCITY = 1;
+  RULE_TYPE_AMOUNT = 2;
+  RULE_TYPE_GEOGRAPHY = 3;
+  RULE_TYPE_BEHAVIOR = 4;
+  RULE_TYPE_DEVICE = 5;
+  RULE_TYPE_CUSTOM = 6;
+}
+
+message AnalyzeTransactionRequest {
+  uint64 user_id = 1;
+  string transaction_id = 2;
+  int64 amount = 3;
   string currency = 4;
-  // 支付介质类型。
-  string payment_method_type = 5;
-  // 网络 IP 地址。
+  string payment_method = 5;
   string ip_address = 6;
-  // 浏览器或设备环境信息。
-  string user_agent = 7;
-  // 其他用于计算的动态特征载荷。
-  map<string, string> additional_data = 8;
+  string device_fingerprint = 7;
+  string user_agent = 8;
+  GeoLocation geo_location = 9;
+  uint64 merchant_id = 10;
+  string card_last_four = 11;
+  string email = 12;
+  string phone = 13;
+  map<string, string> metadata = 14;
 }
 
-// 评估回执。
-message EvaluateTransactionResponse {
-  // 分析结果对象。
-  FraudEvaluation evaluation = 1;
+message GeoLocation {
+  double latitude = 1;
+  double longitude = 2;
+  string country = 3;
+  string city = 4;
 }
 
-// ID 查询。
-message GetEvaluationStatusRequest {
-  // 流水号。
-  string transaction_id = 1;
+message RiskAssessment {
+  string assessment_id = 1;
+  string transaction_id = 2;
+  uint64 user_id = 3;
+  RiskLevel risk_level = 4;
+  RiskAction recommended_action = 5;
+  int32 risk_score = 6;
+  repeated RiskFactor risk_factors = 7;
+  repeated string triggered_rules = 8;
+  string explanation = 9;
+  google.protobuf.Timestamp created_at = 10;
 }
 
-// ID 查询结果。
-message GetEvaluationStatusResponse {
-  // 分析报告。
-  FraudEvaluation evaluation = 1;
+message RiskFactor {
+  string factor_name = 1;
+  string description = 2;
+  int32 weight = 3;
+  int32 contribution_score = 4;
 }
 
-// 欺诈上报。
-message ReportFraudRequest {
-  // 确认欺诈的 ID。
-  string transaction_id = 1;
-  // 归责用户。
-  string user_id = 2;
-  // 情况说明。
-  string report_reason = 3;
-  // 核心证据映射。
-  map<string, string> evidence = 4;
+message GetRiskAssessmentRequest {
+  string assessment_id = 1;
 }
 
-// 上报结果。
-message ReportFraudResponse {
-  // 处理回执状态。
-  bool success = 1;
-  // 操作提示语。
-  string message = 2;
+message GetBlacklistRequest {
+  BlacklistType type = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetBlacklistResponse {
+  repeated BlacklistEntry entries = 1;
+  int32 total = 2;
+}
+
+message BlacklistEntry {
+  string id = 1;
+  BlacklistType type = 2;
+  string value = 3;
+  string reason = 4;
+  uint64 created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  bool is_active = 8;
+}
+
+message AddToBlacklistRequest {
+  BlacklistType type = 1;
+  string value = 2;
+  string reason = 3;
+  uint64 created_by = 4;
+  int64 expires_in_seconds = 5;
+}
+
+message RemoveFromBlacklistRequest {
+  string id = 1;
+}
+
+message GetRiskRulesRequest {
+  RuleType type = 1;
+  bool enabled_only = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetRiskRulesResponse {
+  repeated RiskRule rules = 1;
+  int32 total = 2;
+}
+
+message RiskRule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  RuleType type = 4;
+  string condition = 5;
+  int32 risk_weight = 6;
+  RiskAction action = 7;
+  bool enabled = 8;
+  int32 priority = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateRiskRuleRequest {
+  string name = 1;
+  string description = 2;
+  RuleType type = 3;
+  string condition = 4;
+  int32 risk_weight = 5;
+  RiskAction action = 6;
+  int32 priority = 7;
+}
+
+message UpdateRiskRuleRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string condition = 4;
+  int32 risk_weight = 5;
+  RiskAction action = 6;
+  bool enabled = 7;
+  int32 priority = 8;
+}
+
+message DeleteRiskRuleRequest {
+  string id = 1;
+}
+
+message GetDeviceFingerprintRequest {
+  string fingerprint = 1;
+}
+
+message DeviceFingerprint {
+  string fingerprint = 1;
+  uint64 first_seen_user_id = 2;
+  int32 associated_accounts_count = 3;
+  repeated string associated_ips = 4;
+  bool is_suspicious = 5;
+  string device_type = 6;
+  string os = 7;
+  string browser = 8;
+  google.protobuf.Timestamp first_seen_at = 9;
+  google.protobuf.Timestamp last_seen_at = 10;
+}
+
+message RecordSuspiciousActivityRequest {
+  uint64 user_id = 1;
+  string activity_type = 2;
+  string description = 3;
+  string ip_address = 4;
+  string device_fingerprint = 5;
+  map<string, string> metadata = 6;
+}
+
+message GetUserRiskProfileRequest {
+  uint64 user_id = 1;
+}
+
+message UserRiskProfile {
+  uint64 user_id = 1;
+  int32 risk_score = 2;
+  RiskLevel risk_level = 3;
+  int32 total_transactions = 4;
+  int32 flagged_transactions = 5;
+  int32 blocked_transactions = 6;
+  repeated string risk_tags = 7;
+  google.protobuf.Timestamp first_transaction_at = 8;
+  google.protobuf.Timestamp last_transaction_at = 9;
+  google.protobuf.Timestamp last_assessment_at = 10;
 }

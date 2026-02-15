@@ -250,7 +250,7 @@ func (s *eventStore) Save(ctx context.Context, events []eventsourcing.DomainEven
 	})
 }
 
-func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
+func (s *eventStore) Load(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
 	var skuID uint64
 	fmt.Sscanf(aggregateID, "%d", &skuID)
 	db := s.sharding.GetDB(skuID)
@@ -285,4 +285,8 @@ func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]even
 		events[i] = event
 	}
 	return events, nil
+}
+
+func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
+	return s.Load(ctx, aggregateID)
 }

@@ -342,6 +342,9 @@ type GatewayBillItem struct {
 
 type EventStore interface {
 	Save(ctx context.Context, events []eventsourcing.DomainEvent) error
+	// Load 按聚合根读取事件流（阶段B验收主接口）。
+	Load(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error)
+	// GetHistory 为兼容旧调用保留，语义与 Load 一致。
 	GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error)
 }
 

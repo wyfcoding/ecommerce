@@ -2,80 +2,85 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"os"
-	"os/signal"
-	"syscall"
+	"log/slog"
+
+	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/go-api/openapi/v1"
 	"github.com/wyfcoding/ecommerce/internal/openapi/application"
 	"github.com/wyfcoding/ecommerce/internal/openapi/domain"
 	"github.com/wyfcoding/ecommerce/internal/openapi/infrastructure"
 	"github.com/wyfcoding/ecommerce/internal/openapi/interfaces"
+	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/config"
 	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/logging"
 	"github.com/wyfcoding/pkg/metrics"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
-func main() {
-	// 1. 加载配置
-	cfg := &config.Config{}
-	if err := config.Load("configs/openapi/config.toml", cfg); err != nil {
-		fmt.Printf("failed to load config: %v\n", err)
-		os.Exit(1)
-	}
+// BootstrapName 服务唯一标识
+const BootstrapName = "openapi"
 
-	// 2. 初始化日志
-	logger := logging.NewLogger(cfg.Server.Name, "main", cfg.Log.Level)
-
-	// 3. 初始化指标
-	m := metrics.NewMetrics(cfg.Server.Name)
-
-	// 4. 初始化数据库
-	db, err := database.NewDB(cfg.Data.Database, cfg.CircuitBreaker, logger, m)
-	if err != nil {
-		logger.Error("failed to connect to database", "error", err)
-		os.Exit(1)
-	}
-
-	// 5. 自动迁移
-	if err := db.DB.AutoMigrate(&domain.OpenApiApp{}); err != nil {
-		logger.Error("failed to migrate database", "error", err)
-		os.Exit(1)
-	}
-
-	// 6. 依赖注入
-	repo := infrastructure.NewGormOpenApiRepository(db.DB)
-	app := application.NewOpenApiService(repo)
-	handler := interfaces.NewOpenApiHandler(app)
-
-	// 7. 启动 gRPC 服务
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.GRPC.Port))
-	if err != nil {
-		logger.Error("failed to listen", "error", err)
-		os.Exit(1)
-	}
-
-	s := grpc.NewServer()
-	pb.RegisterOpenApiServiceServer(s, handler)
-	reflection.Register(s)
-
-	fmt.Printf("%s listening at %v\n", cfg.Server.Name, lis.Addr())
-
-	go func() {
-		if err := s.Serve(lis); err != nil {
-			logger.Error("failed to serve", "error", err)
-		}
-	}()
-
-	// 8. 优雅关停
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-
-	s.GracefulStop()
-	logger.Info("server stopped")
+// Config 服务扩展配置
+type Config struct {
+	config.Config `mapstructure:",squash"`
 }
+
+// AppContext 应用上下文
+type AppContext struct {
+	Config     *Config
+	AppService *application.OpenApiService
+	Metrics    *metrics.Metrics
+}
+
+func main() {
+	if err := app.NewBuilder[*Config, *AppContext](BootstrapName).
+		WithConfig(&Config{}).
+		WithService(initService).
+		WithGRPC(registerGRPC).
+		Build().
+		Run(); err != nil {
+		slog.Error("service bootstrap failed", "error", err)
+	}
+}
+
+func registerGRPC(s *grpc.Server, ctx *AppContext) {
+	pb.RegisterOpenApiServiceServer(s, interfaces.NewOpenApiHandler(ctx.AppService))
+}
+
+func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
+	bootLog := slog.With("module", "bootstrap")
+	logger := logging.Default()
+
+	// 1. 数据库
+	dbWrapper, err := database.NewDB(cfg.Data.Database, cfg.CircuitBreaker, logger, m)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to init db: %w", err)
+	}
+	db := dbWrapper.RawDB()
+
+	// 自动迁移
+	if err := db.AutoMigrate(&domain.OpenApiApp{}); err != nil {
+		return nil, nil, fmt.Errorf("failed to migrate tables: %w", err)
+	}
+
+	// 2. 依赖注入
+	repo := infrastructure.NewGormOpenApiRepository(db)
+	appService := application.NewOpenApiService(repo)
+
+	cleanup := func() {
+		bootLog.Info("shutting down...")
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+			sqlDB.Close()
+		}
+	}
+
+	return &AppContext{
+		Config:     cfg,
+		AppService: appService,
+		Metrics:    m,
+	}, cleanup, nil
+}
+
+// 注释说明：OpenApi 服务目前已支持标准的 app.Builder 范式。
+// 数据库 DSN 将从 configs/openapi/config.toml 中加载并通过环境变量覆盖。

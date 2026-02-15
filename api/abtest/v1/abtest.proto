@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package api.abtest.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/abtest/v1;abtest";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// ABTestService manages experiments and user bucketization.
+service ABTestService {
+  // Experiment Management
+  rpc CreateExperiment(CreateExperimentRequest) returns (Experiment) {}
+  rpc GetExperiment(GetExperimentRequest) returns (Experiment) {}
+  rpc ListExperiments(ListExperimentsRequest) returns (ListExperimentsResponse) {}
+  rpc UpdateExperimentStatus(UpdateExperimentStatusRequest) returns (Experiment) {}
+
+  // Assignment & Tracking
+  rpc GetAssignment(GetAssignmentRequest) returns (AssignmentResponse) {}
+  rpc TrackEvent(TrackEventRequest) returns (google.protobuf.Empty) {}
+
+  // Analytics
+  rpc GetResults(GetResultsRequest) returns (ExperimentResults) {}
+}
+
+message CreateExperimentRequest {
+  string name = 1;
+  string description = 2;
+  repeated Variation variations = 3;
+  int32 traffic_percentage = 4; // 0-100
+}
+
+message Variation {
+  string key = 1; // "control", "v1", "v2"
+  string value = 2; // JSON payload for the variation
+  int32 weight = 3; // relative weight
+}
+
+enum ExperimentStatus {
+  EXPERIMENT_STATUS_UNSPECIFIED = 0;
+  EXPERIMENT_STATUS_DRAFT = 1;
+  EXPERIMENT_STATUS_RUNNING = 2;
+  EXPERIMENT_STATUS_PAUSED = 3;
+  EXPERIMENT_STATUS_ARCHIVED = 4;
+}
+
+message Experiment {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated Variation variations = 4;
+  int32 traffic_percentage = 5;
+  ExperimentStatus status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp ended_at = 9;
+}
+
+message GetExperimentRequest {
+  string id = 1;
+}
+
+message ListExperimentsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  ExperimentStatus status = 3;
+}
+
+message ListExperimentsResponse {
+  repeated Experiment experiments = 1;
+  int32 total = 2;
+}
+
+message UpdateExperimentStatusRequest {
+  string id = 1;
+  ExperimentStatus status = 2;
+}
+
+message GetAssignmentRequest {
+  string user_id = 1;
+  string experiment_name = 2;
+  map<string, string> attributes = 3; // For targeted experiments (e.g., country=US)
+}
+
+message AssignmentResponse {
+  string experiment_id = 1;
+  string variation_key = 2;
+  string variation_value = 3;
+}
+
+message TrackEventRequest {
+  string user_id = 1;
+  string experiment_name = 2;
+  string event_name = 3; // e.g., "click_buy", "checkout_completed"
+  double value = 4;
+}
+
+message GetResultsRequest {
+  string id = 1;
+}
+
+message ExperimentResults {
+  string id = 1;
+  repeated VariationResult results = 2;
+}
+
+message VariationResult {
+  string variation_key = 1;
+  int64 participants = 2;
+  int64 conversions = 3;
+  double conversion_rate = 4;
+}
+// Done

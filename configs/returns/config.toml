@@ -1,0 +1,38 @@
+version = "1.0.0"
+
+[server]
+name = "returns"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8014
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9014
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"
+
+[tracing]
+enabled = true
+service_name = "returns"
+
+[metrics]
+enabled = true
+port = "18014"
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_returns?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[snowflake]
+start_time = "2024-01-01T00:00:00Z"
+type = "sonyflake"
+machine_id = 14

@@ -67,7 +67,7 @@ func (s *eventStore) Save(ctx context.Context, events []eventsourcing.DomainEven
 	})
 }
 
-func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
+func (s *eventStore) Load(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
 	db := s.sharding.GetDB(0)
 	var records []EventRecord
 	if err := db.WithContext(ctx).Table("payment_events").Where("aggregate_id = ?", aggregateID).Order("version asc").Find(&records).Error; err != nil {
@@ -100,4 +100,8 @@ func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]even
 		events[i] = event
 	}
 	return events, nil
+}
+
+func (s *eventStore) GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error) {
+	return s.Load(ctx, aggregateID)
 }

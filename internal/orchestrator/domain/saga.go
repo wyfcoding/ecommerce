@@ -5,6 +5,8 @@ package domain
 import (
 	"context"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // --- Saga 状态 ---
@@ -40,38 +42,43 @@ const (
 
 // SagaInstance Saga 实例
 type SagaInstance struct {
-	ID            string      `json:"id"`        // 全局唯一事务ID
-	SagaType      string      `json:"saga_type"` // Saga 类型（如：ORDER_PLACEMENT）
-	Status        SagaStatus  `json:"status"`
-	CurrentStep   int         `json:"current_step"` // 当前进度索引
-	Steps         []*SagaStep `json:"steps"`        // 步骤明细
-	ContextData   string      `json:"context_data"` // JSON 格式的共享上下文数据
-	UserID        uint64      `json:"user_id"`
-	OriginalRefID string      `json:"original_ref_id"` // 原始业务ID（如订单号）
-	StartTime     time.Time   `json:"start_time"`
-	EndTime       *time.Time  `json:"end_time"`
-	UpdatedAt     time.Time   `json:"updated_at"`
-	LastError     string      `json:"last_error"`
-	MaxRetries    int         `json:"max_retries"` // 最大重试次数
+	gorm.Model
+	SagaID        string      `gorm:"column:saga_id;type:varchar(64);uniqueIndex;not null" json:"id"`    // 全局唯一事务ID
+	SagaType      string      `gorm:"column:saga_type;type:varchar(64);index;not null" json:"saga_type"` // Saga 类型
+	Status        SagaStatus  `gorm:"column:status;type:varchar(20);not null;default:'STARTED'" json:"status"`
+	CurrentStep   int         `gorm:"column:current_step;not null;default:0" json:"current_step"`
+	Steps         []*SagaStep `gorm:"foreignKey:SagaInstanceID" json:"steps"`
+	ContextData   string      `gorm:"column:context_data;type:text" json:"context_data"`
+	UserID        uint64      `gorm:"column:user_id;index;not null" json:"user_id"`
+	OriginalRefID string      `gorm:"column:original_ref_id;type:varchar(64);index" json:"original_ref_id"`
+	StartTime     time.Time   `gorm:"column:start_time;not null" json:"start_time"`
+	EndTime       *time.Time  `gorm:"column:end_time" json:"end_time"`
+	LastError     string      `gorm:"column:last_error;type:text" json:"last_error"`
+	MaxRetries    int         `gorm:"column:max_retries;not null;default:3" json:"max_retries"`
 }
+
+func (SagaInstance) TableName() string { return "saga_instances" }
 
 // SagaStep Saga 步骤
 type SagaStep struct {
-	ID               uint64     `json:"id"`
-	Name             string     `json:"name"`
-	Service          string     `json:"service"`           // 负责的服务名
-	Action           string     `json:"action"`            // 正向操作（如：DEDUCT_INVENTORY）
-	CompensateAction string     `json:"compensate_action"` // 逆向补偿（如：RESTORE_INVENTORY）
-	Status           StepStatus `json:"status"`
-	Payload          string     `json:"payload"`   // 执行参数
-	Response         string     `json:"response"`  // 执行结果
-	TargetID         string     `json:"target_id"` // 步骤生成的ID（如：PaymentID）
-	Error            string     `json:"error"`
-	Retries          int        `json:"retries"`
-	ExecutionTime    int64      `json:"execution_time_ms"` // 执行耗时
-	ScheduledAt      *time.Time `json:"scheduled_at"`
-	FinishedAt       *time.Time `json:"finished_at"`
+	gorm.Model
+	SagaInstanceID   uint       `gorm:"column:saga_instance_id;index;not null"`
+	Name             string     `gorm:"column:name;type:varchar(64);not null" json:"name"`
+	Service          string     `gorm:"column:service;type:varchar(64);not null" json:"service"`
+	Action           string     `gorm:"column:action;type:varchar(64);not null" json:"action"`
+	CompensateAction string     `gorm:"column:compensate_action;type:varchar(64);not null" json:"compensate_action"`
+	Status           StepStatus `gorm:"column:status;type:varchar(20);not null;default:'PENDING'" json:"status"`
+	Payload          string     `gorm:"column:payload;type:text" json:"payload"`
+	Response         string     `gorm:"column:response;type:text" json:"response"`
+	TargetID         string     `gorm:"column:target_id;type:varchar(64)" json:"target_id"`
+	Error            string     `gorm:"column:error;type:text" json:"error"`
+	Retries          int        `gorm:"column:retries;not null;default:0" json:"retries"`
+	ExecutionTime    int64      `gorm:"column:execution_time_ms" json:"execution_time_ms"`
+	ScheduledAt      *time.Time `gorm:"column:scheduled_at" json:"scheduled_at"`
+	FinishedAt       *time.Time `gorm:"column:finished_at" json:"finished_at"`
 }
+
+func (SagaStep) TableName() string { return "saga_steps" }
 
 // --- Saga 定义 (Blueprint) ---
 

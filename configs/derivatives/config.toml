@@ -1,4 +1,0 @@
-service_name = "derivatives"
-
-[server]
-http_addr = ":8080"

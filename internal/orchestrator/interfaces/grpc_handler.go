@@ -63,7 +63,7 @@ func (h *OrchestratorHandler) GetSagaStatus(ctx context.Context, req *pb.GetSaga
 	}
 
 	return &pb.GetSagaStatusResponse{
-		SagaId:      instance.ID,
+		SagaId:      instance.SagaID,
 		SagaType:    instance.SagaType,
 		BusinessKey: instance.OriginalRefID,
 		Status:      string(instance.Status),

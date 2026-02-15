@@ -6,22 +6,21 @@ import (
 	"log/slog"
 
 	"github.com/wyfcoding/ecommerce/internal/search/domain"
-	pkgsearch "github.com/wyfcoding/pkg/search"
 )
 
 // SearchManager 处理搜索模块的写操作、历史记录管理和核心业务逻辑。
 type SearchManager struct {
-	repo     domain.SearchRepository
-	esClient *pkgsearch.Client
-	logger   *slog.Logger
+	repo   domain.SearchRepository
+	engine domain.SearchEngine
+	logger *slog.Logger
 }
 
 // NewSearchManager 创建并返回一个新的 SearchManager 实例。
-func NewSearchManager(repo domain.SearchRepository, esClient *pkgsearch.Client, logger *slog.Logger) *SearchManager {
+func NewSearchManager(repo domain.SearchRepository, engine domain.SearchEngine, logger *slog.Logger) *SearchManager {
 	return &SearchManager{
-		repo:     repo,
-		esClient: esClient,
-		logger:   logger.With("module", "search_manager"),
+		repo:   repo,
+		engine: engine,
+		logger: logger.With("module", "search_manager"),
 	}
 }
 
@@ -36,14 +35,13 @@ func (m *SearchManager) SyncProductIndex(ctx context.Context, event map[string]a
 	switch action {
 	case "create", "update":
 		// 执行索引或更新
-		// 消息体中的 event 数据直接作为文档存入 ES
-		if err := m.esClient.Index(ctx, indexName, productID, event); err != nil {
+		if err := m.engine.Index(ctx, indexName, productID, event); err != nil {
 			m.logger.Error("failed to index product", "product_id", productID, "error", err)
 			return err
 		}
 	case "delete":
 		// 执行删除
-		if err := m.esClient.Delete(ctx, indexName, productID); err != nil {
+		if err := m.engine.Delete(ctx, indexName, productID); err != nil {
 			m.logger.Error("failed to delete product index", "product_id", productID, "error", err)
 			return err
 		}

@@ -12,21 +12,23 @@ import (
 // SearchQuery 处理搜索模块的查询操作。
 type SearchQuery struct {
 	repo           domain.SearchRepository
+	engine         domain.SearchEngine
 	suggestionTrie *algorithm.Trie[*domain.Suggestion]
 	mu             sync.RWMutex // 保护 suggestionTrie 的原子替换和读取
 }
 
 // NewSearchQuery 创建并返回一个新的 SearchQuery 实例。
-func NewSearchQuery(repo domain.SearchRepository) *SearchQuery {
+func NewSearchQuery(repo domain.SearchRepository, engine domain.SearchEngine) *SearchQuery {
 	return &SearchQuery{
 		repo:           repo,
+		engine:         engine,
 		suggestionTrie: algorithm.NewTrie[*domain.Suggestion](),
 	}
 }
 
 // Search 执行搜索操作。
 func (q *SearchQuery) Search(ctx context.Context, filter *domain.SearchFilter) (*domain.SearchResult, error) {
-	return q.repo.Search(ctx, filter)
+	return q.engine.Search(ctx, filter)
 }
 
 // Suggest 提供搜索建议。
@@ -55,8 +57,8 @@ func (q *SearchQuery) Suggest(ctx context.Context, keyword string, limit int) ([
 		return suggestions, nil
 	}
 
-	// 2. 如果 Trie 中没有，回退到 Repo (ES/DB)
-	return q.repo.Suggest(ctx, keyword, limit)
+	// 2. 如果 Trie 中没有，回退到 Engine (ES)
+	return q.engine.Suggest(ctx, keyword, limit)
 }
 
 // GetHotKeywords 获取热门搜索词。

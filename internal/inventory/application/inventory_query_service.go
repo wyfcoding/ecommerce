@@ -49,7 +49,7 @@ func (q *InventoryQueryService) GetInventory(ctx context.Context, skuID uint64) 
 
 	if q.eventStore != nil {
 		aggregateID := fmt.Sprintf("%d", skuID)
-		events, err := q.eventStore.GetHistory(ctx, aggregateID)
+		events, err := q.eventStore.Load(ctx, aggregateID)
 		if err != nil {
 			q.logger.WarnContext(ctx, "event store load failed", "sku_id", skuID, "error", err)
 			return nil, nil

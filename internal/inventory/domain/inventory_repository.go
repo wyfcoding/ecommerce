@@ -10,6 +10,8 @@ import (
 type EventStore interface {
 	// Save 保存领域事件。
 	Save(ctx context.Context, events []eventsourcing.DomainEvent) error
+	// Load 获取聚合根的事件历史（阶段B验收主接口）。
+	Load(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error)
 	// GetHistory 获取聚合根的事件历史。
 	GetHistory(ctx context.Context, aggregateID string) ([]eventsourcing.DomainEvent, error)
 }

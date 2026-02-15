@@ -205,8 +205,8 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			return err
 		}
 
-		// 发布领域事件
-		event := &domain.OrderCreatedEvent{
+		// 发布领域事件 (Outbox 模式：添加到实体并在 Save/Update 时自动持久化到 sys_outbox_messages)
+		order.AddEvent(&domain.OrderCreatedEvent{
 			OrderID:        uint64(order.ID),
 			OrderNo:        order.OrderNo,
 			UserID:         order.UserID,
@@ -215,20 +215,18 @@ func (s *OrderCommandService) CreateOrder(ctx context.Context, cmd *CreateOrderC
 			PaymentStatus:  order.PaymentStatus,
 			ShippingStatus: order.ShippingStatus,
 			Timestamp:      time.Now(),
-		}
-		if err := s.publisher.PublishInTx(ctx, tx, "order.created", order.OrderNo, event); err != nil {
-			return err
-		}
+		})
 
 		// 发布超时预警 (延迟任务的基础)
-		timeoutEvent := &domain.OrderPaymentTimeoutEvent{
+		order.AddEvent(&domain.OrderPaymentTimeoutEvent{
 			OrderID:   uint64(order.ID),
 			OrderNo:   order.OrderNo,
 			UserID:    order.UserID,
 			ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
 			Timestamp: time.Now(),
-		}
-		return s.publisher.PublishInTx(ctx, tx, "order.payment.timeout", order.OrderNo, timeoutEvent)
+		})
+
+		return s.repo.UpdateInTx(ctx, tx, order)
 	}); err != nil {
 		s.unlockLockedStocks(ctx, orderNo, lockedStocks)
 		return nil, err

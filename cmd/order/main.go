@@ -24,6 +24,7 @@ import (
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"
+	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/database/sharding"
 	"github.com/wyfcoding/pkg/grpcclient"
 	"github.com/wyfcoding/pkg/idempotency"
@@ -177,6 +178,12 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		if err := dbNode.AutoMigrate(&outbox.Message{}); err != nil {
 			return nil, nil, fmt.Errorf("failed to migrate outbox table on shard %d: %w", i, err)
 		}
+
+		// 注册领域事件插件，实现自动 Outbox 写入
+		if err := dbNode.Use(&database.EventPlugin{}); err != nil {
+			return nil, nil, fmt.Errorf("failed to use event plugin on shard %d: %w", i, err)
+		}
+
 		shardMgr := outbox.NewManager(dbNode, logger.Logger)
 		proc := outbox.NewProcessor(shardMgr, func(ctx context.Context, topic, key string, payload []byte) error {
 			return producer.PublishToTopic(ctx, topic, []byte(key), payload)

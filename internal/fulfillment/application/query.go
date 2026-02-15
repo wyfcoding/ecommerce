@@ -4,6 +4,7 @@ package application
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/fulfillment/domain"
 )
@@ -42,6 +43,10 @@ type FulfillmentDTO struct {
 	City          string
 	District      string
 	Address       string
+	PostalCode    string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	PickerID   uint64
 	PickerName string
@@ -133,6 +138,9 @@ func (s *QueryService) toDTO(f *domain.Fulfillment) *FulfillmentDTO {
 		City:          f.City,
 		District:      f.District,
 		Address:       f.Address,
+		PostalCode:    f.PostalCode,
+		CreatedAt:     f.CreatedAt,
+		UpdatedAt:     f.UpdatedAt,
 		PickerID:      f.PickerID,
 		PickerName:    f.PickerName,
 		PackerID:      f.PackerID,

@@ -1,0 +1,44 @@
+version = "1.0.0"
+
+[server]
+name = "reportcenter"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8012
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9012
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"
+
+[tracing]
+enabled = true
+service_name = "reportcenter"
+
+[metrics]
+enabled = true
+port = "18012"
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_reports?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[data.redis]
+addrs = ["127.0.0.1:6379"]
+password = "redis_password"
+db = 0
+pool_size = 10
+
+[messagequeue.kafka]
+brokers = ["localhost:9092"]
+topic = "order-events"
+group_id = "reportcenter-group"

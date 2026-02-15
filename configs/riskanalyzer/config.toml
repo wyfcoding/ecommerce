@@ -1,4 +1,0 @@
-service_name = "riskanalyzer"
-
-[server]
-http_addr = ":8080"

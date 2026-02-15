@@ -1,0 +1,47 @@
+version = "1.0.0"
+
+[server]
+name = "cms"
+environment = "dev"
+node_id = 1
+
+[server.http]
+addr = "0.0.0.0"
+port = 8011
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9011
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"
+
+[tracing]
+enabled = true
+service_name = "cms"
+
+[metrics]
+enabled = true
+port = "18011"
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_cms?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[data.redis]
+addrs = ["127.0.0.1:6379"]
+password = "redis_password"
+db = 0
+pool_size = 10
+
+[storage]
+endpoint = "127.0.0.1:9000"
+access_key = "minio_access_key"
+secret_key = "minio_secret_key"
+secure = false
+bucket = "cms-assets"

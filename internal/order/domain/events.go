@@ -21,6 +21,9 @@ type OrderCreatedEvent struct {
 	Timestamp      time.Time         `json:"timestamp"`
 }
 
+func (e *OrderCreatedEvent) EventName() string { return "order.created" }
+func (e *OrderCreatedEvent) EventKey() string  { return e.OrderNo }
+
 // OrderPaidEvent 订单支付事件
 type OrderPaidEvent struct {
 	OrderID              uint64           `json:"order_id"`
@@ -34,6 +37,9 @@ type OrderPaidEvent struct {
 	Timestamp            time.Time        `json:"timestamp"`
 }
 
+func (e *OrderPaidEvent) EventName() string { return "order.paid" }
+func (e *OrderPaidEvent) EventKey() string  { return e.OrderNo }
+
 // OrderShippedEvent 订单发货事件
 type OrderShippedEvent struct {
 	OrderID          uint64            `json:"order_id"`
@@ -46,6 +52,9 @@ type OrderShippedEvent struct {
 	Timestamp        time.Time         `json:"timestamp"`
 }
 
+func (e *OrderShippedEvent) EventName() string { return "order.shipped" }
+func (e *OrderShippedEvent) EventKey() string  { return e.OrderNo }
+
 // OrderDeliveredEvent 订单送达事件
 type OrderDeliveredEvent struct {
 	OrderID     uint64    `json:"order_id"`
@@ -54,6 +63,9 @@ type OrderDeliveredEvent struct {
 	DeliveredAt time.Time `json:"delivered_at"`
 	Timestamp   time.Time `json:"timestamp"`
 }
+
+func (e *OrderDeliveredEvent) EventName() string { return "order.delivered" }
+func (e *OrderDeliveredEvent) EventKey() string  { return e.OrderNo }
 
 // OrderPaymentStatusUpdatedEvent 订单支付状态更新事件
 type OrderPaymentStatusUpdatedEvent struct {
@@ -66,6 +78,9 @@ type OrderPaymentStatusUpdatedEvent struct {
 	Timestamp            time.Time        `json:"timestamp"`
 }
 
+func (e *OrderPaymentStatusUpdatedEvent) EventName() string { return "order.payment.status.updated" }
+func (e *OrderPaymentStatusUpdatedEvent) EventKey() string  { return e.OrderNo }
+
 // OrderShippingStatusUpdatedEvent 订单物流状态更新事件
 type OrderShippingStatusUpdatedEvent struct {
 	OrderID          uint64            `json:"order_id"`
@@ -77,6 +92,9 @@ type OrderShippingStatusUpdatedEvent struct {
 	Timestamp        time.Time         `json:"timestamp"`
 }
 
+func (e *OrderShippingStatusUpdatedEvent) EventName() string { return "order.shipping.updated" }
+func (e *OrderShippingStatusUpdatedEvent) EventKey() string  { return e.OrderNo }
+
 // OrderCompletedEvent 订单完成事件
 type OrderCompletedEvent struct {
 	OrderID     uint64    `json:"order_id"`
@@ -85,6 +103,9 @@ type OrderCompletedEvent struct {
 	CompletedAt time.Time `json:"completed_at"`
 	Timestamp   time.Time `json:"timestamp"`
 }
+
+func (e *OrderCompletedEvent) EventName() string { return "order.completed" }
+func (e *OrderCompletedEvent) EventKey() string  { return e.OrderNo }
 
 // OrderCancelledEvent 订单取消事件
 type OrderCancelledEvent struct {
@@ -98,6 +119,9 @@ type OrderCancelledEvent struct {
 	Timestamp      time.Time         `json:"timestamp"`
 }
 
+func (e *OrderCancelledEvent) EventName() string { return "order.cancelled" }
+func (e *OrderCancelledEvent) EventKey() string  { return e.OrderNo }
+
 // OrderConfirmedEvent 订单确认事件 (Saga 确认后)
 type OrderConfirmedEvent struct {
 	OrderID   uint64    `json:"order_id"`
@@ -105,6 +129,9 @@ type OrderConfirmedEvent struct {
 	UserID    uint64    `json:"user_id"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+func (e *OrderConfirmedEvent) EventName() string { return "order.confirmed" }
+func (e *OrderConfirmedEvent) EventKey() string  { return e.OrderNo }
 
 // OrderPaymentTimeoutEvent 订单支付超时预警事件
 type OrderPaymentTimeoutEvent struct {
@@ -114,6 +141,9 @@ type OrderPaymentTimeoutEvent struct {
 	ExpiresAt int64     `json:"expires_at"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+func (e *OrderPaymentTimeoutEvent) EventName() string { return "order.payment.timeout" }
+func (e *OrderPaymentTimeoutEvent) EventKey() string  { return e.OrderNo }
 
 // OrderRefundRequestedEvent 订单退款申请事件
 type OrderRefundRequestedEvent struct {
@@ -126,6 +156,9 @@ type OrderRefundRequestedEvent struct {
 	Timestamp     time.Time        `json:"timestamp"`
 }
 
+func (e *OrderRefundRequestedEvent) EventName() string { return "order.refund.requested" }
+func (e *OrderRefundRequestedEvent) EventKey() string  { return e.OrderNo }
+
 // OrderRefundApprovedEvent 订单退款完成事件
 type OrderRefundApprovedEvent struct {
 	OrderID       uint64           `json:"order_id"`
@@ -134,3 +167,6 @@ type OrderRefundApprovedEvent struct {
 	PaymentStatus pb.PaymentStatus `json:"payment_status"`
 	Timestamp     time.Time        `json:"timestamp"`
 }
+
+func (e *OrderRefundApprovedEvent) EventName() string { return "order.refund.approved" }
+func (e *OrderRefundApprovedEvent) EventKey() string  { return e.OrderNo }

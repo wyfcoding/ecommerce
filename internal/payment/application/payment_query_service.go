@@ -94,7 +94,7 @@ func (q *PaymentQueryService) GetPaymentStatus(ctx context.Context, userID uint6
 			return payment, nil
 		}
 		if q.eventStore != nil {
-			events, loadErr := q.eventStore.GetHistory(ctx, v)
+			events, loadErr := q.eventStore.Load(ctx, v)
 			if loadErr != nil {
 				q.logger.WarnContext(ctx, "event store load failed", "payment_no", v, "error", loadErr)
 				return nil, err

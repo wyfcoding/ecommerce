@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pb "github.com/wyfcoding/ecommerce/go-api/order/v1"
+	"github.com/wyfcoding/pkg/database"
 	"github.com/wyfcoding/pkg/fsm"
 )
 
@@ -20,6 +21,7 @@ type TimeoutScheduler interface {
 
 // Order 实体是订单模块的聚合根。
 type Order struct {
+	database.BaseEntity
 	ID                   uint                         `json:"id"`
 	CreatedAt            time.Time                    `json:"created_at"`
 	UpdatedAt            time.Time                    `json:"updated_at"`

@@ -2,76 +2,32 @@ syntax = "proto3";
 
 package api.wallet.v1;
 
-import "google/api/annotations.proto";
-
-option go_package = "ecommerce/api/wallet/v1;v1";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/wallet/v1;v1";
 
 service WalletService {
   // 钱包基础操作
-  rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/wallets"
-      body: "*"
-    };
-  }
+  rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
   
-  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/wallets/{user_id}"
-    };
-  }
+  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
   
   // 充值操作
-  rpc Deposit(DepositRequest) returns (DepositResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/wallets/deposit"
-      body: "*"
-    };
-  }
+  rpc Deposit(DepositRequest) returns (DepositResponse);
   
   // 提现操作
-  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/wallets/withdraw"
-      body: "*"
-    };
-  }
+  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse);
   
   // 转账操作
-  rpc Transfer(TransferRequest) returns (TransferResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/wallets/transfer"
-      body: "*"
-    };
-  }
+  rpc Transfer(TransferRequest) returns (TransferResponse);
   
   // 冻结/解冻资金
-  rpc FreezeBalance(FreezeBalanceRequest) returns (FreezeBalanceResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/wallets/freeze"
-      body: "*"
-    };
-  }
+  rpc FreezeBalance(FreezeBalanceRequest) returns (FreezeBalanceResponse);
   
-  rpc UnfreezeBalance(UnfreezeBalanceRequest) returns (UnfreezeBalanceResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/wallets/unfreeze"
-      body: "*"
-    };
-  }
+  rpc UnfreezeBalance(UnfreezeBalanceRequest) returns (UnfreezeBalanceResponse);
   
   // 交易记录
-  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/wallets/transactions"
-    };
-  }
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse);
   
-  rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/wallets/balance-history"
-    };
-  }
+  rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResponse);
 }
 
 message CreateWalletRequest {
