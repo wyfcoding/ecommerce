@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/groupbuy/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	groupmatcher "github.com/wyfcoding/ecommerce/internal/groupbuy/domain/matcher"
+	algorithm "github.com/wyfcoding/pkg/algos/optimization"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
@@ -18,7 +19,7 @@ type GroupbuyCommandService struct {
 	publisher   messagequeue.EventPublisher
 	idGenerator idgen.Generator
 	logger      *slog.Logger
-	matcher     *algorithm.GroupBuyMatcher
+	matcher     *groupmatcher.GroupBuyMatcher
 }
 
 // NewGroupbuyCommandService 构造函数。
@@ -28,7 +29,7 @@ func NewGroupbuyCommandService(repo domain.GroupbuyRepository, publisher message
 		publisher:   publisher,
 		idGenerator: idGenerator,
 		logger:      logger,
-		matcher:     algorithm.NewGroupBuyMatcher(),
+		matcher:     groupmatcher.NewGroupBuyMatcher(),
 	}
 }
 
@@ -170,10 +171,10 @@ func (m *GroupbuyCommandService) AutoJoinTeam(ctx context.Context, groupbuyID, u
 	}
 
 	// 2. 转换为算法需要的格式
-	candidates := make([]algorithm.GroupBuyGroup, 0, len(teams))
+	candidates := make([]groupmatcher.GroupBuyGroup, 0, len(teams))
 	for _, t := range teams {
 		if t.CanJoin() {
-			candidates = append(candidates, algorithm.GroupBuyGroup{
+			candidates = append(candidates, groupmatcher.GroupBuyGroup{
 				ID:            uint64(t.ID),
 				ActivityID:    t.GroupbuyID,
 				LeaderID:      t.LeaderID,
@@ -193,7 +194,7 @@ func (m *GroupbuyCommandService) AutoJoinTeam(ctx context.Context, groupbuyID, u
 	}
 
 	// 3. 使用算法找到最佳团队 (优先即将成团)
-	bestGroup := m.matcher.FindBestGroup(groupbuyID, 0, 0, "default", candidates, algorithm.MatchStrategyAlmostFull)
+	bestGroup := m.matcher.FindBestGroup(groupbuyID, 0, 0, "default", candidates, groupmatcher.MatchStrategyAlmostFull)
 	if bestGroup == nil {
 		return nil, fmt.Errorf("no suitable team found")
 	}

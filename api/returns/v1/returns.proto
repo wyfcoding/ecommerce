@@ -2,92 +2,14 @@ syntax = "proto3";
 
 package api.returns.v1;
 
-option go_package = "github.com/wyfcoding/ecommerce/go-api/returns/v1;returns";
+option go_package = "github.com/wyfcoding/ecommerce/go-api/returns/v1;returnsv1";
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
-
-// ReturnsService manages the product return lifecycle.
-service ReturnsService {
-  // Customer Operations
-  rpc CreateReturnRequest(CreateReturnRequestRequest) returns (ReturnRequest) {}
-  rpc ListMyReturns(ListMyReturnsRequest) returns (ListMyReturnsResponse) {}
-  rpc GetReturnDetail(GetReturnDetailRequest) returns (ReturnRequest) {}
-
-  // Admin/Warehouse Operations
-  rpc UpdateReturnStatus(UpdateReturnStatusRequest) returns (ReturnRequest) {}
-  rpc LogQCResult(LogQCResultRequest) returns (ReturnRequest) {}
-  rpc ProcessRefund(ProcessRefundRequest) returns (ReturnRequest) {}
+service Service {
+  rpc Health(HealthRequest) returns (HealthResponse);
 }
 
-enum ReturnStatus {
-  RETURN_STATUS_UNSPECIFIED = 0;
-  RETURN_STATUS_PENDING_REVIEW = 1;
-  RETURN_STATUS_APPROVED = 2;
-  RETURN_STATUS_REJECTED = 3;
-  RETURN_STATUS_SHIPPED = 4;
-  RETURN_STATUS_RECEIVED = 5;
-  RETURN_STATUS_QC_PASSED = 6;
-  RETURN_STATUS_QC_FAILED = 7;
-  RETURN_STATUS_REFUNDED = 8;
-  RETURN_STATUS_COMPLETED = 9;
-  RETURN_STATUS_CANCELLED = 10;
-}
+message HealthRequest {}
 
-message Variation {
-  string sku_id = 1;
-  int32 quantity = 2;
-  string reason = 3;
-  repeated string images = 4;
-}
-
-message ReturnRequest {
-  string id = 1;
-  string order_id = 2;
-  string user_id = 3;
-  repeated Variation items = 4;
-  ReturnStatus status = 5;
-  string rma_number = 6; // Return Merchandise Authorization
-  string tracking_number = 7;
-  string warehouse_notes = 8;
-  google.protobuf.Timestamp created_at = 9;
-  google.protobuf.Timestamp updated_at = 10;
-}
-
-message CreateReturnRequestRequest {
-  string order_id = 1;
-  repeated Variation items = 2;
-}
-
-message ListMyReturnsRequest {
-  int32 page = 1;
-  int32 page_size = 2;
-}
-
-message ListMyReturnsResponse {
-  repeated ReturnRequest returns = 1;
-  int32 total = 2;
-}
-
-message GetReturnDetailRequest {
-  string id = 1;
-}
-
-message UpdateReturnStatusRequest {
-  string id = 1;
-  ReturnStatus status = 2;
-  string notes = 3;
-}
-
-message LogQCResultRequest {
-  string id = 1;
-  bool passed = 2;
-  string condition_details = 3;
-  int32 restock_quantity = 4;
-}
-
-message ProcessRefundRequest {
-  string id = 1;
-  double refund_amount = 2;
-  string currency = 3;
+message HealthResponse {
+  string status = 1;
 }

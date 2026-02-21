@@ -9,7 +9,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/go-api/inventory/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/application"
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain/allocator"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -199,9 +199,9 @@ func (s *Server) GetInventoryLogs(ctx context.Context, req *pb.GetInventoryLogsR
 // AllocateOrderStock 处理订单库存分配请求。
 func (s *Server) AllocateOrderStock(ctx context.Context, req *pb.AllocateOrderStockRequest) (*pb.AllocateOrderStockResponse, error) {
 	// 转换请求参数为算法输入 DTO
-	algoItems := make([]algorithm.OrderItem, len(req.Items))
+	algoItems := make([]allocator.OrderItem, len(req.Items))
 	for i, it := range req.Items {
-		algoItems[i] = algorithm.OrderItem{
+		algoItems[i] = allocator.OrderItem{
 			SkuID:    it.SkuId,
 			Quantity: it.Quantity,
 		}
@@ -243,7 +243,7 @@ func convertInventoryToProto(inv *domain.Inventory) *pb.Inventory {
 		return nil
 	}
 	return &pb.Inventory{
-		Id:               uint64(inv.ID),
+		Id:               inv.GetID(),
 		SkuId:            inv.SkuID,
 		ProductId:        inv.ProductID,
 		WarehouseId:      inv.WarehouseID,

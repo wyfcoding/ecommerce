@@ -1,6 +1,0 @@
-apiVersion: v2
-name: returns
-description: A Helm chart for returns Service
-type: application
-version: 0.1.0
-appVersion: "1.0.0"

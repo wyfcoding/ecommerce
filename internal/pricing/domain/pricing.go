@@ -6,10 +6,13 @@ import "time"
 type PricingStrategy string
 
 const (
-	PricingStrategyFixed       PricingStrategy = "FIXED"
-	PricingStrategyDynamic     PricingStrategy = "DYNAMIC"
-	PricingStrategyCompetitive PricingStrategy = "COMPETITIVE"
-	PricingStrategyPromotion   PricingStrategy = "PROMOTION"
+	PricingStrategyFixed              PricingStrategy = "FIXED"
+	PricingStrategyDynamic            PricingStrategy = "DYNAMIC"
+	PricingStrategyCompetitive        PricingStrategy = "COMPETITIVE"
+	PricingStrategyPromotion          PricingStrategy = "PROMOTION"
+	PricingStrategyProfitMaximization PricingStrategy = "PROFIT_MAXIMIZATION"
+	PricingStrategyDemandBased        PricingStrategy = "DEMAND_BASED"
+	PricingStrategyInventoryBased     PricingStrategy = "INVENTORY_BASED"
 )
 
 // PricingRule 实体代表一个商品的定价规则。

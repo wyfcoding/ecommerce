@@ -139,12 +139,35 @@ message CalculatePriceRequest {
   double demand = 3;
   // 竞争激烈程度。
   double competition = 4;
+  // 当前库存。
+  int32 current_stock = 5;
+  // 总库存。
+  int32 total_stock = 6;
+  // 今日需求量。
+  int32 daily_demand = 7;
+  // 平均每日需求。
+  int32 average_daily_demand = 8;
+  // 竞品价格 (分)。
+  int64 competitor_price = 9;
+  // 基础价格 (分)。
+  int64 base_price = 10;
 }
 
-// 价格计算响应。
 message CalculatePriceResponse {
-  // 计算出的建议零售价。
+  // 建议价格。
   uint64 price = 1;
+  // 动态定价详情。
+  DynamicPriceDetails details = 2;
+}
+
+message DynamicPriceDetails {
+  uint64 sku_id = 1;
+  int64 base_price = 2;
+  int64 final_price = 3;
+  double price_adjustment = 4;
+  double inventory_factor = 5;
+  double demand_factor = 6;
+  double competitor_factor = 7;
 }
 
 // 历史记录保存请求。

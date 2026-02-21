@@ -1,0 +1,42 @@
+version = "1.0.0"
+
+[server]
+name = "promotion"
+environment = "prod"
+
+  [server.http]
+  addr = "0.0.0.0"
+  port = 8086
+
+  [server.grpc]
+  addr = "0.0.0.0"
+  port = 9096
+
+[data.database]
+driver = "mysql"
+# 大促期间，从库地址会通过 Istio 网关路由代理指向多个只读实例库，保证写库（Master）永远不宕机
+dsn = "root:123456@tcp(127.0.0.1:3306)/ecommerce_promotion?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 40
+max_open_conns = 200
+
+[data.redis]
+# Redis Cluster 模式。计价必须快，延迟 > 20ms 等于不可用
+addrs = ["127.0.0.1:6379"]
+password = ""
+db = 2
+pool_size = 500
+
+[messagequeue.kafka]
+brokers = ["127.0.0.1:9092"]
+topic = "promotion.events"
+group_id = "promotion-cq-updater"
+
+[log]
+level = "info"
+format = "json"
+
+[tracing]
+enabled = true
+service_name = "promotion-engine"
+otlp_endpoint = "localhost:4317"
+sampler_ratio = 1.0  # 计算流全图耗时必须摸底调优，100% 打入 Jaeger

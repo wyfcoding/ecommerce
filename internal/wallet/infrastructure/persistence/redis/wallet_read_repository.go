@@ -8,22 +8,23 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/wyfcoding/ecommerce/internal/wallet/domain"
-	"github.com/wyfcoding/pkg/cache"
 )
 
 // WalletReadRepositoryImpl Redis 钱包读模型仓储实现
 type WalletReadRepositoryImpl struct {
-	redisClient *cache.RedisClient
+	redisClient redis.UniversalClient
 	logger      *slog.Logger
 }
 
 // NewWalletReadRepository 创建 Redis 钱包读模型仓储实例
-func NewWalletReadRepository(redisClient *cache.RedisClient, logger *slog.Logger) domain.WalletReadRepository {
+func NewWalletReadRepository(redisClient redis.UniversalClient, logger *slog.Logger) domain.WalletReadRepository {
 	return &WalletReadRepositoryImpl{
 		redisClient: redisClient,
 		logger:      logger.With("module", "wallet_read_repository"),
@@ -45,9 +46,9 @@ func (r *WalletReadRepositoryImpl) GetByWalletID(ctx context.Context, walletID u
 	start := time.Now()
 	key := r.walletKey(walletID)
 
-	data, err := r.redisClient.Get(ctx, key)
+	data, err := r.redisClient.Get(ctx, key).Result()
 	if err != nil {
-		if cache.IsKeyNotFound(err) {
+		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
 		r.logger.ErrorContext(ctx, "failed to get wallet from redis",
@@ -73,9 +74,9 @@ func (r *WalletReadRepositoryImpl) GetByUserID(ctx context.Context, userID uint6
 
 	// 先获取用户所有钱包ID列表
 	walletsKey := r.userWalletsKey(userID)
-	walletIDs, err := r.redisClient.SMembers(ctx, walletsKey)
+	walletIDs, err := r.redisClient.SMembers(ctx, walletsKey).Result()
 	if err != nil {
-		if cache.IsKeyNotFound(err) {
+		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
 		r.logger.ErrorContext(ctx, "failed to get user wallets from redis",
@@ -111,9 +112,9 @@ func (r *WalletReadRepositoryImpl) GetAllByUserID(ctx context.Context, userID ui
 	start := time.Now()
 
 	walletsKey := r.userWalletsKey(userID)
-	walletIDs, err := r.redisClient.SMembers(ctx, walletsKey)
+	walletIDs, err := r.redisClient.SMembers(ctx, walletsKey).Result()
 	if err != nil {
-		if cache.IsKeyNotFound(err) {
+		if errors.Is(err, redis.Nil) {
 			return []*domain.WalletReadModel{}, nil
 		}
 		r.logger.ErrorContext(ctx, "failed to get user wallets from redis",
@@ -155,7 +156,7 @@ func (r *WalletReadRepositoryImpl) Save(ctx context.Context, model *domain.Walle
 	}
 
 	// 设置 TTL 为 24 小时
-	err = r.redisClient.Set(ctx, key, string(data), 24*time.Hour)
+	err = r.redisClient.Set(ctx, key, string(data), 24*time.Hour).Err()
 	if err != nil {
 		r.logger.ErrorContext(ctx, "failed to save wallet to redis",
 			"wallet_id", model.WalletID, "error", err)
@@ -165,7 +166,7 @@ func (r *WalletReadRepositoryImpl) Save(ctx context.Context, model *domain.Walle
 	// 更新用户钱包列表
 	walletsKey := r.userWalletsKey(model.UserID)
 	walletIDStr := fmt.Sprintf("%d", model.WalletID)
-	if err := r.redisClient.SAdd(ctx, walletsKey, walletIDStr); err != nil {
+	if err := r.redisClient.SAdd(ctx, walletsKey, walletIDStr).Err(); err != nil {
 		r.logger.WarnContext(ctx, "failed to add wallet to user set",
 			"user_id", model.UserID, "wallet_id", model.WalletID, "error", err)
 	}
@@ -190,7 +191,7 @@ func (r *WalletReadRepositoryImpl) Delete(ctx context.Context, walletID uint64) 
 	}
 
 	// 删除钱包数据
-	if err := r.redisClient.Del(ctx, key); err != nil {
+	if err := r.redisClient.Del(ctx, key).Err(); err != nil {
 		r.logger.ErrorContext(ctx, "failed to delete wallet from redis",
 			"wallet_id", walletID, "error", err)
 		return fmt.Errorf("redis del: %w", err)
@@ -199,7 +200,7 @@ func (r *WalletReadRepositoryImpl) Delete(ctx context.Context, walletID uint64) 
 	// 从用户钱包列表中删除
 	walletsKey := r.userWalletsKey(model.UserID)
 	walletIDStr := fmt.Sprintf("%d", walletID)
-	if err := r.redisClient.SRem(ctx, walletsKey, walletIDStr); err != nil {
+	if err := r.redisClient.SRem(ctx, walletsKey, walletIDStr).Err(); err != nil {
 		r.logger.WarnContext(ctx, "failed to remove wallet from user set",
 			"user_id", model.UserID, "wallet_id", walletID, "error", err)
 	}
@@ -211,12 +212,12 @@ func (r *WalletReadRepositoryImpl) Delete(ctx context.Context, walletID uint64) 
 
 // TransactionReadRepositoryImpl Redis 交易记录读模型仓储实现
 type TransactionReadRepositoryImpl struct {
-	redisClient *cache.RedisClient
+	redisClient redis.UniversalClient
 	logger      *slog.Logger
 }
 
 // NewTransactionReadRepository 创建 Redis 交易记录读模型仓储实例
-func NewTransactionReadRepository(redisClient *cache.RedisClient, logger *slog.Logger) domain.TransactionReadRepository {
+func NewTransactionReadRepository(redisClient redis.UniversalClient, logger *slog.Logger) domain.TransactionReadRepository {
 	return &TransactionReadRepositoryImpl{
 		redisClient: redisClient,
 		logger:      logger.With("module", "transaction_read_repository"),
@@ -234,9 +235,9 @@ func (r *TransactionReadRepositoryImpl) GetRecent(ctx context.Context, walletID 
 	key := r.recentTransactionsKey(walletID)
 
 	// 使用 Redis List 存储最近交易记录（按时间倒序）
-	data, err := r.redisClient.LRange(ctx, key, 0, int64(limit-1))
+	data, err := r.redisClient.LRange(ctx, key, 0, int64(limit-1)).Result()
 	if err != nil {
-		if cache.IsKeyNotFound(err) {
+		if errors.Is(err, redis.Nil) {
 			return []*domain.TransactionReadModel{}, nil
 		}
 		r.logger.ErrorContext(ctx, "failed to get recent transactions from redis",
@@ -273,20 +274,20 @@ func (r *TransactionReadRepositoryImpl) Save(ctx context.Context, model *domain.
 	}
 
 	// 使用 LPUSH 将新交易添加到列表头部
-	if err := r.redisClient.LPush(ctx, key, string(data)); err != nil {
+	if err := r.redisClient.LPush(ctx, key, string(data)).Err(); err != nil {
 		r.logger.ErrorContext(ctx, "failed to save transaction to redis",
 			"tx_id", model.ID, "error", err)
 		return fmt.Errorf("redis lpush: %w", err)
 	}
 
 	// 限制列表长度（保留最近 100 条记录）
-	if err := r.redisClient.LTrim(ctx, key, 0, 99); err != nil {
+	if err := r.redisClient.LTrim(ctx, key, 0, 99).Err(); err != nil {
 		r.logger.WarnContext(ctx, "failed to trim transaction list",
 			"wallet_id", model.WalletID, "error", err)
 	}
 
 	// 设置 TTL 为 7 天
-	if err := r.redisClient.Expire(ctx, key, 7*24*time.Hour); err != nil {
+	if err := r.redisClient.Expire(ctx, key, 7*24*time.Hour).Err(); err != nil {
 		r.logger.WarnContext(ctx, "failed to set ttl for transaction list",
 			"wallet_id", model.WalletID, "error", err)
 	}

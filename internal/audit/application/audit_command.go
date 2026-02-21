@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/audit/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
+	algorithm "github.com/wyfcoding/pkg/algos/infra"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"
 )

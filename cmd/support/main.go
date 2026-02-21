@@ -12,6 +12,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/go-api/support/v1"
 	"github.com/wyfcoding/ecommerce/internal/support/application"
 	"github.com/wyfcoding/ecommerce/internal/support/domain"
+	"github.com/wyfcoding/ecommerce/internal/support/infrastructure/ai"
 	supportsearch "github.com/wyfcoding/ecommerce/internal/support/infrastructure/persistence/elasticsearch"
 	supportmysql "github.com/wyfcoding/ecommerce/internal/support/infrastructure/persistence/mysql"
 	supportredis "github.com/wyfcoding/ecommerce/internal/support/infrastructure/persistence/redis"
@@ -207,7 +208,8 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	// 5.2 Application (Service)
 	querySvc := application.NewSupportQueryService(repo, ticketReadRepo, ticketSearchRepo, ticketMsgSearchRepo, conversationMsgSearchRepo)
-	commandSvc := application.NewSupportCommandService(repo, outbox.NewPublisher(outboxMgr), logger.Logger)
+	aiAdapter := ai.NewMockAIAdapter()
+	commandSvc := application.NewSupportCommandService(repo, aiAdapter, outbox.NewPublisher(outboxMgr), logger.Logger)
 
 	// 5.3 Projection Consumers (Support Events -> Read Model)
 	projectionService := application.NewSupportProjectionService(repo, ticketReadRepo, ticketSearchRepo, ticketMsgSearchRepo, conversationReadRepo, conversationMsgSearchRepo, logger.Logger)

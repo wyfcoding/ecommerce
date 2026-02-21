@@ -8,7 +8,7 @@ import (
 
 	couponv1 "github.com/wyfcoding/ecommerce/go-api/coupon/v1"
 	"github.com/wyfcoding/ecommerce/internal/marketing/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	algorithm "github.com/wyfcoding/pkg/algos/structures"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 

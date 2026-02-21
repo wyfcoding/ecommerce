@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package api.risk.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/risk/v1;riskv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// 风控服务，负责风险评估、黑名单管理及异常操作监控。
+service RiskService {
+  // 评估操作风险等级
+  rpc EvaluateRisk(EvaluateRiskRequest) returns (EvaluateRiskResponse);
+  // 加入黑名单
+  rpc AddToBlacklist(AddToBlacklistRequest) returns (google.protobuf.Empty);
+  // 移除黑名单
+  rpc RemoveFromBlacklist(RemoveFromBlacklistRequest) returns (google.protobuf.Empty);
+  // 记录用户行为
+  rpc RecordUserBehavior(RecordUserBehaviorRequest) returns (google.protobuf.Empty);
+}
+
+message EvaluateRiskRequest {
+  string user_id = 1;
+  string action_type = 2; // LOGIN, PAYMENT, ORDER_PLACE
+  string ip_address = 3;
+  string device_id = 4;
+  map<string, string> context = 5;
+}
+
+message EvaluateRiskResponse {
+  string risk_level = 1; // LOW, MEDIUM, HIGH, CRITICAL
+  string strategy = 2;   // PASS, CHALLENGE, REJECT
+  string reason = 3;
+  string trace_id = 4;
+}
+
+message AddToBlacklistRequest {
+  string target_type = 1; // USER_ID, IP, DEVICE_ID, PHONE
+  string target_value = 2;
+  string reason = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message RemoveFromBlacklistRequest {
+  string target_type = 1;
+  string target_value = 2;
+}
+
+message RecordUserBehaviorRequest {
+  string user_id = 1;
+  string behavior_type = 2;
+  string metadata = 3; // JSON metadata
+  google.protobuf.Timestamp timestamp = 4;
+}

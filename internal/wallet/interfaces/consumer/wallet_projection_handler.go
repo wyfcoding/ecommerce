@@ -7,12 +7,12 @@ package consumer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/wallet/domain"
+	"github.com/wyfcoding/pkg/eventsourcing"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 
@@ -106,14 +106,14 @@ func (h *WalletProjectionHandler) HandleDeposited(ctx context.Context, event *do
 	// 更新余额和统计信息
 	wallet.Balance = event.BalanceAfter
 	wallet.AvailableBalance = event.BalanceAfter - wallet.FrozenBalance
-	
+
 	// 更新今日统计
 	today := time.Now().Format("2006-01-02")
 	if event.Timestamp.Format("2006-01-02") == today {
 		wallet.TodayDeposit += event.Amount
 		wallet.TodayTxCount++
 	}
-	
+
 	wallet.LastTxTime = event.Timestamp
 	wallet.UpdatedAt = time.Now()
 
@@ -125,18 +125,18 @@ func (h *WalletProjectionHandler) HandleDeposited(ctx context.Context, event *do
 
 	// 索引交易记录到搜索模型
 	txModel := &domain.TransactionReadModel{
-		ID:              0, // 实际应从写模型获取
-		TransactionNo:   event.TransactionNo,
-		WalletID:        event.WalletID,
-		UserID:          event.UserID,
-		Type:            "DEPOSIT",
-		Amount:          event.Amount,
-		BalanceBefore:   event.BalanceBefore,
-		BalanceAfter:    event.BalanceAfter,
-		Fee:             0,
-		Status:          "SUCCESS",
-		Remark:          event.Remark,
-		CreatedAt:       event.Timestamp,
+		ID:            0, // 实际应从写模型获取
+		TransactionNo: event.TransactionNo,
+		WalletID:      event.WalletID,
+		UserID:        event.UserID,
+		Type:          "DEPOSIT",
+		Amount:        event.Amount,
+		BalanceBefore: event.BalanceBefore,
+		BalanceAfter:  event.BalanceAfter,
+		Fee:           0,
+		Status:        "SUCCESS",
+		Remark:        event.Remark,
+		CreatedAt:     event.Timestamp,
 	}
 
 	if h.transactionReadRepo != nil {
@@ -167,13 +167,13 @@ func (h *WalletProjectionHandler) HandleWithdrawn(ctx context.Context, event *do
 
 	wallet.Balance = event.BalanceAfter
 	wallet.AvailableBalance = event.BalanceAfter - wallet.FrozenBalance
-	
+
 	today := time.Now().Format("2006-01-02")
 	if event.Timestamp.Format("2006-01-02") == today {
 		wallet.TodayWithdraw += event.Amount
 		wallet.TodayTxCount++
 	}
-	
+
 	wallet.LastTxTime = event.Timestamp
 	wallet.UpdatedAt = time.Now()
 
@@ -184,18 +184,18 @@ func (h *WalletProjectionHandler) HandleWithdrawn(ctx context.Context, event *do
 	}
 
 	txModel := &domain.TransactionReadModel{
-		ID:              0,
-		TransactionNo:   event.TransactionNo,
-		WalletID:        event.WalletID,
-		UserID:          event.UserID,
-		Type:            "WITHDRAW",
-		Amount:          event.Amount,
-		BalanceBefore:   event.BalanceBefore,
-		BalanceAfter:    event.BalanceAfter,
-		Fee:             event.Fee,
-		Status:          "SUCCESS",
-		Remark:          event.Remark,
-		CreatedAt:       event.Timestamp,
+		ID:            0,
+		TransactionNo: event.TransactionNo,
+		WalletID:      event.WalletID,
+		UserID:        event.UserID,
+		Type:          "WITHDRAW",
+		Amount:        event.Amount,
+		BalanceBefore: event.BalanceBefore,
+		BalanceAfter:  event.BalanceAfter,
+		Fee:           event.Fee,
+		Status:        "SUCCESS",
+		Remark:        event.Remark,
+		CreatedAt:     event.Timestamp,
 	}
 
 	if h.transactionReadRepo != nil {
@@ -228,7 +228,7 @@ func (h *WalletProjectionHandler) HandleTransferred(ctx context.Context, event *
 	// 这里简化处理，实际应从事件中获取准确的余额信息
 	// 或者通过查询写模型获取最新余额
 	fromWallet.UpdatedAt = time.Now()
-	
+
 	today := time.Now().Format("2006-01-02")
 	if event.Timestamp.Format("2006-01-02") == today {
 		fromWallet.TodayTransfer += event.Amount
@@ -248,7 +248,7 @@ func (h *WalletProjectionHandler) HandleTransferred(ctx context.Context, event *
 	}
 
 	toWallet.UpdatedAt = time.Now()
-	
+
 	if event.Timestamp.Format("2006-01-02") == today {
 		toWallet.TodayDeposit += event.Amount
 		toWallet.TodayTxCount++
@@ -262,17 +262,17 @@ func (h *WalletProjectionHandler) HandleTransferred(ctx context.Context, event *
 
 	// 索引转账交易记录（转出方）
 	txModel := &domain.TransactionReadModel{
-		ID:                0,
-		TransactionNo:     event.TransactionNo,
-		WalletID:          event.FromWalletID,
-		UserID:            event.FromUserID,
-		Type:              "TRANSFER",
-		Amount:            event.Amount,
-		Status:            "SUCCESS",
-		Remark:            event.Remark,
-		CounterpartyID:    event.ToWalletID,
-		CounterpartyType:  "WALLET",
-		CreatedAt:         event.Timestamp,
+		ID:               0,
+		TransactionNo:    event.TransactionNo,
+		WalletID:         event.FromWalletID,
+		UserID:           event.FromUserID,
+		Type:             "TRANSFER",
+		Amount:           event.Amount,
+		Status:           "SUCCESS",
+		Remark:           event.Remark,
+		CounterpartyID:   event.ToWalletID,
+		CounterpartyType: "WALLET",
+		CreatedAt:        event.Timestamp,
 	}
 
 	if h.searchRepo != nil {
@@ -335,65 +335,65 @@ func (h *WalletProjectionHandler) HandleBalanceUnfrozen(ctx context.Context, eve
 }
 
 // RegisterEventHandlers 注册事件处理器到消息总线
-func (h *WalletProjectionHandler) RegisterEventHandlers(eventBus messagequeue.EventBus) {
+func (h *WalletProjectionHandler) RegisterEventHandlers(subscriber messagequeue.EventSubscriber) {
 	// 注册钱包创建事件处理器
-	eventBus.Subscribe("wallet.created", func(ctx context.Context, eventData []byte) error {
-		var event domain.WalletCreatedEvent
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			h.logger.ErrorContext(ctx, "failed to unmarshal wallet created event", "error", err)
-			return err
+	subscriber.Subscribe(context.Background(), "wallet.created", func(ctx context.Context, ev eventsourcing.DomainEvent) error {
+		if base, ok := ev.(*eventsourcing.BaseEvent); ok {
+			if event, ok := base.Data.(*domain.WalletCreatedEvent); ok {
+				return h.HandleWalletCreated(ctx, event)
+			}
 		}
-		return h.HandleWalletCreated(ctx, &event)
+		return nil
 	})
 
 	// 注册充值事件处理器
-	eventBus.Subscribe("wallet.deposited", func(ctx context.Context, eventData []byte) error {
-		var event domain.DepositedEvent
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			h.logger.ErrorContext(ctx, "failed to unmarshal deposited event", "error", err)
-			return err
+	subscriber.Subscribe(context.Background(), "wallet.deposited", func(ctx context.Context, ev eventsourcing.DomainEvent) error {
+		if base, ok := ev.(*eventsourcing.BaseEvent); ok {
+			if event, ok := base.Data.(*domain.DepositedEvent); ok {
+				return h.HandleDeposited(ctx, event)
+			}
 		}
-		return h.HandleDeposited(ctx, &event)
+		return nil
 	})
 
 	// 注册提现事件处理器
-	eventBus.Subscribe("wallet.withdrawn", func(ctx context.Context, eventData []byte) error {
-		var event domain.WithdrawnEvent
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			h.logger.ErrorContext(ctx, "failed to unmarshal withdrawn event", "error", err)
-			return err
+	subscriber.Subscribe(context.Background(), "wallet.withdrawn", func(ctx context.Context, ev eventsourcing.DomainEvent) error {
+		if base, ok := ev.(*eventsourcing.BaseEvent); ok {
+			if event, ok := base.Data.(*domain.WithdrawnEvent); ok {
+				return h.HandleWithdrawn(ctx, event)
+			}
 		}
-		return h.HandleWithdrawn(ctx, &event)
+		return nil
 	})
 
 	// 注册转账事件处理器
-	eventBus.Subscribe("wallet.transferred", func(ctx context.Context, eventData []byte) error {
-		var event domain.TransferredEvent
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			h.logger.ErrorContext(ctx, "failed to unmarshal transferred event", "error", err)
-			return err
+	subscriber.Subscribe(context.Background(), "wallet.transferred", func(ctx context.Context, ev eventsourcing.DomainEvent) error {
+		if base, ok := ev.(*eventsourcing.BaseEvent); ok {
+			if event, ok := base.Data.(*domain.TransferredEvent); ok {
+				return h.HandleTransferred(ctx, event)
+			}
 		}
-		return h.HandleTransferred(ctx, &event)
+		return nil
 	})
 
 	// 注册余额冻结事件处理器
-	eventBus.Subscribe("wallet.balance_frozen", func(ctx context.Context, eventData []byte) error {
-		var event domain.BalanceFrozenEvent
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			h.logger.ErrorContext(ctx, "failed to unmarshal balance frozen event", "error", err)
-			return err
+	subscriber.Subscribe(context.Background(), "wallet.balance_frozen", func(ctx context.Context, ev eventsourcing.DomainEvent) error {
+		if base, ok := ev.(*eventsourcing.BaseEvent); ok {
+			if event, ok := base.Data.(*domain.BalanceFrozenEvent); ok {
+				return h.HandleBalanceFrozen(ctx, event)
+			}
 		}
-		return h.HandleBalanceFrozen(ctx, &event)
+		return nil
 	})
 
 	// 注册余额解冻事件处理器
-	eventBus.Subscribe("wallet.balance_unfrozen", func(ctx context.Context, eventData []byte) error {
-		var event domain.BalanceUnfrozenEvent
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			h.logger.ErrorContext(ctx, "failed to unmarshal balance unfrozen event", "error", err)
-			return err
+	subscriber.Subscribe(context.Background(), "wallet.balance_unfrozen", func(ctx context.Context, ev eventsourcing.DomainEvent) error {
+		if base, ok := ev.(*eventsourcing.BaseEvent); ok {
+			if event, ok := base.Data.(*domain.BalanceUnfrozenEvent); ok {
+				return h.HandleBalanceUnfrozen(ctx, event)
+			}
 		}
-		return h.HandleBalanceUnfrozen(ctx, &event)
+		return nil
 	})
 
 	h.logger.Info("wallet projection event handlers registered")

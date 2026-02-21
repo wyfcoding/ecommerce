@@ -136,6 +136,117 @@ func (s *Server) GetTicketMessages(ctx context.Context, req *pb.GetTicketMessage
 	}, nil
 }
 
+// --- Knowledge Base Methods ---
+
+func (s *Server) CreateKnowledgeBase(ctx context.Context, req *pb.CreateKnowledgeBaseRequest) (*pb.KnowledgeBase, error) {
+	kb, err := s.cmd.CreateKnowledgeBase(ctx, req.Name, req.Description, req.Language)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return convertKnowledgeBaseToProto(kb), nil
+}
+
+func (s *Server) GetKnowledgeBase(ctx context.Context, req *pb.GetKnowledgeBaseRequest) (*pb.KnowledgeBase, error) {
+	kb, err := s.query.GetKnowledgeBase(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	return convertKnowledgeBaseToProto(kb), nil
+}
+
+func (s *Server) SearchKnowledgeArticles(ctx context.Context, req *pb.SearchKnowledgeArticlesRequest) (*pb.SearchKnowledgeArticlesResponse, error) {
+	articles, err := s.query.SearchKnowledgeArticles(ctx, req.Query, int(req.Limit))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	pbArticles := make([]*pb.KnowledgeArticle, len(articles))
+	for i, a := range articles {
+		pbArticles[i] = &pb.KnowledgeArticle{
+			Id:      a.ID,
+			Title:   a.Title,
+			Content: a.Content,
+			Score:   float32(a.Score),
+		}
+	}
+	return &pb.SearchKnowledgeArticlesResponse{Articles: pbArticles}, nil
+}
+
+// --- AI Conversation Methods ---
+
+func (s *Server) StartAIConversation(ctx context.Context, req *pb.StartAIConversationRequest) (*pb.Conversation, error) {
+	conv, err := s.cmd.StartAIConversation(ctx, req.UserId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.Conversation{
+		Id:        conv.ID,
+		UserId:    conv.UserID,
+		Status:    pb.ConversationStatus(conv.Status),
+		StartedAt: timestamppb.New(conv.StartedAt),
+	}, nil
+}
+
+func (s *Server) SendAIMessage(ctx context.Context, req *pb.SendAIMessageRequest) (*pb.AIMessage, error) {
+	// 简单转发给 GetChatbotResponse 逻辑或独立保存
+	result, err := s.cmd.GetChatbotResponse(ctx, req.ConversationId, req.Content)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.AIMessage{
+		ConversationId: req.ConversationId,
+		Content:        result.SuggestedResponse,
+		Sender:         pb.MessageSender_BOT,
+		CreatedAt:      timestamppb.Now(),
+	}, nil
+}
+
+func (s *Server) GetChatbotResponse(ctx context.Context, req *pb.GetChatbotResponseRequest) (*pb.ChatbotResponse, error) {
+	result, err := s.cmd.GetChatbotResponse(ctx, req.ConversationId, req.UserMessage)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.ChatbotResponse{
+		ResponseText:   result.SuggestedResponse,
+		DetectedIntent: pb.IntentCategory(result.Intent),
+		Confidence:     float32(result.Confidence),
+	}, nil
+}
+
+// --- AI Analytics Methods ---
+
+func (s *Server) AnalyzeSentiment(ctx context.Context, req *pb.AnalyzeSentimentRequest) (*pb.SentimentAnalysis, error) {
+	// 预留模拟逻辑
+	return &pb.SentimentAnalysis{
+		Sentiment:  pb.Sentiment_NEUTRAL,
+		Confidence: 0.9,
+	}, nil
+}
+
+func (s *Server) GetIntent(ctx context.Context, req *pb.GetIntentRequest) (*pb.IntentResult, error) {
+	// 预留模拟逻辑
+	return &pb.IntentResult{
+		Intent:            pb.IntentCategory_GENERAL_INQUIRY,
+		Confidence:        0.85,
+		SuggestedResponse: "我已经理解您的意图，正在处理中。",
+	}, nil
+}
+
+// --- Conversion Helpers ---
+
+func convertKnowledgeBaseToProto(kb *domain.KnowledgeBase) *pb.KnowledgeBase {
+	if kb == nil {
+		return nil
+	}
+	return &pb.KnowledgeBase{
+		Id:          kb.ID,
+		Name:        kb.Name,
+		Description: kb.Description,
+		Language:    kb.Language,
+		IsActive:    kb.IsActive,
+		CreatedAt:   timestamppb.New(kb.CreatedAt),
+	}
+}
+
 func convertTicketToProto(t *domain.Ticket) *pb.TicketInfo {
 	if t == nil {
 		return nil

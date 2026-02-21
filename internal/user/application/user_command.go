@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
-	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/algos/infra"
 	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/jwt"
@@ -111,7 +111,7 @@ func (s *UserCommandService) Register(ctx context.Context, cmd CreateUserCommand
 			Username:   user.Username,
 			Email:      user.Email,
 			Phone:      user.Phone,
-			Status:     user.Status,
+			Status:     int8(user.Status),
 			CreatedAt:  time.Now().UnixMilli(),
 			OccurredOn: time.Now(),
 		}

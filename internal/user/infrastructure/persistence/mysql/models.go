@@ -47,6 +47,10 @@ func toUserModel(u *domain.User) *UserModel {
 	if u == nil {
 		return nil
 	}
+	password := u.Password
+	if password == "" {
+		password = u.PasswordHash
+	}
 	return &UserModel{
 		Model: gorm.Model{
 			ID:        u.ID,
@@ -56,13 +60,13 @@ func toUserModel(u *domain.User) *UserModel {
 		Username: u.Username,
 		Email:    u.Email,
 		FullName: u.FullName,
-		Password: u.Password,
+		Password: password,
 		Phone:    u.Phone,
 		Nickname: u.Nickname,
 		Avatar:   u.Avatar,
-		Gender:   u.Gender,
+		Gender:   int8(u.Gender),
 		Birthday: u.Birthday,
-		Status:   u.Status,
+		Status:   int8(u.Status),
 	}
 }
 
@@ -71,19 +75,22 @@ func toUser(m *UserModel) *domain.User {
 		return nil
 	}
 	user := &domain.User{
-		ID:        m.ID,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
-		Username:  m.Username,
-		Email:     m.Email,
-		FullName:  m.FullName,
-		Password:  m.Password,
-		Phone:     m.Phone,
-		Nickname:  m.Nickname,
-		Avatar:    m.Avatar,
-		Gender:    m.Gender,
-		Birthday:  m.Birthday,
-		Status:    m.Status,
+		Model: gorm.Model{
+			ID:        m.ID,
+			CreatedAt: m.CreatedAt,
+			UpdatedAt: m.UpdatedAt,
+		},
+		Username:     m.Username,
+		Email:        m.Email,
+		FullName:     m.FullName,
+		Password:     m.Password,
+		PasswordHash: m.Password,
+		Phone:        m.Phone,
+		Nickname:     m.Nickname,
+		Avatar:       m.Avatar,
+		Gender:       domain.Gender(m.Gender),
+		Birthday:     m.Birthday,
+		Status:       domain.UserStatus(m.Status),
 	}
 	if len(m.Addresses) > 0 {
 		user.Addresses = make([]*domain.Address, len(m.Addresses))
@@ -98,6 +105,22 @@ func toAddressModel(a *domain.Address) *AddressModel {
 	if a == nil {
 		return nil
 	}
+	recipientName := a.RecipientName
+	if recipientName == "" {
+		recipientName = a.Contact
+	}
+	phoneNumber := a.PhoneNumber
+	if phoneNumber == "" {
+		phoneNumber = a.Phone
+	}
+	detailedAddress := a.DetailedAddress
+	if detailedAddress == "" {
+		detailedAddress = a.Detail
+	}
+	postalCode := a.PostalCode
+	if postalCode == "" {
+		postalCode = a.ZipCode
+	}
 	return &AddressModel{
 		Model: gorm.Model{
 			ID:        a.ID,
@@ -105,13 +128,13 @@ func toAddressModel(a *domain.Address) *AddressModel {
 			UpdatedAt: a.UpdatedAt,
 		},
 		UserID:          a.UserID,
-		RecipientName:   a.RecipientName,
-		PhoneNumber:     a.PhoneNumber,
+		RecipientName:   recipientName,
+		PhoneNumber:     phoneNumber,
 		Province:        a.Province,
 		City:            a.City,
 		District:        a.District,
-		DetailedAddress: a.DetailedAddress,
-		PostalCode:      a.PostalCode,
+		DetailedAddress: detailedAddress,
+		PostalCode:      postalCode,
 		IsDefault:       a.IsDefault,
 	}
 }
@@ -121,16 +144,22 @@ func toAddress(m *AddressModel) *domain.Address {
 		return nil
 	}
 	return &domain.Address{
-		ID:              m.ID,
-		CreatedAt:       m.CreatedAt,
-		UpdatedAt:       m.UpdatedAt,
+		Model: gorm.Model{
+			ID:        m.ID,
+			CreatedAt: m.CreatedAt,
+			UpdatedAt: m.UpdatedAt,
+		},
 		UserID:          m.UserID,
+		Contact:         m.RecipientName,
+		Phone:           m.PhoneNumber,
 		RecipientName:   m.RecipientName,
 		PhoneNumber:     m.PhoneNumber,
 		Province:        m.Province,
 		City:            m.City,
 		District:        m.District,
+		Detail:          m.DetailedAddress,
 		DetailedAddress: m.DetailedAddress,
+		ZipCode:         m.PostalCode,
 		PostalCode:      m.PostalCode,
 		IsDefault:       m.IsDefault,
 	}

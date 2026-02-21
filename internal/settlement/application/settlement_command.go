@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	accountv1 "github.com/wyfcoding/financialtrading/go-api/account/v1"
 	"github.com/wyfcoding/pkg/messagequeue"
@@ -49,16 +50,15 @@ func (s *SettlementCommandService) RecordPaymentSuccess(ctx context.Context, ord
 	if err != nil {
 		return err
 	}
-	feeRate := 0.0
+	feeRate := decimal.NewFromFloat(0.006)
 	if account != nil {
 		feeRate = account.FeeRate
-	} else {
-		feeRate = 0.006 // 默认0.6%
 	}
 
 	// 2. 清分计算 (Clearing)
-	platformFee := int64(float64(amount) * feeRate)
-	merchantReceivable := amount - platformFee
+	amtDec := decimal.NewFromInt(amount).Div(decimal.NewFromInt(100))
+	platformFeeDec := amtDec.Mul(feeRate)
+	merchantReceivableDec := amtDec.Sub(platformFeeDec)
 
 	// 3. 构造会计分录 (Accounting)
 	entry := &domain.JournalEntry{
@@ -71,19 +71,19 @@ func (s *SettlementCommandService) RecordPaymentSuccess(ctx context.Context, ord
 				SubjectCode: "1001",
 				AccountID:   s.getAccountID(ctx, "1001", "CHANNEL_GLOBAL"),
 				Direction:   domain.Debit,
-				Amount:      amount,
+				Amount:      amtDec,
 			},
 			{
 				SubjectCode: "2001",
 				AccountID:   s.getAccountID(ctx, "2001", fmt.Sprintf("MERCH_%d", merchantID)),
 				Direction:   domain.Credit,
-				Amount:      merchantReceivable,
+				Amount:      merchantReceivableDec,
 			},
 			{
 				SubjectCode: "6001",
 				AccountID:   s.getAccountID(ctx, "6001", "PLATFORM_MAIN"),
 				Direction:   domain.Credit,
-				Amount:      platformFee,
+				Amount:      platformFeeDec,
 			},
 		},
 	}
@@ -99,7 +99,7 @@ func (s *SettlementCommandService) RecordPaymentSuccess(ctx context.Context, ord
 	if s.remoteAccountCli != nil {
 		_, err := s.remoteAccountCli.Deposit(ctx, &accountv1.DepositRequest{
 			UserId:   fmt.Sprintf("%d", merchantID),
-			Amount:   fmt.Sprintf("%d", merchantReceivable),
+			Amount:   merchantReceivableDec.String(),
 			Currency: "USD",
 		})
 		if err != nil {
@@ -143,7 +143,7 @@ func (s *SettlementCommandService) CreateSettlement(ctx context.Context, merchan
 		event := &domain.SettlementCreatedEvent{
 			SettlementNo: settlement.SettlementNo,
 			MerchantID:   settlement.MerchantID,
-			TotalAmount:  settlement.TotalAmount,
+			TotalAmount:  uint64(settlement.GrossAmount.Mul(decimal.NewFromInt(100)).IntPart()),
 			Timestamp:    time.Now(),
 		}
 		return s.publisher.PublishInTx(ctx, tx, "settlement.created", settlement.SettlementNo, event)
@@ -174,21 +174,22 @@ func (s *SettlementCommandService) AddOrderToSettlement(ctx context.Context, set
 		if err != nil {
 			return err
 		}
-		feeRate := 0.0
+		feeRate := decimal.Zero
 		if account != nil {
 			feeRate = account.FeeRate
 		}
 
-		platformFee := uint64(float64(amount) * feeRate / 100)
-		settlementAmount := amount - platformFee
+		amtDec := decimal.NewFromUint64(amount).Div(decimal.NewFromInt(100))
+		platformFeeDec := amtDec.Mul(feeRate)
+		settlementAmountDec := amtDec.Sub(platformFeeDec)
 
 		detail := &domain.SettlementDetail{
-			SettlementID:     settlementID,
+			SettlementID:     fmt.Sprintf("%d", settlementID),
 			OrderID:          orderID,
 			OrderNo:          orderNo,
-			OrderAmount:      amount,
-			PlatformFee:      platformFee,
-			SettlementAmount: settlementAmount,
+			OrderAmount:      amtDec,
+			PlatformFee:      platformFeeDec,
+			SettlementAmount: settlementAmountDec,
 		}
 
 		if err := s.repo.SaveSettlementDetailInTx(ctx, tx, detail); err != nil {
@@ -196,9 +197,9 @@ func (s *SettlementCommandService) AddOrderToSettlement(ctx context.Context, set
 		}
 
 		settlement.OrderCount++
-		settlement.TotalAmount += amount
-		settlement.PlatformFee += platformFee
-		settlement.SettlementAmount += settlementAmount
+		settlement.GrossAmount = settlement.GrossAmount.Add(amtDec)
+		settlement.PlatformCommission = settlement.PlatformCommission.Add(platformFeeDec)
+		settlement.SettlementAmount = settlement.SettlementAmount.Add(settlementAmountDec)
 
 		return s.repo.SaveSettlementInTx(ctx, tx, settlement)
 	})
@@ -227,7 +228,7 @@ func (s *SettlementCommandService) ProcessSettlement(ctx context.Context, id uin
 		event := &domain.SettlementProcessedEvent{
 			SettlementNo: settlement.SettlementNo,
 			MerchantID:   settlement.MerchantID,
-			Amount:       settlement.SettlementAmount,
+			Amount:       uint64(settlement.SettlementAmount.Mul(decimal.NewFromInt(100)).IntPart()),
 			Timestamp:    time.Now(),
 		}
 		return s.publisher.PublishInTx(ctx, tx, "settlement.processed", settlement.SettlementNo, event)
@@ -256,12 +257,12 @@ func (s *SettlementCommandService) CompleteSettlement(ctx context.Context, id ui
 		if account == nil {
 			account = &domain.MerchantAccount{
 				MerchantID: settlement.MerchantID,
-				FeeRate:    0.0,
+				FeeRate:    decimal.Zero,
 			}
 		}
 
-		account.Balance += settlement.SettlementAmount
-		account.TotalIncome += settlement.SettlementAmount
+		account.Balance = account.Balance.Add(settlement.SettlementAmount)
+		account.TotalIncome = account.TotalIncome.Add(settlement.SettlementAmount)
 		if err := s.repo.SaveMerchantAccountInTx(ctx, tx, account); err != nil {
 			return err
 		}
@@ -276,7 +277,7 @@ func (s *SettlementCommandService) CompleteSettlement(ctx context.Context, id ui
 		event := &domain.SettlementCompletedEvent{
 			SettlementNo: settlement.SettlementNo,
 			MerchantID:   settlement.MerchantID,
-			Amount:       settlement.SettlementAmount,
+			Amount:       uint64(settlement.SettlementAmount.Mul(decimal.NewFromInt(100)).IntPart()),
 			Timestamp:    time.Now(),
 		}
 		return s.publisher.PublishInTx(ctx, tx, "settlement.completed", settlement.SettlementNo, event)

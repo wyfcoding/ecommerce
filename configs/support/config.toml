@@ -2,3 +2,48 @@ service_name = "support"
 
 [server]
 http_addr = ":8080"
+grpc_addr = ":50051"
+
+[database]
+driver = "mysql"
+source = "root:123456@tcp(localhost:3306)/ecommerce_support?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+conn_max_lifetime = "1h"
+
+[cache]
+driver = "redis"
+addr = "localhost:6379"
+password = ""
+db = 0
+default_expiration = "1h"
+
+[search]
+driver = "elasticsearch"
+urls = ["http://localhost:9200"]
+ticket_index = "tickets"
+ticket_message_index = "ticket_messages"
+conversation_message_index = "conversation_messages"
+
+[message_queue]
+[message_queue.kafka]
+brokers = ["localhost:9092"]
+group_id = "support-service"
+topic = "support-events"
+
+[ai]
+enabled = true
+provider = "mock" # Option: mock, openai, anthropic
+api_key = "sk-..."
+model = "gpt-4"
+temperature = 0.7
+max_tokens = 500
+
+[circuit_breaker]
+enabled = true
+threshold = 5
+interval = "10s"
+
+[rate_limit]
+rate = 100
+burst = 200

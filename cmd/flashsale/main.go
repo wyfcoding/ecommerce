@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/go-api/flashsale/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
+	riskv1 "github.com/wyfcoding/ecommerce/go-api/risk/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/application"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/infrastructure/cache"
@@ -70,7 +70,7 @@ type ServiceClients struct {
 	Order     *grpc.ClientConn `service:"order"`
 	Product   *grpc.ClientConn `service:"product"`
 	Inventory *grpc.ClientConn `service:"inventory"`
-	Risk      *grpc.ClientConn `service:"risksecurity"`
+	Risk      *grpc.ClientConn `service:"risk"`
 }
 
 func main() {
@@ -233,7 +233,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	flashsaleCache := cache.NewRedisFlashSaleCache(redisCache.GetClient())
 
 	// 5.2 Application (Service)
-	riskClient := risksecurityv1.NewRiskSecurityServiceClient(clients.Risk)
+	riskClient := riskv1.NewRiskServiceClient(clients.Risk)
 	publisher := outbox.NewPublisher(outboxMgr)
 	commandSvc := application.NewFlashSaleCommandService(
 		flashsaleRepo,

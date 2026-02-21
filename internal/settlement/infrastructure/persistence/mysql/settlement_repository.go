@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 	"gorm.io/gorm"
@@ -87,6 +88,51 @@ func (r *settlementRepository) GetSettlementByNo(ctx context.Context, no string)
 	return toSettlement(&model), nil
 }
 
+func (r *settlementRepository) Save(ctx context.Context, settlement *domain.Settlement) error {
+	return r.SaveSettlement(ctx, settlement)
+}
+
+func (r *settlementRepository) Update(ctx context.Context, settlement *domain.Settlement) error {
+	return r.SaveSettlement(ctx, settlement) // Save handles update in GORM
+}
+
+func (r *settlementRepository) GetByID(ctx context.Context, id string) (*domain.Settlement, error) {
+	var model SettlementModel
+	if err := r.db.WithContext(ctx).Where("settlement_no = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toSettlement(&model), nil
+}
+
+func (r *settlementRepository) GetByIDForUpdate(ctx context.Context, id string) (*domain.Settlement, error) {
+	var model SettlementModel
+	if err := r.db.WithContext(ctx).Clauses(nil).Where("settlement_no = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toSettlement(&model), nil
+}
+
+func (r *settlementRepository) GetByMerchantAndPeriod(ctx context.Context, merchantID uint64, start, end time.Time) (*domain.Settlement, error) {
+	var model SettlementModel
+	if err := r.db.WithContext(ctx).Where("merchant_id = ? AND start_date = ? AND end_date = ?", merchantID, start, end).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toSettlement(&model), nil
+}
+
+func (r *settlementRepository) ListByMerchant(ctx context.Context, merchantID uint64, status *domain.SettlementStatus, offset, limit int) ([]*domain.Settlement, int64, error) {
+	return r.ListSettlements(ctx, merchantID, status, offset, limit)
+}
+
 func (r *settlementRepository) ListSettlements(ctx context.Context, merchantID uint64, status *domain.SettlementStatus, offset, limit int) ([]*domain.Settlement, int64, error) {
 	var list []*SettlementModel
 	var total int64
@@ -95,7 +141,7 @@ func (r *settlementRepository) ListSettlements(ctx context.Context, merchantID u
 	if merchantID > 0 {
 		db = db.Where("merchant_id = ?", merchantID)
 	}
-	if status != nil {
+	if status != nil && *status != "" {
 		db = db.Where("status = ?", *status)
 	}
 
@@ -139,6 +185,26 @@ func (r *settlementRepository) SaveSettlementDetailInTx(ctx context.Context, tx 
 	}
 	*detail = *toSettlementDetail(model)
 	return nil
+}
+
+func (r *settlementRepository) SaveDetails(ctx context.Context, details []*domain.SettlementDetail) error {
+	models := make([]*SettlementDetailModel, 0, len(details))
+	for _, d := range details {
+		models = append(models, toSettlementDetailModel(d))
+	}
+	return r.db.WithContext(ctx).Save(&models).Error
+}
+
+func (r *settlementRepository) GetDetailsBySettlementID(ctx context.Context, settlementID string) ([]*domain.SettlementDetail, error) {
+	var list []*SettlementDetailModel
+	if err := r.db.WithContext(ctx).Where("settlement_id = ?", settlementID).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	results := make([]*domain.SettlementDetail, 0, len(list))
+	for _, model := range list {
+		results = append(results, toSettlementDetail(model))
+	}
+	return results, nil
 }
 
 func (r *settlementRepository) ListSettlementDetails(ctx context.Context, settlementID uint64) ([]*domain.SettlementDetail, error) {

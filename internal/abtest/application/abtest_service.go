@@ -125,7 +125,22 @@ func (s *ABTestService) TrackEvent(ctx context.Context, userID, experimentName, 
 }
 
 func (s *ABTestService) GetResults(ctx context.Context, experimentID string) ([]*domain.VariationResult, error) {
-	return s.repo.GetResults(ctx, experimentID)
+	exp, err := s.repo.GetExperimentByID(ctx, experimentID)
+	if err != nil {
+		return nil, err
+	}
+	if len(exp.Variations) == 0 {
+		return nil, fmt.Errorf("no variations found for experiment")
+	}
+
+	stats, err := s.repo.GetVariationStats(ctx, experimentID)
+	if err != nil {
+		return nil, err
+	}
+
+	analyzer := &domain.Analyzer{}
+	// Assume first variation is control
+	return analyzer.AnalyzeResults(stats, exp.Variations[0].Key)
 }
 
 func (s *ABTestService) UpdateStatus(ctx context.Context, id string, st pb.ExperimentStatus) (*domain.Experiment, error) {

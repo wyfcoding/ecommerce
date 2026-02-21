@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	pb "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/settlement/application"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
@@ -144,26 +146,50 @@ func convertSettlementToProto(s *domain.Settlement) *pb.Settlement {
 		return nil
 	}
 	var settledAt *timestamppb.Timestamp
-	if s.SettledAt != nil {
-		settledAt = timestamppb.New(*s.SettledAt)
+	if s.PaidAt != nil {
+		settledAt = timestamppb.New(*s.PaidAt)
 	}
 
 	return &pb.Settlement{
 		Id:               uint64(s.ID),
-		SettlementNo:     s.SettlementNo,
+		SettlementNo:     s.SettlementID,
 		MerchantId:       s.MerchantID,
 		Cycle:            string(s.Cycle),
-		StartDate:        timestamppb.New(s.StartDate),
-		EndDate:          timestamppb.New(s.EndDate),
+		StartDate:        timestamppb.New(s.PeriodStart),
+		EndDate:          timestamppb.New(s.PeriodEnd),
 		OrderCount:       s.OrderCount,
-		TotalAmount:      s.TotalAmount,
-		PlatformFee:      s.PlatformFee,
-		SettlementAmount: s.SettlementAmount,
-		Status:           int32(s.Status),
+		TotalAmount:      uint64(s.GrossAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		PlatformFee:      uint64(s.PlatformCommission.Mul(decimal.NewFromInt(100)).IntPart()),
+		SettlementAmount: uint64(s.SettlementAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		Status:           convertStatusToProto(s.Status),
 		SettledAt:        settledAt,
 		FailReason:       s.FailReason,
 		CreatedAt:        timestamppb.New(s.CreatedAt),
 		UpdatedAt:        timestamppb.New(s.UpdatedAt),
+	}
+}
+
+func convertStatusToProto(status domain.SettlementStatus) int32 {
+	// 假设 pb.SettlementStatus 枚举值对应顺序，或简单返回 int 映射
+	switch status {
+	case domain.StatusPending:
+		return 0
+	case domain.StatusCalculating:
+		return 1
+	case domain.StatusPendingApproval:
+		return 2
+	case domain.StatusApproved:
+		return 3
+	case domain.StatusPaying:
+		return 4
+	case domain.StatusPaid:
+		return 5
+	case domain.StatusFailed:
+		return 6
+	case domain.StatusCancelled:
+		return 7
+	default:
+		return 0
 	}
 }
 
@@ -174,11 +200,11 @@ func convertAccountToProto(a *domain.MerchantAccount) *pb.MerchantAccount {
 	return &pb.MerchantAccount{
 		Id:            uint64(a.ID),
 		MerchantId:    a.MerchantID,
-		Balance:       a.Balance,
-		FrozenBalance: a.FrozenBalance,
-		TotalIncome:   a.TotalIncome,
-		TotalWithdraw: a.TotalWithdraw,
-		FeeRate:       a.FeeRate,
+		Balance:       uint64(a.Balance.Mul(decimal.NewFromInt(100)).IntPart()),
+		FrozenBalance: uint64(a.FrozenBalance.Mul(decimal.NewFromInt(100)).IntPart()),
+		TotalIncome:   uint64(a.TotalIncome.Mul(decimal.NewFromInt(100)).IntPart()),
+		TotalWithdraw: uint64(a.TotalWithdraw.Mul(decimal.NewFromInt(100)).IntPart()),
+		FeeRate:       a.FeeRate.InexactFloat64(),
 		CreatedAt:     timestamppb.New(a.CreatedAt),
 		UpdatedAt:     timestamppb.New(a.UpdatedAt),
 	}

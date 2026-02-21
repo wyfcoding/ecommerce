@@ -7,12 +7,12 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/merchant/domain"
-	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 
@@ -20,7 +20,7 @@ import (
 type MerchantCommandService struct {
 	merchantRepo domain.MerchantRepository
 	storeRepo    domain.StoreRepository
-	settingsRepo domain.SettingsRepository
+	settingsRepo domain.MerchantSettingsRepository
 	eventBus     messagequeue.EventBus
 	logger       *slog.Logger
 }
@@ -29,7 +29,7 @@ type MerchantCommandService struct {
 func NewMerchantCommandService(
 	merchantRepo domain.MerchantRepository,
 	storeRepo domain.StoreRepository,
-	settingsRepo domain.SettingsRepository,
+	settingsRepo domain.MerchantSettingsRepository,
 	eventBus messagequeue.EventBus,
 	logger *slog.Logger,
 ) *MerchantCommandService {
@@ -44,29 +44,29 @@ func NewMerchantCommandService(
 
 // ApplyMerchantCmd 商家入驻申请命令
 type ApplyMerchantCmd struct {
-	UserID       uint64                    `json:"user_id" validate:"required"`
-	Name         string                    `json:"name" validate:"required"`
-	LegalName    string                    `json:"legal_name" validate:"required"`
-	LegalIDCard  string                    `json:"legal_id_card" validate:"required"`
-	ContactName  string                    `json:"contact_name" validate:"required"`
-	ContactPhone string                    `json:"contact_phone" validate:"required"`
-	ContactEmail string                    `json:"contact_email" validate:"required"`
-	MerchantType domain.MerchantType       `json:"merchant_type" validate:"required"`
-	LicenseInfo  *BusinessLicenseInfo      `json:"license_info"`
-	BankInfo     *BankAccountInfo          `json:"bank_info"`
+	UserID       uint64               `json:"user_id" validate:"required"`
+	Name         string               `json:"name" validate:"required"`
+	LegalName    string               `json:"legal_name" validate:"required"`
+	LegalIDCard  string               `json:"legal_id_card" validate:"required"`
+	ContactName  string               `json:"contact_name" validate:"required"`
+	ContactPhone string               `json:"contact_phone" validate:"required"`
+	ContactEmail string               `json:"contact_email" validate:"required"`
+	MerchantType domain.MerchantType  `json:"merchant_type" validate:"required"`
+	LicenseInfo  *BusinessLicenseInfo `json:"license_info"`
+	BankInfo     *BankAccountInfo     `json:"bank_info"`
 }
 
 // BusinessLicenseInfo 营业执照信息
 type BusinessLicenseInfo struct {
-	LicenseNo          string `json:"license_no" validate:"required"`
-	CompanyName        string `json:"company_name" validate:"required"`
-	CompanyType        string `json:"company_type"`
-	RegisteredCapital  string `json:"registered_capital"`
-	EstablishmentDate  string `json:"establishment_date"`
-	ValidUntil         string `json:"valid_until"`
-	BusinessScope      string `json:"business_scope"`
-	RegisteredAddress  string `json:"registered_address"`
-	LicenseImageURL    string `json:"license_image_url" validate:"required"`
+	LicenseNo         string `json:"license_no" validate:"required"`
+	CompanyName       string `json:"company_name" validate:"required"`
+	CompanyType       string `json:"company_type"`
+	RegisteredCapital string `json:"registered_capital"`
+	EstablishmentDate string `json:"establishment_date"`
+	ValidUntil        string `json:"valid_until"`
+	BusinessScope     string `json:"business_scope"`
+	RegisteredAddress string `json:"registered_address"`
+	LicenseImageURL   string `json:"license_image_url" validate:"required"`
 }
 
 // BankAccountInfo 银行账户信息
@@ -83,7 +83,7 @@ func (s *MerchantCommandService) ApplyMerchant(ctx context.Context, cmd *ApplyMe
 	start := time.Now()
 
 	// 检查是否已存在商家
-	existing, err := s.merchantRepo.FindByUserID(cmd.UserID)
+	existing, err := s.merchantRepo.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("check existing merchant: %w", err)
 	}
@@ -132,7 +132,7 @@ func (s *MerchantCommandService) ApplyMerchant(ctx context.Context, cmd *ApplyMe
 	}
 
 	// 保存商家信息
-	if err := s.merchantRepo.Create(merchant); err != nil {
+	if err := s.merchantRepo.Save(ctx, merchant); err != nil {
 		s.logger.ErrorContext(ctx, "failed to create merchant",
 			"user_id", cmd.UserID, "error", err, "duration", time.Since(start))
 		return nil, fmt.Errorf("create merchant: %w", err)
@@ -140,21 +140,21 @@ func (s *MerchantCommandService) ApplyMerchant(ctx context.Context, cmd *ApplyMe
 
 	// 创建默认设置
 	defaultSettings := &domain.MerchantSettings{
-		MerchantID:              merchant.ID,
-		AutoConfirmOrder:        false,
-		AutoConfirmDays:         7,
-		EnableCOD:               false,
-		EnableInvoice:           true,
-		SupportedPayments:       `["alipay","wechat"]`,
-		FreeShippingThreshold:   0,
-		DefaultShippingFee:      0,
-		EnableSameDayDelivery:   false,
-		OrderNotification:       true,
-		StockAlert:              true,
-		ReviewNotification:      true,
-		SettlementNotification:  true,
+		MerchantID:             merchant.ID,
+		AutoConfirmOrder:       false,
+		AutoConfirmDays:        7,
+		EnableCOD:              false,
+		EnableInvoice:          true,
+		SupportedPayments:      `["alipay","wechat"]`,
+		FreeShippingThreshold:  0,
+		DefaultShippingFee:     0,
+		EnableSameDayDelivery:  false,
+		OrderNotification:      true,
+		StockAlert:             true,
+		ReviewNotification:     true,
+		SettlementNotification: true,
 	}
-	if err := s.settingsRepo.Save(defaultSettings); err != nil {
+	if err := s.settingsRepo.Save(ctx, defaultSettings); err != nil {
 		s.logger.WarnContext(ctx, "failed to create default settings", "error", err)
 	}
 
@@ -187,7 +187,7 @@ type ApproveMerchantCmd struct {
 func (s *MerchantCommandService) ApproveMerchant(ctx context.Context, cmd *ApproveMerchantCmd) error {
 	start := time.Now()
 
-	merchant, err := s.merchantRepo.FindByID(uint(cmd.MerchantID))
+	merchant, err := s.merchantRepo.FindByID(ctx, uint(cmd.MerchantID))
 	if err != nil || merchant == nil {
 		return fmt.Errorf("merchant not found: %w", err)
 	}
@@ -196,7 +196,7 @@ func (s *MerchantCommandService) ApproveMerchant(ctx context.Context, cmd *Appro
 		return fmt.Errorf("approve merchant: %w", err)
 	}
 
-	if err := s.merchantRepo.Update(merchant); err != nil {
+	if err := s.merchantRepo.Update(ctx, merchant); err != nil {
 		s.logger.ErrorContext(ctx, "failed to update merchant",
 			"merchant_id", cmd.MerchantID, "error", err)
 		return fmt.Errorf("update merchant: %w", err)
@@ -230,7 +230,7 @@ type RejectMerchantCmd struct {
 func (s *MerchantCommandService) RejectMerchant(ctx context.Context, cmd *RejectMerchantCmd) error {
 	start := time.Now()
 
-	merchant, err := s.merchantRepo.FindByID(uint(cmd.MerchantID))
+	merchant, err := s.merchantRepo.FindByID(ctx, uint(cmd.MerchantID))
 	if err != nil || merchant == nil {
 		return fmt.Errorf("merchant not found: %w", err)
 	}
@@ -239,7 +239,7 @@ func (s *MerchantCommandService) RejectMerchant(ctx context.Context, cmd *Reject
 		return fmt.Errorf("reject merchant: %w", err)
 	}
 
-	if err := s.merchantRepo.Update(merchant); err != nil {
+	if err := s.merchantRepo.Update(ctx, merchant); err != nil {
 		s.logger.ErrorContext(ctx, "failed to update merchant",
 			"merchant_id", cmd.MerchantID, "error", err)
 		return fmt.Errorf("update merchant: %w", err)
@@ -263,21 +263,21 @@ func (s *MerchantCommandService) RejectMerchant(ctx context.Context, cmd *Reject
 
 // CreateStoreCmd 创建店铺命令
 type CreateStoreCmd struct {
-	MerchantID   uint64   `json:"merchant_id" validate:"required"`
-	Name         string   `json:"name" validate:"required"`
-	LogoURL      string   `json:"logo_url"`
-	BannerURL    string   `json:"banner_url"`
-	Description  string   `json:"description"`
-	BusinessHours string  `json:"business_hours"`
-	Address      string   `json:"address"`
-	Categories   []string `json:"categories"`
+	MerchantID    uint64   `json:"merchant_id" validate:"required"`
+	Name          string   `json:"name" validate:"required"`
+	LogoURL       string   `json:"logo_url"`
+	BannerURL     string   `json:"banner_url"`
+	Description   string   `json:"description"`
+	BusinessHours string   `json:"business_hours"`
+	Address       string   `json:"address"`
+	Categories    []string `json:"categories"`
 }
 
 // CreateStore 创建店铺
 func (s *MerchantCommandService) CreateStore(ctx context.Context, cmd *CreateStoreCmd) (*domain.Store, error) {
 	start := time.Now()
 
-	merchant, err := s.merchantRepo.FindByID(uint(cmd.MerchantID))
+	merchant, err := s.merchantRepo.FindByID(ctx, uint(cmd.MerchantID))
 	if err != nil || merchant == nil {
 		return nil, fmt.Errorf("merchant not found: %w", err)
 	}
@@ -297,7 +297,7 @@ func (s *MerchantCommandService) CreateStore(ctx context.Context, cmd *CreateSto
 		cmd.Categories,
 	)
 
-	if err := s.storeRepo.Create(store); err != nil {
+	if err := s.storeRepo.Save(ctx, store); err != nil {
 		s.logger.ErrorContext(ctx, "failed to create store",
 			"merchant_id", cmd.MerchantID, "error", err, "duration", time.Since(start))
 		return nil, fmt.Errorf("create store: %w", err)
@@ -321,23 +321,23 @@ func (s *MerchantCommandService) CreateStore(ctx context.Context, cmd *CreateSto
 
 // UpdateStoreCmd 更新店铺命令
 type UpdateStoreCmd struct {
-	StoreID      uint64   `json:"store_id" validate:"required"`
-	Name         string   `json:"name"`
-	LogoURL      string   `json:"logo_url"`
-	BannerURL    string   `json:"banner_url"`
-	Description  string   `json:"description"`
-	Announcement string   `json:"announcement"`
-	BusinessHours string  `json:"business_hours"`
-	Address      string   `json:"address"`
-	Categories   []string `json:"categories"`
-	IsOpen       *bool    `json:"is_open"`
+	StoreID       uint64   `json:"store_id" validate:"required"`
+	Name          string   `json:"name"`
+	LogoURL       string   `json:"logo_url"`
+	BannerURL     string   `json:"banner_url"`
+	Description   string   `json:"description"`
+	Announcement  string   `json:"announcement"`
+	BusinessHours string   `json:"business_hours"`
+	Address       string   `json:"address"`
+	Categories    []string `json:"categories"`
+	IsOpen        *bool    `json:"is_open"`
 }
 
 // UpdateStore 更新店铺信息
 func (s *MerchantCommandService) UpdateStore(ctx context.Context, cmd *UpdateStoreCmd) error {
 	start := time.Now()
 
-	store, err := s.storeRepo.FindByID(uint(cmd.StoreID))
+	store, err := s.storeRepo.FindByID(ctx, uint(cmd.StoreID))
 	if err != nil || store == nil {
 		return fmt.Errorf("store not found: %w", err)
 	}
@@ -373,7 +373,7 @@ func (s *MerchantCommandService) UpdateStore(ctx context.Context, cmd *UpdateSto
 		store.IsOpen = *cmd.IsOpen
 	}
 
-	if err := s.storeRepo.Update(store); err != nil {
+	if err := s.storeRepo.Update(ctx, store); err != nil {
 		s.logger.ErrorContext(ctx, "failed to update store",
 			"store_id", cmd.StoreID, "error", err)
 		return fmt.Errorf("update store: %w", err)
@@ -404,6 +404,3 @@ func (s *MerchantCommandService) publishEvent(ctx context.Context, event domain.
 	s.logger.DebugContext(ctx, "domain event published", "event", event.EventName())
 	return nil
 }
-
-// 导入必要的包
-import "encoding/json"

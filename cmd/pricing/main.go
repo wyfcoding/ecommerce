@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	dynamicpricingv1 "github.com/wyfcoding/ecommerce/go-api/dynamicpricing/v1"
 	pb "github.com/wyfcoding/ecommerce/go-api/pricing/v1"
 	"github.com/wyfcoding/ecommerce/internal/pricing/application"
 	"github.com/wyfcoding/ecommerce/internal/pricing/domain"
@@ -65,10 +64,8 @@ type AppContext struct {
 
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
-	MarketDataConn     *grpc.ClientConn `service:"marketdata"`
-	MarketData         marketdatav1.MarketDataServiceClient
-	DynamicPricingConn *grpc.ClientConn `service:"dynamicpricing"`
-	DynamicPricing     dynamicpricingv1.DynamicPricingServiceClient
+	MarketDataConn *grpc.ClientConn `service:"marketdata"`
+	MarketData     marketdatav1.MarketDataServiceClient
 }
 
 func main() {
@@ -207,9 +204,6 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	if clients.MarketDataConn != nil {
 		clients.MarketData = marketdatav1.NewMarketDataServiceClient(clients.MarketDataConn)
 	}
-	if clients.DynamicPricingConn != nil {
-		clients.DynamicPricing = dynamicpricingv1.NewDynamicPricingServiceClient(clients.DynamicPricingConn)
-	}
 
 	// 6. DDD 分层装配
 	bootLog.Info("assembling services with full dependency injection...")
@@ -223,9 +217,6 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 	querySvc := application.NewPricingQueryService(pricingRepo, ruleReadRepo, historySearchRepo)
 	if clients.MarketData != nil {
 		querySvc.SetMarketDataClient(clients.MarketData)
-	}
-	if clients.DynamicPricing != nil {
-		querySvc.SetDynamicPricingClient(clients.DynamicPricing)
 	}
 	commandSvc := application.NewPricingCommandService(pricingRepo, outbox.NewPublisher(outboxMgr), logger.Logger)
 

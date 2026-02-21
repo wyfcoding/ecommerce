@@ -1,0 +1,57 @@
+# 电商系统 - 综合风控服务配置文件
+version = "1.0.0"
+
+[server]
+name = "risk"
+environment = "dev"
+
+[server.http]
+addr = "0.0.0.0"
+port = 8015
+timeout = "3s"
+
+[server.grpc]
+addr = "0.0.0.0"
+port = 9015
+timeout = "3s"
+
+[log]
+level = "info"
+format = "json"
+output = "stdout"
+
+[tracing]
+enabled = true
+service_name = "risk"
+otlp_endpoint = "localhost:4317"
+
+[metrics]
+enabled = true
+port = "18015"
+path = "/metrics"
+
+[cache]
+prefix = "risk:"
+default_expiration = "1h"
+
+[data.database]
+driver = "mysql"
+dsn = "root:root@tcp(127.0.0.1:3306)/ecommerce_risk?charset=utf8mb4&parseTime=True&loc=Local"
+max_idle_conns = 10
+max_open_conns = 100
+
+[data.redis]
+addrs = ["127.0.0.1:6379"]
+password = "redis_password"
+db = 0
+
+[messagequeue.kafka]
+brokers = ["localhost:9092"]
+topic = "risk-events"
+group_id = "ecommerce-risk-group"
+
+[services]
+[services.order]
+grpc_addr = "127.0.0.1:9002"
+[services.user]
+grpc_addr = "127.0.0.1:9001"

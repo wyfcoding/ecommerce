@@ -7,10 +7,10 @@ package mysql
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/supplychainfinance/domain"
 	"github.com/wyfcoding/pkg/database"
 	"gorm.io/gorm"
@@ -68,22 +68,22 @@ func (CreditLineModel) TableName() string { return "scf_credit_lines" }
 
 // InvoiceFinancingModel 发票融资数据库模型
 type InvoiceFinancingModel struct {
-	ID                 string    `gorm:"primaryKey;type:varchar(64)"`
-	ApplicationID      string    `gorm:"index;type:varchar(64);not null"`
-	BorrowerID         string    `gorm:"index;type:varchar(64);not null"`
-	BorrowerName       string    `gorm:"type:varchar(128);not null"`
-	InvoiceID          string    `gorm:"index;type:varchar(64);not null"`
-	InvoiceAmount      float64   `gorm:"type:decimal(20,2);not null"`
-	FinancingAmount    float64   `gorm:"type:decimal(20,2);not null"`
-	AdvanceRate        float64   `gorm:"type:decimal(5,4);not null"`
-	Currency           string    `gorm:"type:varchar(10);not null"`
-	InterestRate       float64   `gorm:"type:decimal(10,4)"`
-	OutstandingAmount  float64   `gorm:"type:decimal(20,2);not null"`
-	RepaidAmount       float64   `gorm:"type:decimal(20,2);default:0"`
-	Status             string    `gorm:"index;type:varchar(32);not null"`
-	MaturityDate       time.Time `gorm:"index"`
-	CreatedAt          time.Time `gorm:"autoCreateTime"`
-	UpdatedAt          time.Time `gorm:"autoUpdateTime"`
+	ID                string    `gorm:"primaryKey;type:varchar(64)"`
+	ApplicationID     string    `gorm:"index;type:varchar(64);not null"`
+	BorrowerID        string    `gorm:"index;type:varchar(64);not null"`
+	BorrowerName      string    `gorm:"type:varchar(128);not null"`
+	InvoiceID         string    `gorm:"index;type:varchar(64);not null"`
+	InvoiceAmount     float64   `gorm:"type:decimal(20,2);not null"`
+	FinancingAmount   float64   `gorm:"type:decimal(20,2);not null"`
+	AdvanceRate       float64   `gorm:"type:decimal(5,4);not null"`
+	Currency          string    `gorm:"type:varchar(10);not null"`
+	InterestRate      float64   `gorm:"type:decimal(10,4)"`
+	OutstandingAmount float64   `gorm:"type:decimal(20,2);not null"`
+	RepaidAmount      float64   `gorm:"type:decimal(20,2);default:0"`
+	Status            string    `gorm:"index;type:varchar(32);not null"`
+	MaturityDate      time.Time `gorm:"index"`
+	CreatedAt         time.Time `gorm:"autoCreateTime"`
+	UpdatedAt         time.Time `gorm:"autoUpdateTime"`
 }
 
 func (InvoiceFinancingModel) TableName() string { return "scf_invoice_financings" }
@@ -143,7 +143,7 @@ func (r *FinanceApplicationRepositoryImpl) FindByApplicantID(ctx context.Context
 	if err := r.db.WithContext(ctx).Where("applicant_id = ?", applicantID).Order("created_at desc").Find(&models).Error; err != nil {
 		return nil, err
 	}
-	
+
 	apps := make([]*domain.FinanceApplication, len(models))
 	for i, m := range models {
 		apps[i] = toApplicationDomain(&m)
@@ -155,17 +155,17 @@ func (r *FinanceApplicationRepositoryImpl) FindByApplicantID(ctx context.Context
 func (r *FinanceApplicationRepositoryImpl) FindByStatus(ctx context.Context, status domain.FinanceStatus, limit, offset int) ([]*domain.FinanceApplication, int64, error) {
 	var models []FinanceApplicationModel
 	var total int64
-	
+
 	query := r.db.WithContext(ctx).Model(&FinanceApplicationModel{}).Where("status = ?", string(status))
-	
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	if err := query.Order("created_at desc").Limit(limit).Offset(offset).Find(&models).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	apps := make([]*domain.FinanceApplication, len(models))
 	for i, m := range models {
 		apps[i] = toApplicationDomain(&m)
@@ -332,7 +332,6 @@ func (r *InvoiceFinancingRepositoryImpl) Delete(ctx context.Context, id string) 
 }
 
 // 辅助转换函数
-import "github.com/shopspring/decimal"
 
 func toApplicationModel(d *domain.FinanceApplication) *FinanceApplicationModel {
 	reqAmt, _ := d.RequestedAmount.Float64()

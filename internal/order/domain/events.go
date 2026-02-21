@@ -164,6 +164,7 @@ type OrderRefundApprovedEvent struct {
 	OrderID       uint64           `json:"order_id"`
 	OrderNo       string           `json:"order_no"`
 	UserID        uint64           `json:"user_id"`
+	RefundAmount  int64            `json:"refund_amount"`
 	PaymentStatus pb.PaymentStatus `json:"payment_status"`
 	Timestamp     time.Time        `json:"timestamp"`
 }

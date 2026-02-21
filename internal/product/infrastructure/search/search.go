@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	algorithm "github.com/wyfcoding/pkg/algos/structures"
 )
 
 // --- Memory Searcher (基于 SuffixArray 的高性能文本子串检索) ---

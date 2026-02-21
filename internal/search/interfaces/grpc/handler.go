@@ -79,10 +79,10 @@ func convertToPbProduct(item any) (*pb.Product, error) {
 	}
 
 	return &pb.Product{
-		Id:          toString(raw["id"]),
+		Id:          toInt64(raw["id"]),
 		Name:        toString(raw["name"]),
 		Description: toString(raw["description"]),
-		Price:       toFloat64(raw["price"]),
+		Price:       toInt64(raw["price"]),
 		ImageUrl:    toString(raw["image_url"]),
 	}, nil
 }
@@ -145,6 +145,26 @@ func toFloat64(v any) float64 {
 			return 0
 		}
 		return f
+	default:
+		return 0
+	}
+}
+func toInt64(v any) int64 {
+	switch t := v.(type) {
+	case int64:
+		return t
+	case int32:
+		return int64(t)
+	case int:
+		return int64(t)
+	case float64:
+		return int64(t)
+	case string:
+		i, _ := strconv.ParseInt(t, 10, 64)
+		return i
+	case json.Number:
+		i, _ := t.Int64()
+		return i
 	default:
 		return 0
 	}

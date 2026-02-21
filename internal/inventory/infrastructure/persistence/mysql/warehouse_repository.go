@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"gorm.io/gorm"
@@ -50,6 +51,30 @@ func (r *warehouseRepository) GetByID(ctx context.Context, id uint64) (*domain.W
 }
 
 // ListAll 从数据库列出所有仓库记录。
+func (r *warehouseRepository) SaveWarehouse(ctx context.Context, warehouse *domain.Warehouse) error {
+	return r.Save(ctx, warehouse)
+}
+
+func (r *warehouseRepository) GetWarehouse(ctx context.Context, warehouseID string) (*domain.Warehouse, error) {
+	id, _ := strconv.ParseUint(warehouseID, 10, 64)
+	return r.GetByID(ctx, id)
+}
+
+func (r *warehouseRepository) GetWarehouseByCode(ctx context.Context, warehouseCode string) (*domain.Warehouse, error) {
+	var model WarehouseModel
+	if err := r.db.WithContext(ctx).Where("warehouse_code = ?", warehouseCode).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toDomainWarehouse(&model), nil
+}
+
+func (r *warehouseRepository) GetActiveWarehouses(ctx context.Context) ([]*domain.Warehouse, error) {
+	return r.ListAll(ctx)
+}
+
 func (r *warehouseRepository) ListAll(ctx context.Context) ([]*domain.Warehouse, error) {
 	var list []WarehouseModel
 	if err := r.db.WithContext(ctx).Find(&list).Error; err != nil {
@@ -63,4 +88,28 @@ func (r *warehouseRepository) ListAll(ctx context.Context) ([]*domain.Warehouse,
 		}
 	}
 	return result, nil
+}
+
+func (r *warehouseRepository) GetWarehousesByType(ctx context.Context, warehouseType domain.WarehouseType) ([]*domain.Warehouse, error) {
+	var list []WarehouseModel
+	if err := r.db.WithContext(ctx).Where("warehouse_type = ?", warehouseType).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	result := make([]*domain.Warehouse, 0, len(list))
+	for i := range list {
+		w := toDomainWarehouse(&list[i])
+		if w != nil {
+			result = append(result, w)
+		}
+	}
+	return result, nil
+}
+
+func (r *warehouseRepository) UpdateWarehouse(ctx context.Context, warehouse *domain.Warehouse) error {
+	return r.Save(ctx, warehouse)
+}
+
+func (r *warehouseRepository) DeleteWarehouse(ctx context.Context, warehouseID string) error {
+	id, _ := strconv.ParseUint(warehouseID, 10, 64)
+	return r.db.WithContext(ctx).Delete(&WarehouseModel{}, id).Error
 }

@@ -14,7 +14,7 @@ import (
 
 	pb "github.com/wyfcoding/ecommerce/go-api/aimodel/v1"
 	recommendationv1 "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
+	riskv1 "github.com/wyfcoding/ecommerce/go-api/risk/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/application"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 	aimodelsearch "github.com/wyfcoding/ecommerce/internal/aimodel/infrastructure/persistence/elasticsearch"
@@ -67,7 +67,7 @@ type AppContext struct {
 // ServiceClients 下游微服务客户端集合
 type ServiceClients struct {
 	RecommendationConn *grpc.ClientConn `service:"recommendation"`
-	RiskSecurityConn   *grpc.ClientConn `service:"risksecurity"`
+	RiskSecurityConn   *grpc.ClientConn `service:"risk"`
 }
 
 func main() {
@@ -227,13 +227,13 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 
 	var (
 		reconCli recommendationv1.RecommendationServiceClient
-		riskCli  risksecurityv1.RiskSecurityServiceClient
+		riskCli  riskv1.RiskServiceClient
 	)
 	if clients.RecommendationConn != nil {
 		reconCli = recommendationv1.NewRecommendationServiceClient(clients.RecommendationConn)
 	}
 	if clients.RiskSecurityConn != nil {
-		riskCli = risksecurityv1.NewRiskSecurityServiceClient(clients.RiskSecurityConn)
+		riskCli = riskv1.NewRiskServiceClient(clients.RiskSecurityConn)
 	}
 	query := application.NewAIModelQueryService(aimodelRepo, aimodelReadRepo, aimodelSearchRepo, command, reconCli, riskCli, logger.Logger)
 

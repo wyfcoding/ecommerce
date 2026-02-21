@@ -771,7 +771,48 @@ func (s *OrderCommandService) RequestRefund(ctx context.Context, cmd *RequestRef
 	})
 }
 
-// ApproveRefund 审核并确认退款完成。
+// MergeOrders 合并同一用户、同一商家且地址一致的待发货订单 (针对清单第一项)
+func (s *OrderCommandService) MergeOrders(ctx context.Context, userID uint64, orderIDs []uint64, operator string) (string, error) {
+	if len(orderIDs) < 2 {
+		return "", fmt.Errorf("at least two orders required for merger")
+	}
+
+	return "", s.repo.WithTx(ctx, userID, func(tx any) error {
+		orders := make([]*domain.Order, 0, len(orderIDs))
+		for _, id := range orderIDs {
+			order, err := s.repo.FindByID(ctx, userID, id)
+			if err != nil {
+				return fmt.Errorf("order %d not found: %w", id, err)
+			}
+			orders = append(orders, order)
+		}
+
+		master := orders[0]
+		batchNo := fmt.Sprintf("MB%d", s.idGen.Generate())
+
+		// 修复：调用正确的 MergeWith 方法，只传递 batchNo 参数
+		master.MergeWith(batchNo)
+
+		// 持久化并记录合并事件
+		for _, o := range orders {
+			if err := s.repo.UpdateInTx(ctx, tx, o); err != nil {
+				return err
+			}
+			payload := &domain.OrderMergedPayload{
+				OrderID:      uint64(o.ID),
+				OrderNo:      o.OrderNo,
+				MergeBatchNo: o.MergeBatchNo,
+				MergedAt:     time.Now(),
+			}
+			if err := s.appendEventInTx(ctx, tx, o, domain.OrderEventTypeUpdated, payload); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// ApproveRefund 同意退款。
 func (s *OrderCommandService) ApproveRefund(ctx context.Context, cmd *ApproveRefundCommand) error {
 	return s.repo.WithTx(ctx, cmd.UserID, func(tx any) error {
 		order, err := s.repo.FindByID(ctx, cmd.UserID, uint64(cmd.OrderID))
@@ -782,31 +823,108 @@ func (s *OrderCommandService) ApproveRefund(ctx context.Context, cmd *ApproveRef
 		if err := order.ApproveRefund(ctx, cmd.Operator); err != nil {
 			return err
 		}
-		refundedAt := time.Now()
-		refundPayload := &domain.OrderRefundApprovedPayload{
+		approvedAt := time.Now()
+		approvedPayload := &domain.OrderRefundApprovedPayload{
 			OrderID:       uint64(order.ID),
 			OrderNo:       order.OrderNo,
 			UserID:        order.UserID,
 			OldStatus:     oldStatus,
 			NewStatus:     order.Status,
 			PaymentStatus: order.PaymentStatus,
-			RefundedAt:    refundedAt,
+			RefundAmount:  order.RefundAmount,
+			ApprovedAt:    approvedAt,
 			Log:           buildEventLogFromOrder(order),
 		}
-		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeRefundApproved, refundPayload); err != nil {
+		if err := s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeRefundApproved, approvedPayload); err != nil {
 			return err
 		}
 		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
 			return err
 		}
+
+		// 发布退款成功事件
 		return s.publisher.PublishInTx(ctx, tx, "order.refund.approved", order.OrderNo, &domain.OrderRefundApprovedEvent{
 			OrderID:       uint64(order.ID),
 			OrderNo:       order.OrderNo,
 			UserID:        order.UserID,
+			RefundAmount:  order.RefundAmount,
 			PaymentStatus: order.PaymentStatus,
 			Timestamp:     time.Now(),
 		})
 	})
+}
+
+// UpdateOrderRemarkAndTags 增加订单备注和标签系统 (针对清单第三项)
+func (s *OrderCommandService) UpdateOrderRemarkAndTags(ctx context.Context, userID uint64, orderID uint64, adminNotes, tags string, operator string) error {
+	return s.repo.WithTx(ctx, userID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, userID, orderID)
+		if err != nil {
+			return err
+		}
+
+		order.AdminNotes = adminNotes
+		order.SetTags(tags)
+		order.AddLog(operator, "UPDATE_NOTES_TAGS", order.Status.String(), order.Status.String(), "Admin updated notes and tags")
+
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+
+		return s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeUpdated, map[string]string{
+			"admin_notes": adminNotes,
+			"tags":        tags,
+		})
+	})
+}
+
+// UpdateOrderRiskScore 更新订单风险评分 (针对清单第四项)
+func (s *OrderCommandService) UpdateOrderRiskScore(ctx context.Context, userID uint64, orderID uint64, score float64) error {
+	return s.repo.WithTx(ctx, userID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, userID, orderID)
+		if err != nil {
+			return err
+		}
+
+		order.SetRiskScore(score)
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+
+		return s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeUpdated, map[string]float64{"risk_score": score})
+	})
+}
+
+// UpdateShippingAddress 修改未发货订单的配送地址 (针对清单第六项)
+func (s *OrderCommandService) UpdateShippingAddress(ctx context.Context, userID uint64, orderID uint64, addr *domain.ShippingAddress, operator string) error {
+	return s.repo.WithTx(ctx, userID, func(tx any) error {
+		order, err := s.repo.FindByID(ctx, userID, orderID)
+		if err != nil {
+			return err
+		}
+
+		if err := order.UpdateOrderDetails(addr, "", operator); err != nil {
+			return err
+		}
+
+		if err := s.repo.UpdateInTx(ctx, tx, order); err != nil {
+			return err
+		}
+
+		return s.appendEventInTx(ctx, tx, order, domain.OrderEventTypeUpdated, addr)
+	})
+}
+
+// CreateExportTask 发起异步订单导出任务 (针对清单第二项)
+func (s *OrderCommandService) CreateExportTask(ctx context.Context, userID uint64, filter string) (string, error) {
+	taskNo := fmt.Sprintf("EXP%d", s.idGen.Generate())
+	// 实际应调用 ExportRepository 保存任务，并发送 Kafka 消息给异步 Worker
+	// 这里的 EventPublisher 可以在 Outbox 模式下发送导出指令
+	err := s.publisher.Publish(ctx, "order.export.command", taskNo, map[string]any{
+		"task_no": taskNo,
+		"user_id": userID,
+		"filter":  filter,
+	})
+	return taskNo, err
 }
 
 func (s *OrderCommandService) unlockLockedStocks(ctx context.Context, orderNo string, locked []lockedStock) {
@@ -951,6 +1069,40 @@ func (s *OrderCommandService) appendEventInTx(ctx context.Context, tx any, order
 
 	order.Version = nextVersion
 	return nil
+}
+
+// MarkInventoryAllocated 标记库存已分配。
+func (s *OrderCommandService) MarkInventoryAllocated(ctx context.Context, orderID string) error {
+	order, err := s.repo.GetOrder(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if order == nil {
+		return fmt.Errorf("order not found: %s", orderID)
+	}
+
+	if err := order.Trigger(ctx, "CONFIRM", "System", "Inventory allocated"); err != nil {
+		return err
+	}
+
+	return s.repo.Save(ctx, order)
+}
+
+// MarkOutOfStock 标记由于库存不足导致订单失败。
+func (s *OrderCommandService) MarkOutOfStock(ctx context.Context, orderID string) error {
+	order, err := s.repo.GetOrder(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if order == nil {
+		return fmt.Errorf("order not found: %s", orderID)
+	}
+
+	if err := order.Trigger(ctx, "CANCEL", "System", "Inventory out of stock"); err != nil {
+		return err
+	}
+
+	return s.repo.Save(ctx, order)
 }
 
 // buildEventLogFromOrder 从订单日志中构建事件溯源日志载荷。

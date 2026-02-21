@@ -184,6 +184,48 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 	response.SuccessWithStatus(c, http.StatusOK, "Ticket closed successfully", nil)
 }
 
+// SearchKnowledgeArticles 处理知识库搜索请求。
+func (h *Handler) SearchKnowledgeArticles(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Query parameter 'q' is required", "")
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	articles, err := h.query.SearchKnowledgeArticles(c.Request.Context(), query, limit)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to search knowledge articles", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to search knowledge articles", err.Error())
+		return
+	}
+
+	response.SuccessWithMsg(c, "Knowledge articles retrieved successfully", articles)
+}
+
+// GetChatbotResponse 处理 AI 客服会话请求。
+func (h *Handler) GetChatbotResponse(c *gin.Context) {
+	var req struct {
+		ConversationID string `json:"conversation_id" binding:"required"`
+		Message        string `json:"message" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithStatus(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	result, err := h.cmd.GetChatbotResponse(c.Request.Context(), req.ConversationID, req.Message)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "failed to get chatbot response", "error", err)
+		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to get chatbot response", err.Error())
+		return
+	}
+
+	response.SuccessWithMsg(c, "AI response generated successfully", result)
+}
+
 // RegisterRoutes 在给定的Gin路由组中注册Customer模块的HTTP路由。
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	group := r.Group("/tickets")
@@ -193,5 +235,11 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		group.GET("/:id/messages", h.ListMessages)
 		group.POST("/:id/reply", h.ReplyTicket)
 		group.PUT("/:id/close", h.CloseTicket)
+	}
+
+	ai := r.Group("/ai")
+	{
+		ai.GET("/search", h.SearchKnowledgeArticles)
+		ai.POST("/chat", h.GetChatbotResponse)
 	}
 }

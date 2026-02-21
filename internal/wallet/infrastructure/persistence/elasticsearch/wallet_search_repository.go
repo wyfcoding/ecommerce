@@ -3,10 +3,12 @@
 // 1) 实现 WalletSearchRepository 接口，使用 Elasticsearch 存储交易记录全文索引
 // 2) 支持多维度搜索、聚合统计、时间范围查询
 // 3) 通过事件投影保持索引与 MySQL 写模型的最终一致性
+// 关键改动: 将 search.ElasticsearchClient 改为 search.Client 以匹配 pkg/search 包的实际导出类型
 package elasticsearch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -15,14 +17,30 @@ import (
 	"github.com/wyfcoding/pkg/search"
 )
 
+// esSearchResponse ES 搜索响应结构（用于反序列化 search.Client.Search 的结果）
+type esSearchResponse struct {
+	Hits struct {
+		TotalHits struct {
+			Value int64 `json:"value"`
+		} `json:"total"`
+		Hits []esHit `json:"hits"`
+	} `json:"hits"`
+	Aggregations map[string]json.RawMessage `json:"aggregations"`
+}
+
+// esHit 单条搜索命中
+type esHit struct {
+	Source json.RawMessage `json:"_source"`
+}
+
 // WalletSearchRepositoryImpl Elasticsearch 钱包搜索仓储实现
 type WalletSearchRepositoryImpl struct {
-	esClient *search.ElasticsearchClient
+	esClient *search.Client
 	logger   *slog.Logger
 }
 
 // NewWalletSearchRepository 创建 Elasticsearch 钱包搜索仓储实例
-func NewWalletSearchRepository(esClient *search.ElasticsearchClient, logger *slog.Logger) domain.WalletSearchRepository {
+func NewWalletSearchRepository(esClient *search.Client, logger *slog.Logger) domain.WalletSearchRepository {
 	return &WalletSearchRepositoryImpl{
 		esClient: esClient,
 		logger:   logger.With("module", "wallet_search_repository"),
@@ -61,8 +79,8 @@ func (r *WalletSearchRepositoryImpl) SearchTransactions(ctx context.Context, que
 	}
 
 	// 执行搜索
-	searchResult, err := r.esClient.Search(ctx, indexName, searchQuery)
-	if err != nil {
+	var searchResult esSearchResponse
+	if err := r.esClient.Search(ctx, indexName, searchQuery, &searchResult); err != nil {
 		r.logger.ErrorContext(ctx, "failed to search transactions",
 			"error", err, "duration", time.Since(start))
 		return nil, fmt.Errorf("search transactions: %w", err)
@@ -71,7 +89,7 @@ func (r *WalletSearchRepositoryImpl) SearchTransactions(ctx context.Context, que
 	// 解析结果
 	for _, hit := range searchResult.Hits.Hits {
 		var tx domain.TransactionReadModel
-		if err := hit.UnmarshalSource(&tx); err != nil {
+		if err := json.Unmarshal(hit.Source, &tx); err != nil {
 			r.logger.WarnContext(ctx, "failed to unmarshal transaction hit", "error", err)
 			continue
 		}
@@ -126,24 +144,12 @@ func (r *WalletSearchRepositoryImpl) AggregateByType(ctx context.Context, wallet
 		"size": 0,
 	}
 
-	searchResult, err := r.esClient.Search(ctx, indexName, query)
-	if err != nil {
+	var searchResult esSearchResponse
+	if err := r.esClient.Search(ctx, indexName, query, &searchResult); err != nil {
 		return nil, fmt.Errorf("aggregate by type: %w", err)
 	}
 
-	result := make(map[string]int64)
-	if agg, ok := searchResult.Aggregations["by_type"]; ok {
-		if buckets, ok := agg.(map[string]interface{})["buckets"]; ok {
-			for _, bucket := range buckets.([]interface{}) {
-				bucketMap := bucket.(map[string]interface{})
-				typeName := bucketMap["key"].(string)
-				amount := bucketMap["total_amount"].(map[string]interface{})["value"].(float64)
-				result[typeName] = int64(amount)
-			}
-		}
-	}
-
-	return result, nil
+	return r.parseTermsAggregation(searchResult.Aggregations, "by_type", "total_amount"), nil
 }
 
 // AggregateDaily 按日聚合交易金额
@@ -173,9 +179,9 @@ func (r *WalletSearchRepositoryImpl) AggregateDaily(ctx context.Context, walletI
 		"aggs": map[string]interface{}{
 			"by_date": map[string]interface{}{
 				"date_histogram": map[string]interface{}{
-					"field":    "created_at",
+					"field":             "created_at",
 					"calendar_interval": "day",
-					"format":   "yyyy-MM-dd",
+					"format":            "yyyy-MM-dd",
 				},
 				"aggs": map[string]interface{}{
 					"daily_amount": map[string]interface{}{
@@ -189,24 +195,66 @@ func (r *WalletSearchRepositoryImpl) AggregateDaily(ctx context.Context, walletI
 		"size": 0,
 	}
 
-	searchResult, err := r.esClient.Search(ctx, indexName, query)
-	if err != nil {
+	var searchResult esSearchResponse
+	if err := r.esClient.Search(ctx, indexName, query, &searchResult); err != nil {
 		return nil, fmt.Errorf("aggregate daily: %w", err)
 	}
 
+	return r.parseDateHistogramAggregation(searchResult.Aggregations, "by_date", "daily_amount"), nil
+}
+
+// parseTermsAggregation 解析 terms 聚合结果
+func (r *WalletSearchRepositoryImpl) parseTermsAggregation(aggs map[string]json.RawMessage, aggName, metricName string) map[string]int64 {
 	result := make(map[string]int64)
-	if agg, ok := searchResult.Aggregations["by_date"]; ok {
-		if buckets, ok := agg.(map[string]interface{})["buckets"]; ok {
-			for _, bucket := range buckets.([]interface{}) {
-				bucketMap := bucket.(map[string]interface{})
-				date := bucketMap["key_as_string"].(string)
-				amount := bucketMap["daily_amount"].(map[string]interface{})["value"].(float64)
-				result[date] = int64(amount)
-			}
-		}
+	raw, ok := aggs[aggName]
+	if !ok {
+		return result
 	}
 
-	return result, nil
+	var aggResult struct {
+		Buckets []struct {
+			Key    string `json:"key"`
+			Metric struct {
+				Value float64 `json:"value"`
+			} `json:"total_amount"`
+		} `json:"buckets"`
+	}
+	if err := json.Unmarshal(raw, &aggResult); err != nil {
+		r.logger.Error("failed to unmarshal terms aggregation", "error", err)
+		return result
+	}
+
+	for _, bucket := range aggResult.Buckets {
+		result[bucket.Key] = int64(bucket.Metric.Value)
+	}
+	return result
+}
+
+// parseDateHistogramAggregation 解析日期直方图聚合结果
+func (r *WalletSearchRepositoryImpl) parseDateHistogramAggregation(aggs map[string]json.RawMessage, aggName, metricName string) map[string]int64 {
+	result := make(map[string]int64)
+	raw, ok := aggs[aggName]
+	if !ok {
+		return result
+	}
+
+	var aggResult struct {
+		Buckets []struct {
+			KeyAsString string `json:"key_as_string"`
+			Metric      struct {
+				Value float64 `json:"value"`
+			} `json:"daily_amount"`
+		} `json:"buckets"`
+	}
+	if err := json.Unmarshal(raw, &aggResult); err != nil {
+		r.logger.Error("failed to unmarshal date histogram aggregation", "error", err)
+		return result
+	}
+
+	for _, bucket := range aggResult.Buckets {
+		result[bucket.KeyAsString] = int64(bucket.Metric.Value)
+	}
+	return result
 }
 
 // buildSearchQuery 构建 Elasticsearch 搜索查询

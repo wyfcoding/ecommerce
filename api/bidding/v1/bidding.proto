@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package api.bidding.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/bidding/v1;biddingv1";
+
+service Service {
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}

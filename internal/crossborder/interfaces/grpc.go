@@ -7,6 +7,8 @@ import (
 	pb "github.com/wyfcoding/ecommerce/go-api/crossborder/v1"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/application"
 	"github.com/wyfcoding/ecommerce/internal/crossborder/domain"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type CrossBorderHandler struct {
@@ -82,21 +84,27 @@ func (h *CrossBorderHandler) GetDeclaration(ctx context.Context, req *pb.GetDecl
 		return nil, err
 	}
 
-	totalTax := d.DutyAmount.Add(d.TaxAmount).InexactFloat64()
-
 	return &pb.GetDeclarationResponse{
-		DeclarationId: d.DeclarationID,
-		OrderId:       d.OrderID,
-		Status:        d.Status.String(),
-		TotalTax:      totalTax,
-		CreatedAt:     d.CreatedAt.Format("2006-01-02 15:04:05"),
+		Declaration: &pb.CustomsDeclaration{
+			DeclarationId: d.DeclarationID,
+			OrderId:       d.OrderID,
+			UserId:        strconv.FormatUint(d.UserID, 10),
+			LogisticsNo:   d.LogisticsNo,
+			DeclaredValue: d.DeclaredValue.InexactFloat64(),
+			Currency:      d.Currency,
+			DutyAmount:    d.DutyAmount.InexactFloat64(),
+			TaxAmount:     d.TaxAmount.InexactFloat64(),
+			Status:        pb.DeclarationStatus(d.Status),
+			CreatedAt:     timestamppb.New(d.CreatedAt),
+			UpdatedAt:     timestamppb.New(d.UpdatedAt),
+		},
 	}, nil
 }
 
-func (h *CrossBorderHandler) UpdateDeclarationStatus(ctx context.Context, req *pb.UpdateDeclarationStatusRequest) (*pb.UpdateDeclarationStatusResponse, error) {
-	err := h.app.UpdateStatus(ctx, req.DeclarationId, req.Status, req.RejectReason)
+func (h *CrossBorderHandler) UpdateDeclarationStatus(ctx context.Context, req *pb.UpdateDeclarationStatusRequest) (*emptypb.Empty, error) {
+	err := h.app.UpdateStatus(ctx, req.DeclarationId, req.Status.String(), req.RejectReason)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.UpdateDeclarationStatusResponse{Success: true}, nil
+	return &emptypb.Empty{}, nil
 }

@@ -48,23 +48,39 @@ func (g *TradingAccountGateway) PreAuth(ctx context.Context, req *domain.Payment
 
 // Capture 执行扣款确认（对应交易侧确认扣款）。
 func (g *TradingAccountGateway) Capture(ctx context.Context, transactionID string, amount int64) (*domain.PaymentGatewayResponse, error) {
-	// 获取 UserID（实际场景应从 transactionID 或存储中逻辑关联，此处简化模拟）
-	// 由于 Capture 接口通常只传 transactionID，我们可能需要在 Gateway 实现内部维护会话或依赖 context。
-	// 这里演示调用 SagaDeductFrozen
-
-	// 注意：此处需要 UserID，如果接口不支持，我们需要在 PreAuth 记录或通过特定规则解析。
-	// 工业级实现通常会有一个中间转换层。
-
 	logging.Info(ctx, "trading gateway: Capture", "transaction_id", transactionID)
-	// 此处占位，实际逻辑应根据交易侧 TCC/Saga 语义调用 Confirm 或 Deduct
+
+	// 由于 Capture 只传 ID，我们依赖 TccConfirmFreeze 的幂等性，且 OrderID 即为 transactionID
+	resp, err := g.client.TccConfirmFreeze(ctx, &accountv1.TccFreezeRequest{
+		OrderId: transactionID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to confirm trading account freeze: %w", err)
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("trading account capture rejected: %s", resp.Message)
+	}
+
 	return &domain.PaymentGatewayResponse{TransactionID: transactionID}, nil
 }
 
 func (g *TradingAccountGateway) Void(ctx context.Context, transactionID string) error {
+	logging.Info(ctx, "trading gateway: Void", "transaction_id", transactionID)
+	resp, err := g.client.TccCancelFreeze(ctx, &accountv1.TccFreezeRequest{
+		OrderId: transactionID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to cancel trading account freeze: %w", err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("trading account void rejected: %s", resp.Message)
+	}
 	return nil
 }
 
 func (g *TradingAccountGateway) Refund(ctx context.Context, transactionID string, amount int64) error {
+	// 退款逻辑：由于已经 Capture 成真钱了，这里可能需要调用原路退回逻辑（SagaRefundFrozen）
+	logging.Info(ctx, "trading gateway: Refund", "transaction_id", transactionID, "amount", amount)
 	return nil
 }
 

@@ -7,8 +7,8 @@ import (
 	pb "github.com/wyfcoding/ecommerce/go-api/logistics/v1"         // 导入物流模块的protobuf定义。
 	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域层。
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain/routeopt"
 	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/network"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization" // 导入算法包，用于路线优化。
 
 	"google.golang.org/grpc/codes"                       // gRPC状态码。
 	"google.golang.org/grpc/status"                      // gRPC状态处理。
@@ -161,9 +161,9 @@ func (s *Server) ListLogistics(ctx context.Context, req *pb.ListLogisticsRequest
 // 返回优化后的配送路线响应和可能发生的gRPC错误。
 func (s *Server) OptimizeDeliveryRoute(ctx context.Context, req *pb.OptimizeDeliveryRouteRequest) (*pb.OptimizeDeliveryRouteResponse, error) {
 	// 将protobuf的目的地列表转换为算法层所需的 Location 结构体列表.
-	destinations := make([]algorithm.Location, len(req.Destinations))
+	destinations := make([]routeopt.Location, len(req.Destinations))
 	for i, d := range req.Destinations {
-		destinations[i] = algorithm.Location{
+		destinations[i] = routeopt.Location{
 			ID:  d.Id,
 			Lat: d.Lat,
 			Lon: d.Lon,

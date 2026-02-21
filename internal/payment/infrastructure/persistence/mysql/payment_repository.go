@@ -272,3 +272,26 @@ func (r *paymentRepository) ExecWithBarrier(ctx context.Context, barrier any, fn
 		return fn(txCtx)
 	})
 }
+
+// GetPaymentHistory 获取用户支付历史记录 (清单要求)
+func (r *paymentRepository) GetPaymentHistory(ctx context.Context, userID uint64, days int) ([]*domain.Payment, error) {
+	db := r.getDB(userID).WithContext(ctx)
+	var models []PaymentModel
+	// 获取最近 N 天或最近 100 条记录
+	query := db.Where("user_id = ?", userID)
+	if days > 0 {
+		since := time.Now().AddDate(0, 0, -days)
+		query = query.Where("created_at >= ?", since)
+	}
+	if err := query.Order("created_at desc").Limit(100).Find(&models).Error; err != nil {
+		return nil, err
+	}
+
+	payments := make([]*domain.Payment, 0, len(models))
+	for i := range models {
+		if p := toDomainPayment(&models[i]); p != nil {
+			payments = append(payments, p)
+		}
+	}
+	return payments, nil
+}

@@ -1,8 +1,11 @@
 package mysql
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/settlement/domain"
 
 	"gorm.io/gorm"
@@ -23,9 +26,10 @@ type SettlementModel struct {
 	RebateAmount     int64                   `gorm:"not null;default:0;comment:返利金额(分)"`
 	OtherFees        int64                   `gorm:"not null;default:0;comment:其他费用(分)"`
 	SettlementAmount uint64                  `gorm:"not null;default:0;comment:结算金额(分)"`
+	TotalFXGainLoss  int64                   `gorm:"not null;default:0;comment:总汇兑损益(分)"`
 	Status           domain.SettlementStatus `gorm:"type:tinyint;not null;default:0;comment:状态"`
 	SettledAt        *time.Time              `gorm:"comment:结算时间"`
-	ApprovedBy       string                  `gorm:"type:varchar(64);comment:审核人"`
+	ApprovedBy       uint64                  `gorm:"index;comment:审核人"`
 	ApprovedAt       *time.Time              `gorm:"comment:审核时间"`
 	FailReason       string                  `gorm:"type:varchar(255);comment:失败原因"`
 }
@@ -37,15 +41,18 @@ func (SettlementModel) TableName() string {
 // SettlementDetailModel 结算明细写模型（持久化专用）。
 type SettlementDetailModel struct {
 	gorm.Model
-	SettlementID     uint64 `gorm:"index;not null;comment:结算单ID"`
-	OrderID          uint64 `gorm:"index;not null;comment:订单ID"`
-	OrderNo          string `gorm:"type:varchar(64);not null;comment:订单号"`
-	OrderAmount      uint64 `gorm:"not null;comment:订单金额(分)"`
-	PlatformFee      uint64 `gorm:"not null;comment:平台手续费(分)"`
-	LogisticsFee     int64  `gorm:"not null;default:0;comment:物流费(分)"`
-	ReturnFee        int64  `gorm:"not null;default:0;comment:退货费(分)"`
-	OtherFee         int64  `gorm:"not null;default:0;comment:其他费用(分)"`
-	SettlementAmount uint64 `gorm:"not null;comment:结算金额(分)"`
+	SettlementID     uint64  `gorm:"index;not null;comment:结算单ID"`
+	OrderID          uint64  `gorm:"index;not null;comment:订单ID"`
+	OrderNo          string  `gorm:"type:varchar(64);not null;comment:订单号"`
+	OrderAmount      uint64  `gorm:"not null;comment:订单金额(分)"`
+	PlatformFee      uint64  `gorm:"not null;comment:平台手续费(分)"`
+	LogisticsFee     int64   `gorm:"not null;default:0;comment:物流费(分)"`
+	ReturnFee        int64   `gorm:"not null;default:0;comment:退货费(分)"`
+	OtherFee         int64   `gorm:"not null;default:0;comment:其他费用(分)"`
+	SettlementAmount uint64  `gorm:"not null;comment:结算金额(分)"`
+	SourceCurrency   string  `gorm:"type:varchar(3);comment:原始币种"`
+	ExchangeRate     float64 `gorm:"type:decimal(18,6);comment:汇率"`
+	FXGainLoss       int64   `gorm:"not null;default:0;comment:汇兑损益(分)"`
 }
 
 func (SettlementDetailModel) TableName() string {
@@ -128,15 +135,63 @@ func (JournalEntryModel) TableName() string {
 // EntryLineModel 凭证分录模型（持久化专用）。
 type EntryLineModel struct {
 	gorm.Model
-	EntryID     uint64           `gorm:"index;not null;comment:关联凭证ID"`
-	AccountID   uint64           `gorm:"index;not null;comment:关联账户ID"`
-	SubjectCode string           `gorm:"type:varchar(32);not null;comment:冗余科目代码"`
-	Direction   domain.Direction `gorm:"type:tinyint;not null;comment:借贷方向(1:借, -1:贷)"`
-	Amount      int64            `gorm:"not null;comment:发生金额(分)"`
+	EntryID     uint64                `gorm:"index;not null;comment:关联凭证ID"`
+	AccountID   uint64                `gorm:"index;not null;comment:关联账户ID"`
+	SubjectCode string                `gorm:"type:varchar(32);not null;comment:冗余科目代码"`
+	Direction   domain.EntryDirection `gorm:"type:tinyint;not null;comment:借贷方向(1:借, -1:贷)"`
+	Amount      int64                 `gorm:"not null;comment:发生金额(分)"`
 }
 
 func (EntryLineModel) TableName() string {
 	return "entry_lines"
+}
+
+// LedgerModel 账本模型
+type LedgerModel struct {
+	gorm.Model
+	MerchantID   uint64 `gorm:"index;not null"`
+	SettlementID uint64 `gorm:"index;not null"`
+	TotalAmount  int64  `gorm:"not null"`
+	Currency     string `gorm:"type:varchar(3);not null"`
+	Status       string `gorm:"type:varchar(32);not null"`
+}
+
+func (LedgerModel) TableName() string {
+	return "ledgers"
+}
+
+func toLedgerModel(ledger *domain.Ledger) *LedgerModel {
+	if ledger == nil {
+		return nil
+	}
+	return &LedgerModel{
+		Model: gorm.Model{
+			ID:        uint(ledger.ID),
+			CreatedAt: ledger.CreatedAt,
+			UpdatedAt: ledger.UpdatedAt,
+		},
+		MerchantID:   ledger.MerchantID,
+		SettlementID: ledger.SettlementID,
+		TotalAmount:  ledger.TotalAmount.Mul(decimal.NewFromInt(100)).IntPart(),
+		Currency:     ledger.Currency,
+		Status:       ledger.Status,
+	}
+}
+
+func toLedger(model *LedgerModel) *domain.Ledger {
+	if model == nil {
+		return nil
+	}
+	return &domain.Ledger{
+		ID:           uint64(model.ID),
+		MerchantID:   model.MerchantID,
+		SettlementID: model.SettlementID,
+		TotalAmount:  decimal.NewFromInt(model.TotalAmount).Div(decimal.NewFromInt(100)),
+		Currency:     model.Currency,
+		Status:       model.Status,
+		CreatedAt:    model.CreatedAt,
+		UpdatedAt:    model.UpdatedAt,
+	}
 }
 
 func toSettlementModel(settlement *domain.Settlement) *SettlementModel {
@@ -145,7 +200,7 @@ func toSettlementModel(settlement *domain.Settlement) *SettlementModel {
 	}
 	return &SettlementModel{
 		Model: gorm.Model{
-			ID:        settlement.ID,
+			ID:        uint(settlement.ID),
 			CreatedAt: settlement.CreatedAt,
 			UpdatedAt: settlement.UpdatedAt,
 		},
@@ -155,12 +210,13 @@ func toSettlementModel(settlement *domain.Settlement) *SettlementModel {
 		StartDate:        settlement.StartDate,
 		EndDate:          settlement.EndDate,
 		OrderCount:       settlement.OrderCount,
-		TotalAmount:      settlement.TotalAmount,
-		PlatformFee:      settlement.PlatformFee,
-		CommissionAmount: settlement.CommissionAmount,
-		RebateAmount:     settlement.RebateAmount,
-		OtherFees:        settlement.OtherFees,
-		SettlementAmount: settlement.SettlementAmount,
+		TotalAmount:      uint64(settlement.GrossAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		PlatformFee:      uint64(settlement.PlatformCommission.Mul(decimal.NewFromInt(100)).IntPart()),
+		CommissionAmount: 0, // 假设映射
+		RebateAmount:     settlement.RebateAmount.Mul(decimal.NewFromInt(100)).IntPart(),
+		OtherFees:        settlement.OtherFees.Mul(decimal.NewFromInt(100)).IntPart(),
+		SettlementAmount: uint64(settlement.SettlementAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		TotalFXGainLoss:  settlement.TotalFXGainLoss.Mul(decimal.NewFromInt(100)).IntPart(),
 		Status:           settlement.Status,
 		SettledAt:        settlement.SettledAt,
 		ApprovedBy:       settlement.ApprovedBy,
@@ -174,26 +230,27 @@ func toSettlement(model *SettlementModel) *domain.Settlement {
 		return nil
 	}
 	return &domain.Settlement{
-		ID:               model.ID,
-		CreatedAt:        model.CreatedAt,
-		UpdatedAt:        model.UpdatedAt,
-		SettlementNo:     model.SettlementNo,
-		MerchantID:       model.MerchantID,
-		Cycle:            model.Cycle,
-		StartDate:        model.StartDate,
-		EndDate:          model.EndDate,
-		OrderCount:       model.OrderCount,
-		TotalAmount:      model.TotalAmount,
-		PlatformFee:      model.PlatformFee,
-		CommissionAmount: model.CommissionAmount,
-		RebateAmount:     model.RebateAmount,
-		OtherFees:        model.OtherFees,
-		SettlementAmount: model.SettlementAmount,
-		Status:           model.Status,
-		SettledAt:        model.SettledAt,
-		ApprovedBy:       model.ApprovedBy,
-		ApprovedAt:       model.ApprovedAt,
-		FailReason:       model.FailReason,
+		ID:                 uint64(model.ID),
+		CreatedAt:          model.CreatedAt,
+		UpdatedAt:          model.UpdatedAt,
+		SettlementNo:       model.SettlementNo,
+		MerchantID:         model.MerchantID,
+		Cycle:              model.Cycle,
+		StartDate:          model.StartDate,
+		EndDate:            model.EndDate,
+		OrderCount:         model.OrderCount,
+		GrossAmount:        decimal.NewFromUint64(model.TotalAmount).Div(decimal.NewFromInt(100)),
+		PlatformCommission: decimal.NewFromUint64(model.PlatformFee).Div(decimal.NewFromInt(100)),
+		CommissionAmount:   decimal.NewFromInt(model.CommissionAmount).Div(decimal.NewFromInt(100)),
+		RebateAmount:       decimal.NewFromInt(model.RebateAmount).Div(decimal.NewFromInt(100)),
+		OtherFees:          decimal.NewFromInt(model.OtherFees).Div(decimal.NewFromInt(100)),
+		SettlementAmount:   decimal.NewFromUint64(model.SettlementAmount).Div(decimal.NewFromInt(100)),
+		TotalFXGainLoss:    decimal.NewFromInt(model.TotalFXGainLoss).Div(decimal.NewFromInt(100)),
+		Status:             model.Status,
+		SettledAt:          model.SettledAt,
+		ApprovedBy:         model.ApprovedBy,
+		ApprovedAt:         model.ApprovedAt,
+		FailReason:         model.FailReason,
 	}
 }
 
@@ -203,20 +260,29 @@ func toSettlementDetailModel(detail *domain.SettlementDetail) *SettlementDetailM
 	}
 	return &SettlementDetailModel{
 		Model: gorm.Model{
-			ID:        detail.ID,
+			ID:        uint(detail.ID),
 			CreatedAt: detail.CreatedAt,
 			UpdatedAt: detail.UpdatedAt,
 		},
-		SettlementID:     detail.SettlementID,
+		SettlementID:     toUint64(detail.SettlementID),
 		OrderID:          detail.OrderID,
 		OrderNo:          detail.OrderNo,
-		OrderAmount:      detail.OrderAmount,
-		PlatformFee:      detail.PlatformFee,
-		LogisticsFee:     detail.LogisticsFee,
-		ReturnFee:        detail.ReturnFee,
-		OtherFee:         detail.OtherFee,
-		SettlementAmount: detail.SettlementAmount,
+		OrderAmount:      uint64(detail.OrderAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		PlatformFee:      uint64(detail.PlatformCommission.Mul(decimal.NewFromInt(100)).IntPart()),
+		LogisticsFee:     detail.LogisticsFee.Mul(decimal.NewFromInt(100)).IntPart(),
+		ReturnFee:        detail.RefundAmount.Mul(decimal.NewFromInt(100)).IntPart(),
+		OtherFee:         detail.OtherFees.Mul(decimal.NewFromInt(100)).IntPart(),
+		SettlementAmount: uint64(detail.SettlementAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		SourceCurrency:   detail.SourceCurrency,
+		ExchangeRate:     detail.ExchangeRate.InexactFloat64(),
+		FXGainLoss:       detail.FXGainLoss.Mul(decimal.NewFromInt(100)).IntPart(),
 	}
+}
+
+// toUint64 辅助函数
+func toUint64(s string) uint64 {
+	u, _ := strconv.ParseUint(s, 10, 64)
+	return u
 }
 
 func toSettlementDetail(model *SettlementDetailModel) *domain.SettlementDetail {
@@ -224,18 +290,21 @@ func toSettlementDetail(model *SettlementDetailModel) *domain.SettlementDetail {
 		return nil
 	}
 	return &domain.SettlementDetail{
-		ID:               model.ID,
-		CreatedAt:        model.CreatedAt,
-		UpdatedAt:        model.UpdatedAt,
-		SettlementID:     model.SettlementID,
-		OrderID:          model.OrderID,
-		OrderNo:          model.OrderNo,
-		OrderAmount:      model.OrderAmount,
-		PlatformFee:      model.PlatformFee,
-		LogisticsFee:     model.LogisticsFee,
-		ReturnFee:        model.ReturnFee,
-		OtherFee:         model.OtherFee,
-		SettlementAmount: model.SettlementAmount,
+		ID:                 uint64(model.ID),
+		CreatedAt:          model.CreatedAt,
+		UpdatedAt:          model.UpdatedAt,
+		SettlementID:       fmt.Sprintf("%d", model.SettlementID),
+		OrderID:            model.OrderID,
+		OrderNo:            model.OrderNo,
+		OrderAmount:        decimal.NewFromUint64(model.OrderAmount).Div(decimal.NewFromInt(100)),
+		PlatformCommission: decimal.NewFromUint64(model.PlatformFee).Div(decimal.NewFromInt(100)),
+		LogisticsFee:       decimal.NewFromInt(model.LogisticsFee).Div(decimal.NewFromInt(100)),
+		RefundAmount:       decimal.NewFromInt(model.ReturnFee).Div(decimal.NewFromInt(100)),
+		OtherFees:          decimal.NewFromInt(model.OtherFee).Div(decimal.NewFromInt(100)),
+		SettlementAmount:   decimal.NewFromUint64(model.SettlementAmount).Div(decimal.NewFromInt(100)),
+		SourceCurrency:     model.SourceCurrency,
+		ExchangeRate:       decimal.NewFromFloat(model.ExchangeRate),
+		FXGainLoss:         decimal.NewFromInt(model.FXGainLoss).Div(decimal.NewFromInt(100)),
 	}
 }
 
@@ -245,16 +314,16 @@ func toMerchantAccountModel(account *domain.MerchantAccount) *MerchantAccountMod
 	}
 	return &MerchantAccountModel{
 		Model: gorm.Model{
-			ID:        account.ID,
+			ID:        uint(account.ID),
 			CreatedAt: account.CreatedAt,
 			UpdatedAt: account.UpdatedAt,
 		},
 		MerchantID:    account.MerchantID,
-		Balance:       account.Balance,
-		FrozenBalance: account.FrozenBalance,
-		TotalIncome:   account.TotalIncome,
-		TotalWithdraw: account.TotalWithdraw,
-		FeeRate:       account.FeeRate,
+		Balance:       uint64(account.Balance.Mul(decimal.NewFromInt(100)).IntPart()),
+		FrozenBalance: uint64(account.FrozenBalance.Mul(decimal.NewFromInt(100)).IntPart()),
+		TotalIncome:   uint64(account.TotalIncome.Mul(decimal.NewFromInt(100)).IntPart()),
+		TotalWithdraw: uint64(account.TotalWithdraw.Mul(decimal.NewFromInt(100)).IntPart()),
+		FeeRate:       account.FeeRate.InexactFloat64(),
 	}
 }
 
@@ -263,15 +332,15 @@ func toMerchantAccount(model *MerchantAccountModel) *domain.MerchantAccount {
 		return nil
 	}
 	return &domain.MerchantAccount{
-		ID:            model.ID,
+		ID:            uint64(model.ID),
 		CreatedAt:     model.CreatedAt,
 		UpdatedAt:     model.UpdatedAt,
 		MerchantID:    model.MerchantID,
-		Balance:       model.Balance,
-		FrozenBalance: model.FrozenBalance,
-		TotalIncome:   model.TotalIncome,
-		TotalWithdraw: model.TotalWithdraw,
-		FeeRate:       model.FeeRate,
+		Balance:       decimal.NewFromUint64(model.Balance).Div(decimal.NewFromInt(100)),
+		FrozenBalance: decimal.NewFromUint64(model.FrozenBalance).Div(decimal.NewFromInt(100)),
+		TotalIncome:   decimal.NewFromUint64(model.TotalIncome).Div(decimal.NewFromInt(100)),
+		TotalWithdraw: decimal.NewFromUint64(model.TotalWithdraw).Div(decimal.NewFromInt(100)),
+		FeeRate:       decimal.NewFromFloat(model.FeeRate),
 	}
 }
 
@@ -309,13 +378,13 @@ func toAccountModel(account *domain.Account) *AccountModel {
 	}
 	return &AccountModel{
 		Model: gorm.Model{
-			ID:        account.ID,
+			ID:        uint(account.ID),
 			CreatedAt: account.CreatedAt,
 			UpdatedAt: account.UpdatedAt,
 		},
 		SubjectCode: account.SubjectCode,
 		EntityID:    account.EntityID,
-		Balance:     account.Balance,
+		Balance:     account.Balance.Mul(decimal.NewFromInt(100)).IntPart(),
 		Currency:    account.Currency,
 		Version:     account.Version,
 	}
@@ -326,12 +395,12 @@ func toAccount(model *AccountModel) *domain.Account {
 		return nil
 	}
 	return &domain.Account{
-		ID:          model.ID,
+		ID:          uint64(model.ID),
 		CreatedAt:   model.CreatedAt,
 		UpdatedAt:   model.UpdatedAt,
 		SubjectCode: model.SubjectCode,
 		EntityID:    model.EntityID,
-		Balance:     model.Balance,
+		Balance:     decimal.NewFromInt(model.Balance).Div(decimal.NewFromInt(100)),
 		Currency:    model.Currency,
 		Version:     model.Version,
 	}
@@ -343,7 +412,7 @@ func toJournalEntryModel(entry *domain.JournalEntry) *JournalEntryModel {
 	}
 	model := &JournalEntryModel{
 		Model: gorm.Model{
-			ID:        entry.ID,
+			ID:        uint(entry.ID),
 			CreatedAt: entry.CreatedAt,
 			UpdatedAt: entry.UpdatedAt,
 		},
@@ -367,7 +436,7 @@ func toJournalEntry(model *JournalEntryModel) *domain.JournalEntry {
 		return nil
 	}
 	entry := &domain.JournalEntry{
-		ID:            model.ID,
+		ID:            uint64(model.ID),
 		CreatedAt:     model.CreatedAt,
 		UpdatedAt:     model.UpdatedAt,
 		EntryNo:       model.EntryNo,
@@ -391,7 +460,7 @@ func toEntryLineModel(line *domain.EntryLine) EntryLineModel {
 	}
 	return EntryLineModel{
 		Model: gorm.Model{
-			ID:        line.ID,
+			ID:        uint(line.ID),
 			CreatedAt: line.CreatedAt,
 			UpdatedAt: line.UpdatedAt,
 		},
@@ -399,7 +468,7 @@ func toEntryLineModel(line *domain.EntryLine) EntryLineModel {
 		AccountID:   line.AccountID,
 		SubjectCode: line.SubjectCode,
 		Direction:   line.Direction,
-		Amount:      line.Amount,
+		Amount:      line.Amount.Mul(decimal.NewFromInt(100)).IntPart(),
 	}
 }
 
@@ -408,13 +477,13 @@ func toEntryLine(model *EntryLineModel) domain.EntryLine {
 		return domain.EntryLine{}
 	}
 	return domain.EntryLine{
-		ID:          model.ID,
+		ID:          uint64(model.ID),
 		CreatedAt:   model.CreatedAt,
 		UpdatedAt:   model.UpdatedAt,
 		EntryID:     model.EntryID,
 		AccountID:   model.AccountID,
 		SubjectCode: model.SubjectCode,
 		Direction:   model.Direction,
-		Amount:      model.Amount,
+		Amount:      decimal.NewFromInt(model.Amount).Div(decimal.NewFromInt(100)),
 	}
 }

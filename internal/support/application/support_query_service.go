@@ -92,3 +92,54 @@ func (q *SupportQueryService) ListConversationMessages(ctx context.Context, conv
 	}
 	return q.repo.ListConversationMessages(ctx, convID, offset, pageSize)
 }
+
+// --- Intelligent Support Query Methods ---
+
+// GetKnowledgeBase 获取知识库信息。
+func (q *SupportQueryService) GetKnowledgeBase(ctx context.Context, id string) (*domain.KnowledgeBase, error) {
+	kb, err := q.repo.GetKnowledgeBase(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if kb == nil {
+		return nil, errors.New("knowledge base not found")
+	}
+	return kb, nil
+}
+
+// GetKnowledgeArticle 获取文章详情。
+func (q *SupportQueryService) GetKnowledgeArticle(ctx context.Context, id string) (*domain.KnowledgeArticle, error) {
+	article, err := q.repo.GetKnowledgeArticle(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if article == nil {
+		return nil, errors.New("knowledge article not found")
+	}
+	return article, nil
+}
+
+// SearchKnowledgeArticles 搜索知识库文章。
+func (q *SupportQueryService) SearchKnowledgeArticles(ctx context.Context, query string, limit int) ([]*domain.KnowledgeArticle, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	return q.repo.SearchKnowledgeArticles(ctx, query, limit)
+}
+
+// GetAIConversation 获取 AI 会话详情。
+func (q *SupportQueryService) GetAIConversation(ctx context.Context, id string) (*domain.AIConversation, error) {
+	conv, err := q.repo.GetAIConversation(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if conv == nil {
+		return nil, errors.New("AI conversation not found")
+	}
+	return conv, nil
+}
+
+// ListAIMessages 获取 AI 会话的消息记录。
+func (q *SupportQueryService) ListAIMessages(ctx context.Context, conversationID string) ([]*domain.AIMessage, error) {
+	return q.repo.ListAIMessages(ctx, conversationID)
+}

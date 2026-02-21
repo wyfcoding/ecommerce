@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/wyfcoding/ecommerce/internal/gateway/domain/service"
-	algorithm "github.com/wyfcoding/pkg/algorithm/math"
+	algorithm "github.com/wyfcoding/pkg/algos/math"
 )
 
 // EWMABalancer 基于 EWMA 的响应耗时敏感负载均衡器

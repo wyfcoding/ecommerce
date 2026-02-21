@@ -13,9 +13,9 @@ func toUserDTO(user *domain.User) *UserDTO {
 		Phone:     user.Phone,
 		Nickname:  user.Nickname,
 		Avatar:    user.Avatar,
-		Gender:    user.Gender,
+		Gender:    int8(user.Gender),
 		Birthday:  user.Birthday,
-		Status:    user.Status,
+		Status:    int8(user.Status),
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
@@ -25,16 +25,32 @@ func toAddressDTO(addr *domain.Address) *AddressDTO {
 	if addr == nil {
 		return nil
 	}
+	recipientName := addr.RecipientName
+	if recipientName == "" {
+		recipientName = addr.Contact
+	}
+	phoneNumber := addr.PhoneNumber
+	if phoneNumber == "" {
+		phoneNumber = addr.Phone
+	}
+	detailedAddress := addr.DetailedAddress
+	if detailedAddress == "" {
+		detailedAddress = addr.Detail
+	}
+	postalCode := addr.PostalCode
+	if postalCode == "" {
+		postalCode = addr.ZipCode
+	}
 	return &AddressDTO{
 		ID:              addr.ID,
 		UserID:          addr.UserID,
-		RecipientName:   addr.RecipientName,
-		PhoneNumber:     addr.PhoneNumber,
+		RecipientName:   recipientName,
+		PhoneNumber:     phoneNumber,
 		Province:        addr.Province,
 		City:            addr.City,
 		District:        addr.District,
-		DetailedAddress: addr.DetailedAddress,
-		PostalCode:      addr.PostalCode,
+		DetailedAddress: detailedAddress,
+		PostalCode:      postalCode,
 		IsDefault:       addr.IsDefault,
 		CreatedAt:       addr.CreatedAt,
 		UpdatedAt:       addr.UpdatedAt,

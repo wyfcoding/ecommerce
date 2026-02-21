@@ -8,8 +8,8 @@ import (
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/application" // 导入物流模块的应用服务。
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"      // 导入物流模块的领域实体。
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain/routeopt"
 	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/network"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
 	"github.com/wyfcoding/pkg/response" // 导入统一的响应处理工具。
 
 	"log/slog" // 导入结构化日志库。
@@ -275,7 +275,7 @@ func (h *Handler) OptimizeRoute(c *gin.Context) {
 	}
 
 	var req struct {
-		Destinations []algorithm.Location `json:"destinations" binding:"required"`
+		Destinations []routeopt.Location `json:"destinations" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {

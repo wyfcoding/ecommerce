@@ -52,19 +52,24 @@ type AfterSalesModel struct {
 	RejectedAt      *time.Time              `gorm:"comment:拒绝时间"`
 	CompletedAt     *time.Time              `gorm:"comment:完成时间"`
 	CancelledAt     *time.Time              `gorm:"comment:取消时间"`
+	TrackingNumber  string                  `gorm:"type:varchar(64);comment:物流单号"`
+	WarehouseNotes  string                  `gorm:"type:text;comment:仓库备注"`
+	RMANumber       string                  `gorm:"type:varchar(64);comment:退货授权号"`
 }
 
 // AfterSalesItemModel 售后商品项写模型。
 type AfterSalesItemModel struct {
 	gorm.Model
-	AfterSalesID uint64 `gorm:"not null;index;comment:售后单ID"`
-	ProductID    uint64 `gorm:"not null;comment:商品ID"`
-	SkuID        uint64 `gorm:"not null;comment:SKU ID"`
-	ProductName  string `gorm:"type:varchar(255);not null;comment:商品名称"`
-	SkuName      string `gorm:"type:varchar(255);not null;comment:SKU名称"`
-	Quantity     int32  `gorm:"not null;comment:数量"`
-	Price        int64  `gorm:"not null;comment:单价(分)"`
-	TotalPrice   int64  `gorm:"not null;comment:总价(分)"`
+	AfterSalesID uint64      `gorm:"not null;index;comment:售后单ID"`
+	ProductID    uint64      `gorm:"not null;comment:商品ID"`
+	SkuID        uint64      `gorm:"not null;comment:SKU ID"`
+	ProductName  string      `gorm:"type:varchar(255);not null;comment:商品名称"`
+	SkuName      string      `gorm:"type:varchar(255);not null;comment:SKU名称"`
+	Quantity     int32       `gorm:"not null;comment:数量"`
+	Price        int64       `gorm:"not null;comment:单价(分)"`
+	TotalPrice   int64       `gorm:"not null;comment:总价(分)"`
+	Reason       string      `gorm:"type:varchar(255);comment:售后原因"`
+	Images       StringArray `gorm:"type:json;comment:商品图片"`
 }
 
 // AfterSalesLogModel 售后操作日志写模型。
@@ -143,6 +148,9 @@ func toAfterSalesModel(a *domain.AfterSales) *AfterSalesModel {
 		RejectedAt:      a.RejectedAt,
 		CompletedAt:     a.CompletedAt,
 		CancelledAt:     a.CancelledAt,
+		TrackingNumber:  a.TrackingNumber,
+		WarehouseNotes:  a.WarehouseNotes,
+		RMANumber:       a.RMANumber,
 	}
 }
 
@@ -173,6 +181,9 @@ func toAfterSales(model *AfterSalesModel) *domain.AfterSales {
 		RejectedAt:      model.RejectedAt,
 		CompletedAt:     model.CompletedAt,
 		CancelledAt:     model.CancelledAt,
+		TrackingNumber:  model.TrackingNumber,
+		WarehouseNotes:  model.WarehouseNotes,
+		RMANumber:       model.RMANumber,
 		Items:           items,
 		Logs:            logs,
 	}
@@ -196,6 +207,8 @@ func toAfterSalesItemModel(item *domain.AfterSalesItem) *AfterSalesItemModel {
 		Quantity:     item.Quantity,
 		Price:        item.Price,
 		TotalPrice:   item.TotalPrice,
+		Reason:       item.Reason,
+		Images:       StringArray(item.Images),
 	}
 }
 
@@ -215,6 +228,8 @@ func toAfterSalesItem(model *AfterSalesItemModel) *domain.AfterSalesItem {
 		Quantity:     model.Quantity,
 		Price:        model.Price,
 		TotalPrice:   model.TotalPrice,
+		Reason:       model.Reason,
+		Images:       []string(model.Images),
 	}
 }
 

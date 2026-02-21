@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/notification/domain"
 	"gorm.io/gorm"
@@ -109,6 +110,18 @@ func (r *notificationRepository) DeleteNotificationInTx(ctx context.Context, tx 
 		return errors.New("invalid transaction")
 	}
 	return gormTx.WithContext(ctx).Delete(&NotificationModel{}, id).Error
+}
+
+func (r *notificationRepository) GetNotificationsByDateRange(ctx context.Context, start, end time.Time) ([]*domain.Notification, error) {
+	var list []*NotificationModel
+	if err := r.db.WithContext(ctx).Where("created_at >= ? AND created_at <= ?", start, end).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	items := make([]*domain.Notification, len(list))
+	for i, model := range list {
+		items[i] = toNotification(model)
+	}
+	return items, nil
 }
 
 func (r *notificationRepository) SaveTemplate(ctx context.Context, template *domain.NotificationTemplate) error {

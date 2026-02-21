@@ -8,21 +8,24 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/support/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/ml"
+	"github.com/wyfcoding/ecommerce/internal/support/infrastructure/ai"
+	algorithm "github.com/wyfcoding/pkg/algos/ml"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // SupportCommandService 处理客户服务的写操作。
 type SupportCommandService struct {
 	repo      domain.TicketRepository
+	aiAdapter ai.AIAdapter
 	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
 }
 
 // NewSupportCommandService 创建并返回一个新的 SupportCommandService 实例。
-func NewSupportCommandService(repo domain.TicketRepository, publisher messagequeue.EventPublisher, logger *slog.Logger) *SupportCommandService {
+func NewSupportCommandService(repo domain.TicketRepository, aiAdapter ai.AIAdapter, publisher messagequeue.EventPublisher, logger *slog.Logger) *SupportCommandService {
 	return &SupportCommandService{
 		repo:      repo,
+		aiAdapter: aiAdapter,
 		publisher: publisher,
 		logger:    logger,
 	}
@@ -255,4 +258,78 @@ func (m *SupportCommandService) SendConversationMessage(ctx context.Context, con
 		return nil, err
 	}
 	return msg, nil
+}
+
+// --- Intelligent Support Methods ---
+
+// CreateKnowledgeBase 创建一个新的知识库。
+func (m *SupportCommandService) CreateKnowledgeBase(ctx context.Context, name, description, language string) (*domain.KnowledgeBase, error) {
+	kb := &domain.KnowledgeBase{
+		ID:          fmt.Sprintf("KB%d", time.Now().UnixNano()),
+		Name:        name,
+		Description: description,
+		Language:    language,
+		IsActive:    true,
+	}
+	if err := m.repo.SaveKnowledgeBase(ctx, kb); err != nil {
+		m.logger.ErrorContext(ctx, "failed to create knowledge base", "name", name, "error", err)
+		return nil, err
+	}
+	return kb, nil
+}
+
+// StartAIConversation 开启一个新的 AI 客服会话。
+func (m *SupportCommandService) StartAIConversation(ctx context.Context, userID uint64) (*domain.AIConversation, error) {
+	conv := &domain.AIConversation{
+		ID:        fmt.Sprintf("AI%d", time.Now().UnixNano()),
+		UserID:    userID,
+		Status:    domain.ConversationStatusActive,
+		StartedAt: time.Now(),
+	}
+	if err := m.repo.SaveAIConversation(ctx, conv); err != nil {
+		m.logger.ErrorContext(ctx, "failed to start AI conversation", "user_id", userID, "error", err)
+		return nil, err
+	}
+	return conv, nil
+}
+
+// GetChatbotResponse 获取 AI 客服的回复。
+func (m *SupportCommandService) GetChatbotResponse(ctx context.Context, conversationID, userMessage string) (*domain.IntentResult, error) {
+	// 1. 保存用户消息
+	userMsg := &domain.AIMessage{
+		ID:             fmt.Sprintf("MSG%d", time.Now().UnixNano()),
+		ConversationID: conversationID,
+		Sender:         domain.MessageSenderUser,
+		Content:        userMessage,
+		CreatedAt:      time.Now(),
+	}
+	_ = m.repo.SaveAIMessage(ctx, userMsg)
+
+	// 2. 调用 AI 适配器进行处理
+	intent, err := m.aiAdapter.RecognizeIntent(ctx, userMessage)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to recognize intent", "msg", userMessage, "error", err)
+		return nil, err
+	}
+
+	response, err := m.aiAdapter.GenerateChatbotResponse(ctx, conversationID, userMessage)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to generate chatbot response", "conv_id", conversationID, "error", err)
+		return nil, err
+	}
+	intent.SuggestedResponse = response
+
+	// 3. 保存 AI 回复
+	botMsg := &domain.AIMessage{
+		ID:             fmt.Sprintf("MSG%d", time.Now().UnixNano()+1),
+		ConversationID: conversationID,
+		Sender:         domain.MessageSenderBot,
+		Content:        response,
+		Intent:         intent.Intent,
+		Confidence:     intent.Confidence,
+		CreatedAt:      time.Now(),
+	}
+	_ = m.repo.SaveAIMessage(ctx, botMsg)
+
+	return intent, nil
 }

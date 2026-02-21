@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package i18n.v1;
 
-import "google/protobuf/timestamp.proto";
-
 option go_package = "github.com/wyfcoding/ecommerce/go-api/i18n/v1;i18nv1";
 
 // I18nService 国际化翻译服务

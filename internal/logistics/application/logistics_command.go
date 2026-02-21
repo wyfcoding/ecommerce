@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/logistics/domain"
+	"github.com/wyfcoding/ecommerce/internal/logistics/domain/routeopt"
 	"github.com/wyfcoding/ecommerce/internal/logistics/infrastructure/network"
-	"github.com/wyfcoding/pkg/algorithm/graph"
-	"github.com/wyfcoding/pkg/algorithm/math"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	"github.com/wyfcoding/pkg/algos/graph"
+	"github.com/wyfcoding/pkg/algos/math"
+	optimization "github.com/wyfcoding/pkg/algos/optimization"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 
@@ -19,9 +20,9 @@ import (
 type LogisticsCommandService struct {
 	repo             domain.LogisticsRepository
 	publisher        messagequeue.EventPublisher
-	optimizer        *algorithm.RouteOptimizer
+	optimizer        *routeopt.RouteOptimizer
 	networkOptimizer *network.Optimizer
-	packingOptimizer *algorithm.BinPackingOptimizer
+	packingOptimizer *optimization.BinPackingOptimizer
 	logger           *slog.Logger
 }
 
@@ -48,9 +49,9 @@ func NewLogisticsCommandService(
 	return &LogisticsCommandService{
 		repo:             repo,
 		publisher:        publisher,
-		optimizer:        algorithm.NewRouteOptimizer(),
+		optimizer:        routeopt.NewRouteOptimizer(),
 		networkOptimizer: network.NewOptimizer(),
-		packingOptimizer: algorithm.NewBinPackingOptimizer(1000.0),
+		packingOptimizer: optimization.NewBinPackingOptimizer(1000.0),
 		logger:           logger,
 	}
 }
@@ -250,13 +251,13 @@ func (s *LogisticsCommandService) SetEstimatedTime(ctx context.Context, id uint6
 }
 
 // OptimizeDeliveryRoute 优化配送路线。
-func (s *LogisticsCommandService) OptimizeDeliveryRoute(ctx context.Context, logisticsID uint64, destinations []algorithm.Location) (*domain.DeliveryRoute, error) {
+func (s *LogisticsCommandService) OptimizeDeliveryRoute(ctx context.Context, logisticsID uint64, destinations []routeopt.Location) (*domain.DeliveryRoute, error) {
 	logistics, err := s.repo.GetByID(ctx, logisticsID)
 	if err != nil {
 		return nil, err
 	}
 
-	start := algorithm.Location{
+	start := routeopt.Location{
 		ID:     0,
 		Lat:    logistics.SenderLat,
 		Lon:    logistics.SenderLon,
@@ -290,7 +291,7 @@ func (s *LogisticsCommandService) OptimizeDeliveryRoute(ctx context.Context, log
 }
 
 // CalculatePackaging 计算订单的打包方案
-func (s *LogisticsCommandService) CalculatePackaging(items []algorithm.Item) []*algorithm.Bin {
+func (s *LogisticsCommandService) CalculatePackaging(items []optimization.Item) []*optimization.Bin {
 	return s.packingOptimizer.FFD(items)
 }
 

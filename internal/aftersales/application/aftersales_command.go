@@ -110,7 +110,9 @@ func (m *AfterSalesCommandService) Approve(ctx context.Context, id uint64, opera
 
 	oldStatus := afterSales.Status
 	oldStatusStr := oldStatus.String()
-	afterSales.Approve(operator, amount)
+	if approveErr := afterSales.Approve(operator, amount); approveErr != nil {
+		return approveErr
+	}
 
 	err = m.repo.WithTx(ctx, func(tx any) error {
 		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
@@ -153,7 +155,9 @@ func (m *AfterSalesCommandService) Reject(ctx context.Context, id uint64, operat
 
 	oldStatus := afterSales.Status
 	oldStatusStr := oldStatus.String()
-	afterSales.Reject(operator, reason)
+	if rejectErr := afterSales.Reject(operator, reason); rejectErr != nil {
+		return rejectErr
+	}
 
 	return m.repo.WithTx(ctx, func(tx any) error {
 		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
@@ -201,6 +205,35 @@ func (m *AfterSalesCommandService) MarkShippedBack(ctx context.Context, id uint6
 	})
 }
 
+// LogQCResult 记录质检结果。
+func (m *AfterSalesCommandService) LogQCResult(ctx context.Context, id uint64, operator string, passed bool, notes string) error {
+	afterSales, err := m.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if afterSales == nil {
+		return domain.ErrAfterSalesNotFound
+	}
+
+	// 质检通常在“处理中（已收货）”状态下进行。
+	// domain 层 SetQCResult 会校验 ReturnReceived 状态。
+	oldStatus := afterSales.Status
+	oldStatusStr := oldStatus.String()
+	if qcErr := afterSales.SetQCResult(operator, passed, notes, nil); qcErr != nil {
+		return qcErr
+	}
+
+	return m.repo.WithTx(ctx, func(tx any) error {
+		if err := m.repo.UpdateInTx(ctx, tx, afterSales); err != nil {
+			return err
+		}
+		if err := m.logOperationInTx(ctx, tx, id, operator, "LogQC", oldStatusStr, afterSales.Status.String(), notes); err != nil {
+			return err
+		}
+		return m.publishStatusUpdated(ctx, tx, afterSales, oldStatus, operator)
+	})
+}
+
 // Cancel 关闭售后请求。
 func (m *AfterSalesCommandService) Cancel(ctx context.Context, id uint64, operator, reason string) error {
 	afterSales, err := m.repo.GetByID(ctx, id)
@@ -218,7 +251,9 @@ func (m *AfterSalesCommandService) Cancel(ctx context.Context, id uint64, operat
 
 	oldStatus := afterSales.Status
 	oldStatusStr := oldStatus.String()
-	afterSales.Cancel()
+	if cancelErr := afterSales.Cancel(operator); cancelErr != nil {
+		return cancelErr
+	}
 	if reason == "" {
 		reason = "closed by operator"
 	}

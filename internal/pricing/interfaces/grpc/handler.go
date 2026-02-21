@@ -74,13 +74,38 @@ func (s *Server) ListRules(ctx context.Context, req *pb.ListRulesRequest) (*pb.L
 }
 
 func (s *Server) CalculatePrice(ctx context.Context, req *pb.CalculatePriceRequest) (*pb.CalculatePriceResponse, error) {
-	price, err := s.query.CalculatePrice(ctx, req.ProductId, req.SkuId, req.Demand, req.Competition)
+	// 尝试映射更丰富的请求参数
+	pricingReq := &domain.PricingRequest{
+		SKUID:              req.SkuId,
+		BasePrice:          req.BasePrice,
+		CurrentStock:       req.CurrentStock,
+		TotalStock:         req.TotalStock,
+		DailyDemand:        req.DailyDemand,
+		AverageDailyDemand: req.AverageDailyDemand,
+		CompetitorPrice:    req.CompetitorPrice,
+	}
+
+	// 如果 base_price 为 0，尝试从旧字段转换或设为默认
+	if pricingReq.BasePrice == 0 {
+		// 这里可以根据业务逻辑获取默认基准价
+	}
+
+	price, err := s.cmd.CalculateDynamicPrice(ctx, pricingReq)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to calculate price: %v", err))
 	}
 
 	return &pb.CalculatePriceResponse{
-		Price: price,
+		Price: uint64(price.FinalPrice),
+		Details: &pb.DynamicPriceDetails{
+			SkuId:            price.SKUID,
+			BasePrice:        price.BasePrice,
+			FinalPrice:       price.FinalPrice,
+			PriceAdjustment:  price.PriceAdjustment,
+			InventoryFactor:  price.InventoryFactor,
+			DemandFactor:     price.DemandFactor,
+			CompetitorFactor: price.CompetitorFactor,
+		},
 	}, nil
 }
 

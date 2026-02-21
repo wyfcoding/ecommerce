@@ -50,6 +50,10 @@ type Order struct {
 	DeliveredAt          *time.Time                   `json:"delivered_at"`
 	CompletedAt          *time.Time                   `json:"completed_at"`
 	CancelledAt          *time.Time                   `json:"cancelled_at"`
+	AdminNotes           string                       `json:"admin_notes"`    // 运营标记/备注
+	Tags                 string                       `json:"tags"`           // 标签系统 (JSON 存储)
+	RiskScore            float64                      `json:"risk_score"`     // 风控评分
+	MergeBatchNo         string                       `json:"merge_batch_no"` // 合并发货批次号
 	OrderType            pb.OrderType                 `json:"order_type"`
 	DepositAmount        int64                        `json:"deposit_amount"`
 	BalanceAmount        int64                        `json:"balance_amount"`
@@ -262,6 +266,30 @@ func (o *Order) Complete(ctx context.Context, operator string) error {
 	return nil
 }
 
+// SetRiskScore 设置订单风险分数
+func (o *Order) SetRiskScore(score float64) {
+	o.RiskScore = score
+}
+
+// MergeWith 指定合并发货批次
+func (o *Order) MergeWith(batchNo string) {
+	o.MergeBatchNo = batchNo
+}
+
+// AddAdminNote 添加运营专用备注
+func (o *Order) AddAdminNote(note string) {
+	o.AdminNotes = note
+}
+
+// UpdateShippingAddress 修改收货地址 (仅在未发货状态下允许)
+func (o *Order) UpdateShippingAddress(addr *ShippingAddress) error {
+	if o.Status >= pb.OrderStatus_SHIPPED {
+		return fmt.Errorf("cannot update address after shipping")
+	}
+	o.ShippingAddress = addr
+	return nil
+}
+
 // Cancel 取消订单。
 func (o *Order) Cancel(ctx context.Context, operator, reason string) error {
 	if err := o.Trigger(ctx, "CANCEL", operator, reason); err != nil {
@@ -353,19 +381,35 @@ func (o *Order) GetTotalQuantity() int32 {
 	return total
 }
 
-// ProcessVirtual 处理虚拟商品订单。
-func (o *Order) ProcessVirtual(ctx context.Context, operator string) error {
-	// 简单校验：是否所有商品都是虚拟商品
-	for _, item := range o.Items {
-		if item.ProductType != pb.ProductType_VIRTUAL {
-			return fmt.Errorf("order contains physical products, cannot skip shipping")
-		}
+// OrderTimeoutConfig 订单超时配置 (针对清单第五项)
+type OrderTimeoutConfig struct {
+	Type     pb.OrderType
+	Duration time.Duration
+}
+
+// IsExpired 检查订单是否已超过支付期限
+func (o *Order) IsExpired(policy time.Duration) bool {
+	if o.Status != pb.OrderStatus_PENDING_PAYMENT {
+		return false
+	}
+	return time.Since(o.CreatedAt) > policy
+}
+
+// UpdateOrderDetails 手动修改订单备注或收货地址 (仅在未发货状态下，针对清单第六项)
+func (o *Order) UpdateOrderDetails(addr *ShippingAddress, remark string, operator string) error {
+	if o.ShippingStatus >= pb.ShippingStatus_SHIPPING_SHIPPED {
+		return fmt.Errorf("cannot update details after shipment")
 	}
 
-	if err := o.Trigger(ctx, "PROCESS_VIRTUAL", operator, "Virtual order processed"); err != nil {
-		return err
+	if addr != nil {
+		o.ShippingAddress = addr
+		o.AddLog(operator, "UPDATE_ADDRESS", o.Status.String(), o.Status.String(), "Address updated by user/admin")
 	}
-	now := time.Now()
-	o.CompletedAt = &now
+
+	if remark != "" {
+		o.Remark = remark
+	}
+
+	o.UpdatedAt = time.Now()
 	return nil
 }

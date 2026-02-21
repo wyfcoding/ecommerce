@@ -45,7 +45,7 @@ func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRe
 		entityType = domain.AfterSalesTypeReturnGoods // 默认处理。
 	}
 
-	// 46-49: 获取订单详情以补全信息 (OrderNo, 商品项信息等)。
+	// 46-49: 获取订单详情以及商品信息。
 	var orderNo string = "UNKNOWN"
 	items := []*domain.AfterSalesItem{}
 
@@ -53,17 +53,17 @@ func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRe
 		order, err := s.orderClient.GetOrderByID(ctx, &orderv1.GetOrderByIDRequest{Id: req.OrderId})
 		if err == nil && order != nil {
 			orderNo = order.OrderNo
-			// 如果指定了单个商品项，从订单中匹配。
-			if req.OrderItemId > 0 {
-				for _, item := range order.Items {
-					if item.Id == req.OrderItemId {
+			// 匹配请求中的商品项。
+			for _, reqItem := range req.Items {
+				for _, oi := range order.Items {
+					if oi.SkuId == reqItem.SkuId {
 						items = append(items, &domain.AfterSalesItem{
-							ProductID:   item.ProductId,
-							SkuID:       item.SkuId,
-							ProductName: item.ProductName,
-							SkuName:     item.SkuName,
-							Quantity:    item.Quantity,
-							Price:       item.Price,
+							ProductID:   oi.ProductId,
+							SkuID:       oi.SkuId,
+							ProductName: oi.ProductName,
+							SkuName:     oi.SkuName,
+							Quantity:    reqItem.Quantity,
+							Price:       oi.Price,
 						})
 						break
 					}
@@ -72,8 +72,18 @@ func (s *Server) CreateReturnRequest(ctx context.Context, req *pb.CreateReturnRe
 		}
 	}
 
+	// 如果没有从订单匹配到且请求自带了 items (补丁情况)
+	if len(items) == 0 && len(req.Items) > 0 {
+		for _, reqItem := range req.Items {
+			items = append(items, &domain.AfterSalesItem{
+				SkuID:    reqItem.SkuId,
+				Quantity: reqItem.Quantity,
+			})
+		}
+	}
+
 	// 调用应用服务层创建售后申请。
-	as, err := s.cmd.CreateAfterSales(ctx, req.OrderId, orderNo, req.UserId, entityType, req.Reason, req.GetDescription(), req.ImageUrls, items)
+	as, err := s.cmd.CreateAfterSales(ctx, req.OrderId, orderNo, req.UserId, entityType, req.Reason, req.GetDescription(), nil, items)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create return request: %v", err))
 	}
@@ -141,19 +151,16 @@ func (s *Server) UpdateReturnRequestStatus(ctx context.Context, req *pb.UpdateRe
 		if err := s.cmd.Cancel(ctx, req.Id, "admin", req.GetAdminNote()); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to close return request: %v", err))
 		}
-	default:
-		return nil, status.Error(codes.InvalidArgument, "unsupported status transition")
 	}
+	return s.GetReturnRequest(ctx, &pb.GetReturnRequestRequest{Id: req.Id})
+}
 
-	// 获取更新后的售后申请详情，以便在响应中返回最新状态。
-	as, err := s.query.GetDetails(ctx, req.Id)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get updated return request details: %v", err))
+// LogQCResult 记录质检结果。
+func (s *Server) LogQCResult(ctx context.Context, req *pb.LogQCResultRequest) (*pb.ReturnRequestResponse, error) {
+	if err := s.cmd.LogQCResult(ctx, req.Id, "admin", req.Passed, req.Notes); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to log QC result: %v", err))
 	}
-
-	return &pb.ReturnRequestResponse{
-		Request: s.toProto(as),
-	}, nil
+	return s.GetReturnRequest(ctx, &pb.GetReturnRequestRequest{Id: req.Id})
 }
 
 // ListReturnRequests 处理列出退货（售后）申请列表的gRPC请求，支持分页和过滤。
@@ -452,6 +459,10 @@ func (s *Server) toProto(as *domain.AfterSales) *pb.ReturnRequest {
 		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_REJECTED
 	case domain.AfterSalesStatusInProgress:
 		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_SHIPPED_BACK
+	case domain.AfterSalesStatusQCPassed:
+		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_QC_PASSED
+	case domain.AfterSalesStatusQCFailed:
+		status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_QC_FAILED
 	case domain.AfterSalesStatusCompleted:
 		if as.Type == domain.AfterSalesTypeExchange {
 			status = pb.ReturnRequestStatus_RETURN_REQUEST_STATUS_EXCHANGED
@@ -478,19 +489,32 @@ func (s *Server) toProto(as *domain.AfterSales) *pb.ReturnRequest {
 	}
 
 	return &pb.ReturnRequest{
-		Id:           uint64(as.ID),                    // 售后申请ID。
-		UserId:       as.UserID,                        // 用户ID。
-		OrderId:      as.OrderID,                       // 订单ID。
-		RequestType:  rType,                            // 售后请求类型。
-		Status:       status,                           // 售后请求状态。
-		Reason:       as.Reason,                        // 申请原因。
-		Description:  as.Description,                   // 详细描述。
-		ImageUrls:    as.Images,                        // 凭证图片URL列表。
-		RefundAmount: float64(as.RefundAmount) / 100.0, // 退款金额（分转元）。
-		CreatedAt:    timestamppb.New(as.CreatedAt),    // 创建时间。
-		UpdatedAt:    timestamppb.New(as.UpdatedAt),    // 更新时间。
-		// Proto中还包含一些其他字段如 AdminNote, TrackingNumber 等，但实体中没有对应，此处未映射。
+		Id:             uint64(as.ID),                    // 售后申请ID。
+		UserId:         as.UserID,                        // 用户ID。
+		OrderId:        as.OrderID,                       // 订单ID。
+		RequestType:    rType,                            // 售后请求类型。
+		Status:         status,                           // 售后请求状态。
+		Reason:         as.Reason,                        // 申请原因。
+		Description:    as.Description,                   // 详细描述。
+		ImageUrls:      as.Images,                        // 凭证图片URL列表。
+		RefundAmount:   float64(as.RefundAmount) / 100.0, // 退款金额（分转元）。
+		TrackingNumber: as.TrackingNumber,
+		ReturnAddress:  "Warehouse 1, Shanghai",       // 这里可从配置或订单属性中获取
+		CreatedAt:      timestamppb.New(as.CreatedAt), // 创建时间。
+		UpdatedAt:      timestamppb.New(as.UpdatedAt), // 更新时间。
+		Items:          s.toProtoItems(as.Items),
 	}
+}
+
+func (s *Server) toProtoItems(items []*domain.AfterSalesItem) []*pb.ReturnItem {
+	pbItems := make([]*pb.ReturnItem, len(items))
+	for i, it := range items {
+		pbItems[i] = &pb.ReturnItem{
+			SkuId:    it.SkuID,
+			Quantity: it.Quantity,
+		}
+	}
+	return pbItems
 }
 
 func (s *Server) toSupportTicketProto(t *domain.SupportTicket) *pb.SupportTicket {

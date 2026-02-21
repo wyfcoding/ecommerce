@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/product/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/finance"
+	algorithm "github.com/wyfcoding/pkg/algos/finance"
 	"github.com/wyfcoding/pkg/policy"
 	"golang.org/x/sync/singleflight"
 )

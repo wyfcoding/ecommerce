@@ -3,6 +3,8 @@ package persistence
 import (
 	"fmt"
 
+	"strconv"
+
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"gorm.io/gorm"
 )
@@ -63,7 +65,7 @@ func toInventoryModel(inv *domain.Inventory) *InventoryModel {
 	}
 	return &InventoryModel{
 		Model: gorm.Model{
-			ID:        inv.ID,
+			ID:        uint(inv.DbID),
 			CreatedAt: inv.CreatedAt,
 			UpdatedAt: inv.UpdatedAt,
 		},
@@ -84,7 +86,7 @@ func toDomainInventory(model *InventoryModel) *domain.Inventory {
 		return nil
 	}
 	inv := &domain.Inventory{
-		ID:               model.ID,
+		DbID:             uint64(model.ID),
 		CreatedAt:        model.CreatedAt,
 		UpdatedAt:        model.UpdatedAt,
 		SkuID:            model.SkuID,
@@ -108,7 +110,7 @@ func toInventoryLogModel(log *domain.InventoryLog) *InventoryLogModel {
 	}
 	return &InventoryLogModel{
 		Model: gorm.Model{
-			ID:        log.ID,
+			ID:        uint(log.ID),
 			CreatedAt: log.CreatedAt,
 			UpdatedAt: log.UpdatedAt,
 		},
@@ -129,7 +131,7 @@ func toDomainInventoryLog(model *InventoryLogModel) *domain.InventoryLog {
 		return nil
 	}
 	return &domain.InventoryLog{
-		ID:             model.ID,
+		ID:             uint64(model.ID),
 		CreatedAt:      model.CreatedAt,
 		UpdatedAt:      model.UpdatedAt,
 		InventoryID:    model.InventoryID,
@@ -148,15 +150,16 @@ func toWarehouseModel(warehouse *domain.Warehouse) *WarehouseModel {
 	if warehouse == nil {
 		return nil
 	}
+	id, _ := strconv.ParseUint(warehouse.ID, 10, 64)
 	return &WarehouseModel{
 		Model: gorm.Model{
-			ID:        warehouse.ID,
+			ID:        uint(id),
 			CreatedAt: warehouse.CreatedAt,
 			UpdatedAt: warehouse.UpdatedAt,
 		},
 		Name:     warehouse.Name,
-		Lat:      warehouse.Lat,
-		Lon:      warehouse.Lon,
+		Lat:      warehouse.Latitude,
+		Lon:      warehouse.Longitude,
 		Priority: warehouse.Priority,
 		ShipCost: warehouse.ShipCost,
 	}
@@ -167,12 +170,12 @@ func toDomainWarehouse(model *WarehouseModel) *domain.Warehouse {
 		return nil
 	}
 	return &domain.Warehouse{
-		ID:        model.ID,
+		ID:        fmt.Sprintf("%d", model.ID),
 		CreatedAt: model.CreatedAt,
 		UpdatedAt: model.UpdatedAt,
 		Name:      model.Name,
-		Lat:       model.Lat,
-		Lon:       model.Lon,
+		Latitude:  model.Lat,
+		Longitude: model.Lon,
 		Priority:  model.Priority,
 		ShipCost:  model.ShipCost,
 	}

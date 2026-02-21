@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
 	"github.com/wyfcoding/pkg/database/sharding"
@@ -166,6 +167,33 @@ func (r *inventoryRepository) List(ctx context.Context, offset, limit int) ([]*d
 	return allList, totalCount, nil
 }
 
+// GetInventoryByWarehouse 跨分片查询指定仓库的库存。
+func (r *inventoryRepository) GetInventoryByWarehouse(ctx context.Context, warehouseID string) ([]*domain.InventoryItem, error) {
+	wID, _ := strconv.ParseUint(warehouseID, 10, 64)
+	dbs := r.sharding.GetAllDBs()
+	var allItems []*domain.InventoryItem
+
+	for _, db := range dbs {
+		var models []InventoryModel
+		if err := db.WithContext(ctx).Where("warehouse_id = ?", wID).Find(&models).Error; err != nil {
+			return nil, err
+		}
+		for _, m := range models {
+			allItems = append(allItems, &domain.InventoryItem{
+				SKUID:       strconv.FormatUint(m.SkuID, 10),
+				ProductID:   strconv.FormatUint(m.ProductID, 10),
+				WarehouseID: strconv.FormatUint(m.WarehouseID, 10),
+				Quantity:    int64(m.AvailableStock),
+				Total:       int64(m.TotalStock),
+				Available:   int64(m.AvailableStock),
+				Reserved:    int64(m.LockedStock),
+				UpdatedAt:   m.UpdatedAt,
+			})
+		}
+	}
+	return allItems, nil
+}
+
 // Delete 从对应分片删除。
 func (r *inventoryRepository) Delete(ctx context.Context, skuID uint64) error {
 	db := r.sharding.GetDB(skuID)
@@ -202,6 +230,16 @@ func (r *inventoryRepository) GetLogs(ctx context.Context, skuID uint64, invento
 func (r *inventoryRepository) ExecWithBarrier(ctx context.Context, barrier any, fn func(ctx context.Context) error) error {
 	// 暂时简单实现，如果是使用 DTM 等分布式事务管理器，这里应该是调用其 Barrier。
 	return fn(ctx)
+}
+
+func (r *inventoryRepository) Reserve(ctx context.Context, skuID uint64, quantity int32) error {
+	db := r.sharding.GetDB(skuID)
+	return db.WithContext(ctx).Model(&InventoryModel{}).
+		Where("sku_id = ? AND available_stock >= ?", skuID, quantity).
+		Updates(map[string]interface{}{
+			"available_stock": gorm.Expr("available_stock - ?", quantity),
+			"locked_stock":    gorm.Expr("locked_stock + ?", quantity),
+		}).Error
 }
 
 // eventStore 实现 domain.EventStore 接口。

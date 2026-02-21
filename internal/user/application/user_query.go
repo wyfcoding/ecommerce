@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/user/domain"
-	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/algos/infra"
 )
 
 // UserQueryService 处理用户模块的所有只读查询操作

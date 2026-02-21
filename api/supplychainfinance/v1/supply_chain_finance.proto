@@ -4,7 +4,6 @@ package api.supplychainfinance.v1;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/supplychainfinance/v1;supplychainfinancev1";
 

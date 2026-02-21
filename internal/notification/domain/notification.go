@@ -39,9 +39,10 @@ const (
 type NotificationStatus int8
 
 const (
-	NotificationStatusUnread  NotificationStatus = 0 // 未读。
-	NotificationStatusRead    NotificationStatus = 1 // 已读。
-	NotificationStatusDeleted NotificationStatus = 2 // 已删除。
+	NotificationStatusUnread    NotificationStatus = 0 // 未读。
+	NotificationStatusRead      NotificationStatus = 1 // 已读。
+	NotificationStatusDelivered NotificationStatus = 3 // 已送达。
+	NotificationStatusDeleted   NotificationStatus = 2 // 已删除。
 )
 
 // JSONMap 定义了一个map类型，实现了 sql.Scanner 和 driver.Valuer 接口，
@@ -95,29 +96,32 @@ func (a *StringArray) Scan(value any) error {
 
 // Notification 实体代表一条发送给用户的通知。
 type Notification struct {
-	ID        uint64              `json:"id"`
-	CreatedAt time.Time           `json:"created_at"`
-	UpdatedAt time.Time           `json:"updated_at"`
-	UserID    uint64              `json:"user_id"`
-	NotifType NotificationType    `json:"notif_type"`
-	Channel   NotificationChannel `json:"channel"`
-	Title     string              `json:"title"`
-	Content   string              `json:"content"`
-	Data      JSONMap             `json:"data"`
-	Status    NotificationStatus  `json:"status"`
-	ReadAt    *time.Time          `json:"read_at"`
+	ID          uint64              `json:"id"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	UserID      uint64              `json:"user_id"`
+	Type        NotificationType    `json:"type"`
+	Channel     NotificationChannel `json:"channel"`
+	Title       string              `json:"title"`
+	Content     string              `json:"content"`
+	Data        JSONMap             `json:"data"`
+	Status      NotificationStatus  `json:"status"`
+	ReadAt      *time.Time          `json:"read_at"`
+	DeliveredAt *time.Time          `json:"delivered_at"`
+	NotifType   NotificationType    `json:"notif_type" gorm:"column:notif_type"`
+	Metadata    JSONMap             `json:"metadata"`
 }
 
 // NewNotification 创建并返回一个新的 Notification 实体实例。
 func NewNotification(userID uint64, notifType NotificationType, channel NotificationChannel, title, content string, data map[string]any) *Notification {
 	return &Notification{
-		UserID:    userID,
-		NotifType: notifType,
-		Channel:   channel,
-		Title:     title,
-		Content:   content,
-		Data:      data,
-		Status:    NotificationStatusUnread,
+		UserID:  userID,
+		Type:    notifType,
+		Channel: channel,
+		Title:   title,
+		Content: content,
+		Data:    data,
+		Status:  NotificationStatusUnread,
 	}
 }
 
@@ -137,10 +141,11 @@ type NotificationTemplate struct {
 	UpdatedAt time.Time           `json:"updated_at"`
 	Code      string              `json:"code"`
 	Name      string              `json:"name"`
-	NotifType NotificationType    `json:"notif_type"`
+	Type      NotificationType    `json:"type"`
 	Channel   NotificationChannel `json:"channel"`
 	Title     string              `json:"title"`
 	Content   string              `json:"content"`
 	Variables StringArray         `json:"variables"`
+	NotifType NotificationType    `json:"notif_type" gorm:"column:notif_type"`
 	Enabled   bool                `json:"enabled"`
 }

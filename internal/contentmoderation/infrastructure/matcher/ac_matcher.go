@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/wyfcoding/ecommerce/internal/contentmoderation/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	algorithm "github.com/wyfcoding/pkg/algos/structures"
 )
 
 // ACMatcher 基于 Aho-Corasick 自动机的敏感词匹配器

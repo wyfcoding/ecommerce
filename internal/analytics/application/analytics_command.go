@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/analytics/domain"
-	"github.com/wyfcoding/pkg/algorithm/graph"
-	"github.com/wyfcoding/pkg/algorithm/sim"
+	"github.com/wyfcoding/pkg/algos/graph"
+	"github.com/wyfcoding/pkg/algos/sim"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"
 	"github.com/wyfcoding/pkg/redis"

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/scheduler/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/infra"
+	algorithm "github.com/wyfcoding/pkg/algos/infra"
 	"github.com/wyfcoding/pkg/lock"
 	"github.com/wyfcoding/pkg/messagequeue"
 	pkgScheduler "github.com/wyfcoding/pkg/scheduler"

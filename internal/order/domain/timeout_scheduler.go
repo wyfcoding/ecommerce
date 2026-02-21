@@ -9,7 +9,7 @@ import (
 
 type TimeoutCallback func(orderID string) error
 
-type TimeoutTask struct {
+type SchedulerTask struct {
 	OrderID   string
 	Timeout   time.Duration
 	Callback  TimeoutCallback
@@ -19,7 +19,7 @@ type TimeoutTask struct {
 
 type RedisBasedTimeoutScheduler struct {
 	logger    *slog.Logger
-	tasks     map[string]*TimeoutTask
+	tasks     map[string]*SchedulerTask
 	mu        sync.RWMutex
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -52,7 +52,7 @@ func NewRedisBasedTimeoutScheduler(logger *slog.Logger, redis RedisClient, keyPr
 	ctx, cancel := context.WithCancel(context.Background())
 	return &RedisBasedTimeoutScheduler{
 		logger:    logger,
-		tasks:     make(map[string]*TimeoutTask),
+		tasks:     make(map[string]*SchedulerTask),
 		ctx:       ctx,
 		cancel:    cancel,
 		redis:     redis,
@@ -68,7 +68,7 @@ func (s *RedisBasedTimeoutScheduler) ScheduleTimeout(orderID string, timeout tim
 		return nil
 	}
 
-	task := &TimeoutTask{
+	task := &SchedulerTask{
 		OrderID: orderID,
 		Timeout: timeout,
 		Callback: func(orderID string) error {
@@ -183,12 +183,12 @@ func (s *RedisBasedTimeoutScheduler) Stop() {
 			task.Timer.Stop()
 		}
 	}
-	s.tasks = make(map[string]*TimeoutTask)
+	s.tasks = make(map[string]*SchedulerTask)
 }
 
 type InMemoryTimeoutScheduler struct {
 	logger *slog.Logger
-	tasks  map[string]*TimeoutTask
+	tasks  map[string]*SchedulerTask
 	mu     sync.RWMutex
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -198,7 +198,7 @@ func NewInMemoryTimeoutScheduler(logger *slog.Logger) *InMemoryTimeoutScheduler 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &InMemoryTimeoutScheduler{
 		logger: logger,
-		tasks:  make(map[string]*TimeoutTask),
+		tasks:  make(map[string]*SchedulerTask),
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -212,7 +212,7 @@ func (s *InMemoryTimeoutScheduler) ScheduleTimeout(orderID string, timeout time.
 		return nil
 	}
 
-	task := &TimeoutTask{
+	task := &SchedulerTask{
 		OrderID:   orderID,
 		Timeout:   timeout,
 		Callback:  func(orderID string) error { callback(orderID); return nil },
@@ -279,5 +279,5 @@ func (s *InMemoryTimeoutScheduler) Stop() {
 			task.Timer.Stop()
 		}
 	}
-	s.tasks = make(map[string]*TimeoutTask)
+	s.tasks = make(map[string]*SchedulerTask)
 }

@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
 	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/inventory/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
-	"github.com/wyfcoding/pkg/algorithm/structures"
+	"github.com/wyfcoding/ecommerce/internal/inventory/domain/allocator"
+	"github.com/wyfcoding/pkg/algos/structures"
 	"github.com/wyfcoding/pkg/eventsourcing"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
@@ -22,7 +23,7 @@ type InventoryCommandService struct {
 	warehouseRepo  domain.WarehouseRepository                    // 仓库仓储
 	publisher      messagequeue.EventPublisher                   // 事件发布者
 	eventStore     domain.EventStore                             // 事件存储
-	allocator      *algorithm.WarehouseAllocator                 // 最优库存分配算法引擎
+	allocator      *allocator.WarehouseAllocator                 // 最优库存分配算法引擎
 	logger         *slog.Logger                                  // 日志记录器
 	soldOutFilter  *structures.CuckooFilter[structures.ByteHash] // 布隆/布谷鸟过滤器，用于高并发下的售罄快速判定
 	filterMu       sync.RWMutex                                  // 保护过滤器的并发安全
@@ -47,7 +48,7 @@ func NewInventoryCommandService(
 		warehouseRepo: warehouseRepo,
 		publisher:     publisher,
 		eventStore:    eventStore,
-		allocator:     algorithm.NewWarehouseAllocator(),
+		allocator:     allocator.NewWarehouseAllocator(),
 		logger:        logger,
 		soldOutFilter: filter,
 	}, nil
@@ -67,7 +68,7 @@ func (m *InventoryCommandService) CreateInventory(ctx context.Context, skuID, pr
 		return nil, errors.New("inventory already exists for this SKU")
 	}
 
-	inventory := domain.NewInventory(skuID, productID, warehouseID, totalStock, warningThreshold)
+	inventory := domain.NewInventory(skuID, productID, warehouseID, totalStock)
 	if err := m.repo.Save(ctx, inventory); err != nil {
 		m.logger.ErrorContext(ctx, "failed to save inventory", "sku_id", skuID, "error", err)
 		return nil, err
@@ -211,7 +212,7 @@ func (m *InventoryCommandService) DeductStock(ctx context.Context, skuID uint64,
 
 		// 检查预警 (这也可以由领域层抛出事件，但在此保留应用层检查逻辑)
 		if inv.AvailableStock < inv.WarningThreshold {
-			base := eventsourcing.NewBaseEvent(domain.StockWarningEventType, inv.GetID(), inv.AggregateRoot.Version())
+			base := eventsourcing.NewBaseEvent(domain.StockWarningEventType, fmt.Sprintf("%d", inv.GetID()), inv.AggregateRoot.Version())
 			warningEvent := &domain.StockWarningEvent{
 				BaseEvent:      base,
 				SkuID:          skuID,
@@ -322,7 +323,7 @@ func (m *InventoryCommandService) ConfirmDeduction(ctx context.Context, skuID ui
 }
 
 // AllocateStock 分配库存。
-func (m *InventoryCommandService) AllocateStock(ctx context.Context, userLat, userLon float64, items []algorithm.OrderItem) ([]algorithm.AllocationResult, error) {
+func (m *InventoryCommandService) AllocateStock(ctx context.Context, userLat, userLon float64, items []allocator.OrderItem) ([]allocator.AllocationResult, error) {
 	warehouses, err := m.warehouseRepo.ListAll(ctx)
 	if err != nil {
 		return nil, err
@@ -337,10 +338,10 @@ func (m *InventoryCommandService) AllocateStock(ctx context.Context, userLat, us
 		return nil, err
 	}
 
-	warehouseMap := make(map[uint64]map[uint64]*algorithm.WarehouseInfo)
+	warehouseMap := make(map[uint64]map[uint64]*allocator.WarehouseInfo)
 	findWarehouse := func(id uint64) *domain.Warehouse {
 		for _, w := range warehouses {
-			if w.ID == uint(id) {
+			if w.ID == fmt.Sprintf("%d", id) {
 				return w
 			}
 		}
@@ -354,13 +355,13 @@ func (m *InventoryCommandService) AllocateStock(ctx context.Context, userLat, us
 		}
 
 		if _, exists := warehouseMap[inv.WarehouseID]; !exists {
-			warehouseMap[inv.WarehouseID] = make(map[uint64]*algorithm.WarehouseInfo)
+			warehouseMap[inv.WarehouseID] = make(map[uint64]*allocator.WarehouseInfo)
 		}
 
-		warehouseMap[inv.WarehouseID][inv.SkuID] = &algorithm.WarehouseInfo{
-			ID:       uint64(w.ID),
-			Lat:      w.Lat,
-			Lon:      w.Lon,
+		warehouseMap[inv.WarehouseID][inv.SkuID] = &allocator.WarehouseInfo{
+			ID:       toUint64(w.ID),
+			Lat:      w.Latitude,
+			Lon:      w.Longitude,
 			Stock:    inv.AvailableStock,
 			Priority: w.Priority,
 			ShipCost: w.ShipCost,
@@ -370,4 +371,9 @@ func (m *InventoryCommandService) AllocateStock(ctx context.Context, userLat, us
 	result := m.allocator.AllocateOptimal(userLat, userLon, items, warehouseMap)
 	m.logger.InfoContext(ctx, "stock allocation optimization completed", "items_count", len(items), "allocations", len(result))
 	return result, nil
+}
+
+func toUint64(s string) uint64 {
+	id, _ := strconv.ParseUint(s, 10, 64)
+	return id
 }

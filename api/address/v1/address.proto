@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package wyfcoding.ecommerce.api.address.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/address/v1;addressv1";
+
+// 错误码
+enum ErrorReason {
+    ERROR_REASON_UNSPECIFIED = 0;
+    ADDRESS_NOT_FOUND = 1;
+    USER_NOT_FOUND = 2;
+    MAX_ADDRESSES_EXCEEDED = 3;
+    INVALID_ADDRESS_DATA = 4;
+}
+
+// 跨服务常量
+// 比如最大地址数量限制可以用常量
+// const int32 MAX_ADDRESS_PER_USER = 20;
+
+// 地址类型
+enum AddressType {
+    ADDRESS_TYPE_UNSPECIFIED = 0;
+    ADDRESS_TYPE_HOME = 1;
+    ADDRESS_TYPE_WORK = 2;
+    ADDRESS_TYPE_OTHER = 3;
+}
+
+// 地址详情
+message Address {
+    string id = 1;
+    int64 user_id = 2;
+    string recipient_name = 3;
+    string phone_number = 4;
+    string country = 5;
+    string province = 6;
+    string city = 7;
+    string district = 8;
+    string detail_address = 9;
+    string postal_code = 10;
+    bool is_default = 11;
+    AddressType type = 12;
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+}
+
+// 创建地址请求
+message CreateAddressRequest {
+    int64 user_id = 1;
+    string recipient_name = 2;
+    string phone_number = 3;
+    string country = 4;
+    string province = 5;
+    string city = 6;
+    string district = 7;
+    string detail_address = 8;
+    string postal_code = 9;
+    bool is_default = 10;
+    AddressType type = 11;
+}
+
+// 创建地址响应
+message CreateAddressResponse {
+    Address address = 1;
+}
+
+// 更新地址请求
+message UpdateAddressRequest {
+    string id = 1;
+    int64 user_id = 2; // For validation/security
+    string recipient_name = 3;
+    string phone_number = 4;
+    string country = 5;
+    string province = 6;
+    string city = 7;
+    string district = 8;
+    string detail_address = 9;
+    string postal_code = 10;
+    bool is_default = 11;
+    AddressType type = 12;
+}
+
+// 更新地址响应
+message UpdateAddressResponse {
+    Address address = 1;
+}
+
+// 删除地址请求
+message DeleteAddressRequest {
+    string id = 1;
+    int64 user_id = 2; // For validation/security
+}
+
+// 设置默认地址请求
+message SetDefaultAddressRequest {
+    string id = 1;
+    int64 user_id = 2;
+}
+
+// 查询用户地址列表请求
+message ListAddressesRequest {
+    int64 user_id = 1;
+}
+
+// 查询用户地址列表响应
+message ListAddressesResponse {
+    repeated Address addresses = 1;
+}
+
+// 查询单个地址请求
+message GetAddressRequest {
+    string id = 1;
+}
+
+// 查询单个地址响应
+message GetAddressResponse {
+    Address address = 1;
+}
+
+service AddressService {
+    rpc CreateAddress(CreateAddressRequest) returns (CreateAddressResponse);
+    rpc UpdateAddress(UpdateAddressRequest) returns (UpdateAddressResponse);
+    rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty);
+    rpc SetDefaultAddress(SetDefaultAddressRequest) returns (google.protobuf.Empty);
+    rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+    rpc GetAddress(GetAddressRequest) returns (GetAddressResponse);
+}

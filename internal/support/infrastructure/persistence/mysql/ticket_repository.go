@@ -310,3 +310,125 @@ func (r *ticketRepository) saveConversationMessageWithTx(ctx context.Context, tx
 	message.UpdatedAt = model.UpdatedAt
 	return nil
 }
+
+// --- Intelligent Support (KB & AI Chat) methods ---
+
+func (r *ticketRepository) SaveKnowledgeBase(ctx context.Context, kb *domain.KnowledgeBase) error {
+	model := toKnowledgeBaseModel(kb)
+	if err := r.db.WithContext(ctx).Save(model).Error; err != nil {
+		return err
+	}
+	kb.CreatedAt = model.CreatedAt
+	kb.UpdatedAt = model.UpdatedAt
+	return nil
+}
+
+func (r *ticketRepository) GetKnowledgeBase(ctx context.Context, id string) (*domain.KnowledgeBase, error) {
+	var model KnowledgeBaseModel
+	if err := r.db.WithContext(ctx).Where("k_id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toKnowledgeBase(&model), nil
+}
+
+func (r *ticketRepository) GetKnowledgeArticle(ctx context.Context, id string) (*domain.KnowledgeArticle, error) {
+	var model KnowledgeArticleModel
+	if err := r.db.WithContext(ctx).Where("a_id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &domain.KnowledgeArticle{
+		ID:       model.AID,
+		Title:    model.Title,
+		Content:  model.Content,
+		IsActive: model.IsActive,
+	}, nil
+}
+
+func (r *ticketRepository) SearchKnowledgeArticles(ctx context.Context, query string, limit int) ([]*domain.KnowledgeArticle, error) {
+	var list []*KnowledgeArticleModel
+	if err := r.db.WithContext(ctx).Where("title LIKE ? OR content LIKE ?", "%"+query+"%", "%"+query+"%").Limit(limit).Find(&list).Error; err != nil {
+		return nil, err
+	}
+
+	items := make([]*domain.KnowledgeArticle, len(list))
+	for i, model := range list {
+		items[i] = &domain.KnowledgeArticle{
+			ID:       model.AID,
+			Title:    model.Title,
+			Content:  model.Content,
+			IsActive: model.IsActive,
+		}
+	}
+	return items, nil
+}
+
+func (r *ticketRepository) SaveAIConversation(ctx context.Context, conversation *domain.AIConversation) error {
+	model := toAIConversationModel(conversation)
+	return r.db.WithContext(ctx).Save(model).Error
+}
+
+func (r *ticketRepository) GetAIConversation(ctx context.Context, id string) (*domain.AIConversation, error) {
+	var model AIConversationModel
+	if err := r.db.WithContext(ctx).Where("c_id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toAIConversation(&model), nil
+}
+
+func (r *ticketRepository) SaveAIMessage(ctx context.Context, message *domain.AIMessage) error {
+	model := &AIMessageModel{
+		MID:            message.ID,
+		ConversationID: message.ConversationID,
+		Sender:         message.Sender,
+		Content:        message.Content,
+		Sentiment:      message.Sentiment,
+		Intent:         message.Intent,
+		Confidence:     message.Confidence,
+	}
+	return r.db.WithContext(ctx).Save(model).Error
+}
+
+func (r *ticketRepository) ListAIMessages(ctx context.Context, conversationID string) ([]*domain.AIMessage, error) {
+	var list []*AIMessageModel
+	if err := r.db.WithContext(ctx).Where("conversation_id = ?", conversationID).Order("created_at asc").Find(&list).Error; err != nil {
+		return nil, err
+	}
+
+	items := make([]*domain.AIMessage, len(list))
+	for i, m := range list {
+		items[i] = &domain.AIMessage{
+			ID:             m.MID,
+			ConversationID: m.ConversationID,
+			Sender:         m.Sender,
+			Content:        m.Content,
+			Sentiment:      m.Sentiment,
+			Intent:         m.Intent,
+			Confidence:     m.Confidence,
+			CreatedAt:      m.CreatedAt,
+		}
+	}
+	return items, nil
+}
+
+func (r *ticketRepository) GetTicketsForAutomation(ctx context.Context) ([]*domain.Ticket, error) {
+	var models []*TicketModel
+	// 简单的逻辑：获取所有待处理或处理中的工单
+	if err := r.db.WithContext(ctx).Where("status IN ?", []domain.TicketStatus{domain.TicketStatusOpen, domain.TicketStatusInProgress}).Find(&models).Error; err != nil {
+		return nil, err
+	}
+
+	tickets := make([]*domain.Ticket, len(models))
+	for i, m := range models {
+		tickets[i] = toTicket(m)
+	}
+	return tickets, nil
+}

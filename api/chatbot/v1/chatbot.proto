@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package api.chatbot.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/chatbot/v1;chatbotv1";
+
+service Service {
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}

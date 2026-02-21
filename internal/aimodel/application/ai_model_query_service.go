@@ -9,7 +9,7 @@ import (
 	"time"
 
 	recommendationv1 "github.com/wyfcoding/ecommerce/go-api/recommendation/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
+	riskv1 "github.com/wyfcoding/ecommerce/go-api/risk/v1"
 	"github.com/wyfcoding/ecommerce/internal/aimodel/domain"
 )
 
@@ -20,7 +20,7 @@ type AIModelQueryService struct {
 	searchRepo domain.AIModelSearchRepository
 	command    *AIModelCommandService // 引入 Command 以调用真实的 Predict
 	reconCli   recommendationv1.RecommendationServiceClient
-	riskCli    risksecurityv1.RiskSecurityServiceClient
+	riskCli    riskv1.RiskServiceClient
 	logger     *slog.Logger
 }
 
@@ -31,7 +31,7 @@ func NewAIModelQueryService(
 	searchRepo domain.AIModelSearchRepository,
 	command *AIModelCommandService,
 	reconCli recommendationv1.RecommendationServiceClient,
-	riskCli risksecurityv1.RiskSecurityServiceClient,
+	riskCli riskv1.RiskServiceClient,
 	logger *slog.Logger,
 ) *AIModelQueryService {
 	return &AIModelQueryService{
@@ -243,19 +243,31 @@ func (q *AIModelQueryService) GetFraudScore(ctx context.Context, userID uint64, 
 		return FraudScoreDTO{}, fmt.Errorf("risk security service not available")
 	}
 
-	resp, err := q.riskCli.EvaluateRisk(ctx, &risksecurityv1.EvaluateRiskRequest{
-		UserId: userID,
-		Ip:     ip,
-		Amount: int64(amount * 100), // 转为分
+	resp, err := q.riskCli.EvaluateRisk(ctx, &riskv1.EvaluateRiskRequest{
+		UserId:     strconv.FormatUint(userID, 10),
+		IpAddress:  ip,
+		ActionType: "PAYMENT",
+		Context: map[string]string{
+			"amount": fmt.Sprintf("%.2f", amount),
+		},
 	})
 	if err != nil {
 		return FraudScoreDTO{}, err
 	}
 
+	riskScore := 0.0
+	isFraud := false
+	if resp.Strategy == "REJECT" || resp.RiskLevel == "CRITICAL" {
+		isFraud = true
+		riskScore = 0.9
+	} else if resp.Strategy == "CHALLENGE" || resp.RiskLevel == "HIGH" {
+		riskScore = 0.7
+	}
+
 	return FraudScoreDTO{
-		FraudScore:   float64(resp.Result.RiskScore) / 100.0,
-		IsFraudulent: resp.Result.RiskLevel > 3, // 假设 4 以上为风险
-		Reasons:      []string{"Real-time risk assessment completed"},
+		FraudScore:   riskScore,
+		IsFraudulent: isFraud,
+		Reasons:      []string{resp.Reason},
 	}, nil
 }
 

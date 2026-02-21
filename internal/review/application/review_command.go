@@ -8,7 +8,7 @@ import (
 
 	orderv1 "github.com/wyfcoding/ecommerce/go-api/order/v1"
 	"github.com/wyfcoding/ecommerce/internal/review/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/structures"
+	algorithm "github.com/wyfcoding/pkg/algos/structures"
 	"github.com/wyfcoding/pkg/contextx"
 	"github.com/wyfcoding/pkg/messagequeue"
 )

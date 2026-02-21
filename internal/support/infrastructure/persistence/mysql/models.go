@@ -7,6 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// --- Existing Ticket & P2P Models ---
+
 // TicketModel 工单写模型。
 type TicketModel struct {
 	gorm.Model
@@ -57,6 +59,72 @@ type ConversationMessageModel struct {
 	ReadAt         *time.Time         `gorm:"comment:阅读时间"`
 }
 
+// --- New Intelligent Support Models ---
+
+// KnowledgeBaseModel 知识库写模型。
+type KnowledgeBaseModel struct {
+	gorm.Model
+	KID         string `gorm:"column:k_id;type:varchar(64);uniqueIndex;not null;comment:知识库ID"`
+	Name        string `gorm:"type:varchar(128);not null;comment:名称"`
+	Description string `gorm:"type:varchar(255);comment:描述"`
+	Language    string `gorm:"type:varchar(32);comment:语言"`
+	IsActive    bool   `gorm:"default:true;comment:是否启用"`
+}
+
+// KnowledgeArticleModel 知识库文章写模型。
+type KnowledgeArticleModel struct {
+	gorm.Model
+	AID             string `gorm:"column:a_id;type:varchar(64);uniqueIndex;not null;comment:文章ID"`
+	KnowledgeBaseID string `gorm:"index;not null;comment:知识库ID"`
+	Title           string `gorm:"type:varchar(255);not null;comment:标题"`
+	Content         string `gorm:"type:text;not null;comment:内容"`
+	Keywords        string `gorm:"type:varchar(255);comment:关键词(逗号分隔)"`
+	Category        string `gorm:"type:varchar(64);comment:分类"`
+	IsActive        bool   `gorm:"default:true;comment:是否启用"`
+}
+
+// AIConversationModel AI会话写模型。
+type AIConversationModel struct {
+	gorm.Model
+	CID              string                    `gorm:"column:c_id;type:varchar(64);uniqueIndex;not null;comment:会话ID"`
+	UserID           uint64                    `gorm:"index;not null;comment:用户ID"`
+	Status           domain.ConversationStatus `gorm:"default:1;comment:状态"`
+	PrimaryIntent    domain.IntentCategory     `gorm:"comment:主意图"`
+	OverallSentiment domain.Sentiment          `gorm:"comment:整体情感"`
+	StartedAt        time.Time                 `gorm:"not null;comment:开始时间"`
+	EndedAt          *time.Time                `gorm:"comment:结束时间"`
+}
+
+// AIMessageModel AI消息写模型。
+type AIMessageModel struct {
+	gorm.Model
+	MID            string                `gorm:"column:m_id;type:varchar(64);uniqueIndex;not null;comment:消息ID"`
+	ConversationID string                `gorm:"index;not null;comment:会话ID"`
+	Sender         domain.MessageSender  `gorm:"not null;comment:发送者"`
+	Content        string                `gorm:"type:text;not null;comment:内容"`
+	Sentiment      domain.Sentiment      `gorm:"comment:情感倾向"`
+	Intent         domain.IntentCategory `gorm:"comment:意图"`
+	Confidence     float64               `gorm:"comment:置信度"`
+}
+
+// --- Table Names ---
+
+func (KnowledgeBaseModel) TableName() string {
+	return "support_knowledge_bases"
+}
+
+func (KnowledgeArticleModel) TableName() string {
+	return "support_knowledge_articles"
+}
+
+func (AIConversationModel) TableName() string {
+	return "support_ai_conversations"
+}
+
+func (AIMessageModel) TableName() string {
+	return "support_ai_messages"
+}
+
 func (TicketModel) TableName() string {
 	return "tickets"
 }
@@ -72,6 +140,8 @@ func (ConversationModel) TableName() string {
 func (ConversationMessageModel) TableName() string {
 	return "conversation_messages"
 }
+
+// --- Conversion Functions ---
 
 func toTicketModel(t *domain.Ticket) *TicketModel {
 	if t == nil {
@@ -226,5 +296,70 @@ func toConversationMessage(model *ConversationMessageModel) *domain.Conversation
 		Content:        model.Content,
 		IsRead:         model.IsRead,
 		ReadAt:         model.ReadAt,
+	}
+}
+
+func toKnowledgeBaseModel(kb *domain.KnowledgeBase) *KnowledgeBaseModel {
+	if kb == nil {
+		return nil
+	}
+	return &KnowledgeBaseModel{
+		Model: gorm.Model{
+			UpdatedAt: kb.UpdatedAt,
+			CreatedAt: kb.CreatedAt,
+		},
+		KID:         kb.ID,
+		Name:        kb.Name,
+		Description: kb.Description,
+		Language:    kb.Language,
+		IsActive:    kb.IsActive,
+	}
+}
+
+func toKnowledgeBase(m *KnowledgeBaseModel) *domain.KnowledgeBase {
+	if m == nil {
+		return nil
+	}
+	return &domain.KnowledgeBase{
+		ID:          m.KID,
+		Name:        m.Name,
+		Description: m.Description,
+		Language:    m.Language,
+		IsActive:    m.IsActive,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
+	}
+}
+
+func toAIConversationModel(c *domain.AIConversation) *AIConversationModel {
+	if c == nil {
+		return nil
+	}
+	return &AIConversationModel{
+		Model: gorm.Model{
+			CreatedAt: c.StartedAt,
+		},
+		CID:              c.ID,
+		UserID:           c.UserID,
+		Status:           c.Status,
+		PrimaryIntent:    c.PrimaryIntent,
+		OverallSentiment: c.OverallSentiment,
+		StartedAt:        c.StartedAt,
+		EndedAt:          c.EndedAt,
+	}
+}
+
+func toAIConversation(m *AIConversationModel) *domain.AIConversation {
+	if m == nil {
+		return nil
+	}
+	return &domain.AIConversation{
+		ID:               m.CID,
+		UserID:           m.UserID,
+		Status:           m.Status,
+		PrimaryIntent:    m.PrimaryIntent,
+		OverallSentiment: m.OverallSentiment,
+		StartedAt:        m.StartedAt,
+		EndedAt:          m.EndedAt,
 	}
 }

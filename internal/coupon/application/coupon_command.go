@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/wyfcoding/ecommerce/internal/coupon/domain"
-	algorithm "github.com/wyfcoding/pkg/algorithm/optimization"
+	couponopt "github.com/wyfcoding/ecommerce/internal/coupon/domain/optimizer"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 
@@ -16,7 +16,7 @@ type CouponCommandService struct {
 	repo      domain.CouponRepository
 	publisher messagequeue.EventPublisher
 	logger    *slog.Logger
-	optimizer *algorithm.CouponOptimizer
+	optimizer *couponopt.CouponOptimizer
 }
 
 // NewCouponCommandService 创建并返回一个新的 CouponCommandService 实例。
@@ -25,7 +25,7 @@ func NewCouponCommandService(repo domain.CouponRepository, publisher messagequeu
 		repo:      repo,
 		publisher: publisher,
 		logger:    logger,
-		optimizer: algorithm.NewCouponOptimizer(),
+		optimizer: couponopt.NewCouponOptimizer(),
 	}
 }
 
@@ -165,7 +165,7 @@ func (m *CouponCommandService) SuggestBestCoupons(ctx context.Context, userID ui
 		return []uint64{}, orderAmount, 0, nil
 	}
 
-	algoCoupons := make([]algorithm.Coupon, 0)
+	algoCoupons := make([]couponopt.Coupon, 0)
 	couponTemplateCache := make(map[uint64]*domain.Coupon)
 
 	for _, uc := range userCoupons {
@@ -187,13 +187,13 @@ func (m *CouponCommandService) SuggestBestCoupons(ctx context.Context, userID ui
 			continue
 		}
 
-		var algoType algorithm.CouponType
+		var algoType couponopt.CouponType
 		var discountRate float64
 		var reductionAmount int64
 
 		switch template.Type {
 		case domain.CouponTypeDiscount:
-			algoType = algorithm.CouponTypeDiscount
+			algoType = couponopt.CouponTypeDiscount
 			if template.DiscountAmount < 100 {
 				discountRate = float64(template.DiscountAmount) / 100.0
 			} else {
@@ -201,16 +201,16 @@ func (m *CouponCommandService) SuggestBestCoupons(ctx context.Context, userID ui
 			}
 		case domain.CouponTypeCash:
 			if template.MinOrderAmount > 0 {
-				algoType = algorithm.CouponTypeReduction
+				algoType = couponopt.CouponTypeReduction
 			} else {
-				algoType = algorithm.CouponTypeCash
+				algoType = couponopt.CouponTypeCash
 			}
 			reductionAmount = template.DiscountAmount
 		default:
 			continue
 		}
 
-		algoCoupons = append(algoCoupons, algorithm.Coupon{
+		algoCoupons = append(algoCoupons, couponopt.Coupon{
 			ID:              uint64(uc.ID),
 			Type:            algoType,
 			Threshold:       template.MinOrderAmount,

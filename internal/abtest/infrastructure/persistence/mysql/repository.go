@@ -147,8 +147,7 @@ func (r *abtestRepository) TrackEvent(ctx context.Context, experimentID, variati
 	return r.db.RawDB().WithContext(ctx).Create(m).Error
 }
 
-func (r *abtestRepository) GetResults(ctx context.Context, experimentID string) ([]*domain.VariationResult, error) {
-	var results []*domain.VariationResult
+func (r *abtestRepository) GetVariationStats(ctx context.Context, experimentID string) (map[string]*domain.VariationStats, error) {
 	// 统计参与人数
 	var partCount []struct {
 		VariationKey string
@@ -170,29 +169,21 @@ func (r *abtestRepository) GetResults(ctx context.Context, experimentID string) 
 		Group("variation_key").Scan(&convCount)
 
 	// 合并结果
-	mP := make(map[string]int64)
+	stats := make(map[string]*domain.VariationStats)
 	for _, p := range partCount {
-		mP[p.VariationKey] = p.Count
+		if _, ok := stats[p.VariationKey]; !ok {
+			stats[p.VariationKey] = &domain.VariationStats{VariationKey: p.VariationKey}
+		}
+		stats[p.VariationKey].SampleSize = p.Count
 	}
-	mC := make(map[string]int64)
 	for _, c := range convCount {
-		mC[c.VariationKey] = c.Count
+		if _, ok := stats[c.VariationKey]; !ok {
+			stats[c.VariationKey] = &domain.VariationStats{VariationKey: c.VariationKey}
+		}
+		stats[c.VariationKey].Conversions = c.Count
 	}
 
-	for k, p := range mP {
-		c := mC[k]
-		rate := 0.0
-		if p > 0 {
-			rate = float64(c) / float64(p)
-		}
-		results = append(results, &domain.VariationResult{
-			VariationKey:   k,
-			Participants:   p,
-			Conversions:    c,
-			ConversionRate: rate,
-		})
-	}
-	return results, nil
+	return stats, nil
 }
 
 func toExperimentDomain(m *ExperimentModel) *domain.Experiment {

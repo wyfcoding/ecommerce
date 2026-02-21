@@ -94,3 +94,48 @@ func (r *ledgerRepository) CreateJournalEntryInTx(ctx context.Context, tx any, e
 	*entry = *toJournalEntry(model)
 	return nil
 }
+
+func (r *ledgerRepository) Save(ctx context.Context, ledger *domain.Ledger) error {
+	model := toLedgerModel(ledger)
+	if model == nil {
+		return nil
+	}
+	if err := r.db.WithContext(ctx).Save(model).Error; err != nil {
+		return err
+	}
+	*ledger = *toLedger(model)
+	return nil
+}
+
+func (r *ledgerRepository) GetByID(ctx context.Context, id uint64) (*domain.Ledger, error) {
+	var model LedgerModel
+	if err := r.db.WithContext(ctx).First(&model, id).Error; err != nil {
+		return nil, err
+	}
+	return toLedger(&model), nil
+}
+
+func (r *ledgerRepository) GetBySettlementID(ctx context.Context, settlementID uint64) (*domain.Ledger, error) {
+	var model LedgerModel
+	if err := r.db.WithContext(ctx).Where("settlement_id = ?", settlementID).First(&model).Error; err != nil {
+		return nil, err
+	}
+	return toLedger(&model), nil
+}
+
+func (r *ledgerRepository) ListByMerchant(ctx context.Context, merchantID uint64, offset, limit int) ([]*domain.Ledger, int64, error) {
+	var models []LedgerModel
+	var count int64
+	db := r.db.WithContext(ctx).Model(&LedgerModel{}).Where("merchant_id = ?", merchantID)
+	if err := db.Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := db.Offset(offset).Limit(limit).Find(&models).Error; err != nil {
+		return nil, 0, err
+	}
+	ledgers := make([]*domain.Ledger, 0, len(models))
+	for i := range models {
+		ledgers = append(ledgers, toLedger(&models[i]))
+	}
+	return ledgers, count, nil
+}

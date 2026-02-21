@@ -15,7 +15,7 @@ import (
 	userredis "github.com/wyfcoding/ecommerce/internal/user/infrastructure/persistence/redis"
 	usergrpc "github.com/wyfcoding/ecommerce/internal/user/interfaces/grpc"
 	userhttp "github.com/wyfcoding/ecommerce/internal/user/interfaces/http"
-	"github.com/wyfcoding/pkg/algorithm/infra"
+	"github.com/wyfcoding/pkg/algos/infra"
 	"github.com/wyfcoding/pkg/app"
 	"github.com/wyfcoding/pkg/cache"
 	configpkg "github.com/wyfcoding/pkg/config"

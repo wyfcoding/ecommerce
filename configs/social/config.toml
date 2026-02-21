@@ -1,0 +1,6 @@
+[server]
+name = "social-service"
+
+[server.http]
+addr = ":8082"
+port = 8082

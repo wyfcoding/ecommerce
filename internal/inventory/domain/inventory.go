@@ -1,36 +1,70 @@
 package domain
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/wyfcoding/pkg/eventsourcing"
 )
 
-// 定义Inventory模块的业务错误。
-var (
-	ErrInsufficientStock = errors.New("insufficient stock")        // 库存不足以完成操作。
-	ErrNegativeQuantity  = errors.New("quantity must be positive") // 操作数量必须为正数。
+// StockType 库存类型
+type StockType int
+
+const (
+	Sellable  StockType = 1 // 可售库存
+	Reserved  StockType = 2 // 预占库存 (下单未支付)
+	Frozen    StockType = 3 // 冻结库存 (售后/风控)
+	Defective StockType = 4 // 残次品库存
 )
 
-// InventoryStatus 定义了库存的生命周期状态。
+// InventoryItem 核心库存实体
+type InventoryItem struct {
+	SKUID       string    `json:"sku_id"`
+	ProductID   string    `json:"product_id"`
+	Category    string    `json:"category"`
+	WarehouseID string    `json:"warehouse_id"`
+	Quantity    int64     `json:"quantity"`  // 当前数量
+	UnitCost    float64   `json:"unit_cost"` // 单位成本
+	Total       int64     `json:"total"`     // 物理总库存
+	Available   int64     `json:"available"` // 可售 = Total - Reserved - Frozen
+	Reserved    int64     `json:"reserved"`
+	Frozen      int64     `json:"frozen"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// DeductRequest 扣减请求
+type DeductRequest struct {
+	TxID        string // 幂等键
+	SKUID       string
+	WarehouseID string
+	Quantity    int64
+}
+
+// InventoryRepository 接口定义
+
+// InventoryStatus 库存状态
 type InventoryStatus int
 
 const (
-	InventoryStatusNormal     InventoryStatus = 1 // 正常：库存充足，无预警。
-	InventoryStatusLocked     InventoryStatus = 2 // 已锁定：部分库存被锁定，等待订单确认。
-	InventoryStatusWarning    InventoryStatus = 3 // 预警：库存量已低于警告阈值。
-	InventoryStatusOutOfStock InventoryStatus = 4 // 缺货：库存已用完。
+	InventoryStatusActive InventoryStatus = 1
+	InventoryStatusFrozen InventoryStatus = 2
 )
 
-// Inventory 实体是库存模块的聚合根。
-type Inventory struct {
-	ID        uint      `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+// HedgingConfig 对冲策略配置
+type HedgingConfig struct {
+	Enabled          bool    `json:"enabled"`
+	HedgeRatio       float64 `json:"hedge_ratio"`       // 对冲比例 (0.0 - 1.0)
+	InstrumentSymbol string  `json:"instrument_symbol"` // 对应金融产品的代码 (如 BTC-USDT-SWAP)
+	MinHedgeQty      int32   `json:"min_hedge_qty"`     // 最小对冲触发数量
+	AutoHedge        bool    `json:"auto_hedge"`        // 是否自动执行对冲
+}
 
+// Inventory 库存聚合根 (Write Model)
+// 注意：InventoryItem 是 Read Model / DTO，Inventory 是 Write Model Aggregate.
+// 之前版本中可能丢失了此定义，现进行恢复。
+type Inventory struct {
 	eventsourcing.AggregateRoot
+	DbID             uint64          `json:"id"`
 	SkuID            uint64          `json:"sku_id"`
 	ProductID        uint64          `json:"product_id"`
 	WarehouseID      uint64          `json:"warehouse_id"`
@@ -39,39 +73,64 @@ type Inventory struct {
 	TotalStock       int32           `json:"total_stock"`
 	Status           InventoryStatus `json:"status"`
 	WarningThreshold int32           `json:"warning_threshold"`
-	PersistenceVer   int64           `json:"version"` // 改名为 PersistenceVer 避免与 AggregateRoot.Version() 冲突
+	PersistenceVer   int64           `json:"persistence_ver"`
+	HedgingConfig    *HedgingConfig  `json:"hedging_config"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
-// GetID 返回聚合标识。
-func (inv *Inventory) GetID() string {
-	return inv.AggregateRoot.ID()
+func (i *Inventory) AggregateID() string {
+	return fmt.Sprintf("%d", i.SkuID)
 }
 
-// Apply 实现 eventsourcing.EventApplier 接口。
-func (inv *Inventory) Apply(event eventsourcing.DomainEvent) {
+func (i *Inventory) GetID() uint64 {
+	return i.DbID
+}
+
+func NewInventory(skuID, productID, warehouseID uint64, initialStock int32) *Inventory {
+	return &Inventory{
+		SkuID:          skuID,
+		ProductID:      productID,
+		WarehouseID:    warehouseID,
+		TotalStock:     initialStock,
+		AvailableStock: initialStock,
+		Status:         InventoryStatusActive,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+}
+
+// Apply 应用事件更新状态
+func (i *Inventory) Apply(event eventsourcing.DomainEvent) {
 	switch e := event.(type) {
 	case *StockLockedEvent:
-		inv.AvailableStock -= e.Quantity
-		inv.LockedStock += e.Quantity
+		i.LockedStock += e.Quantity
+		i.AvailableStock -= e.Quantity
 	case *StockUnlockedEvent:
-		inv.AvailableStock += e.Quantity
-		inv.LockedStock -= e.Quantity
+		i.LockedStock -= e.Quantity
+		i.AvailableStock += e.Quantity
 	case *StockDeductedEvent:
-		inv.AvailableStock -= e.Quantity
-		inv.TotalStock -= e.Quantity
+		// 假设扣减通常发生在预占之后（即Confirm），所以减少锁定和总库存
+		// 如果是直接扣减（非预占），则应减少可用和总库存
+		// 这里暂定为：扣减总库存。至于扣锁定还是可用，取决于业务逻辑调用 Deduct 时的上下文
+		// 简单起见，若有锁定则优先扣锁定
+		i.TotalStock -= e.Quantity
+		if i.LockedStock >= e.Quantity {
+			i.LockedStock -= e.Quantity
+		} else {
+			i.AvailableStock -= e.Quantity
+		}
 	case *StockAddedEvent:
-		inv.AvailableStock += e.Quantity
-		inv.TotalStock += e.Quantity
+		i.TotalStock += e.Quantity
+		i.AvailableStock += e.Quantity
+	case *HedgeConfigUpdatedEvent:
+		i.HedgingConfig = e.Config
 	}
-	inv.updateStatus()
-	inv.SetVersion(event.Version())
 }
 
-// InventoryLog 实体代表库存的一次操作日志。
+// InventoryLog 库存变更日志
 type InventoryLog struct {
-	ID             uint      `json:"id"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             uint64    `json:"id"`
 	InventoryID    uint64    `json:"inventory_id"`
 	SkuID          uint64    `json:"sku_id"`
 	Action         string    `json:"action"`
@@ -81,183 +140,136 @@ type InventoryLog struct {
 	OldLocked      int32     `json:"old_locked"`
 	NewLocked      int32     `json:"new_locked"`
 	Reason         string    `json:"reason"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-// NewInventory 创建并返回一个新的 Inventory 实体实例。
-func NewInventory(skuID, productID, warehouseID uint64, totalStock, warningThreshold int32) *Inventory {
-	inv := &Inventory{
-		SkuID:            skuID,
-		ProductID:        productID,
-		WarehouseID:      warehouseID,
-		AvailableStock:   totalStock,
-		LockedStock:      0,
-		TotalStock:       totalStock,
-		WarningThreshold: warningThreshold,
-		PersistenceVer:   1,
-	}
-	// 将 uint64 ID 转换为 string 设置给 AggregateRoot
-	inv.SetID(fmt.Sprintf("%d", skuID))
-	inv.updateStatus()
-	return inv
+// helper to apply and record
+func (i *Inventory) applyAndRecord(event eventsourcing.DomainEvent) {
+	i.Apply(event)
+	i.ApplyChange(event)
 }
 
-// Deduct 扣减指定数量的库存。
-func (inv *Inventory) Deduct(quantity int32, reason string) (*InventoryLog, error) {
+func (i *Inventory) Add(quantity int32, reason string) (*InventoryLog, error) {
 	if quantity <= 0 {
-		return nil, ErrNegativeQuantity
+		return nil, fmt.Errorf("quantity must be positive")
 	}
-	if inv.AvailableStock < quantity {
-		return nil, fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
-	}
-
-	base := eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version())
-	event := &StockDeductedEvent{
-		BaseEvent: base,
-		SkuID:     inv.SkuID,
-		Quantity:  quantity,
-		Reason:    reason,
-		Timestamp: base.Timestamp,
-	}
-	inv.ApplyChange(event)
-	inv.Apply(event)
-
-	return inv.createLog("Deduct", -quantity, inv.AvailableStock+quantity, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
-}
-
-// Lock 锁定指定数量的库存。
-func (inv *Inventory) Lock(quantity int32, reason string) (*InventoryLog, error) {
-	if quantity <= 0 {
-		return nil, ErrNegativeQuantity
-	}
-	if inv.AvailableStock < quantity {
-		return nil, fmt.Errorf("%w: available=%d, required=%d", ErrInsufficientStock, inv.AvailableStock, quantity)
-	}
-
-	base := eventsourcing.NewBaseEvent(StockLockedEventType, inv.GetID(), inv.AggregateRoot.Version())
-	event := &StockLockedEvent{
-		BaseEvent: base,
-		SkuID:     inv.SkuID,
-		Quantity:  quantity,
-		Reason:    reason,
-		Timestamp: base.Timestamp,
-	}
-	inv.ApplyChange(event)
-	inv.Apply(event)
-
-	return inv.createLog("Lock", 0, inv.AvailableStock+quantity, inv.AvailableStock, inv.LockedStock-quantity, inv.LockedStock, reason), nil
-}
-
-// Unlock 解锁指定数量的库存。
-func (inv *Inventory) Unlock(quantity int32, reason string) (*InventoryLog, error) {
-	if quantity <= 0 {
-		return nil, ErrNegativeQuantity
-	}
-	if inv.LockedStock < quantity {
-		return nil, fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
-	}
-
-	base := eventsourcing.NewBaseEvent(StockUnlockedEventType, inv.GetID(), inv.AggregateRoot.Version())
-	event := &StockUnlockedEvent{
-		BaseEvent: base,
-		SkuID:     inv.SkuID,
-		Quantity:  quantity,
-		Reason:    reason,
-		Timestamp: base.Timestamp,
-	}
-	inv.ApplyChange(event)
-	inv.Apply(event)
-
-	return inv.createLog("Unlock", 0, inv.AvailableStock-quantity, inv.AvailableStock, inv.LockedStock+quantity, inv.LockedStock, reason), nil
-}
-
-// ConfirmDeduction 确认扣减。
-func (inv *Inventory) ConfirmDeduction(quantity int32, reason string) (*InventoryLog, error) {
-	if quantity <= 0 {
-		return nil, ErrNegativeQuantity
-	}
-	if inv.LockedStock < quantity {
-		return nil, fmt.Errorf("%w: locked=%d, required=%d", ErrInsufficientStock, inv.LockedStock, quantity)
-	}
-
-	base := eventsourcing.NewBaseEvent(StockDeductedEventType, inv.GetID(), inv.AggregateRoot.Version())
-	event := &StockDeductedEvent{
-		BaseEvent: base,
-		SkuID:     inv.SkuID,
-		Quantity:  quantity,
-		Reason:    reason,
-		Timestamp: base.Timestamp,
-	}
-	inv.ApplyChange(event)
-	inv.Apply(event)
-
-	return inv.createLog("ConfirmDeduction", -quantity, inv.AvailableStock, inv.AvailableStock, inv.LockedStock+quantity, inv.LockedStock, reason), nil
-}
-
-// Add 增加库存。
-func (inv *Inventory) Add(quantity int32, reason string) (*InventoryLog, error) {
-	if quantity <= 0 {
-		return nil, ErrNegativeQuantity
-	}
-
-	base := eventsourcing.NewBaseEvent(StockAddedEventType, inv.GetID(), inv.AggregateRoot.Version())
 	event := &StockAddedEvent{
-		BaseEvent: base,
-		SkuID:     inv.SkuID,
+		BaseEvent: eventsourcing.NewBaseEvent(StockAddedEventType, i.ID(), i.Version()+1),
+		SkuID:     i.SkuID,
 		Quantity:  quantity,
 		Reason:    reason,
-		Timestamp: base.Timestamp,
+		Timestamp: time.Now(),
 	}
-	inv.ApplyChange(event)
-	inv.Apply(event)
+	i.applyAndRecord(event)
 
-	return inv.createLog("Add", quantity, inv.AvailableStock-quantity, inv.AvailableStock, inv.LockedStock, inv.LockedStock, reason), nil
-}
-
-// updateStatus 根据当前可用库存和总库存更新库存状态。
-func (inv *Inventory) updateStatus() {
-	if inv.TotalStock == 0 {
-		inv.Status = InventoryStatusOutOfStock
-	} else if inv.AvailableStock <= inv.WarningThreshold {
-		inv.Status = InventoryStatusWarning
-	} else {
-		inv.Status = InventoryStatusNormal
-	}
-}
-
-// createLog 创建一条库存操作日志对象。
-func (inv *Inventory) createLog(action string, changeQuantity, oldAvailable, newAvailable, oldLocked, newLocked int32, reason string) *InventoryLog {
-	log := &InventoryLog{
-		InventoryID:    uint64(inv.ID),
-		SkuID:          inv.SkuID,
-		Action:         action,
-		ChangeQuantity: changeQuantity,
-		OldAvailable:   oldAvailable,
-		NewAvailable:   newAvailable,
-		OldLocked:      oldLocked,
-		NewLocked:      newLocked,
+	return &InventoryLog{
+		InventoryID:    i.DbID,
+		SkuID:          i.SkuID,
+		ChangeQuantity: quantity,
+		NewAvailable:   i.AvailableStock,
+		Action:         "ADD",
 		Reason:         reason,
-	}
-	return log
+		CreatedAt:      time.Now(),
+	}, nil
 }
 
-// Warehouse 实体代表一个仓库。
-type Warehouse struct {
-	ID        uint      `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Name      string    `json:"name"`
-	Lat       float64   `json:"lat"`
-	Lon       float64   `json:"lon"`
-	Priority  int       `json:"priority"`
-	ShipCost  int64     `json:"ship_cost"`
+func (i *Inventory) Deduct(quantity int32, reason string) (*InventoryLog, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("quantity must be positive")
+	}
+	// Strict check? Assuming calling service checked available/locked logic.
+	// But aggregate should invariants.
+	if i.TotalStock < quantity {
+		return nil, fmt.Errorf("insufficient total stock")
+	}
+
+	event := &StockDeductedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockDeductedEventType, i.ID(), i.Version()+1),
+		SkuID:     i.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+		Timestamp: time.Now(),
+	}
+	i.applyAndRecord(event)
+
+	// Hedging Logic
+	if i.HedgingConfig != nil && i.HedgingConfig.Enabled {
+		hedgeEvent := &HedgeNeededEvent{
+			BaseEvent:    eventsourcing.NewBaseEvent(HedgeNeededEventType, i.ID(), i.Version()+1),
+			SkuID:        i.SkuID,
+			ChangeQty:    -quantity,
+			CurrentStock: i.TotalStock,
+			HedgeConfig:  i.HedgingConfig,
+		}
+		// Hedge event doesn't change state, but we record it
+		i.applyAndRecord(hedgeEvent)
+	}
+
+	return &InventoryLog{
+		InventoryID:    i.DbID,
+		SkuID:          i.SkuID,
+		ChangeQuantity: -quantity,
+		NewAvailable:   i.AvailableStock,
+		Action:         "DEDUCT",
+		Reason:         reason,
+		CreatedAt:      time.Now(),
+	}, nil
 }
 
-func NewWarehouse(name string, lat, lon float64, priority int, shipCost int64) *Warehouse {
-	return &Warehouse{
-		Name:     name,
-		Lat:      lat,
-		Lon:      lon,
-		Priority: priority,
-		ShipCost: shipCost,
+func (i *Inventory) Lock(quantity int32, reason string) (*InventoryLog, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("quantity must be positive")
 	}
+	if i.AvailableStock < quantity {
+		return nil, fmt.Errorf("insufficient available stock")
+	}
+	event := &StockLockedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockLockedEventType, i.ID(), i.Version()+1),
+		SkuID:     i.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+		Timestamp: time.Now(),
+	}
+	i.applyAndRecord(event)
+
+	return &InventoryLog{
+		InventoryID:    i.DbID,
+		SkuID:          i.SkuID,
+		ChangeQuantity: quantity,
+		NewLocked:      i.LockedStock,
+		Action:         "LOCK",
+		Reason:         reason,
+		CreatedAt:      time.Now(),
+	}, nil
+}
+
+func (i *Inventory) Unlock(quantity int32, reason string) (*InventoryLog, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("quantity must be positive")
+	}
+	if i.LockedStock < quantity {
+		return nil, fmt.Errorf("insufficient locked stock to unlock")
+	}
+	event := &StockUnlockedEvent{
+		BaseEvent: eventsourcing.NewBaseEvent(StockUnlockedEventType, i.ID(), i.Version()+1),
+		SkuID:     i.SkuID,
+		Quantity:  quantity,
+		Reason:    reason,
+		Timestamp: time.Now(),
+	}
+	i.applyAndRecord(event)
+
+	return &InventoryLog{
+		InventoryID:    i.DbID,
+		SkuID:          i.SkuID,
+		ChangeQuantity: -quantity,
+		Action:         "UNLOCK",
+		Reason:         reason,
+		CreatedAt:      time.Now(),
+	}, nil
+}
+
+func (i *Inventory) ConfirmDeduction(quantity int32, reason string) (*InventoryLog, error) {
+	return i.Deduct(quantity, reason)
 }

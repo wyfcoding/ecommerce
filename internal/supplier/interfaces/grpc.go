@@ -6,6 +6,7 @@ import (
 	pb "github.com/wyfcoding/ecommerce/go-api/supplier/v1"
 	"github.com/wyfcoding/ecommerce/internal/supplier/application"
 	"github.com/wyfcoding/ecommerce/internal/supplier/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type SupplierHandler struct {
@@ -19,7 +20,7 @@ func NewSupplierHandler(app *application.SupplierApplicationService, repo domain
 }
 
 func (h *SupplierHandler) RegisterSupplier(ctx context.Context, req *pb.RegisterSupplierRequest) (*pb.RegisterSupplierResponse, error) {
-	id, err := h.app.RegisterSupplier(ctx, req.Name, req.ContactName, req.ContactPhone, req.Email, req.Address, req.LicenseNo)
+	id, err := h.app.RegisterSupplier(ctx, req.Name, req.ContactName, req.ContactPhone, req.ContactEmail, req.Address, req.LicenseNo)
 	if err != nil {
 		return nil, err
 	}
@@ -27,35 +28,41 @@ func (h *SupplierHandler) RegisterSupplier(ctx context.Context, req *pb.Register
 }
 
 func (h *SupplierHandler) UpdateSupplierStatus(ctx context.Context, req *pb.UpdateSupplierStatusRequest) (*pb.UpdateSupplierStatusResponse, error) {
-	err := h.app.UpdateStatus(ctx, req.SupplierId, req.Status)
+	err := h.app.UpdateStatus(ctx, req.SupplierId, req.Status.String())
 	if err != nil {
 		return nil, err
 	}
 	return &pb.UpdateSupplierStatusResponse{Success: true}, nil
 }
 
-func (h *SupplierHandler) AddProductSupply(ctx context.Context, req *pb.AddProductSupplyRequest) (*pb.AddProductSupplyResponse, error) {
+func (h *SupplierHandler) AddProductSupply(ctx context.Context, req *pb.AddProductSupplyRequest) (*pb.ProductSupply, error) {
 	err := h.app.AddProductSupply(ctx, req.SupplierId, req.SkuId, req.Price, req.LeadTimeDays)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.AddProductSupplyResponse{Success: true}, nil
+	// Note: Application service version doesn't return the full object, so we return a partial one.
+	return &pb.ProductSupply{
+		SupplierId:   req.SupplierId,
+		SkuId:        req.SkuId,
+		Price:        req.Price,
+		LeadTimeDays: req.LeadTimeDays,
+	}, nil
 }
 
-func (h *SupplierHandler) GetSupplier(ctx context.Context, req *pb.GetSupplierRequest) (*pb.GetSupplierResponse, error) {
+func (h *SupplierHandler) GetSupplier(ctx context.Context, req *pb.GetSupplierRequest) (*pb.Supplier, error) {
 	s, err := h.repo.Get(ctx, req.SupplierId)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetSupplierResponse{
-		Supplier: &pb.Supplier{
-			SupplierId:  s.SupplierID,
-			Name:        s.Name,
-			Status:      s.Status.String(),
-			ContactName: s.ContactName,
-			CreatedAt:   s.CreatedAt.Format("2006-01-02 15:04:05"),
-			Rating:      s.Rating.InexactFloat64(),
-		},
+	// 将域模型映射到 pb 消息
+	return &pb.Supplier{
+		SupplierId:   s.SupplierID,
+		Name:         s.Name,
+		Status:       pb.SupplierStatus(s.Status),
+		ContactName:  s.ContactName,
+		ContactEmail: s.Email,
+		CreatedAt:    timestamppb.New(s.CreatedAt),
+		Rating:       s.Rating.InexactFloat64(),
 	}, nil
 }
 

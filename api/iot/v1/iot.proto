@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package api.iot.v1;
+
+option go_package = "github.com/wyfcoding/ecommerce/go-api/iot/v1;iotv1";
+
+service Service {
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}

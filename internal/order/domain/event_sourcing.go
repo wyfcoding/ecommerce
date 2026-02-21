@@ -34,6 +34,8 @@ const (
 	OrderEventTypeRefundRequested = "order.es.refund_requested"
 	// OrderEventTypeRefundApproved 表示订单退款完成事件（事件溯源专用）。
 	OrderEventTypeRefundApproved = "order.es.refund_approved"
+	// OrderEventTypeUpdated 表示订单通用更新事件（事件溯源专用）。
+	OrderEventTypeUpdated = "order.es.updated"
 )
 
 // OrderEventLog 定义事件溯源中的操作日志载荷。
@@ -202,8 +204,17 @@ type OrderRefundApprovedPayload struct {
 	OldStatus     pb.OrderStatus   `json:"old_status"`
 	NewStatus     pb.OrderStatus   `json:"new_status"`
 	PaymentStatus pb.PaymentStatus `json:"payment_status"`
-	RefundedAt    time.Time        `json:"refunded_at"`
+	RefundAmount  int64            `json:"refund_amount"`
+	ApprovedAt    time.Time        `json:"approved_at"`
 	Log           *OrderEventLog   `json:"log"`
+}
+
+// OrderMergedPayload 定义订单合并事件载荷。
+type OrderMergedPayload struct {
+	OrderID      uint64    `json:"order_id"`
+	OrderNo      string    `json:"order_no"`
+	MergeBatchNo string    `json:"merge_batch_no"`
+	MergedAt     time.Time `json:"merged_at"`
 }
 
 // RebuildOrderFromEvents 基于事件流重建订单聚合状态。
@@ -383,7 +394,10 @@ func ApplyOrderEvent(order *Order, event eventsourcing.DomainEvent) error {
 			order.PaymentStatus = pb.PaymentStatus_REFUND_SUCCESS
 		}
 		order.ShippingStatus = pb.ShippingStatus_EXCEPTION
+		order.RefundAmount = payload.RefundAmount
 		appendEventLog(order, payload.OrderID, payload.Log)
+	case OrderEventTypeUpdated:
+		// 通用更新事件，不做特殊处理，仅推进版本号
 	default:
 		return fmt.Errorf("unknown order event type: %s", event.EventType())
 	}

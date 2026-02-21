@@ -1,6 +1,9 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // NotificationRepository 是通知模块的仓储接口。
 // 它定义了对通知和通知模板实体进行数据持久化操作的契约。
@@ -20,6 +23,7 @@ type NotificationRepository interface {
 	CountUnreadNotifications(ctx context.Context, userID uint64) (int64, error)
 	DeleteNotification(ctx context.Context, id uint64) error
 	DeleteNotificationInTx(ctx context.Context, tx any, id uint64) error
+	GetNotificationsByDateRange(ctx context.Context, start, end time.Time) ([]*Notification, error)
 
 	// --- 模板 (NotificationTemplate methods) ---
 	SaveTemplate(ctx context.Context, template *NotificationTemplate) error

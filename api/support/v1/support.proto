@@ -6,114 +6,221 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/wyfcoding/ecommerce/go-api/support/v1;supportv1";
 
-// 客户服务系统，负责在线咨询工单的生命周期管理及座席交互。
+// 客户服务系统，负责在线咨询工单、智能客服以及知识库的生命周期管理。
 service SupportService {
-  // 创建一个反馈或求助工单。
+  // --- 工单管理 (Ticket Management) ---
   rpc CreateTicket(CreateTicketRequest) returns (TicketResponse);
-
-  // 通过 ID 查询工单状态及历史。
   rpc GetTicketByID(GetTicketByIDRequest) returns (TicketResponse);
-
-  // 更新工单的执行进度（如解决、关闭）。
   rpc UpdateTicketStatus(UpdateTicketStatusRequest) returns (TicketResponse);
-
-  // 用户或座席在工单内追加对话内容。
   rpc AddMessageToTicket(AddMessageToTicketRequest) returns (TicketMessageResponse);
-
-  // 获取单笔工单下的全量聊天记录流。
   rpc GetTicketMessages(GetTicketMessagesRequest) returns (GetTicketMessagesResponse);
+
+  // --- 知识库管理 (Knowledge Base) ---
+  rpc CreateKnowledgeBase(CreateKnowledgeBaseRequest) returns (KnowledgeBase);
+  rpc GetKnowledgeBase(GetKnowledgeBaseRequest) returns (KnowledgeBase);
+  rpc SearchKnowledgeArticles(SearchKnowledgeArticlesRequest) returns (SearchKnowledgeArticlesResponse);
+  
+  // --- 智能对话 (AI Conversation) ---
+  rpc StartAIConversation(StartAIConversationRequest) returns (Conversation);
+  rpc SendAIMessage(SendAIMessageRequest) returns (AIMessage);
+  rpc GetChatbotResponse(GetChatbotResponseRequest) returns (ChatbotResponse);
+  
+  // --- 智能分析 (AI Analytics) ---
+  rpc AnalyzeSentiment(AnalyzeSentimentRequest) returns (SentimentAnalysis);
+  rpc GetIntent(GetIntentRequest) returns (IntentResult);
 }
 
-// 工单档案。
+// --- 通用定义 (Common Definitions) ---
+
+enum ConversationStatus {
+  CONVERSATION_STATUS_UNSPECIFIED = 0;
+  ACTIVE = 1;
+  ENDED = 2;
+  TRANSFERRED = 3;
+}
+
+enum MessageSender {
+  MESSAGE_SENDER_UNSPECIFIED = 0;
+  USER = 1;
+  BOT = 2;
+  AGENT = 3;
+}
+
+enum Sentiment {
+  SENTIMENT_UNSPECIFIED = 0;
+  VERY_NEGATIVE = 1;
+  NEGATIVE = 2;
+  NEUTRAL = 3;
+  POSITIVE = 4;
+  VERY_POSITIVE = 5;
+}
+
+enum IntentCategory {
+  INTENT_CATEGORY_UNSPECIFIED = 0;
+  ORDER_INQUIRY = 1;
+  PRODUCT_QUESTION = 2;
+  RETURN_REFUND = 3;
+  PAYMENT_ISSUE = 4;
+  SHIPPING_TRACKING = 5;
+  ACCOUNT_ISSUE = 6;
+  COMPLAINT = 7;
+  GENERAL_INQUIRY = 8;
+  OTHER = 9;
+}
+
+// --- 工单消息 (Ticket Messages) ---
+
 message TicketInfo {
-  // 工单唯一 ID。
   uint64 ticket_id = 1;
-  // 发起人 ID。
   uint64 user_id = 2;
-  // 简要主题。
   string subject = 3;
-  // 详细详情。
   string description = 4;
-  // 状态。
   string status = 5;
-  // 创建时间。
   google.protobuf.Timestamp created_at = 6;
-  // 最后活动时间。
   google.protobuf.Timestamp updated_at = 7;
 }
 
-// 对话消息单元。
 message TicketMessage {
-  // 消息唯一 ID。
   uint64 message_id = 1;
-  // 关联工单 ID。
   uint64 ticket_id = 2;
-  // 发件人 ID。
   uint64 sender_id = 3;
-  // 发件人角色 (USER, AGENT)。
   string sender_type = 4;
-  // 对话文字。
   string message_body = 5;
-  // 发送时间。
   google.protobuf.Timestamp sent_at = 6;
 }
 
-// 创建工单请求。
-message CreateTicketRequest {
-  // 用户 ID。
+// --- 知识库消息 (Knowledge Base Messages) ---
+
+message KnowledgeBase {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string language = 4;
+  bool is_active = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message CreateKnowledgeBaseRequest {
+  string name = 1;
+  string description = 2;
+  string language = 3;
+}
+
+message GetKnowledgeBaseRequest {
+  string id = 1;
+}
+
+message SearchKnowledgeArticlesRequest {
+  string query = 1;
+  int32 limit = 2;
+}
+
+message SearchKnowledgeArticlesResponse {
+  repeated KnowledgeArticle articles = 1;
+}
+
+message KnowledgeArticle {
+  string id = 1;
+  string title = 2;
+  string content = 3;
+  float score = 4;
+}
+
+// --- AI 会话消息 (AI Conversation Messages) ---
+
+message Conversation {
+  string id = 1;
+  uint64 user_id = 2;
+  ConversationStatus status = 3;
+  google.protobuf.Timestamp started_at = 4;
+}
+
+message AIMessage {
+  string id = 1;
+  string conversation_id = 2;
+  MessageSender sender = 3;
+  string content = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message StartAIConversationRequest {
   uint64 user_id = 1;
-  // 标题。
+  string initial_message = 2;
+}
+
+message SendAIMessageRequest {
+  string conversation_id = 1;
+  string content = 2;
+}
+
+message GetChatbotResponseRequest {
+  string conversation_id = 1;
+  string user_message = 2;
+}
+
+message ChatbotResponse {
+  string response_text = 1;
+  IntentCategory detected_intent = 2;
+  float confidence = 3;
+}
+
+// --- 智能分析消息 (AI Analysis Messages) ---
+
+message AnalyzeSentimentRequest {
+  string text = 1;
+}
+
+message SentimentAnalysis {
+  Sentiment sentiment = 1;
+  float confidence = 2;
+}
+
+message GetIntentRequest {
+  string text = 1;
+}
+
+message IntentResult {
+  IntentCategory intent = 1;
+  float confidence = 2;
+  string suggested_response = 3;
+}
+
+// --- Legacy 兼容定义 (Legacy Ticket Messages) ---
+
+message CreateTicketRequest {
+  uint64 user_id = 1;
   string subject = 2;
-  // 内容正文。
   string description = 3;
 }
 
-// 查询响应。
 message TicketResponse {
-  // 工单档案。
   TicketInfo ticket = 1;
 }
 
-// 查询请求。
 message GetTicketByIDRequest {
-  // 目标 ID。
   uint64 ticket_id = 1;
 }
 
-// 状态更新。
 message UpdateTicketStatusRequest {
-  // 工单 ID。
   uint64 ticket_id = 1;
-  // 目标状态。
   string status = 2;
 }
 
-// 发送消息。
 message AddMessageToTicketRequest {
-  // 工单 ID。
   uint64 ticket_id = 1;
-  // 发送方。
   uint64 sender_id = 2;
-  // 发送角色。
   string sender_type = 3;
-  // 消息体。
   string message_body = 4;
 }
 
-// 消息响应。
 message TicketMessageResponse {
-  // 对话单元。
   TicketMessage message = 1;
 }
 
-// 历史对话查询。
 message GetTicketMessagesRequest {
-  // 工单 ID。
   uint64 ticket_id = 1;
 }
 
-// 历史对话响应。
 message GetTicketMessagesResponse {
-  // 消息记录序列。
   repeated TicketMessage messages = 1;
 }

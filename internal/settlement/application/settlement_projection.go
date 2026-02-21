@@ -43,8 +43,8 @@ func (s *SettlementProjectionService) OnSettlementCompleted(ctx context.Context,
 }
 
 // OnSettlementFailed 处理结算失败事件。
-func (s *SettlementProjectionService) OnSettlementFailed(ctx context.Context, event *domain.SettlementFailedEvent) error {
-	return s.refreshReadModel(ctx, event.SettlementNo)
+func (s *SettlementProjectionService) OnSettlementFailed(ctx context.Context, event *domain.SettlementPaymentFailedEvent) error {
+	return s.refreshReadModel(ctx, event.SettlementID)
 }
 
 func (s *SettlementProjectionService) refreshReadModel(ctx context.Context, settlementNo string) error {

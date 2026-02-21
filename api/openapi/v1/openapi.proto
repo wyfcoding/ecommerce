@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package openapi.v1;
 
-import "google/protobuf/timestamp.proto";
-
 option go_package = "github.com/wyfcoding/ecommerce/go-api/openapi/v1;openapiv1";
 
 // OpenApiService 开放平台服务

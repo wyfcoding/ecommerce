@@ -22,6 +22,9 @@ service AftersalesService {
   // 列表查询售后申请。
   rpc ListReturnRequests(ListReturnRequestsRequest) returns (ListReturnRequestsResponse);
 
+  // 记录质检结果。
+  rpc LogQCResult(LogQCResultRequest) returns (ReturnRequestResponse);
+
   // 执行最终的资金原路退回操作。
   rpc ProcessRefund(ProcessRefundRequest) returns (RefundResponse);
 
@@ -90,9 +93,19 @@ enum ReturnRequestStatus {
   RETURN_REQUEST_STATUS_REJECTED = 3; // 已驳回
   RETURN_REQUEST_STATUS_SHIPPED_BACK = 4; // 用户已寄回
   RETURN_REQUEST_STATUS_RECEIVED = 5; // 仓库已确认收货
-  RETURN_REQUEST_STATUS_REFUNDED = 6; // 已完成退款
-  RETURN_REQUEST_STATUS_EXCHANGED = 7; // 已发出换货商品
-  RETURN_REQUEST_STATUS_CLOSED = 8; // 流程关闭
+  RETURN_REQUEST_STATUS_QC_PASSED = 6; // 质检通过
+  RETURN_REQUEST_STATUS_QC_FAILED = 7; // 质检不通过
+  RETURN_REQUEST_STATUS_REFUNDED = 8; // 已完成退款
+  RETURN_REQUEST_STATUS_EXCHANGED = 9; // 已发出换货商品
+  RETURN_REQUEST_STATUS_CLOSED = 10; // 流程关闭
+}
+
+// 售后申请商品项。
+message ReturnItem {
+  uint64 sku_id = 1;
+  int32 quantity = 2;
+  string reason = 3;
+  repeated string image_urls = 4;
 }
 
 // 售后申请单。
@@ -103,8 +116,6 @@ message ReturnRequest {
   uint64 user_id = 2;
   // 关联原订单 ID。
   uint64 order_id = 3;
-  // 关联原订单项 ID。
-  uint64 order_item_id = 4;
   // 类型。
   ReturnRequestType request_type = 5;
   // 当前状态。
@@ -121,6 +132,8 @@ message ReturnRequest {
   string tracking_number = 11;
   // 建议退货地址。
   string return_address = 12;
+  // 售后明细项。
+  repeated ReturnItem items = 15;
   // 提交时间。
   google.protobuf.Timestamp created_at = 13;
   // 最后更新时间。
@@ -133,16 +146,14 @@ message CreateReturnRequestRequest {
   uint64 user_id = 1;
   // 订单 ID。
   uint64 order_id = 2;
-  // 订单项 ID。
-  uint64 order_item_id = 3;
   // 申请类型。
   ReturnRequestType request_type = 4;
   // 原因。
   string reason = 5;
   // 详情描述。
   optional string description = 6;
-  // 图片列表。
-  repeated string image_urls = 7;
+  // 商品列表。
+  repeated ReturnItem items = 7;
 }
 
 // 售后详情请求。
@@ -458,4 +469,11 @@ message SetAftersalesConfigRequest {
   string value = 2;
   // 说明。
   string description = 3;
+}
+
+// 质检结果请求。
+message LogQCResultRequest {
+  uint64 id = 1;
+  bool passed = 2;
+  string notes = 3;
 }

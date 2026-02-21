@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/wyfcoding/ecommerce/go-api/payment/v1"
-	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
+	riskv1 "github.com/wyfcoding/ecommerce/go-api/risk/v1"
 	settlementv1 "github.com/wyfcoding/ecommerce/go-api/settlement/v1"
 	"github.com/wyfcoding/ecommerce/internal/payment/application"
 	"github.com/wyfcoding/ecommerce/internal/payment/domain"
@@ -72,12 +72,12 @@ type AppContext struct {
 type ServiceClients struct {
 	SettlementConn   *grpc.ClientConn `service:"settlement"`
 	OrderConn        *grpc.ClientConn `service:"order"`
-	RiskSecurityConn *grpc.ClientConn `service:"risksecurity"`
+	RiskSecurityConn *grpc.ClientConn `service:"risk"`
 	AccountConn      *grpc.ClientConn `service:"account"` // FinancialTrading Account Service
 
 	// 具体的客户端接口 (由 Conn 转化)
 	Settlement   settlementv1.SettlementServiceClient
-	RiskSecurity risksecurityv1.RiskSecurityServiceClient
+	RiskSecurity riskv1.RiskServiceClient
 	Account      accountv1.AccountServiceClient
 }
 
@@ -251,7 +251,7 @@ func initService(cfg *Config, m *metrics.Metrics) (*AppContext, func(), error) {
 		clients.Settlement = settlementv1.NewSettlementServiceClient(clients.SettlementConn)
 	}
 	if clients.RiskSecurityConn != nil {
-		clients.RiskSecurity = risksecurityv1.NewRiskSecurityServiceClient(clients.RiskSecurityConn)
+		clients.RiskSecurity = riskv1.NewRiskServiceClient(clients.RiskSecurityConn)
 	}
 	if clients.AccountConn != nil {
 		clients.Account = accountv1.NewAccountServiceClient(clients.AccountConn)

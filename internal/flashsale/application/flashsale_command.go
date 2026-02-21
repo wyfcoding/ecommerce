@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
-	risksecurityv1 "github.com/wyfcoding/ecommerce/go-api/risksecurity/v1"
+	riskv1 "github.com/wyfcoding/ecommerce/go-api/risk/v1"
 	"github.com/wyfcoding/ecommerce/internal/flashsale/domain"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"
@@ -20,7 +21,7 @@ type FlashSaleCommandService struct {
 	publisher  messagequeue.EventPublisher
 	idGen      idgen.Generator
 	logger     *slog.Logger
-	riskClient risksecurityv1.RiskSecurityServiceClient
+	riskClient riskv1.RiskServiceClient
 }
 
 // NewFlashSaleCommandService 构造函数。
@@ -30,7 +31,7 @@ func NewFlashSaleCommandService(
 	publisher messagequeue.EventPublisher,
 	idGen idgen.Generator,
 	logger *slog.Logger,
-	riskClient risksecurityv1.RiskSecurityServiceClient,
+	riskClient riskv1.RiskServiceClient,
 ) *FlashSaleCommandService {
 	return &FlashSaleCommandService{
 		repo:       repo,
@@ -95,12 +96,12 @@ func (m *FlashSaleCommandService) PlaceOrder(ctx context.Context, userID, flashs
 
 	// 2. 风控检查
 	if m.riskClient != nil {
-		riskResp, err := m.riskClient.EvaluateRisk(ctx, &risksecurityv1.EvaluateRiskRequest{
-			UserId: userID,
-			Amount: int64(flashsale.FlashPrice) * int64(quantity),
+		riskResp, err := m.riskClient.EvaluateRisk(ctx, &riskv1.EvaluateRiskRequest{
+			UserId:     strconv.FormatUint(userID, 10),
+			ActionType: "ORDER_PLACE",
 		})
-		if err == nil && riskResp.Result != nil && riskResp.Result.RiskLevel > 2 {
-			m.logger.WarnContext(ctx, "risk check rejected", "user_id", userID, "risk_level", riskResp.Result.RiskLevel)
+		if err == nil && (riskResp.Strategy == "REJECT" || riskResp.RiskLevel == "CRITICAL") {
+			m.logger.WarnContext(ctx, "risk check rejected", "user_id", userID, "risk_level", riskResp.RiskLevel)
 			return nil, errors.New("risk check rejected")
 		}
 	}

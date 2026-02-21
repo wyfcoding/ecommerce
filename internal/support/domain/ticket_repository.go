@@ -25,6 +25,7 @@ type TicketRepository interface {
 		TicketCount float64
 		AvgPriority float64
 	}, error)
+	GetTicketsForAutomation(ctx context.Context) ([]*Ticket, error)
 
 	// Ticket Message
 	SaveMessage(ctx context.Context, message *Message) error
@@ -40,4 +41,18 @@ type TicketRepository interface {
 	SaveConversationMessageInTx(ctx context.Context, tx any, message *ConversationMessage) error
 	GetConversationMessage(ctx context.Context, id uint64) (*ConversationMessage, error)
 	ListConversationMessages(ctx context.Context, conversationID uint64, offset, limit int) ([]*ConversationMessage, int64, error)
+
+	// --- Intelligent Support (KB & AI Chat) ---
+
+	// Knowledge Base
+	SaveKnowledgeBase(ctx context.Context, kb *KnowledgeBase) error
+	GetKnowledgeBase(ctx context.Context, id string) (*KnowledgeBase, error)
+	GetKnowledgeArticle(ctx context.Context, id string) (*KnowledgeArticle, error)
+	SearchKnowledgeArticles(ctx context.Context, query string, limit int) ([]*KnowledgeArticle, error)
+
+	// AI Conversation
+	SaveAIConversation(ctx context.Context, conversation *AIConversation) error
+	GetAIConversation(ctx context.Context, id string) (*AIConversation, error)
+	SaveAIMessage(ctx context.Context, message *AIMessage) error
+	ListAIMessages(ctx context.Context, conversationID string) ([]*AIMessage, error)
 }

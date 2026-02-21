@@ -51,7 +51,7 @@ func (h *SettlementProjectionHandler) Handle(ctx context.Context, msg kafka.Mess
 		}
 		return h.projector.OnSettlementCompleted(ctx, &event)
 	case "settlement.failed":
-		var event domain.SettlementFailedEvent
+		var event domain.SettlementPaymentFailedEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
 			h.logger.ErrorContext(ctx, "failed to unmarshal settlement failed event", "error", err)
 			return err

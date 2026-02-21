@@ -210,21 +210,82 @@ func (so *SubscriptionOrder) ResumeSubscription() {
 	so.updateNextDeliveryDate()
 }
 
-// updateNextDeliveryDate 更新下次配送日期
-func (so *SubscriptionOrder) updateNextDeliveryDate() {
-	var interval time.Duration
-	switch so.Plan.Cycle {
-	case SubscriptionCycleWeekly:
-		interval = 7 * 24 * time.Hour
-	case SubscriptionCycleBiweekly:
-		interval = 14 * 24 * time.Hour
-	case SubscriptionCycleMonthly:
-		interval = 30 * 24 * time.Hour
-	case SubscriptionCycleQuarterly:
-		interval = 90 * 24 * time.Hour
-	}
-	so.Plan.NextDeliveryDate = time.Now().Add(interval)
+// --- 订单合并功能 ---
+
+// OrderMergeInfo 记录订单合并的相关元数据
+type OrderMergeInfo struct {
+	ID            uint64    `json:"id"`
+	MergeBatchNo  string    `json:"merge_batch_no"`  // 合并批次号
+	MasterOrderID uint64    `json:"master_order_id"` // 主订单ID（合并后的代表）
+	OrderIDs      []uint64  `json:"order_ids"`       // 被合并的子订单ID列表
+	UserID        uint64    `json:"user_id"`
+	MerchantID    uint64    `json:"merchant_id"`
+	MergedAt      time.Time `json:"merged_at"`
+	Status        string    `json:"status"` // PENDING, PROCESSED, CANCELLED
 }
+
+// CanMerge 验证两个订单是否可以合并
+// 规则：同一用户、同一商家、且收货地址完全一致，且状态均为 PENDING_SHIPMENT
+func (o *Order) CanMerge(other *Order) error {
+	if o.UserID != other.UserID {
+		return fmt.Errorf("user ID mismatch")
+	}
+	// 获取商家ID（简单起见取第一个条目的商家ID，通常订单内商家一致）
+	if len(o.Items) == 0 || len(other.Items) == 0 {
+		return fmt.Errorf("empty order items")
+	}
+	if o.Items[0].MerchantID != other.Items[0].MerchantID {
+		return fmt.Errorf("merchant ID mismatch")
+	}
+	if o.Status != pb.OrderStatus_PAID || other.Status != pb.OrderStatus_PAID {
+		return fmt.Errorf("only PAID orders can be merged")
+	}
+	if o.ShippingStatus >= pb.ShippingStatus_SHIPPING_SHIPPED || other.ShippingStatus >= pb.ShippingStatus_SHIPPING_SHIPPED {
+		return fmt.Errorf("order already shipped")
+	}
+
+	// 校验地址一致性
+	if o.ShippingAddress.RecipientName != other.ShippingAddress.RecipientName ||
+		o.ShippingAddress.PhoneNumber != other.ShippingAddress.PhoneNumber ||
+		o.ShippingAddress.DetailedAddress != other.ShippingAddress.DetailedAddress {
+		return fmt.Errorf("shipping address mismatch")
+	}
+
+	return nil
+}
+
+// MergeOrders 执行订单合并操作，返回合并批次号
+func MergeOrders(ctx context.Context, orders []*Order, batchNo string, operator string) error {
+	if len(orders) < 2 {
+		return fmt.Errorf("至少需要两个订单才能合并")
+	}
+
+	// 检查所有订单是否可以合并
+	baseOrder := orders[0]
+	for i := 1; i < len(orders); i++ {
+		if err := baseOrder.CanMerge(orders[i]); err != nil {
+			return fmt.Errorf("订单 %s 无法合并: %v", orders[i].OrderNo, err)
+		}
+	}
+
+	// 设置合并批次号
+	for _, order := range orders {
+		order.MergeBatchNo = batchNo
+		order.AddLog(operator, "ORDER_MERGED", order.Status.String(), order.Status.String(),
+			fmt.Sprintf("合并到批次: %s，共 %d 个订单", batchNo, len(orders)))
+	}
+
+	return nil
+}
+
+// --- 订单备注/标签系统 (针对清单第三项已在 domain/order.go 定义) ---
+
+// SetTags 设置订单标签 (JSON)
+func (o *Order) SetTags(tags string) {
+	o.Tags = tags
+}
+
+// 注意：SetRiskScore 方法已经在 order.go 中定义，此处不再重复定义
 
 // --- 分期付款订单 ---
 
@@ -633,4 +694,27 @@ func (po *ProxyPurchaseOrder) UpdateCustomsStatus(ctx context.Context, status st
 	po.ActualAmount += duty
 	po.AddLog(operator, "CUSTOMS_UPDATE", po.Status.String(), po.Status.String(), fmt.Sprintf("Customs: %s, Duty: %d", status, duty))
 	return nil
+}
+
+// updateNextDeliveryDate 更新下次配送日期（辅助函数）
+func (so *SubscriptionOrder) updateNextDeliveryDate() {
+	if so.Plan == nil {
+		return
+	}
+
+	var nextDate time.Time
+	switch so.Plan.Cycle {
+	case SubscriptionCycleWeekly:
+		nextDate = time.Now().AddDate(0, 0, 7)
+	case SubscriptionCycleBiweekly:
+		nextDate = time.Now().AddDate(0, 0, 14)
+	case SubscriptionCycleMonthly:
+		nextDate = time.Now().AddDate(0, 1, 0)
+	case SubscriptionCycleQuarterly:
+		nextDate = time.Now().AddDate(0, 3, 0)
+	default:
+		nextDate = time.Now().AddDate(0, 1, 0)
+	}
+
+	so.Plan.NextDeliveryDate = nextDate
 }

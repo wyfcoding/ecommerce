@@ -1,7 +1,7 @@
 package network
 
 import (
-	algorithm "github.com/wyfcoding/pkg/algorithm/graph"
+	algorithm "github.com/wyfcoding/pkg/algos/graph"
 )
 
 // TransportLink 代表运输路径，包含起点、终点、容量上限和单位运输成本。

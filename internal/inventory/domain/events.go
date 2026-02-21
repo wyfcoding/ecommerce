@@ -18,10 +18,10 @@ const (
 // StockLockedEvent 库存锁定事件
 type StockLockedEvent struct {
 	eventsourcing.BaseEvent
-	SkuID      uint64    `json:"sku_id"`
-	Quantity   int32     `json:"quantity"`
-	Reason     string    `json:"reason"`
-	Timestamp  time.Time `json:"timestamp"`
+	SkuID     uint64    `json:"sku_id"`
+	Quantity  int32     `json:"quantity"`
+	Reason    string    `json:"reason"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 func (e *StockLockedEvent) EventType() string { return StockLockedEventType }
@@ -69,3 +69,27 @@ type StockWarningEvent struct {
 }
 
 func (e *StockWarningEvent) EventType() string { return StockWarningEventType }
+
+// HedgeConfigUpdatedEvent 对冲配置更新事件
+type HedgeConfigUpdatedEvent struct {
+	eventsourcing.BaseEvent
+	Config *HedgingConfig `json:"config"`
+}
+
+func (e *HedgeConfigUpdatedEvent) EventType() string { return HedgeConfigUpdatedEventType }
+
+const (
+	HedgeConfigUpdatedEventType = "inventory.hedge.config_updated"
+	HedgeNeededEventType        = "inventory.hedge.needed"
+)
+
+// HedgeNeededEvent 对冲触发事件
+type HedgeNeededEvent struct {
+	eventsourcing.BaseEvent
+	SkuID        uint64         `json:"sku_id"`
+	ChangeQty    int32          `json:"change_qty"`    // 变动数量 (负数表示扣减)
+	CurrentStock int32          `json:"current_stock"` // 当前总库存
+	HedgeConfig  *HedgingConfig `json:"hedge_config"`
+}
+
+func (e *HedgeNeededEvent) EventType() string { return HedgeNeededEventType }

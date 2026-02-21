@@ -23,8 +23,7 @@ func NewServer(svc *application.ReportService, logger *slog.Logger) pb.ReportCen
 }
 
 func (s *Server) GetSalesReport(ctx context.Context, req *pb.GetSalesReportRequest) (*pb.SalesReport, error) {
-	// 示例简化：由于 application 层聚合还未完成，先返回空
-	return &pb.SalesReport{}, nil
+	return s.svc.GetSalesReport(ctx, req)
 }
 
 func (s *Server) GetInventoryHealth(ctx context.Context, req *pb.GetInventoryHealthRequest) (*pb.InventoryHealthReport, error) {
@@ -32,13 +31,15 @@ func (s *Server) GetInventoryHealth(ctx context.Context, req *pb.GetInventoryHea
 }
 
 func (s *Server) GetLowStockAlerts(ctx context.Context, _ *emptypb.Empty) (*pb.LowStockAlertsResponse, error) {
-	// TODO: 实现具体查询逻辑
-	return &pb.LowStockAlertsResponse{}, nil
+	alerts, err := s.svc.GetLowStockAlerts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.LowStockAlertsResponse{Alerts: alerts}, nil
 }
 
 func (s *Server) GetFinancialSummary(ctx context.Context, req *pb.GetFinancialSummaryRequest) (*pb.FinancialSummary, error) {
-	// TODO: 实现具体聚合逻辑
-	return &pb.FinancialSummary{}, nil
+	return s.svc.GetFinancialSummary(ctx, req)
 }
 
 func (s *Server) CreateCustomReport(ctx context.Context, req *pb.CreateCustomReportRequest) (*pb.CustomReport, error) {

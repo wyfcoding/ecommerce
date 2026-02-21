@@ -46,10 +46,14 @@ func (h *Handler) CreateRule(c *gin.Context) {
 
 func (h *Handler) CalculatePrice(c *gin.Context) {
 	var req struct {
-		ProductID   uint64  `json:"product_id" binding:"required"`
-		SkuID       uint64  `json:"sku_id" binding:"required"`
-		Demand      float64 `json:"demand"`
-		Competition float64 `json:"competition"`
+		ProductID          uint64 `json:"product_id"`
+		SkuID              uint64 `json:"sku_id" binding:"required"`
+		BasePrice          int64  `json:"base_price"`
+		CurrentStock       int32  `json:"current_stock"`
+		TotalStock         int32  `json:"total_stock"`
+		DailyDemand        int32  `json:"daily_demand"`
+		AverageDailyDemand int32  `json:"average_daily_demand"`
+		CompetitorPrice    int64  `json:"competitor_price"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,14 +61,24 @@ func (h *Handler) CalculatePrice(c *gin.Context) {
 		return
 	}
 
-	price, err := h.query.CalculatePrice(c.Request.Context(), req.ProductID, req.SkuID, req.Demand, req.Competition)
+	pricingReq := &domain.PricingRequest{
+		SKUID:              req.SkuID,
+		BasePrice:          req.BasePrice,
+		CurrentStock:       req.CurrentStock,
+		TotalStock:         req.TotalStock,
+		DailyDemand:        req.DailyDemand,
+		AverageDailyDemand: req.AverageDailyDemand,
+		CompetitorPrice:    req.CompetitorPrice,
+	}
+
+	price, err := h.cmd.CalculateDynamicPrice(c.Request.Context(), pricingReq)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to calculate price", "error", err)
+		h.logger.ErrorContext(c.Request.Context(), "Failed to calculate dynamic price", "error", err)
 		response.ErrorWithStatus(c, http.StatusInternalServerError, "Failed to calculate price", err.Error())
 		return
 	}
 
-	response.SuccessWithStatus(c, http.StatusOK, "Price calculated successfully", gin.H{"price": price})
+	response.SuccessWithStatus(c, http.StatusOK, "Price calculated successfully", price)
 }
 
 func (h *Handler) ListRules(c *gin.Context) {

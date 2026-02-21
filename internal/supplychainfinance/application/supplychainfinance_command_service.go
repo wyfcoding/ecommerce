@@ -11,24 +11,27 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/wyfcoding/ecommerce/internal/supplychainfinance/domain"
+	ftriskpb "github.com/wyfcoding/financialtrading/go-api/risk/v1"
 	"github.com/wyfcoding/pkg/idgen"
 	"github.com/wyfcoding/pkg/messagequeue"
 )
 
 // SupplyChainFinanceCommandService 供应链金融命令服务
 type SupplyChainFinanceCommandService struct {
-	applicationRepo     domain.FinanceApplicationRepository
-	creditLineRepo      domain.CreditLineRepository
-	invoiceFinanceRepo  domain.InvoiceFinancingRepository
-	supplierRiskRepo    domain.SupplierRiskProfileRepository
-	buyerRiskRepo       domain.BuyerRiskProfileRepository
-	collateralRepo      domain.CollateralRepository
-	guaranteeRepo       domain.GuaranteeRepository
-	repaymentPlanRepo   domain.RepaymentPlanRepository
-	accountRepo         domain.FinanceAccountRepository
-	eventBus            messagequeue.EventBus
-	logger              *slog.Logger
+	applicationRepo    domain.FinanceApplicationRepository
+	creditLineRepo     domain.CreditLineRepository
+	invoiceFinanceRepo domain.InvoiceFinancingRepository
+	supplierRiskRepo   domain.SupplierRiskProfileRepository
+	buyerRiskRepo      domain.BuyerRiskProfileRepository
+	collateralRepo     domain.CollateralRepository
+	guaranteeRepo      domain.GuaranteeRepository
+	repaymentPlanRepo  domain.RepaymentPlanRepository
+	accountRepo        domain.FinanceAccountRepository
+	riskCli            ftriskpb.RiskServiceClient
+	eventBus           messagequeue.EventBus
+	logger             *slog.Logger
 }
 
 // NewSupplyChainFinanceCommandService 创建供应链金融命令服务实例
@@ -42,38 +45,40 @@ func NewSupplyChainFinanceCommandService(
 	guaranteeRepo domain.GuaranteeRepository,
 	repaymentPlanRepo domain.RepaymentPlanRepository,
 	accountRepo domain.FinanceAccountRepository,
+	riskCli ftriskpb.RiskServiceClient,
 	eventBus messagequeue.EventBus,
 	logger *slog.Logger,
 ) *SupplyChainFinanceCommandService {
 	return &SupplyChainFinanceCommandService{
-		applicationRepo:     applicationRepo,
-		creditLineRepo:      creditLineRepo,
-		invoiceFinanceRepo:  invoiceFinanceRepo,
-		supplierRiskRepo:    supplierRiskRepo,
-		buyerRiskRepo:       buyerRiskRepo,
-		collateralRepo:      collateralRepo,
-		guaranteeRepo:       guaranteeRepo,
-		repaymentPlanRepo:   repaymentPlanRepo,
-		accountRepo:         accountRepo,
-		eventBus:            eventBus,
-		logger:              logger.With("module", "supplychainfinance_command"),
+		applicationRepo:    applicationRepo,
+		creditLineRepo:     creditLineRepo,
+		invoiceFinanceRepo: invoiceFinanceRepo,
+		supplierRiskRepo:   supplierRiskRepo,
+		buyerRiskRepo:      buyerRiskRepo,
+		collateralRepo:     collateralRepo,
+		guaranteeRepo:      guaranteeRepo,
+		repaymentPlanRepo:  repaymentPlanRepo,
+		accountRepo:        accountRepo,
+		riskCli:            riskCli,
+		eventBus:           eventBus,
+		logger:             logger.With("module", "supplychainfinance_command"),
 	}
 }
 
 // ApplyFinanceCmd 融资申请命令
 type ApplyFinanceCmd struct {
-	ApplicantID     string                    `json:"applicant_id" validate:"required"`
-	ApplicantName   string                    `json:"applicant_name" validate:"required"`
-	ApplicantType   string                    `json:"applicant_type" validate:"required"`
-	FinanceType     domain.FinanceType        `json:"finance_type" validate:"required"`
-	RequestedAmount float64                   `json:"requested_amount" validate:"required,gt=0"`
-	Currency        string                    `json:"currency" validate:"required"`
-	TermDays        int                       `json:"term_days" validate:"required,gt=0"`
-	Purpose         string                    `json:"purpose" validate:"required"`
-	InvoiceInfo     *InvoiceInfo              `json:"invoice_info,omitempty"`
-	OrderInfo       *OrderInfo                `json:"order_info,omitempty"`
-	CollateralInfo  []*CollateralInfo         `json:"collateral_info,omitempty"`
-	GuaranteeInfo   []*GuaranteeInfo          `json:"guarantee_info,omitempty"`
+	ApplicantID     string             `json:"applicant_id" validate:"required"`
+	ApplicantName   string             `json:"applicant_name" validate:"required"`
+	ApplicantType   string             `json:"applicant_type" validate:"required"`
+	FinanceType     domain.FinanceType `json:"finance_type" validate:"required"`
+	RequestedAmount float64            `json:"requested_amount" validate:"required,gt=0"`
+	Currency        string             `json:"currency" validate:"required"`
+	TermDays        int                `json:"term_days" validate:"required,gt=0"`
+	Purpose         string             `json:"purpose" validate:"required"`
+	InvoiceInfo     *InvoiceInfo       `json:"invoice_info,omitempty"`
+	OrderInfo       *OrderInfo         `json:"order_info,omitempty"`
+	CollateralInfo  []*CollateralInfo  `json:"collateral_info,omitempty"`
+	GuaranteeInfo   []*GuaranteeInfo   `json:"guarantee_info,omitempty"`
 }
 
 // InvoiceInfo 发票信息（用于发票融资）
@@ -89,31 +94,31 @@ type InvoiceInfo struct {
 
 // OrderInfo 订单信息（用于订单融资）
 type OrderInfo struct {
-	OrderID        string  `json:"order_id" validate:"required"`
-	OrderNumber    string  `json:"order_number" validate:"required"`
-	OrderAmount    float64 `json:"order_amount" validate:"required,gt=0"`
-	BuyerID        string  `json:"buyer_id" validate:"required"`
-	BuyerName      string  `json:"buyer_name" validate:"required"`
-	DeliveryDate   string  `json:"delivery_date" validate:"required"`
+	OrderID      string  `json:"order_id" validate:"required"`
+	OrderNumber  string  `json:"order_number" validate:"required"`
+	OrderAmount  float64 `json:"order_amount" validate:"required,gt=0"`
+	BuyerID      string  `json:"buyer_id" validate:"required"`
+	BuyerName    string  `json:"buyer_name" validate:"required"`
+	DeliveryDate string  `json:"delivery_date" validate:"required"`
 }
 
 // CollateralInfo 抵押品信息
 type CollateralInfo struct {
 	CollateralType domain.CollateralType `json:"collateral_type" validate:"required"`
-	Description    string                 `json:"description" validate:"required"`
-	OriginalValue  float64                `json:"original_value" validate:"required,gt=0"`
-	Currency       string                 `json:"currency" validate:"required"`
-	Location       string                 `json:"location"`
-	Custodian      string                 `json:"custodian"`
+	Description    string                `json:"description" validate:"required"`
+	OriginalValue  float64               `json:"original_value" validate:"required,gt=0"`
+	Currency       string                `json:"currency" validate:"required"`
+	Location       string                `json:"location"`
+	Custodian      string                `json:"custodian"`
 }
 
 // GuaranteeInfo 担保信息
 type GuaranteeInfo struct {
-	GuarantorID   string                `json:"guarantor_id" validate:"required"`
-	GuarantorName string                `json:"guarantor_name" validate:"required"`
-	GuaranteeType domain.GuaranteeType  `json:"guarantee_type" validate:"required"`
-	Amount        float64               `json:"amount" validate:"required,gt=0"`
-	Currency      string                `json:"currency" validate:"required"`
+	GuarantorID   string               `json:"guarantor_id" validate:"required"`
+	GuarantorName string               `json:"guarantor_name" validate:"required"`
+	GuaranteeType domain.GuaranteeType `json:"guarantee_type" validate:"required"`
+	Amount        float64              `json:"amount" validate:"required,gt=0"`
+	Currency      string               `json:"currency" validate:"required"`
 }
 
 // ApplyFinance 提交融资申请
@@ -186,6 +191,19 @@ func (s *SupplyChainFinanceCommandService) ApplyFinance(ctx context.Context, cmd
 		}
 	}
 
+	// 异步或同步请求金融交易系统的风控评估
+	riskResp, err := s.riskCli.AssessRisk(ctx, &ftriskpb.AssessRiskRequest{
+		UserId:   cmd.ApplicantID,
+		Symbol:   "SCF_FINANCE", // 虚拟 Symbol 用于风控引擎识别业务类型
+		Quantity: fmt.Sprintf("%f", cmd.RequestedAmount),
+	})
+	if err == nil && riskResp != nil {
+		score, _ := decimal.NewFromString(riskResp.RiskScore)
+		application.SetRiskAssessment(domain.RiskLevel(riskResp.RiskLevel), score)
+	} else {
+		s.logger.WarnContext(ctx, "failed to call FT risk assessment", "error", err)
+	}
+
 	// 提交申请
 	application.Submit()
 
@@ -203,7 +221,7 @@ func (s *SupplyChainFinanceCommandService) ApplyFinance(ctx context.Context, cmd
 
 // ApproveFinanceCmd 审批融资申请命令
 type ApproveFinanceCmd struct {
-	ApplicationID string  `json:"application_id" validate:"required"`
+	ApplicationID  string  `json:"application_id" validate:"required"`
 	ApprovedAmount float64 `json:"approved_amount" validate:"required,gt=0"`
 	InterestRate   float64 `json:"interest_rate" validate:"required,gt=0"`
 	FeeAmount      float64 `json:"fee_amount" validate:"gte=0"`
@@ -255,7 +273,7 @@ func (s *SupplyChainFinanceCommandService) ApproveFinance(ctx context.Context, c
 			DisbursementAmount: decimal.NewFromFloat(cmd.ApprovedAmount - cmd.FeeAmount),
 			OutstandingAmount:  decimal.NewFromFloat(cmd.ApprovedAmount - cmd.FeeAmount),
 			Status:             domain.FinanceStatusApproved,
-			MaturityDate:        time.Now().AddDate(0, 0, application.TermDays),
+			MaturityDate:       time.Now().AddDate(0, 0, application.TermDays),
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
 		}
@@ -272,14 +290,14 @@ func (s *SupplyChainFinanceCommandService) ApproveFinance(ctx context.Context, c
 
 // CreateCreditLineCmd 创建授信额度命令
 type CreateCreditLineCmd struct {
-	OwnerID    string  `json:"owner_id" validate:"required"`
-	OwnerName  string  `json:"owner_name" validate:"required"`
-	OwnerType  string  `json:"owner_type" validate:"required"`
-	TotalLimit float64 `json:"total_limit" validate:"required,gt=0"`
-	Currency   string  `json:"currency" validate:"required"`
+	OwnerID      string  `json:"owner_id" validate:"required"`
+	OwnerName    string  `json:"owner_name" validate:"required"`
+	OwnerType    string  `json:"owner_type" validate:"required"`
+	TotalLimit   float64 `json:"total_limit" validate:"required,gt=0"`
+	Currency     string  `json:"currency" validate:"required"`
 	InterestRate float64 `json:"interest_rate" validate:"gt=0"`
-	AnnualFee   float64 `json:"annual_fee" validate:"gte=0"`
-	EffectiveTo string  `json:"effective_to" validate:"required"`
+	AnnualFee    float64 `json:"annual_fee" validate:"gte=0"`
+	EffectiveTo  string  `json:"effective_to" validate:"required"`
 }
 
 // CreateCreditLine 创建授信额度
@@ -325,10 +343,10 @@ func (s *SupplyChainFinanceCommandService) CreateCreditLine(ctx context.Context,
 
 // RepayFinanceCmd 还款命令
 type RepayFinanceCmd struct {
-	FinancingID string  `json:"financing_id" validate:"required"`
-	Amount      float64 `json:"amount" validate:"required,gt=0"`
-	RepaymentMethod string `json:"repayment_method" validate:"required"`
-	ReferenceNo    string `json:"reference_no"`
+	FinancingID     string  `json:"financing_id" validate:"required"`
+	Amount          float64 `json:"amount" validate:"required,gt=0"`
+	RepaymentMethod string  `json:"repayment_method" validate:"required"`
+	ReferenceNo     string  `json:"reference_no"`
 }
 
 // RepayFinance 执行还款
@@ -366,8 +384,3 @@ func (s *SupplyChainFinanceCommandService) RepayFinance(ctx context.Context, cmd
 		"financing_id", cmd.FinancingID, "amount", cmd.Amount, "duration", time.Since(start))
 	return nil
 }
-
-// 导入必要的包
-import (
-	"github.com/shopspring/decimal"
-)

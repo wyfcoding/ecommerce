@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package procurement.v1;
 
-import "google/protobuf/timestamp.proto";
-
 option go_package = "github.com/wyfcoding/ecommerce/api/procurement/v1;procurementv1";
 
 // ProcurementService 采购服务

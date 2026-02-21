@@ -45,6 +45,9 @@ type Payment struct {
 	CancelledAt    *time.Time    `json:"cancelled_at"`
 	RefundedAt     *time.Time    `json:"refunded_at"`
 	PersistenceVer int64         `json:"version"`
+	DeviceID       string        `json:"device_id"`
+	SessionID      string        `json:"session_id"`
+	UserEmail      string        `json:"user_email"`
 
 	fsm     *fsm.Machine[string, string] `json:"-"`
 	Logs    []*PaymentLog                `json:"logs"`
@@ -352,6 +355,7 @@ type PaymentRepository interface {
 	FindByID(ctx context.Context, userID uint64, id uint64) (*Payment, error)
 	FindByPaymentNo(ctx context.Context, userID uint64, paymentNo string) (*Payment, error)
 	FindByOrderID(ctx context.Context, userID uint64, orderID uint64) (*Payment, error)
+	GetPaymentHistory(ctx context.Context, userID uint64, days int) ([]*Payment, error)
 	Save(ctx context.Context, payment *Payment) error
 	Update(ctx context.Context, payment *Payment) error
 	SaveLog(ctx context.Context, log *PaymentLog) error
